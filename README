@@ -1,6 +1,6 @@
 This is the README file for MCclassifier
 
-Copyright (C) 2015 Pawel Gajer (pgajer@gmail.com) and Jacques Ravel (jravel@som.umaryland.edu)
+Copyright (C) 2016 Pawel Gajer (pgajer@gmail.com) and Jacques Ravel (jravel@som.umaryland.edu)
 
 Permission to use, copy, modify, and distribute this software and its
 documentation with or without modifications and for any purpose and
@@ -56,7 +56,7 @@ Usage
 Here is an example of running classify on a fasta file of 10,000 vaginal Illumina
 sequences from the V3-V4 region
 
-   classify -i test10k.fa -d vaginal_319_806_rc_MCo7p2 -o mcDir
+   classify --rev-comp -i test10k.fa -d vaginal_319_806_rc_MCo7p2 -o mcDir
 
 A count_tbl.pl scrip (located in the bin directory) can be used to generate a
 sample x count contingency table
