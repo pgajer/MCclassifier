@@ -2,7 +2,7 @@
 #define STATUTILITIES_HH
 
 /*
-Copyright (C) 2015 Pawel Gajer pgajer@gmail.com
+Copyright (C) 2015 Pawel Gajer pgajer@gmail.com and Jacques Ravel jravel@som.umaryland.edu
 
 Permission to use, copy, modify, and distribute this software and its
 documentation with or without modifications and for any purpose and

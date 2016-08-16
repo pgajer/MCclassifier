@@ -2,7 +2,7 @@
 #define MARKOVCHAINS2_HH
 
 /*
-Copyright (C) 2015 Pawel Gajer pgajer@gmail.com
+Copyright (C) 2016 Pawel Gajer pgajer@gmail.com and Jacques Ravel jravel@som.umaryland.edu
 
 Permission to use, copy, modify, and distribute this software and its
 documentation with or without modifications and for any purpose and
@@ -135,6 +135,7 @@ public:
 
   void sample( const char *faFile, const char *txFile, int sampleSize, int seqLen=534 ); /// random samples from MC models
   void sample( char ***_seqTbl, int modelIdx, int sampleSize, int seqLen=534 );
+  void sampleMF( char **seqTbl, int modelIdx, int sampleSize, int seqLen );
   void sample( char ***_seqTbl, map<string, string> &refSeqs, int modelIdx, int sampleSize, int seqLen );
 
   void printCounts( bool x ) { printCounts_m = x; }
@@ -186,6 +187,8 @@ private:
   int pseudoCountType_m;
   char *seq_m;                /// sequence with seqID to be selected for leave-one-out validation
   int seqLen_m;               /// length of seq_m
+  vector<char *> nucs_m;      /// vector of all k-mers
+  double *cProb_m;            /// variable holding posterior probabilities of a model
 
   // ambiguity vectors
   vector<int> Rcode_m;

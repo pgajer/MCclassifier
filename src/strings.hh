@@ -2,7 +2,7 @@
 #define STRINGS_H
 
 /*
-Copyright (C) 2015 Pawel Gajer (pgajer@gmail.com) and Adam Phillippy
+Copyright (C) 2016 Pawel Gajer (pgajer@gmail.com), Adam Phillippy and Jacques Ravel jravel@som.umaryland.edu
 
 Permission to use, copy, modify, and distribute this software and its
 documentation with or without modifications and for any purpose and
