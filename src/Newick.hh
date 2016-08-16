@@ -7,10 +7,8 @@
 // Author: Adam Phillippy
 // Modifications: Pawel Gajer
 
-// Author: Adam Phillippy
-
 /*
-Copyright (C) 2015 Pawel Gajer (pgajer@gmail.com) and Adam Phillippy
+Copyright (C) 2016 Pawel Gajer (pgajer@gmail.com), Adam Phillippy and Jacques Ravel jravel@som.umaryland.edu
 
 Permission to use, copy, modify, and distribute this software and its
 documentation with or without modifications and for any purpose and
@@ -82,14 +80,17 @@ public:
   void writeTree(FILE * fp);
   void writeTree(FILE * fp, NewickNode_t *node);
   void writeTree(FILE * fp, const string &nodeLabel);
-  void printTree(bool withIdx=false); // prints tree to stdout; different depths are differen indentation level
+  void printTree(bool withIdx=false, const char *indStr="  "); // prints tree to stdout; different depths are differen indentation level
 
   void modelIdx( vector<string> &modelIds );
 
   void indexNewickNodes(map<int, NewickNode_t*> &idx2node);
+
   char **leafLabels();
   void leafLabels(NewickNode_t *_node, vector<string> &leaves);
   void leafLabels(NewickNode_t *_node, set<string> &leaves);
+  void leafLabels(NewickNode_t *_node, vector<NewickNode_t *> &leaves);
+  void leafLabels(NewickNode_t *_node, vector<NewickNode_t *> &leaves, NewickNode_t *selNode);
 
   void assignIntNodeNames();
 
