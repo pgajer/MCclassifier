@@ -1,5 +1,5 @@
 /*
-Copyright (C) 2015 Pawel Gajer pgajer@gmail.com
+Copyright (C) 2016 Pawel Gajer pgajer@gmail.com and Jacques Ravel jravel@som.umaryland.edu
 
 Permission to use, copy, modify, and distribute this software and its
 documentation with or without modifications and for any purpose and
@@ -73,11 +73,14 @@ MarkovChains2_t::MarkovChains2_t(int order,
 {
   int maxWordLen = order_m+1;
 
+  getAllKmers( 1, nucs_m );
+
   // wordStrgs_m is needed only for the header of cProbFile_m's
   wordStrgs_m.resize(maxWordLen);
   for ( int k = 1; k <= maxWordLen; ++k )
     getAllKmers(k, wordStrgs_m[k-1]);
 
+  MALLOC(cProb_m, double*, nAllWords_m * sizeof(double));
   #if 0
   cerr << "in MarkovChains2_t::MarkovChains2_t() order_m=" << order_m
        << "\tmaxWordLen=" << maxWordLen
@@ -112,6 +115,9 @@ MarkovChains2_t::MarkovChains2_t(int order,
     }
 
     createMooreMachine();
+
+    MALLOC(cProb_m, double*, nAllWords_m * sizeof(double));
+
     initIUPACambCodeHashVals();
     bool ok = false;
 
@@ -167,6 +173,8 @@ MarkovChains2_t::MarkovChains2_t(int order,
   : order_m(order), dir_m(dir),  maxNumAmbCodes_m(maxNumAmbCodes), pseudoCountType_m(pseudoCountType)
 {
   int maxWordLen = order_m+1;
+
+  getAllKmers( 1, nucs_m );
 
   // wordStrgs_m is needed only for the header of cProbFile_m's
   wordStrgs_m.resize(maxWordLen);
@@ -288,6 +296,11 @@ MarkovChains2_t::~MarkovChains2_t()
   if ( (n=modelIds_m.size()) )
     for ( unsigned i = 0; i < n; ++i )
       free(modelIds_m[i]);
+
+  for ( int i = 0; i < 4; ++i )
+    free(nucs_m[i]);
+
+  free(cProb_m);
 }
 
 //------------------------------------------------------------------- setupIOfiles ----
@@ -1881,6 +1894,105 @@ void MarkovChains2_t::sample( char ***_seqTbl, int modelIdx, int sampleSize, int
   }
 
   *_seqTbl = seqTbl;
+}
+
+
+
+//------------------------------------------------------ sampleMF ----
+/// generating 'sampleSize' random samples from an MC model with a given model index
+/// assuming the user allocated memory for seqTbl
+void MarkovChains2_t::sampleMF( char **seqTbl, int modelIdx, int sampleSize, int seqLen )
+{
+  //-- setting up cProb table so we don't have to do pow(10.0, - ) during sampling
+  // double *cProb;
+  // MALLOC(cProb, double*, nAllWords_m * sizeof(double));
+  for ( int j = 0; j < nAllWords_m; ++j )
+      cProb_m[j] = pow(10.0, log10cProb_m[modelIdx][j]);
+
+  #if 0
+  for( int l = 1; l < maxWordLen; ++l )
+  {
+    lL = hashUL_m[l-1]; // lower limit for hash values of k-mers of length l
+    lU = hashUL_m[l];   // upper limit for hash values of k-mers of length l
+    for ( int v = lL; v < lU; ++v )
+    {
+      for ( int i = 0; i < nNucs; ++i )
+      {
+	tr_m[v][i] = v + p4*(1 + i);
+      }
+    }
+  }
+  #endif
+
+  int nNucs    = 4;
+  int intMers[4];
+  int intB; // hash value of chosed base
+  int v;    // k-mer hash int value
+  double u; // random number in [0,1]
+
+  // vector<char *> nucs;
+  // getAllKmers( 1, nucs );
+
+  // initialize random seed so that consecutive calls of rand() do not generate similar numbers
+  srand( rand() );
+  srand( rand() );
+
+  for ( int s = 0; s < sampleSize; s++ )
+  {
+    u = (double)rand() / RAND_MAX;
+
+    // 1-mers
+    if ( u < cProb_m[0] )
+      intB = 0;
+    else if ( u < cProb_m[0] + cProb_m[1] )
+      intB = 1;
+    else if ( u < cProb_m[0] + cProb_m[1] + cProb_m[2] )
+      intB = 2;
+    else
+      intB = 3;
+
+#if 0
+    cerr << "cummProbs: " << cProb_m[0] << ", "
+	 <<  (cProb_m[0] + cProb_m[1]) << ", "
+	 <<  (cProb_m[0] + cProb_m[1] + cProb_m[2])
+	 << endl;
+    cerr << "\nu=" << u << "\tintB=" << intB << "\tnuc=" << nucs_m[intB] << endl;
+#endif
+
+    v = intB;
+    seqTbl[s][0] = nucs_m[intB][0];
+
+    // k-mers; k>1
+    for( int i = 1; i < seqLen; ++i )
+    {
+      for ( int j = 0; j < nNucs; j++ )
+	intMers[j] = tr_m[v][j];
+
+      srand( rand() );
+      srand( rand() );
+      u = (double)rand() / RAND_MAX;
+
+      if ( u < cProb_m[intMers[0]] )
+	intB = 0;
+      else if ( u < cProb_m[intMers[0]] + cProb_m[intMers[1]] )
+	intB = 1;
+      else if ( u < cProb_m[intMers[0]] + cProb_m[intMers[1]] + cProb_m[intMers[2]] )
+	intB = 2;
+      else
+	intB = 3;
+
+      seqTbl[s][i] = nucs_m[intB][0];
+
+#if 0
+	cerr << "\ncummProbs: " << cProb_m[intMers[0]] << ", "
+	     <<  (cProb_m[intMers[0]] + cProb_m[intMers[1]]) << ", "
+	     <<  (cProb_m[intMers[0]] + cProb_m[intMers[1]] + cProb_m[intMers[2]])
+	     << endl;
+	cerr << "u=" << u << "\tintB=" << intB << "\tnuc=" << nucs_m[intB] << endl;
+#endif
+	v = intMers[intB];
+    }
+  }
 }
 
 

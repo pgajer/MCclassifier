@@ -1,7 +1,7 @@
 // Author: Adam Phillippy
 
 /*
-Copyright (C) 2015 Pawel Gajer (pgajer@gmail.com) and Adam Phillippy
+Copyright (C) 2016 Pawel Gajer (pgajer@gmail.com), Adam Phillippy and Jacques Ravel jravel@som.umaryland.edu
 
 Permission to use, copy, modify, and distribute this software and its
 documentation with or without modifications and for any purpose and
@@ -36,22 +36,33 @@ using namespace std;
 
 #define DEBUG 0
 
-
 //--------------------------------------------- NewickNode_t() -----
 NewickNode_t::NewickNode_t(NewickNode_t * parent)
   : parent_m(parent)
 {
   #if DEBUG
-  fprintf(stderr,"in NewickTree_t(parent)\n");
+  fprintf(stderr,"in NewickTree_t(parent)\t(parent==NULL)=%d\n",(int)(parent==NULL));
   #endif
+
   if (parent==NULL)
   {
-    depth_m = 0;
-   }
-   else
-   {
-     depth_m = parent->depth_m+1;
-   }
+    #if DEBUG
+    fprintf(stderr,"in if(parent==NULL)\n");
+    #endif
+    depth_m = -1;
+  }
+  else
+  {
+    #if DEBUG
+    fprintf(stderr,"in else\n");
+    #endif
+    depth_m = parent->depth_m+1;
+  }
+
+  #if DEBUG
+  fprintf(stderr,"leaving NewickTree_t(parent)\tdepth_m: %d\n", depth_m);
+  #endif
+
 }
 
 //--------------------------------------------- ~NewickNode_t() -----
@@ -71,10 +82,18 @@ NewickNode_t * NewickNode_t::addChild()
   #endif
 
   NewickNode_t * child = new NewickNode_t(this);
-  if (this)
-  {
-    children_m.push_back(child);
-  }
+
+
+  #if DEBUG
+  fprintf(stderr,"before children_m.size()\n");
+  //fprintf(stderr,"children_m.size()=%d\n",(int)children_m.size());
+  #endif
+
+  children_m.push_back(child);
+
+  #if DEBUG
+  fprintf(stderr,"leaving addChild()\n");
+  #endif
 
   return child;
 }
@@ -98,7 +117,7 @@ NewickTree_t::~NewickTree_t()
 //--------------------------------------------- loadFullTxTree -----
 void NewickTree_t::loadFullTxTree(const char *file) // file holds fullTx table
 {
-  #define DEBUG_LFTT 1
+  #define DEBUG_LFTT 0
 
   #if DEBUG_LFTT
   fprintf(stderr, "in NewickTree_t::loadFullTxTree()\n");
@@ -168,6 +187,7 @@ void NewickTree_t::loadFullTxTree(const char *file) // file holds fullTx table
   map< string, NewickNode_t* > tx2node; // this will leak memory as map<> is not going to free NewickNode_t objects members
   root_m = new NewickNode_t();
   root_m->label = string("d_Bacteria");
+  root_m->branch_length = 0.0;
   tx2node["d_Bacteria"] = root_m;
 
   int n = txRank.size();
@@ -179,6 +199,7 @@ void NewickTree_t::loadFullTxTree(const char *file) // file holds fullTx table
     {
       tx2node[ *it ] = new NewickNode_t();
       tx2node[ *it ]->label = *it;
+      tx2node[ *it ]->branch_length = 0.0;
     }
   }
 
@@ -202,6 +223,8 @@ void NewickTree_t::loadFullTxTree(const char *file) // file holds fullTx table
       node->children_m.push_back( tx2node[*it] );
       tx2node[*it]->depth_m = node->depth_m + 1;
       tx2node[*it]->parent_m = node;
+      tx2node[*it]->branch_length = 0.0;
+      node->branch_length = 0.0;
     }
   } // end of while ( !bfs.empty() )
 
@@ -399,17 +422,19 @@ bool NewickTree_t::loadTree(const char *file)
   FILE * fp = fOpen(file, "r");
 
   char str[256];
-  NewickNode_t * cur = NULL;
+  NewickNode_t * cur = new NewickNode_t();
   int LINE = 1;
   char c;
   bool DONE = false;
   int leafIdx = 0;
+  int count = 0;
 
   while ((c = fgetc(fp)) != EOF)
   {
     #if DEBUGLT
-    fprintf(stderr,"c=|%c|\n", c);
+    fprintf(stderr,"c=|%c|\tcount=%d\t(cur==NULL)=%d\n", c, count,(int)(cur==NULL));
     #endif
+    count++;
 
     if (c == ';')  { DONE = true;}
     else if (c == '\n') { LINE++; }
@@ -651,6 +676,9 @@ int NewickTree_t::getDepth()
     int d = depth.front();
     depth.pop_front();
 
+    if ( maxDepth < d )
+      maxDepth = d;
+
     int numChildren = node->children_m.size();
     if ( numChildren>0 )
     {
@@ -660,8 +688,8 @@ int NewickTree_t::getDepth()
 	depth.push_front(d+1);
       }
 
-      if ( maxDepth < d+1 )
-	maxDepth = d+1;
+      //if ( maxDepth < d+1 )
+      // maxDepth = d+1;
     }
   }
 
@@ -669,7 +697,7 @@ int NewickTree_t::getDepth()
 }
 
 //--------------------------------------------- printTree -----
-void NewickTree_t::printTree(bool withIdx)
+void NewickTree_t::printTree(bool withIdx, const char *indStr)
 {
   if (root_m == NULL)
   {
@@ -678,10 +706,14 @@ void NewickTree_t::printTree(bool withIdx)
 
   // Determine the depth of the tree
   int maxDepth = getDepth();
+
+  printf("\nmaxDepth: %d\n\n", maxDepth);
+
   maxDepth++;
+  //maxDepth++;
 
   // Set up indent array of indentation strings
-  const char *indStr="  ";
+  //const char *indStr="  ";
   int indStrLen = strlen(indStr);
 
   char **indent = (char **)malloc(maxDepth * sizeof(char*));
@@ -712,7 +744,8 @@ void NewickTree_t::printTree(bool withIdx)
       if ( withIdx )
 	printf("%s%s(%d)\n",indent[node->depth_m],node->label.c_str(), node->idx);
       else
-	printf("%s%s\n",indent[node->depth_m],node->label.c_str());
+	//printf("%s%s\n",indent[node->depth_m],node->label.c_str());
+	printf("(%d)%s%s\n",node->depth_m,indent[node->depth_m],node->label.c_str());
     }
     else
     {
@@ -728,7 +761,8 @@ void NewickTree_t::printTree(bool withIdx)
 	if ( node->label.empty() )
 	  printf("%s*\n",indent[node->depth_m]);
 	else
-	  printf("%s%s\n",indent[node->depth_m],node->label.c_str());
+	  //printf("%s%s\n",indent[node->depth_m],node->label.c_str());
+	  printf("(%d)%s%s\n",node->depth_m,indent[node->depth_m],node->label.c_str());
       }
 
       for (int i = 0; i < numChildren; i++)
@@ -2089,6 +2123,67 @@ void NewickTree_t::leafLabels(NewickNode_t *_node, vector<string> &leaves)
 
 
 //--------------------------------------------- leafLabels -----
+// Given a node in the tree, the routine returns a vector of pointes to leaf nodes
+// of the subtree rooted at 'node'.
+void NewickTree_t::leafLabels(NewickNode_t *_node, vector<NewickNode_t *> &leaves)
+{
+  queue<NewickNode_t *> bfs;
+  bfs.push(_node);
+  NewickNode_t *node;
+
+  while ( !bfs.empty() )
+  {
+    node = bfs.front();
+    bfs.pop();
+
+    int numChildren = node->children_m.size();
+    if ( numChildren==0 ) // leaf
+    {
+      leaves.push_back( node );
+    }
+    else
+    {
+      for (int i = 0; i < numChildren; i++)
+      {
+	bfs.push(node->children_m[i]);
+      }
+    }
+  }
+}
+
+
+//--------------------------------------------- leafLabels -----
+// Given a node in the tree, the routine returns a vector of pointes to leaf nodes
+// (excluding a selected node) of the subtree rooted at 'node'.
+void NewickTree_t::leafLabels(NewickNode_t *_node, vector<NewickNode_t *> &leaves, NewickNode_t *selNode)
+{
+  queue<NewickNode_t *> bfs;
+  bfs.push(_node);
+  NewickNode_t *node;
+
+  while ( !bfs.empty() )
+  {
+    node = bfs.front();
+    bfs.pop();
+
+    int numChildren = node->children_m.size();
+    if ( numChildren==0 ) // leaf
+    {
+      if ( node != selNode )
+	leaves.push_back( node );
+    }
+    else
+    {
+      for (int i = 0; i < numChildren; i++)
+      {
+	bfs.push(node->children_m[i]);
+      }
+    }
+  }
+}
+
+
+//--------------------------------------------- leafLabels -----
 // Given a node in the tree, the routine gives leaf labels
 // of the subtree rooted at 'node'.
 void NewickTree_t::leafLabels(NewickNode_t *_node, set<string> &leaves)
@@ -2605,9 +2700,11 @@ void NewickTree_t::modelIdx( vector<string> &modelIds )
       it = modelIdx.find( node->label );
       if ( it != modelIdx.end() )
 	node->model_idx = modelIdx[ node->label ];
+      #if 0
       else
 	fprintf(stderr, "ERROR in %s at line %d: Node label %s not found in modelIds\n",
 		__FILE__, __LINE__, (node->label).c_str());
+      #endif
     }
 
     int numChildren = node->children_m.size();

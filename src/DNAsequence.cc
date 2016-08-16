@@ -1,5 +1,5 @@
 /*
-Copyright (C) 2015 Pawel Gajer pgajer@gmail.com
+Copyright (C) 2016 Pawel Gajer pgajer@gmail.com, Adam M Phillippy and Jacques Ravel jravel@som.umaryland.edu
 
 Permission to use, copy, modify, and distribute this software and its
 documentation with or without modifications and for any purpose and

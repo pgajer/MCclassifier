@@ -1,5 +1,5 @@
 /*
-Copyright (C) 2015 Pawel Gajer pgajer@gmail.com
+Copyright (C) 2016 Pawel Gajer pgajer@gmail.com and Jacques Ravel jravel@som.umaryland.edu
 
 Permission to use, copy, modify, and distribute this software and its
 documentation with or without modifications and for any purpose and
@@ -60,6 +60,7 @@ void printUsage( const char *s )
        << "\t-e <seqID>    - sequence ID of a sequence from the training fasta files that is to be excluded\n"
        << "                  from model building and needs to be used for cross validation\n"
 
+       << "\t--rev-comp, -c          - reverse complement query sequences before computing classification posterior probabilities\n"
        << "\t--max-num-amb-codes <n> - maximal acceptable number of ambiguity codes for a sequence\n"
        << "\t                          above this number sequence's log10prob() is not computed and\n"
        << "\t                          the sequence's id it appended to <genus>_more_than_<n>_amb_codes_reads.txt file.\n"
@@ -69,8 +70,10 @@ void printUsage( const char *s )
        << "\t                               f=2 the pseudocounts for a order k+1 model be alpha*probabilities from\n"
        << "\t                                   an order k model, recursively down to pseudocounts of alpha/num_letters\n"
        << "\t                                   for an order 0 model.\n"
-       << "\t-v - verbose mode\n\n"
-       << "\t-h|--help      - this message\n\n"
+       << "\t--print-nc-probs, -s - print to files <tx>_true_ncProbs.txt, <tx>_false_ncProbs.txt, where <tx> are all taxons present in reference data,\n"
+       << "\t                       normalized conditional probabilities for tuning threshold values of taxon assignment\n"
+       << "\t-v                   - verbose mode\n\n"
+       << "\t-h|--help            - this message\n\n"
 
        << "\tConditional probabitity tables are store in\n"
        << "\t<file_i>.MC<order>.log10cProb\n\n"
@@ -141,7 +144,9 @@ public:
   int randSampleSize;       /// number of random sequences of each model (seq length = mean ref seq). If 0, no random samples will be generated.
   int pseudoCountType;      /// pseudo-count type; see MarkovChains2.hh for possible values
   bool verbose;
+  bool printNCprobs;        /// if true, the program prints to files normalized conditional probabilities for tuning threshold values of taxon assignment
   int dimProbs;             /// max dimension of probs
+  bool revComp;             /// reverse-complement query sequences before processing
 
   void print();
 };
@@ -163,7 +168,9 @@ inPar2_t::inPar2_t()
   randSampleSize  = 0;
   pseudoCountType = recPdoCount;
   dimProbs        = 0;
+  printNCprobs    = false;
   verbose         = false;
+  revComp         = false;
 }
 
 //------------------------------------------------- constructor ----
@@ -263,6 +270,7 @@ bool dComp (double i, double j) { return (i>j); }
 int main(int argc, char **argv)
 {
   #define DEBUGMAIN 0
+  #define DEBUGMAIN1 0
 
   struct timeval  tvStart, tvCurrent;
   gettimeofday(&tvStart, NULL);
@@ -339,101 +347,105 @@ int main(int argc, char **argv)
     string inFile(inPar->mcDir);
     inFile += "/modelIds.txt";
     FILE *in = fopen(inFile.c_str(), "r");
-    if ( !in )
+    // if ( !in )
+    // {
+    //   cerr << "Cannot read model ids in " << __FILE__ << " at line " << __LINE__ << endl;
+    //   exit(1);
+    // }
+    // fclose(in);
+
+    if ( in )
     {
-      cerr << "Cannot read model ids in " << __FILE__ << " at line " << __LINE__ << endl;
-      exit(1);
-    }
-    fclose(in);
+      vector<char *> modelIds;
+      readLines(inFile.c_str(), modelIds);
+      nModels = modelIds.size();
 
-    vector<char *> modelIds;
-    readLines(inFile.c_str(), modelIds);
-    nModels = modelIds.size();
-
-    // reading ncProbThlds.txt file
-    {
-      string file = string(inPar->mcDir) + string("/ncProbThlds.txt");
-      double **thlds;
-      int nrow, ncol;
-      char **rowNames;
-      char **colNames;
-      readTable( file.c_str(), &thlds, &nrow, &ncol, &rowNames, &colNames );
-      for ( int i = 0; i < nrow; i++ )
-	thldTbl[string(rowNames[i])] = thlds[i][0];
-
-      #if 0
-      map<string, double>::iterator it;
-      cerr << "thldTbl" << endl;
-      for ( it = thldTbl.begin(); it != thldTbl.end(); it++ )
-	cerr << it->first << "\t" << it->second << endl;
-      cerr << endl;
-      exit(1);
-      #endif
-    }
-
-    #if 1
-    // reading _error.txt files
-    for ( int i = 0; i < nModels; ++i )
-    {
-      string file = string(inPar->mcDir) + string("/") + string(modelIds[i]) + string("_error.txt");
-      double **errTbl;
-      int nrow, ncol;
-      int header = 0;
-      readMatrix( file.c_str(), &errTbl, &nrow, &ncol, header );
-
-      errTbl_t *errObj = new errTbl_t;
-      errObj->errTbl = errTbl;
-      errObj->nrow = nrow;
-
-      if ( ncol != 2 )
+      if ( !inPar->skipErrThld )
       {
-	fprintf(stderr, "ERROR in %s at line %d: errTbl should have two columns and ncol=%d", __FILE__, __LINE__, ncol);
-	fprintf(stderr, "%s: \n", modelIds[i]);
-	printDblTbl(errTbl, nrow, ncol);
+	// reading ncProbThlds.txt file
+	string file = string(inPar->mcDir) + string("/ncProbThlds.txt");
+	double **thlds;
+	int nrow, ncol;
+	char **rowNames;
+	char **colNames;
+	readTable( file.c_str(), &thlds, &nrow, &ncol, &rowNames, &colNames );
+	for ( int i = 0; i < nrow; i++ )
+	  thldTbl[string(rowNames[i])] = thlds[i][0];
+
+#if 0
+	map<string, double>::iterator it;
+	cerr << "thldTbl" << endl;
+	for ( it = thldTbl.begin(); it != thldTbl.end(); it++ )
+	  cerr << it->first << "\t" << it->second << endl;
+	cerr << endl;
 	exit(1);
+#endif
+
+	// reading _error.txt files
+	for ( int i = 0; i < nModels; ++i )
+	{
+	  string file = string(inPar->mcDir) + string("/") + string(modelIds[i]) + string("_error.txt");
+	  double **errTbl;
+	  int nrow, ncol;
+	  int header = 0;
+	  readMatrix( file.c_str(), &errTbl, &nrow, &ncol, header );
+
+	  errTbl_t *errObj = new errTbl_t;
+	  errObj->errTbl = errTbl;
+	  errObj->nrow = nrow;
+
+	  if ( ncol != 2 )
+	  {
+	    fprintf(stderr, "ERROR in %s at line %d: errTbl should have two columns and ncol=%d", __FILE__, __LINE__, ncol);
+	    fprintf(stderr, "%s: \n", modelIds[i]);
+	    printDblTbl(errTbl, nrow, ncol);
+	    exit(1);
+	  }
+
+	  errObj->thld = errTbl[0][0];
+
+	  MALLOC(errObj->x, double*, nrow * sizeof(double));
+	  for ( int j = 0; j < nrow; ++j )
+	    errObj->x[j] = errTbl[j][0];
+
+	  errObj->xmax = errTbl[nrow-1][0];
+
+	  modelErrTbl[ modelIds[i] ] = errObj;
+
+	  // fprintf(stderr, "%s: \n", modelIds[i]);
+	  // printDblTbl(errTbl, nrow, ncol);
+	  // fprintf(stderr, "\nthld=%f\n", errObj->thld);
+	  // exit(1);
+	}
       }
 
-      errObj->thld = errTbl[0][0];
 
-      MALLOC(errObj->x, double*, nrow * sizeof(double));
-      for ( int j = 0; j < nrow; ++j )
-	errObj->x[j] = errTbl[j][0];
+      for ( int i = 0; i < nModels; ++i )
+	free(modelIds[i]);
 
-      errObj->xmax = errTbl[nrow-1][0];
-
-      modelErrTbl[ modelIds[i] ] = errObj;
-
-      // fprintf(stderr, "%s: \n", modelIds[i]);
-      // printDblTbl(errTbl, nrow, ncol);
-      // fprintf(stderr, "\nthld=%f\n", errObj->thld);
-      // exit(1);
-    }
-    #endif
-
-    for ( int i = 0; i < nModels; ++i )
-      free(modelIds[i]);
-
-    int k = 0;
-    char countStr[5];
-    sprintf(countStr,"%d",k);
-    string file = string(inPar->mcDir) + string("/MC") + string(countStr) + string(".log10cProb");
-
-    while ( exists( file.c_str() ) )
-    {
-      k++;
+      int k = 0;
+      char countStr[5];
       sprintf(countStr,"%d",k);
-      file = string(inPar->mcDir) + string("/MC") + string(countStr) + string(".log10cProb");
-    }
+      string file = string(inPar->mcDir) + string("/MC") + string(countStr) + string(".log10cProb");
 
-    if ( (inPar->kMerLens.size() && inPar->kMerLens[0] > k) )
-    {
-      inPar->kMerLens[0] = k;
-    }
-    else if ( !inPar->kMerLens.size() )
-    {
-      //inPar->kMerLens.clear();
-      inPar->kMerLens.push_back(k);
-    }
+      while ( exists( file.c_str() ) )
+      {
+	k++;
+	sprintf(countStr,"%d",k);
+	file = string(inPar->mcDir) + string("/MC") + string(countStr) + string(".log10cProb");
+      }
+
+      if ( (inPar->kMerLens.size() && inPar->kMerLens[0] > k) )
+      {
+	inPar->kMerLens[0] = k;
+      }
+      else if ( !inPar->kMerLens.size() )
+      {
+	//inPar->kMerLens.clear();
+	inPar->kMerLens.push_back(k);
+      }
+    } // end of if ( in )
+    fclose(in);
   }
   else if ( !inPar->mcDir && !inPar->trgFile )
   {
@@ -441,7 +453,6 @@ int main(int argc, char **argv)
     printHelp(argv[0]);
     exit(1);
   }
-
 
   NewickTree_t nt;
   if ( inPar->treeFile ) // load ref tree
@@ -466,6 +477,7 @@ int main(int argc, char **argv)
       exit(1);
     }
   }
+
 
   int depth = nt.getDepth();
   cerr << "--- Depth of the reference tree: " << depth << endl;
@@ -522,10 +534,15 @@ int main(int argc, char **argv)
   sprintf(str,"%d",(wordLen-1));
 
   // ==== computing probabilities of each sequence of inFile to come from each of the MC models ====
-  string outFile = string(inPar->outDir) + string("/") + string("MC.order") + string(str) + string(".results.txt");
+  string outFile = string(inPar->outDir) + string("/") + string("MC_order") + string(str) + string("_results.txt");
 
   #if DEBUGMAIN
   string debugFile = string(inPar->outDir) + string("/") + string("debug_log.txt");
+  FILE *debugout = fOpen(debugFile.c_str(), "w");
+  #endif
+
+  #if DEBUGMAIN1
+  FILE *debugout = stderr;
   #endif
 
   // double *aLogOdds;
@@ -537,10 +554,6 @@ int main(int argc, char **argv)
   //int depthCount;
   string currentLabel;
   double x[nModels]; // stores conditional probabilities p(x | M) for children of each node. the root node has 3 children
-
-  #if DEBUGMAIN
-  FILE *debugout = fOpen(debugFile.c_str(), "w");
-  #endif
 
   FILE *out = fOpen(outFile.c_str(), "w");
   FILE *in = fOpen(inPar->inFile, "r");
@@ -567,11 +580,14 @@ int main(int argc, char **argv)
   double *probs;
   MALLOC(probs, double*, alloc * sizeof(double));
 
-  #if 1
   map<string, vector<double> > txTrueNCProb;  // hash table assigning to each
                                               // taxon a vector of normalized
                                               // conditional probabilities that
-                                              // quary sequences achieve using max p(x|M) algorithm
+                                              // quary sequences achieve using
+                                              // max p(x|M) algorithm =
+                                              // classification to the taxon with
+                                              // the highest posterior
+                                              // probability
 
   map<string, vector<double> > txFalseNCProb; // normalized conditional
                                               // probabilities in cases when
@@ -585,19 +601,18 @@ int main(int argc, char **argv)
                                               // for M the model associated
                                               // with the given taxon
   map<string, vector<char *> > txFalseID;     // same as above but for other sequences
-  #endif
 
 
   //cerr << "nRecs=" << nRecs << "\tq01=" << q01 << endl;
   cerr << "--- Number of sequences in " << inPar->inFile << ": " << nRecs << endl;
 
-  // int rcseqCount = 0; // number of times rcseq had higher probabitity than seq
-  // int seqCount = 0;   // number of times seq had higher probabitity than rcseq
+  //int rcseqCount = 0; // number of times rcseq had higher probabitity than seq
+  //int seqCount = 0;   // number of times seq had higher probabitity than rcseq
 
   int currentModelIdx = 0; // model index of the model, M, with the highest p( x | M )
   int rank = probModel->order() + 1;
 
-  FILE *probsOut;
+  FILE *probsOut = NULL;
   if ( inPar->dimProbs )
   {
     string probsFile = string(inPar->outDir) + string("/") + string("condProbs.csv");
@@ -632,9 +647,12 @@ int main(int argc, char **argv)
     }
     count++;
 
-    for ( int j = 0; j < seqLen; ++j )
-      rcseq[j] = Complement(seq[seqLen-1-j]);
-    rcseq[seqLen] = '\0';
+    if ( inPar->revComp )
+    {
+      for ( int j = 0; j < seqLen; ++j )
+	rcseq[j] = Complement(seq[seqLen-1-j]);
+      rcseq[seqLen] = '\0';
+    }
 
     // traverse the reference tree at each node making a choice of a model
     // and checking log odds of the best model, M, against 'not-M' model
@@ -646,9 +664,22 @@ int main(int argc, char **argv)
     double err = 0;
     int breakLoop = 0;
 
-    #if DEBUGMAIN
+
+#if DEBUGMAIN
+    fprintf(debugout,"---- depth %d\n",depthCount++) ;
+    for ( int i = 0; i < numChildren; i++ )
+      //fprintf(debugout,"\t%s\t%f\t%f\n", node->children_m[i]->label.c_str(), x[i], x2[i]) ;
+      fprintf(debugout,"\t%s\t%f\n", node->children_m[i]->label.c_str(), x[i]) ;
+#endif
+
+#if DEBUGMAIN1
     fprintf(debugout,"\n---- Processing %s\n",id) ;
-    #endif
+    fprintf(debugout,"---- Current node %s\n", node->label.c_str()) ;
+    fprintf(debugout,"---- Number of children: %d\n", numChildren) ;
+    fprintf(debugout,"---- Children:\n") ;
+    for ( int i = 0; i < numChildren; i++ )
+	fprintf(debugout,"\t%s\n", node->children_m[i]->label.c_str()) ;
+#endif
 
     //score.clear();
     //int depthCount = 1;
@@ -658,59 +689,63 @@ int main(int argc, char **argv)
       // NOTE: after a few iterations only seq or rcseq should be processed !!!
       for ( int i = 0; i < numChildren; i++ )
       {
-	 double x1 = probModel->normLog10prob(seq, seqLen, (node->children_m[i])->model_idx );
-	 double x2 = probModel->normLog10prob(rcseq, seqLen, (node->children_m[i])->model_idx );
-	 x[i] = ( x1 > x2 ) ? x1 : x2;
-	 //if ( x2 > x1 ) rcseqCount++; else seqCount++;
-	 //x[i] = probModel->normLog10prob(rcseq, seqLen, (node->children_m[i])->model_idx );
+	#if 0
+	double x1 = probModel->normLog10prob(seq, seqLen, (node->children_m[i])->model_idx );
+	double x2 = probModel->normLog10prob(rcseq, seqLen, (node->children_m[i])->model_idx );
+	x[i] = ( x1 > x2 ) ? x1 : x2;
+	if ( x2 > x1 ) rcseqCount++; else seqCount++;
+	#endif
+
+	if ( inPar->revComp )
+	{
+	  x[i] = probModel->normLog10prob(rcseq, seqLen, (node->children_m[i])->model_idx );
+	}
+	else
+	{
+	  x[i] = probModel->normLog10prob(seq, seqLen, (node->children_m[i])->model_idx );
+	}
+
+	#if DEBUGMAIN1
+	errTbl_t *errObj = modelErrTbl[ (node->children_m[i])->label ];
+	fprintf(debugout,"---- Evaluating MC model of %s\tLogPostProb: %f\terrThld: %f\n", (node->children_m[i])->label.c_str(), x[i], errObj->thld);
+	//fprintf(debugout,"---- Evaluating MC model of %s\tclErr: %f\tOrientation used: %s\n", (node->children_m[i])->label.c_str(), x[i], ( x1 > x2 ) ? "seq" : "rcSeq") ;
+	#endif
       }
 
       int imax = which_max( x, numChildren );
       currentModelIdx = (node->children_m[imax])->model_idx;
 
-      #if 0
-      //txTrueNCProb[node->children_m[imax]->label].push_back(x[imax]);
-      txTrueID[node->children_m[imax]->label].push_back(id);
-      for ( int i = 0; i < numChildren; i++ )
-	if ( i != imax )
-	{
-	  //txFalseNCProb[node->children_m[i]->label].push_back(x[i]);
-	  txFalseID[node->children_m[i]->label].push_back(id);
-	}
+      if ( inPar->printNCprobs )
+      {
+	txTrueNCProb[node->children_m[imax]->label].push_back(x[imax]);
+	txTrueID[node->children_m[imax]->label].push_back(id);
+	for ( int i = 0; i < numChildren; i++ )
+	  if ( i != imax )
+	  {
+	    txFalseNCProb[node->children_m[i]->label].push_back(x[i]);
+	    txFalseID[node->children_m[i]->label].push_back(id);
+	  }
 
-      string file1 = string(inPar->outDir) + string("/") + node->children_m[imax]->label + string("_true_seq.ids");
-      FILE *out1 = fOpen(file1.c_str(), "a");
-      fprintf(out1, "%s\n", id);
-      fclose(out1);
+	string file1 = string(inPar->outDir) + string("/") + node->children_m[imax]->label + string("_true_seq.ids");
+	FILE *out1 = fOpen(file1.c_str(), "a");
+	fprintf(out1, "%s\n", id);
+	fclose(out1);
 
-      for ( int i = 0; i < numChildren; i++ )
-	if ( i != imax )
-	{
-	  string file2 = string(inPar->outDir) + string("/") + node->children_m[i]->label + string("_true_seq.ids");
-	  FILE *out2 = fOpen(file2.c_str(), "a");
-	  fprintf(out2, "%s\n", id);
-	  fclose(out2);
-	}
-      #endif
+	for ( int i = 0; i < numChildren; i++ )
+	  if ( i != imax )
+	  {
+	    string file2 = string(inPar->outDir) + string("/") + node->children_m[i]->label + string("_true_seq.ids");
+	    FILE *out2 = fOpen(file2.c_str(), "a");
+	    fprintf(out2, "%s\n", id);
+	    fclose(out2);
+	  }
+      }
 
       node = node->children_m[imax];
 
-      #if 0 //DEBUGMAIN
-      fprintf(debugout,"---- depth %d\n",depthCount++) ;
-      for ( int i = 0; i < numChildren; i++ )
-	//fprintf(debugout,"\t%s\t%f\t%f\n", node->children_m[i]->label.c_str(), x[i], x2[i]) ;
-	fprintf(debugout,"\t%s\t%f\n", node->children_m[i]->label.c_str(), x[i]) ;
-      #endif
-
-      #if 1
       if ( !inPar->skipErrThld )
       {
 	errTbl_t *errObj = modelErrTbl[ node->label ];
-
-        #if 0 //DEBUGMAIN
-	fprintf(debugout,"xmax %s\t%f\tthld=%f\n",
-		node->label.c_str(), x[imax], errObj->thld);
-        #endif
 
 	if ( x[imax] > errObj->thld )
 	{
@@ -732,9 +767,15 @@ int main(int argc, char **argv)
 	  if ( node->label=="d_Bacteria" )
 	  break;
 	}
+
+        #if DEBUGMAIN1
+	fprintf(debugout,"xmax: %s\tLogPostProb=%f\tthld=%f\txmax=%f\terr=%f\n",
+		node->label.c_str(), x[imax], errObj->thld, errObj->xmax, err);
+        #endif
+
+
 	//score.push_back( tx2score );
       }
-      #endif
 
       // tx2score.first = node->label;
       // tx2score.second = err;
@@ -744,7 +785,8 @@ int main(int argc, char **argv)
       numChildren = node->children_m.size();
     }
 
-    fprintf(out,"%s\t%s\n", id, node->label.c_str());
+    fprintf(out,"%s\t%s\t%.4f\n", id, node->label.c_str(), err);
+    //fprintf(out,"%s\t%s\n", id, node->label.c_str());
     //fprintf(out,"%s\t%s\t%.2f\n", id, tx2score.first.c_str(), tx2score.second);
 
 
@@ -778,49 +820,52 @@ int main(int argc, char **argv)
 
   } // end of   while ( getNextFastaRecord( in, id, data, alloc, seq, seqLen) )
 
-#if 0
-  map<string, vector<double> >::iterator it;
-  for ( it = txTrueNCProb.begin(); it != txTrueNCProb.end(); it++ )
+  if ( inPar->printNCprobs )
   {
-    string file1 = string(inPar->outDir) + string("/") + it->first + string("_true_ncProbs.txt");
-    FILE *out1 = fOpen(file1.c_str(), "w");
-    int n = it->second.size();
-    for ( int i = 0; i < n; i++ )
-      fprintf(out1, "%f\n", it->second[i]);
-    fclose(out1);
-  }
+    map<string, vector<double> >::iterator it;
+    for ( it = txTrueNCProb.begin(); it != txTrueNCProb.end(); it++ )
+    {
+      string file1 = string(inPar->outDir) + string("/") + it->first + string("_true_ncProbs.txt");
+      FILE *out1 = fOpen(file1.c_str(), "w");
+      int n = it->second.size();
+      for ( int i = 0; i < n; i++ )
+	fprintf(out1, "%f\n", it->second[i]);
+      fclose(out1);
+    }
 
-  for ( it = txFalseNCProb.begin(); it != txFalseNCProb.end(); it++ )
-  {
-    string file1 = string(inPar->outDir) + string("/") + it->first + string("_false_ncProbs.txt");
-    FILE *out1 = fOpen(file1.c_str(), "w");
-    int n = it->second.size();
-    for ( int i = 0; i < n; i++ )
-      fprintf(out1, "%f\n", it->second[i]);
-    fclose(out1);
-  }
+    for ( it = txFalseNCProb.begin(); it != txFalseNCProb.end(); it++ )
+    {
+      string file1 = string(inPar->outDir) + string("/") + it->first + string("_false_ncProbs.txt");
+      FILE *out1 = fOpen(file1.c_str(), "w");
+      int n = it->second.size();
+      for ( int i = 0; i < n; i++ )
+	fprintf(out1, "%f\n", it->second[i]);
+      fclose(out1);
+    }
 
-  map<string, vector<char *> >::iterator itr;
-  for ( itr = txTrueID.begin(); itr != txTrueID.end(); itr++ )
-  {
-    string file1 = string(inPar->outDir) + string("/") + itr->first + string("_true_seq.ids");
-    FILE *out1 = fOpen(file1.c_str(), "w");
-    int n = itr->second.size();
-    for ( int i = 0; i < n; i++ )
-      fprintf(out1, "%s\n", itr->second[i]);
-    fclose(out1);
-  }
+    #if 0
+    map<string, vector<char *> >::iterator itr;
+    for ( itr = txTrueID.begin(); itr != txTrueID.end(); itr++ )
+    {
+      string file1 = string(inPar->outDir) + string("/") + itr->first + string("_true_seq.ids");
+      FILE *out1 = fOpen(file1.c_str(), "w");
+      int n = itr->second.size();
+      for ( int i = 0; i < n; i++ )
+	fprintf(out1, "%s\n", itr->second[i]);
+      fclose(out1);
+    }
 
-  for ( itr = txFalseID.begin(); itr != txFalseID.end(); itr++ )
-  {
-    string file1 = string(inPar->outDir) + string("/") + itr->first + string("_false_seq.ids");
-    FILE *out1 = fOpen(file1.c_str(), "w");
-    int n = itr->second.size();
-    for ( int i = 0; i < n; i++ )
-      fprintf(out1, "%s\n", itr->second[i]);
-    fclose(out1);
+    for ( itr = txFalseID.begin(); itr != txFalseID.end(); itr++ )
+    {
+      string file1 = string(inPar->outDir) + string("/") + itr->first + string("_false_seq.ids");
+      FILE *out1 = fOpen(file1.c_str(), "w");
+      int n = itr->second.size();
+      for ( int i = 0; i < n; i++ )
+	fprintf(out1, "%s\n", itr->second[i]);
+      fclose(out1);
+    }
+    #endif
   }
-#endif
 
 
   fclose(in);
@@ -854,13 +899,13 @@ int main(int argc, char **argv)
   fprintf(stderr,"    Elapsed time: %d:%02d                                              \n", timeMin, timeSec);
 
   // fprintf(stderr,"\r--- Number of processed sequences: %d                                  \n", count);
-  // fprintf(stderr,"Number of times rcseq had higher probabitity than seq: %d\n", rcseqCount);
-  // fprintf(stderr,"Number of times rcseq had lower probabitity than seq: %d\n", seqCount);
+  // fprintf(stderr,"    Number of times rcseq had higher probabitity than seq: %d\n", rcseqCount);
+  // fprintf(stderr,"    Number of times rcseq had lower probabitity than seq: %d\n", seqCount);
   //fprintf(stderr,"Output written to %s\n", outFile.c_str());
   fprintf(stderr,"    Output written to %s\n", inPar->outDir);
 
   fprintf(stderr,"\n    To create a sample x phylotype count table, run\n");
-  fprintf(stderr,"\n        count_tbl.pl -i %s -o %s/spp.count.tbl.txt\n\n", outFile.c_str(), inPar->outDir);
+  fprintf(stderr,"\n        count_tbl.pl -i %s -o %s/spp_count_tbl.txt\n\n", outFile.c_str(), inPar->outDir);
 
   #if DEBUGMAIN
   fprintf(stderr,"\n\nDEBUGING Output written to %s\n\n\n", debugFile.c_str());
@@ -886,11 +931,13 @@ void parseArgs( int argc, char ** argv, inPar2_t *p )
     {"out-dir"            ,required_argument, 0,          'o'},
     {"ref-tree"           ,required_argument, 0,          'r'},
     {"pseudo-count-type"  ,required_argument, 0,          'p'},
+    {"print-nc-probs"     ,no_argument, 0,                's'},
+    {"rev-comp"           ,no_argument, 0,                'c'},
     {"help"               ,no_argument, 0,                  0},
     {0, 0, 0, 0}
   };
 
-  while ((c = getopt_long(argc, argv,"a:b:c:d:e:f:g:t:i:k:o:vp:r:h",longOptions, NULL)) != -1)
+  while ((c = getopt_long(argc, argv,"a:b:c:d:e:f:g:t:i:k:o:vp:r:hsy:",longOptions, NULL)) != -1)
     switch (c)
     {
       case 'a':
@@ -902,6 +949,10 @@ void parseArgs( int argc, char ** argv, inPar2_t *p )
 	break;
 
       case 'c':
+	p->revComp = true;
+	break;
+
+      case 'y':
 	p->coreErrRFile = strdup(optarg);
 	break;
 
@@ -972,6 +1023,9 @@ void parseArgs( int argc, char ** argv, inPar2_t *p )
 	p->verbose = true;
 	break;
 
+      case 's':
+	p->printNCprobs = true;
+	break;
 
       case 'h':
 	printHelp(argv[0]);

@@ -3,7 +3,7 @@
 # Makefile for building classify
 #############################################################################
 
-# Copyright (C) 2015 Pawel Gajer pgajer@gmail.com
+# Copyright (C) 2016 Pawel Gajer pgajer@gmail.com and Jacques Ravel jravel@som.umaryland.edu
 
 # Permission to use, copy, modify, and distribute this software and its
 # documentation with or without modifications and for any purpose and
@@ -27,7 +27,7 @@
 
 CC            = gcc #gcc-4.0
 CXX           = g++ #g++-4.0
-FLAGS         = -g # -O2 # -g -O2
+FLAGS         = -g # -fopenmp # -O2 # -g -O2
 CFLAGS        = $(FLAGS) -Wall -D__SIM_SSE3 -O2 -D_GNU_SOURCE -dynamic -msse3 -fomit-frame-pointer -funroll-loops # -D_USE_PTHREADS
 CXXFLAGS      = $(FLAGS) -Wall -D__SIM_SSE3 -O2 -D_GNU_SOURCE -dynamic -msse3 -fomit-frame-pointer -funroll-loops # -D_USE_PTHREADS
 INCPATH       = -Isrc

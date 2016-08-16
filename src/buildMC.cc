@@ -1,5 +1,5 @@
 /*
-Copyright (C) 2015 Pawel Gajer pgajer@gmail.com
+Copyright (C) 2016 Pawel Gajer pgajer@gmail.com and Jacques Ravel jravel@som.umaryland.edu
 
 Permission to use, copy, modify, and distribute this software and its
 documentation with or without modifications and for any purpose and
@@ -86,13 +86,13 @@ void printUsage( const char *s )
 	 << "\n\tExample: \n"
 
 	 << "1. Building MC models on the fly" << endl << endl
-	 << s << "-t vaginal_319F_806R_nr_dir/spp_paths.txt -k 3 -i test.fa -o test_dir" << endl << endl
+	 << s << " -t vaginal_319F_806R_nr_dir/spp_paths.txt -k 3 -i test.fa -o test_dir" << endl << endl
 
 	 << "2. Building MC models only" << endl << endl
-	 << s << "-t vaginal_319F_806R_nr_dir/spp_paths.txt -k 3 -d vaginal_319F_806R_nr_MCdir" << endl << endl
+	 << s <<" -t vaginal_319F_806R_nr_dir/spp_paths.txt -k 3 -d vaginal_319F_806R_nr_MCdir" << endl << endl
 
 	 << "3. Using prebuilt MC models" << endl << endl
-	 << s << "-d vaginal_319F_806R_nr_MCdir -i test.fa -o test_dir" << endl << endl
+	 << s << " -d vaginal_319F_806R_nr_MCdir -i test.fa -o test_dir" << endl << endl
 	 << endl;
 }
 

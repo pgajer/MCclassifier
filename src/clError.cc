@@ -1,5 +1,5 @@
 /*
-Copyright (C) 2015 Pawel Gajer pgajer@gmail.com
+Copyright (C) 2016 Pawel Gajer pgajer@gmail.com and Jacques Ravel jravel@som.umaryland.edu
 
 Permission to use, copy, modify, and distribute this software and its
 documentation with or without modifications and for any purpose and
@@ -19,6 +19,19 @@ OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE
 OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE
 OR PERFORMANCE OF THIS SOFTWARE.
 */
+
+/*
+  ToDo's
+
+  modify input parameters making
+
+  -f <ref_dir>
+
+  optional only for the case when sampling is done using ref seq's
+  (Currently not used).
+
+*/
+
 
 /*
   Estimating error probabilities of p(x|M), where x is a query sequence and M is
@@ -104,7 +117,7 @@ void printUsage( const char *s )
 
        << "\n\tExample: \n"
 
-       << s << " -d vaginal_v2_MCdir -r vaginal_v2_dir/refTx.tree -o vaginal_v2_clError_dir" << endl << endl;
+       << s << " -f vaginal_v2_dir -d vaginal_v2_MCdir -r vaginal_v2_dir/refTx.tree -o vaginal_v2_clError_dir" << endl << endl;
 }
 
 
@@ -148,6 +161,7 @@ inPar2_t::inPar2_t()
 {
   outDir          = NULL;
   mcDir           = NULL;
+  faDir           = NULL;
   trgFile         = NULL;
   inFile          = NULL;
   treeFile        = NULL;
@@ -155,7 +169,7 @@ inPar2_t::inPar2_t()
   thld            = 0.0;
   printCounts     = 0;
   maxNumAmbCodes  = 5;
-  randSampleSize  = 0;
+  randSampleSize  = 1000;
   pseudoCountType = recPdoCount;
   verbose         = false;
 }
@@ -168,6 +182,9 @@ inPar2_t::~inPar2_t()
 
   if ( mcDir )
     free(mcDir);
+
+  if ( faDir )
+    free(faDir);
 
   if ( trgFile )
     free(trgFile);
@@ -202,6 +219,12 @@ void inPar2_t::print()
   cerr << "mcDir=\t\t";
   if ( mcDir )
     cerr << mcDir << endl;
+  else
+    cerr << "MISSING" << endl;
+
+  cerr << "faDir=\t\t";
+  if ( faDir )
+    cerr << faDir << endl;
   else
     cerr << "MISSING" << endl;
 
@@ -260,6 +283,12 @@ int main(int argc, char **argv)
   if ( inPar->verbose )
     inPar->print();
 
+  if ( !inPar->faDir )
+  {
+    fprintf(stderr, "ERROR in %s at line %d: faDir not defined\n", __FILE__, __LINE__);
+    exit(1);
+  }
+
   NewickTree_t nt;
   if ( inPar->treeFile ) // load ref tree
   {
@@ -271,11 +300,12 @@ int main(int argc, char **argv)
   }
   else
   {
-    cout << endl << "ERROR in "<< __FILE__ << " at line " << __LINE__
-	 << ": reference tree Newick format file is missing. Please specify it with the -r flag." << endl;
+    fprintf(stderr, "ERROR in %s at line %d: Reference tree Newick format file is missing. Please specify it with the -r flag\n",  __FILE__, __LINE__);
     printHelp(argv[0]);
     exit(1);
   }
+
+  fprintf(stderr, "After loading tree\n");
 
   int depth = nt.getDepth();
   cerr << "--- Depth of the tree: " << depth << endl;
@@ -387,7 +417,6 @@ int main(int argc, char **argv)
   vector<char *> modelIds = probModel->modelIds();
   vector<string> modelStrIds;
   probModel->modelIds( modelStrIds );
-
   nt.modelIdx( modelStrIds );
 
   // double *aLogOdds;
@@ -411,7 +440,9 @@ int main(int argc, char **argv)
   queue<NewickNode_t *> bfs;
   bfs.push(root);
   int numChildren;
-  int sampleSize = 1000;
+  int sampleSize = inPar->randSampleSize;
+
+  fprintf(stderr, "Sample Size: %d\n", sampleSize);
 
   while ( !bfs.empty() )
   {
@@ -422,13 +453,14 @@ int main(int argc, char **argv)
 
     if ( node != root )
     {
-      fprintf(stderr, "\r--- Processing %s", node->label.c_str());
+      fprintf(stderr, "\r--- Processing %s\n", node->label.c_str());
 
       string outFile = string(inPar->outDir) + string("/") + node->label + string(".txt");
+
+      //fprintf(stderr, "\toutFile: %s\n\n", outFile.c_str());
+
       FILE *out = fOpen(outFile.c_str(), "w");
 
-      //debug
-      fprintf(stderr, "Identifying siblings of node\n");
       // identify siblings of node
       pnode = node->parent_m;
       vector<NewickNode_t *> siblings;
@@ -441,41 +473,42 @@ int main(int argc, char **argv)
 	  nodeIdx = i;
 
       #if 1
-      fprintf(stderr, "\n---- Siblings: ");
+      //debug
+      fprintf(stderr, "\tIdentifying siblings of %s\n", node->label.c_str());
+      fprintf(stderr, "\tSiblings:\n");
       for (int i = 0; i < (int)siblings.size(); ++i )
-	fprintf(stderr, "%s ", siblings[i]->label.c_str());
+	fprintf(stderr, "\t\t%s\n", siblings[i]->label.c_str());
       fprintf(stderr, "\n");
       #endif
-
-      // generate random sequences of 'node' model and write their log10 prob's to a file
-      if ( !inPar->faDir )
-      {
-	fprintf(stderr, "ERROR in %s at line %d: faDir not defined\n", __FILE__, __LINE__);
-	exit(1);
-      }
 
       string faFile = string(inPar->faDir) + string("/") + node->label + string(".fa");
       map<string, string> refSeqs;
       readFasta( faFile.c_str(), refSeqs);
 
       #if 0
-      int nref = refSeqs.size();
-      map<string, string>::iterator itr;
-      fprintf(out,"%s",node->label.c_str());
-      for ( itr = refSeqs.begin(); itr != refSeqs.end(); ++itr )
-	fprintf(out,"\t%f", probModel->normLog10prob(itr->second.c_str(), (int)itr->second.size(), node->model_idx ));
+      fprintf(stderr,"faFile: %s\n",faFile.c_str());
 
-      for ( int s = nref; s < sampleSize; ++s )
-	fprintf(out,"\t0");
-      fprintf(out,"\n");
+      if ( node->label == "f_Lachnospiraceae" )
+      {
+	int nref = refSeqs.size();
+	map<string, string>::iterator itr;
+	fprintf(stderr,"%s\t",node->label.c_str());
+	for ( itr = refSeqs.begin(); itr != refSeqs.end(); ++itr )
+	  fprintf(stderr,",%f", probModel->normLog10prob(itr->second.c_str(), (int)itr->second.size(), node->model_idx ));
+
+	for ( int s = nref; s < sampleSize; ++s )
+	  fprintf(stderr,",0");
+	fprintf(stderr,"\n");
+      }
       #endif
 
-      //debug
-      fprintf(stderr, "Generating sampleSize random sequences from model s->model_idx\n");
+      // generate random sequences of 'node' model and write their log10 prob's to a file
+      // debug
+      // fprintf(stderr, "Generating sampleSize random sequences from model s->model_idx\n");
 
       char **seqTbl;
-      probModel->sample( &seqTbl, refSeqs, node->model_idx, sampleSize, seqLen ); // generate sampleSize random sequences from model s->model_idx
-      fprintf(stderr, "AFTER probModel->sample()\n");
+      //probModel->sample( &seqTbl, refSeqs, node->model_idx, sampleSize, seqLen ); // generate sampleSize random sequences from model s->model_idx
+      probModel->sample( &seqTbl, node->model_idx, sampleSize, seqLen ); // generate sampleSize random sequences from model s->model_idx
 
       fprintf(out,"%s",node->label.c_str());
       for ( int s = 0; s < sampleSize; ++s )
@@ -487,10 +520,15 @@ int main(int argc, char **argv)
       free(seqTbl);
 
       n = siblings.size();
+
+      // fprintf(stderr, "num siblings: %d\n", n);
+
       //vector<double> w(n); // proportion of sampleSize for which p(x|M) = max_{j=0...n} p(x|M_j) where M is the model associated with node and x is a random sequence of M_i.
       for (int i = 0; i < n; i++) // for each sibling s
       {
 	sibnode = siblings[i];
+
+	// fprintf(stderr, "\ri: %d  sibnode->label: %s\n", i, sibnode->label.c_str());
 
 	faFile = string(inPar->faDir) + string("/") + sibnode->label + string(".fa");
 	refSeqs.clear();
@@ -505,7 +543,8 @@ int main(int argc, char **argv)
 	fprintf(out,"\n");
 	#endif
 
-	probModel->sample( &seqTbl, refSeqs, sibnode->model_idx, sampleSize, seqLen ); // generate sampleSize random sequences from model s->model_idx
+	//probModel->sample( &seqTbl, refSeqs, sibnode->model_idx, sampleSize, seqLen ); // generate sampleSize random sequences from model s->model_idxw
+	probModel->sample( &seqTbl, sibnode->model_idx, sampleSize, seqLen ); // generate sampleSize random sequences from model s->model_idx
 
 	#if 0
 	int iw = 0; // number of times   p(x|M) = max_{j=0...n} p(x|M_j) where M is the model associated with node and x is a random sequence of M_i.
@@ -566,15 +605,20 @@ void parseArgs( int argc, char ** argv, inPar2_t *p )
     {"out-dir"            ,required_argument, 0,          'o'},
     {"ref-tree"           ,required_argument, 0,          'r'},
     {"pseudo-count-type"  ,required_argument, 0,          'p'},
+    {"sample-size"        ,required_argument, 0,          's'},
     {"help"               ,no_argument, 0,                  0},
     {0, 0, 0, 0}
   };
 
-  while ((c = getopt_long(argc, argv,"b:d:e:f:t:i:k:o:vp:r:h",longOptions, NULL)) != -1)
+  while ((c = getopt_long(argc, argv,"b:d:e:f:t:i:k:o:vp:r:s:h",longOptions, NULL)) != -1)
     switch (c)
     {
       case 'b':
 	p->maxNumAmbCodes = atoi(optarg);
+	break;
+
+      case 's':
+	p->randSampleSize = atoi(optarg);
 	break;
 
       case 'r':
