@@ -586,6 +586,8 @@ int main(int argc, char **argv)
 
   fprintf(stderr,"\r\nOutput written to %s\n", inPar->outDir);
 
+  delete probModel;
+
   return EXIT_SUCCESS;
 }
 
