@@ -53,7 +53,9 @@ void txTbl2txSet( char ***tbl, int nRows, strSet_t &tx2seqIDs)
 */
 {
   for ( int i = 0; i < nRows; ++i )
+  {
     tx2seqIDs[ string(tbl[i][1]) ].insert( string(tbl[i][0]) );
+  }
 }
 
 //---------------------------------------------------------- txRankTbl ----
