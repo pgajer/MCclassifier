@@ -1785,6 +1785,10 @@ void MarkovChains2_t::sample( const char *faFile, const char *txFile, int sample
   }
 
   free(dnaStr);
+  for ( int i = 0; i < nModels; ++i )
+    free(cProb[i]);
+  free(cProb);
+
   fclose(faOut);
   fclose(txOut);
 }
@@ -1894,6 +1898,8 @@ void MarkovChains2_t::sample( char ***_seqTbl, int modelIdx, int sampleSize, int
   }
 
   *_seqTbl = seqTbl;
+
+  free(cProb);
 }
 
 
