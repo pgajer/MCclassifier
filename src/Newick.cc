@@ -117,7 +117,7 @@ NewickTree_t::~NewickTree_t()
 //--------------------------------------------- loadFullTxTree -----
 void NewickTree_t::loadFullTxTree(const char *file) // file holds fullTx table
 {
-  #define DEBUG_LFTT 0
+  #define DEBUG_LFTT 1
 
   #if DEBUG_LFTT
   fprintf(stderr, "in NewickTree_t::loadFullTxTree()\n");
