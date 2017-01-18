@@ -352,18 +352,29 @@ void MarkovChains2_t::createMooreMachine( )
 /// creating Moore machine as describe
 /// in W.H. Majoros "Computatinal Gene Prediction" Section 7.2.3
 {
+  #define DEBUG_MOORE 0
+
   int nNucs = 4;
   int maxWordLen = order_m+1;
   int maxWordLen1 = maxWordLen+1;
+
+  #if DEBUG_MOORE
+  cerr << "order_m: " << order_m << endl;
+  cerr << "maxWordLen1: " << maxWordLen1 << endl;
+  #endif
 
   MALLOC(hashUL_m, int*, maxWordLen1 * sizeof(int));
 
   for ( int i = 0; i < maxWordLen1; ++i )
   {
     hashUL_m[i] = hashFnUL(i+1);
-    //cerr << "hashUL_m["  << i << "]=" << hashUL_m[i] << endl;
+    #if DEBUG_MOORE
+    cerr << "hashUL_m["  << i << "]=" << hashUL_m[i] << endl;
+    #endif
   }
-  //cerr << endl;
+  #if DEBUG_MOORE
+  cerr << endl;
+  #endif
 
   nAllWords_m = hashFnUL(order_m+2);
 
@@ -390,14 +401,18 @@ void MarkovChains2_t::createMooreMachine( )
     lL = hashUL_m[l-1]; // lower limit for hash values of k-mers of length l
     lU = hashUL_m[l];   // upper limit for hash values of k-mers of length l
 
-    //cerr << endl << "> l=" << l << "\tlL=" << lL << "\tlU=" << lU << "\tp4=" << p4 << endl;
+    #if DEBUG_MOORE
+    cerr << endl << "> l=" << l << "\tlL=" << lL << "\tlU=" << lU << "\tp4=" << p4 << endl;
+    #endif
 
     for ( int v = lL; v < lU; ++v )
     {
       for ( int i = 0; i < nNucs; ++i )
       {
 	tr_m[v][i] = v + p4*(1 + i);
-	//cerr << "tr_m[" << v << "][" << i << "]=" << tr_m[v][i] << endl;
+	#if DEBUG_MOORE
+	cerr << "tr_m[" << v << "][" << i << "]=" << tr_m[v][i] << endl;
+	#endif
       }
     }
   }
@@ -406,7 +421,7 @@ void MarkovChains2_t::createMooreMachine( )
   lU = hashUL_m[l];
   p4 /= 4;
 
-  #if 0
+  #if DEBUG_MOORE
   cerr << "order_m=" << order_m << "\tmaxWordLen=" << maxWordLen << endl;
   cerr << "l=" << l << "\tlL=" << lL
        << "\tlU=" << lU
@@ -418,7 +433,7 @@ void MarkovChains2_t::createMooreMachine( )
     for ( int i = 0; i < nNucs; ++i )
     {
       tr_m[v][i] = lL + (v - lL)/4 + p4*i;
-      #if 0
+      #if DEBUG_MOORE
       cerr << "v=" << v << "\ti=" << i
 	   << "\t(v - lL)/4=" << (v - lL)/4
 	   << "\tp4*i=" << p4*i
@@ -427,7 +442,7 @@ void MarkovChains2_t::createMooreMachine( )
       #endif
     }
 
-  #if 0
+  #if DEBUG_MOORE
   cerr << "tr_m:" << endl;
   for ( int i = 0; i < nAllWords_m; ++i )
     for ( int j = 0; j < 4; ++j )
