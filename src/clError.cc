@@ -117,6 +117,8 @@ void printUsage( const char *s )
 
        << "\n\tExample: \n"
 
+       << s << " -d vaginal_v2_MCdir -o vaginal_v2_clError_dir" << endl << "OR" << endl
+
        << s << " -f vaginal_v2_dir -d vaginal_v2_MCdir -r vaginal_v2_dir/refTx.tree -o vaginal_v2_clError_dir" << endl << endl;
 }
 
@@ -283,11 +285,13 @@ int main(int argc, char **argv)
   if ( inPar->verbose )
     inPar->print();
 
+  #if 0
   if ( !inPar->faDir )
   {
     fprintf(stderr, "ERROR in %s at line %d: faDir not defined\n", __FILE__, __LINE__);
     exit(1);
   }
+  #endif
 
   NewickTree_t nt;
   if ( inPar->treeFile ) // load ref tree
@@ -300,12 +304,35 @@ int main(int argc, char **argv)
   }
   else
   {
-    fprintf(stderr, "ERROR in %s at line %d: Reference tree Newick format file is missing. Please specify it with the -r flag\n",  __FILE__, __LINE__);
-    printHelp(argv[0]);
-    exit(1);
+    // lets see if we can find ref tree in mcDir
+    // refTx.tree
+    string trFile = string(inPar->mcDir) + "/refTx.tree";
+    STRDUP(inPar->treeFile, trFile.c_str());
+
+    if ( !nt.loadTree(inPar->treeFile) )
+    {
+      cout << endl << "ERROR in "<< __FILE__ << " at line " << __LINE__ << ": reference tree Newick format file is missing. Please specify it with the -r flag." << endl;
+      printHelp(argv[0]);
+      exit(1);
+    }
   }
 
-  fprintf(stderr, "After loading tree\n");
+  // if ( inPar->treeFile ) // load ref tree
+  // {
+  //   if ( !nt.loadTree(inPar->treeFile) )
+  //   {
+  //     fprintf(stderr,"Could not load Newick tree from %s\n", inPar->treeFile);
+  //     exit(EXIT_FAILURE);
+  //   }
+  // }
+  // else
+  // {
+  //   fprintf(stderr, "ERROR in %s at line %d: Reference tree Newick format file is missing. Please specify it with the -r flag\n",  __FILE__, __LINE__);
+  //   printHelp(argv[0]);
+  //   exit(1);
+  // }
+
+  //fprintf(stderr, "After loading tree\n");
 
   int depth = nt.getDepth();
   cerr << "--- Depth of the tree: " << depth << endl;
@@ -435,6 +462,7 @@ int main(int argc, char **argv)
   // traverse the reference tree using breath first search
   NewickNode_t *root = nt.root();
   NewickNode_t *node;
+  NewickNode_t *sppnode;
   NewickNode_t *sibnode;
   NewickNode_t *pnode;
   queue<NewickNode_t *> bfs;
@@ -456,10 +484,39 @@ int main(int argc, char **argv)
       fprintf(stderr, "\r--- Processing %s\n", node->label.c_str());
 
       string outFile = string(inPar->outDir) + string("/") + node->label + string(".txt");
-
       //fprintf(stderr, "\toutFile: %s\n\n", outFile.c_str());
-
       FILE *out = fOpen(outFile.c_str(), "w");
+
+      // generate random sequences of 'node' model and write their log10 prob's to a file
+      // debug
+      // fprintf(stderr, "Generating sampleSize random sequences from model s->model_idx\n");
+
+      vector<NewickNode_t *> leaves;
+      nt.leafLabels( node, leaves);
+
+      int nSpp = leaves.size();
+      int nSeqsPerSpp = ceil( 1.0 * sampleSize / nSpp );
+      cerr << "--- nSpp=" << nSpp << endl;
+      cerr << "--- nSeqsPerSpp=" << nSeqsPerSpp << endl;
+      //exit(1);
+
+      char **seqTbl;
+
+      for ( int k = 0; k < nSpp; ++k )
+      {
+	sppnode = leaves[k];
+	//probModel->sample( &seqTbl, refSeqs, node->model_idx, sampleSize, seqLen ); // generate sampleSize random sequences from model s->model_idx
+	probModel->sample( &seqTbl, sppnode->model_idx, nSeqsPerSpp, seqLen ); // generate sampleSize random sequences from model s->model_idx
+
+	fprintf(out,"%s",node->label.c_str());
+	for ( int s = 0; s < nSeqsPerSpp; ++s )
+	  fprintf(out,"\t%f", probModel->normLog10prob(seqTbl[s], seqLen, sppnode->model_idx ));
+	fprintf(out,"\n");
+
+	for ( int j = 0; j < nSeqsPerSpp; ++j )
+	  free(seqTbl[j]);
+	free(seqTbl);
+      }
 
       // identify siblings of node
       pnode = node->parent_m;
@@ -481,11 +538,12 @@ int main(int argc, char **argv)
       fprintf(stderr, "\n");
       #endif
 
+
+      #if 0
       string faFile = string(inPar->faDir) + string("/") + node->label + string(".fa");
       map<string, string> refSeqs;
       readFasta( faFile.c_str(), refSeqs);
 
-      #if 0
       fprintf(stderr,"faFile: %s\n",faFile.c_str());
 
       if ( node->label == "f_Lachnospiraceae" )
@@ -502,23 +560,6 @@ int main(int argc, char **argv)
       }
       #endif
 
-      // generate random sequences of 'node' model and write their log10 prob's to a file
-      // debug
-      // fprintf(stderr, "Generating sampleSize random sequences from model s->model_idx\n");
-
-      char **seqTbl;
-      //probModel->sample( &seqTbl, refSeqs, node->model_idx, sampleSize, seqLen ); // generate sampleSize random sequences from model s->model_idx
-      probModel->sample( &seqTbl, node->model_idx, sampleSize, seqLen ); // generate sampleSize random sequences from model s->model_idx
-
-      fprintf(out,"%s",node->label.c_str());
-      for ( int s = 0; s < sampleSize; ++s )
-	fprintf(out,"\t%f", probModel->normLog10prob(seqTbl[s], seqLen, node->model_idx ));
-      fprintf(out,"\n");
-
-      for ( int j = 0; j < sampleSize; ++j )
-	free(seqTbl[j]);
-      free(seqTbl);
-
       n = siblings.size();
 
       // fprintf(stderr, "num siblings: %d\n", n);
@@ -530,11 +571,11 @@ int main(int argc, char **argv)
 
 	// fprintf(stderr, "\ri: %d  sibnode->label: %s\n", i, sibnode->label.c_str());
 
+        #if 0
 	faFile = string(inPar->faDir) + string("/") + sibnode->label + string(".fa");
 	refSeqs.clear();
 	readFasta( faFile.c_str(), refSeqs);
 
-	#if 0
 	for ( itr = refSeqs.begin(); itr != refSeqs.end(); ++itr )
 	  fprintf(out,"\t%f", probModel->normLog10prob(itr->second.c_str(), (int)itr->second.size(), node->model_idx ));
 
