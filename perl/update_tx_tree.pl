@@ -141,10 +141,99 @@ if ( ! -f $cltrFile )
 
 my ($rid2clTbl, $rclTbl, $rclFreqTbl, $rtxTbl)  = readCltrTbl($cltrFile);
 
-my %clFreqTbl = %{$rclFreqTbl}; # cltrID => table of taxon frequencies within the given cluster
+##my %clFreqTbl = %{$rclFreqTbl}; # cltrID => table of taxon frequencies within the given cluster
 my %clTbl     = %{$rclTbl};     # cltrID => ref to array of IDs in the given cluster
 my %txTbl     = %{$rtxTbl};     # seqID => taxonomy
 my %id2clTbl  = %{$rid2clTbl};  # seqID => cltrID
+
+my %spFreqTbl;
+for my $id ( keys %txTbl )
+{
+  my $sp = $txTbl{$id};
+  my $cl = $id2clTbl{$id};
+  $spFreqTbl{$sp}{$cl}++;
+}
+
+if ($debug)
+{
+  my %spFreq;
+  for my $id ( keys %txTbl )
+  {
+    my $sp = $txTbl{$id};
+    $spFreq{$sp}++;
+  }
+
+  printTbl(\%spFreq, "spFreq");
+}
+
+my %spIDs;
+for my $id ( keys %txTbl )
+{
+  my $sp = $txTbl{$id};
+  push @{$spIDs{$sp}}, $id;
+}
+
+print "--- Changing taxonomy of species found in more than one cluster\n";
+print "    if there is a dominating cluster (size > size of others)\n";
+print "    then set all small cluster's taxonomies to <genus>_sp\n";
+print "    and keep the taxonomy of the largest cluster\n";
+for my $sp ( keys %spFreqTbl )
+{
+  my @cls = sort { $spFreqTbl{$sp}{$b} <=> $spFreqTbl{$sp}{$a} } keys %{$spFreqTbl{$sp}};
+  if ( @cls > 1 && $spFreqTbl{$sp}{$cls[0]} > $spFreqTbl{$sp}{$cls[1]} )
+  {
+    ##my ($g, $s) = split "_", $sp;
+
+    if ($debug)
+    {
+      print "\n\nProcessing $sp\tnCltrs: " . @cls . "\n";
+      print "Cluster sizes: ";
+      map { print $spFreqTbl{$sp}{$_} . ", "} @cls;
+    }
+
+    my @f = split "_", $sp;
+    my $g = shift @f;
+    #my $s = shift @f;
+    print "Genus: $g\n" if $debug;
+    my $cmax = shift @cls;
+    my $spSp = $g . "_sp";
+    print "sp species: $spSp\n" if $debug;
+    for my $cl (@cls)
+    {
+      my @spSeqIDs = comm($clTbl{$cl}, $spIDs{$sp});
+      print "Processing seq's of cluster $cl of size " . @spSeqIDs . "\n" if $debug;
+      for my $id ( @spSeqIDs )
+      {
+	$txTbl{$id} = $spSp;
+      }
+    }
+  } # end of if ( @cls > 1
+}
+
+if ($debug)
+{
+  my %spFreq2;
+  for my $id ( keys %txTbl )
+  {
+    my $sp = $txTbl{$id};
+    $spFreq2{$sp}++;
+  }
+
+  printTbl(\%spFreq2, "spFreq2");
+}
+
+
+# changing taxonomy of multi-species clusters
+
+# updating %clFreqTbl after the above modification
+my %clFreqTbl;
+for my $id ( keys %txTbl )
+{
+  my $sp = $txTbl{$id};
+  my $cl = $id2clTbl{$id};
+  $clFreqTbl{$cl}{$sp}++;
+}
+
 
 for my $cl ( keys %clFreqTbl )
 {
@@ -241,78 +330,6 @@ for my $id ( keys %txTbl )
   }
 }
 
-my %spFreqTbl;
-for my $id ( keys %txTbl )
-{
-  my $sp = $txTbl{$id};
-  my $cl = $id2clTbl{$id};
-  $spFreqTbl{$sp}{$cl}++;
-}
-
-my %spFreq;
-for my $id ( keys %txTbl )
-{
-  my $sp = $txTbl{$id};
-  $spFreq{$sp}++;
-}
-
-printTbl(\%spFreq, "spFreq") if $debug;
-
-my %spIDs;
-for my $id ( keys %txTbl )
-{
-  my $sp = $txTbl{$id};
-  push @{$spIDs{$sp}}, $id;
-}
-
-print "--- Changing taxonomy of species found in more than one cluster\n";
-print "    if there is a dominating cluster (size > size of others)\n";
-print "    then set all small cluster's taxonomies to <genus>_sp\n";
-print "    and keep the taxonomy of the largest cluster\n";
-for my $sp ( keys %spFreqTbl )
-{
-  my @cls = sort { $spFreqTbl{$sp}{$b} <=> $spFreqTbl{$sp}{$a} } keys %{$spFreqTbl{$sp}};
-  if ( @cls > 1 && $spFreqTbl{$sp}{$cls[0]} > $spFreqTbl{$sp}{$cls[1]} )
-  {
-    ##my ($g, $s) = split "_", $sp;
-
-    if ($debug)
-    {
-      print "\n\nProcessing $sp\tnCltrs: " . @cls . "\n";
-      print "Cluster sizes: ";
-      map { print $spFreqTbl{$sp}{$_} . ", "} @cls;
-    }
-
-    my @f = split "_", $sp;
-    my $g = shift @f;
-    #my $s = shift @f;
-    print "Genus: $g\n" if $debug;
-    my $cmax = shift @cls;
-    my $spSp = $g . "_sp";
-    print "sp species: $spSp\n" if $debug;
-    for my $cl (@cls)
-    {
-      my @spSeqIDs = comm($clTbl{$cl}, $spIDs{$sp});
-      print "Processing seq's of cluster $cl of size " . @spSeqIDs . "\n" if $debug;
-      for my $id ( @spSeqIDs )
-      {
-	$txTbl{$id} = $spSp;
-      }
-    }
-  } # end of if ( @cls > 1
-}
-
-if ($debug)
-{
-  my %spFreq2;
-  for my $id ( keys %txTbl )
-  {
-    my $sp = $txTbl{$id};
-    $spFreq2{$sp}++;
-  }
-
-  printTbl(\%spFreq2, "spFreq2");
-}
 
 my $updatedTxFile = "$vicutDir/updated.tx";
 writeTbl(\%txTbl, $updatedTxFile);
