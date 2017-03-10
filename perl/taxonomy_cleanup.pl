@@ -70,6 +70,11 @@
 =over
 
 =item B<--input-group-name, -i>
+  Prefix of input group. For example, if Firmicutes_group_6_dir is a directory
+  Firmicutes_group_6 group, then the input group name is "Firmicutes_group_6".
+
+=item B<--use-long-spp-names>
+  Use long species names for sequences from multi-species vicut clusters.
 
 =item B<--verbose, -v>
   Prints content of some output files.
@@ -111,6 +116,7 @@ GetOptions(
   "input-group|i=s" 	=> \my $grPrefix,
   "rm-OGs-from-tx|r"    => \my $rmOGfromTx,
   "skip-FastTree"       => \my $skipFastTree,
+  "use-long-spp-names"  => \my $useLongSppNames,
   "igs"                 => \my $igs,
   "johanna"             => \my $johanna,
   "verbose|v"           => \my $verbose,
@@ -151,7 +157,11 @@ if ( defined $johanna )
 
 local $ENV{LD_LIBRARY_PATH} = "/usr/local/packages/readline/lib:/usr/local/packages/gcc-5.3.0/lib64";
 
-
+my $useLongSppNamesStr = "";
+if ($useLongSppNames)
+{
+  $useLongSppNamesStr = "--use-long-spp-names";
+}
 ####################################################################
 ##                               MAIN
 ####################################################################
@@ -461,7 +471,7 @@ system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 ## Moreover, if a species is present in more than 1 cluster, it changes
 ## taxonomies of sequences from the small clusters to <genus>_sp
 print "--- Running update_tx_tree.pl\n";
-$cmd = "update_tx_tree.pl $debugStr -a $txFile -t $treeFile -d $vicutDir";
+$cmd = "update_tx_tree.pl $debugStr $useLongSppNamesStr -a $txFile -t $treeFile -d $vicutDir";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 
@@ -636,7 +646,7 @@ if (@query2)
   system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 
   print "--- Running update_tx_tree.pl\n";
-  $cmd = "update_tx_tree.pl $debugStr -a $vicutFinalTx -t $treeFile -d $vicutDir";
+  $cmd = "update_tx_tree.pl $debugStr $useLongSppNamesStr -a $vicutFinalTx -t $treeFile -d $vicutDir";
   print "\tcmd=$cmd\n" if $dryRun || $debug;
   system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 }
@@ -822,7 +832,6 @@ my $finalCondSppTreeFile = "$grPrefix" . "_final_sppCondensed.tree";
 $cmd = "rm -f $finalCondSppTreeFile; nw_condense $finalSppTreeFile > $finalCondSppTreeFile";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
-
 
 
 ##

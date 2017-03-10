@@ -30,6 +30,9 @@
 =item B<--vicut-dir, -d>
   vicut output directory, that will be used also as an output directory.
 
+=item B<--use-long-spp-names>
+  Use long species names for sequences from multi-species vicut clusters.
+
 =item B<--dry-run>
   Print commands to be executed, but do not execute them.
 
@@ -66,12 +69,13 @@ $OUTPUT_AUTOFLUSH = 1;
 ####################################################################
 
 GetOptions(
-  "tx-file|a=s"      => \my $txFile,
-  "tree-file|t=s"    => \my $treeFile,
-  "vicut-dir|d=s"    => \my $vicutDir,
-  "dry-run"          => \my $dryRun,
-  "debug"            => \my $debug,
-  "help|h!"          => \my $help,
+  "tx-file|a=s"        => \my $txFile,
+  "tree-file|t=s"      => \my $treeFile,
+  "vicut-dir|d=s"      => \my $vicutDir,
+  "use-long-spp-names" => \my $useLongSppNames,
+  "dry-run"            => \my $dryRun,
+  "debug"              => \my $debug,
+  "help|h!"            => \my $help,
   )
   or pod2usage(verbose => 0,exitstatus => 1);
 
@@ -165,10 +169,46 @@ for my $cl ( keys %clFreqTbl )
     # with the largest number of sequences is going to be used to propagate its
     # species name to all other sequences.
   {
-    # changing taxonomy of NA sequences to the majority taxonomy
-    for my $id ( @{$clTbl{$cl}} )
+    if (!defined $useLongSppNames)
     {
-      $txTbl{$id} = $txs[0];
+      # changing taxonomy of all sequences to the majority taxonomy
+      for my $id ( @{$clTbl{$cl}} )
+      {
+	$txTbl{$id} = $txs[0];
+      }
+    }
+    else
+    {
+      # changing taxonomy of all sequences to the concatenation of the species
+      # names of the two most abundant species
+
+      # checking if the two most abundant species are from the same genus
+      my $sp1 = $txs[0];
+      my $sp2 = $txs[1];
+
+      ##my ($g1, $s1) = split "_", $sp1;
+      my @f = split "_", $sp1;
+      my $g1 = shift @f;
+      my $s1 = shift @f;
+
+      @f = split "_", $sp2;
+      my $g2 = shift @f;
+      my $s2 = shift @f;
+
+      my $newName;
+      if ( $g1 eq $g2 )
+      {
+	$newName = $g1 . "_" . $s1 . "_" . $s2;
+      }
+      else
+      {
+	$newName = $sp1 . "_" . $sp2;
+      }
+
+      for my $id ( @{$clTbl{$cl}} )
+      {
+	$txTbl{$id} = $newName;
+      }
     }
   }
   elsif ( @txs > 1 && $txs[0] eq "NA" )
