@@ -59,8 +59,8 @@ void printUsage( const char *s )
        << "\t-g <faDir>    - directory with reference fasta files\n"
        << "\t-e <seqID>    - sequence ID of a sequence from the training fasta files that is to be excluded\n"
        << "                  from model building and needs to be used for cross validation\n"
-
        << "\t--rev-comp, -c          - reverse complement query sequences before computing classification posterior probabilities\n"
+       << "\t--skip-err-thld         - classify all sequences to the species level\n"
        << "\t--max-num-amb-codes <n> - maximal acceptable number of ambiguity codes for a sequence\n"
        << "\t                          above this number sequence's log10prob() is not computed and\n"
        << "\t                          the sequence's id it appended to <genus>_more_than_<n>_amb_codes_reads.txt file.\n"
@@ -260,6 +260,8 @@ void inPar2_t::print()
   for ( int i = 0; i < n; ++i )
     cerr << "\t" << kMerLens[i];
   cerr << endl;
+
+  cerr << "skipErrThld: " << skipErrThld << endl;
 }
 
 //============================== local sub-routines =========================
@@ -625,6 +627,11 @@ int main(int argc, char **argv)
   int timeSec = 0;
   int perc;
 
+  #define SPPDEBUG 1
+  #if SPPDEBUG
+  FILE *liout = fOpen("spp_pprob.csv", "w");
+  #endif
+
   while ( getNextFastaRecord( in, id, data, alloc, seq, seqLen) )
   {
     if ( q01 && (count % q01) == 0 )
@@ -668,8 +675,8 @@ int main(int argc, char **argv)
 #if DEBUGMAIN
     fprintf(debugout,"---- depth %d\n",depthCount++) ;
     for ( int i = 0; i < numChildren; i++ )
-      //fprintf(debugout,"\t%s\t%f\t%f\n", node->children_m[i]->label.c_str(), x[i], x2[i]) ;
-      fprintf(debugout,"\t%s\t%f\n", node->children_m[i]->label.c_str(), x[i]) ;
+      fprintf(debugout,"\t%s\t%f\t%f\n", node->children_m[i]->label.c_str(), x[i], x2[i]) ;
+      ##fprintf(debugout,"\t%s\t%f\n", node->children_m[i]->label.c_str(), x[i]) ;
 #endif
 
 #if DEBUGMAIN1
@@ -680,6 +687,10 @@ int main(int argc, char **argv)
     for ( int i = 0; i < numChildren; i++ )
 	fprintf(debugout,"\t%s\n", node->children_m[i]->label.c_str()) ;
 #endif
+
+    double y[2];
+    y[0] = 0;
+    y[1] = 0;
 
     //score.clear();
     //int depthCount = 1;
@@ -704,6 +715,25 @@ int main(int argc, char **argv)
 	{
 	  x[i] = probModel->normLog10prob(seq, seqLen, (node->children_m[i])->model_idx );
 	}
+
+	if ( (node->children_m[i])->label=="g_Lactobacillus" )
+	{
+	  y[0] = x[i];
+	}
+
+	if ( (node->children_m[i])->label=="g_Pediococcus" )
+	{
+	  y[1] = x[i];
+	}
+
+	#if 0
+	if ( (node->children_m[i])->label=="g_Lactobacillus" )
+	{
+	  //errTbl_t *errObj = modelErrTbl[ (node->children_m[i])->label ];
+	  //fprintf(liout,"---- Evaluating MC model of %s\tLogPostProb: %f\terrThld: %f\n", (node->children_m[i])->label.c_str(), x[i], errObj->thld);
+	  fprintf(liout,"%s,%f\n", id, x[i]);
+	}
+	#endif
 
 	#if DEBUGMAIN1
 	errTbl_t *errObj = modelErrTbl[ (node->children_m[i])->label ];
@@ -788,6 +818,13 @@ int main(int argc, char **argv)
     fprintf(out,"%s\t%s\t%.4f\n", id, node->label.c_str(), err);
     //fprintf(out,"%s\t%s\n", id, node->label.c_str());
     //fprintf(out,"%s\t%s\t%.2f\n", id, tx2score.first.c_str(), tx2score.second);
+
+    #if SPPDEBUG
+    if ( node->label=="f_Lactobacillaceae" )
+    {
+      fprintf(liout,"%s,%f,%f\n", id, y[0], y[1]);
+    }
+    #endif
 
 
     // -----------------------------------------
@@ -911,6 +948,10 @@ int main(int argc, char **argv)
   fprintf(stderr,"\n\nDEBUGING Output written to %s\n\n\n", debugFile.c_str());
   #endif
 
+  #if SPPDEBUG
+  fprintf(stderr,"\n\nDEBUGING Output written to spp_pprob.csv\n\n");
+  #endif
+
   return EXIT_SUCCESS;
 }
 
@@ -925,7 +966,8 @@ void parseArgs( int argc, char ** argv, inPar2_t *p )
 
   static struct option longOptions[] = {
     {"print-counts"       ,no_argument, &p->printCounts,    1},
-    {"skip-err-thld"      ,no_argument, &p->skipErrThld,    1},
+    //{"skip-err-thld"      ,no_argument, &p->skipErrThld,    1},
+    {"skip-err-thld"      ,no_argument,       0,          'x'},
     {"max-num-amb-codes"  ,required_argument, 0,          'b'},
     {"fullTx-file"        ,required_argument, 0,          'f'},
     {"out-dir"            ,required_argument, 0,          'o'},
@@ -937,7 +979,7 @@ void parseArgs( int argc, char ** argv, inPar2_t *p )
     {0, 0, 0, 0}
   };
 
-  while ((c = getopt_long(argc, argv,"a:b:c:d:e:f:g:t:i:k:o:vp:r:hsy:",longOptions, NULL)) != -1)
+  while ((c = getopt_long(argc, argv,"a:b:c:d:e:f:g:t:i:k:o:vp:r:hsy:x",longOptions, NULL)) != -1)
     switch (c)
     {
       case 'a':
@@ -950,6 +992,11 @@ void parseArgs( int argc, char ** argv, inPar2_t *p )
 
       case 'c':
 	p->revComp = true;
+	break;
+
+      case 'x':
+	p->skipErrThld = 1;
+	cerr << "Setting p->skipErrThld to " << p->skipErrThld << endl;
 	break;
 
       case 'y':
