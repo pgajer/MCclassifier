@@ -136,23 +136,35 @@ if ( ! -f $cltrFile )
 }
 
 my ($rid2clTbl, $rclTbl, $rclFreqTbl, $rtxTbl)  = readCltrTbl($cltrFile);
+
 my %clFreqTbl = %{$rclFreqTbl}; # cltrID => table of taxon frequencies within the given cluster
-my %clTbl = %{$rclTbl};         # cltrID => ref to array of IDs in the given cluster
-my %txTbl = %{$rtxTbl};         # seqID => taxonomy
-my %id2clTbl = %{$rid2clTbl};   # seqID => cltrID
+my %clTbl     = %{$rclTbl};     # cltrID => ref to array of IDs in the given cluster
+my %txTbl     = %{$rtxTbl};     # seqID => taxonomy
+my %id2clTbl  = %{$rid2clTbl};  # seqID => cltrID
 
 for my $cl ( keys %clFreqTbl )
 {
-  my @txs = sort { $clFreqTbl{$cl}{$b} <=> $clFreqTbl{$cl}{$a} } keys %{$clFreqTbl{$cl}};
-  if ( @txs > 1 && $txs[0] ne "NA" && $clFreqTbl{$cl}{$txs[0]} > $clFreqTbl{$cl}{$txs[1]} ) # checking if there is more than one species in the given cluster
+  my @txs = sort { $clFreqTbl{$cl}{$b} <=> $clFreqTbl{$cl}{$a} || $a cmp $b } keys %{$clFreqTbl{$cl}};
+  # NOTE the sorting by given the number of sequences of the given species in
+  # different clusters (starting from the largest).  If there are two clusters
+  # with the same number of seq's of the given species they are going to be
+  # sorted alphabetically.
+  # This is quite arbitrary choice of representative species for the given cluster.
+  # An alternative could be a name that is a concatenation of the two species of the same number of sequences.
+  if ($debug)
   {
-    if ($debug)
-    {
-      print "Cluster $cl taxes\n";
-      map {print "$_\t" . $clFreqTbl{$cl}{$_} . "\n"} @txs;
-      print "\n";
-    }
+    print "Cluster $cl taxons\n";
+    map {print "$_\t" . $clFreqTbl{$cl}{$_} . "\n"} @txs;
+    print "\n";
+  }
 
+  if ( @txs > 1 && $txs[0] ne "NA") # && $clFreqTbl{$cl}{$txs[0]} > $clFreqTbl{$cl}{$txs[1]} )
+    # NOTE: if there is more than on species in a vicut cluster and there are two
+    # species with the same number of seq's and all other species have less
+    # sequences, then the species which is alphabetically first among the ones
+    # with the largest number of sequences is going to be used to propagate its
+    # species name to all other sequences.
+  {
     # changing taxonomy of NA sequences to the majority taxonomy
     for my $id ( @{$clTbl{$cl}} )
     {
@@ -168,9 +180,8 @@ for my $cl ( keys %clFreqTbl )
     }
   }
 }
-
-
 ## parsing tax table from before vicut taxonomy modifications
+
 my %tx = read2colTbl($txFile);
 
 ## Generating updated taxonomy file
@@ -190,13 +201,28 @@ for my $id ( keys %txTbl )
   }
 }
 
-
 my %spFreqTbl;
 for my $id ( keys %txTbl )
 {
   my $sp = $txTbl{$id};
   my $cl = $id2clTbl{$id};
   $spFreqTbl{$sp}{$cl}++;
+}
+
+my %spFreq;
+for my $id ( keys %txTbl )
+{
+  my $sp = $txTbl{$id};
+  $spFreq{$sp}++;
+}
+
+printTbl(\%spFreq, "spFreq") if $debug;
+
+my %spIDs;
+for my $id ( keys %txTbl )
+{
+  my $sp = $txTbl{$id};
+  push @{$spIDs{$sp}}, $id;
 }
 
 print "--- Changing taxonomy of species found in more than one cluster\n";
@@ -210,20 +236,25 @@ for my $sp ( keys %spFreqTbl )
   {
     ##my ($g, $s) = split "_", $sp;
 
-    print "\n\nProcessing $sp\tnCltrs: " . @cls . "\n";
-    print "Cluster sizes: ";
-    map { print $spFreqTbl{$sp}{$_} . ", "} @cls;
+    if ($debug)
+    {
+      print "\n\nProcessing $sp\tnCltrs: " . @cls . "\n";
+      print "Cluster sizes: ";
+      map { print $spFreqTbl{$sp}{$_} . ", "} @cls;
+    }
 
     my @f = split "_", $sp;
     my $g = shift @f;
     #my $s = shift @f;
-    print "Genus: $g\n";
+    print "Genus: $g\n" if $debug;
     my $cmax = shift @cls;
     my $spSp = $g . "_sp";
-    print "sp species: $spSp\n";
+    print "sp species: $spSp\n" if $debug;
     for my $cl (@cls)
     {
-      for my $id ( @{$clTbl{$cl}} )
+      my @spSeqIDs = comm($clTbl{$cl}, $spIDs{$sp});
+      print "Processing seq's of cluster $cl of size " . @spSeqIDs . "\n" if $debug;
+      for my $id ( @spSeqIDs )
       {
 	$txTbl{$id} = $spSp;
       }
@@ -231,6 +262,17 @@ for my $sp ( keys %spFreqTbl )
   } # end of if ( @cls > 1
 }
 
+if ($debug)
+{
+  my %spFreq2;
+  for my $id ( keys %txTbl )
+  {
+    my $sp = $txTbl{$id};
+    $spFreq2{$sp}++;
+  }
+
+  printTbl(\%spFreq2, "spFreq2");
+}
 
 my $updatedTxFile = "$vicutDir/updated.tx";
 writeTbl(\%txTbl, $updatedTxFile);
@@ -311,9 +353,42 @@ sub printArray
 sub printTbl
 {
   my ($rTbl, $header) = @_;
-  print "$header\n" if $header;
+  print "\n$header\n" if $header;
   map {print "$_\t" . $rTbl->{$_} . "\n"} keys %$rTbl;
-  print "\n";
+  print "\n\n";
+}
+
+# count L crispatus seq's
+sub countLc
+{
+  my $rTbl = shift;
+  my $i = 0;
+  for (keys %$rTbl)
+  {
+    if( $rTbl->{$_} =~ /crispatus/ )
+    {
+      $i++;
+    }
+  }
+  return $i;
+}
+
+# common part of two arrays
+sub comm
+{
+  my ($a1, $a2) = @_;
+
+  my @c; # common array
+  my %count;
+
+  foreach my $e (@{$a1}, @{$a2}){ $count{$e}++ }
+
+  foreach my $e (keys %count)
+  {
+    push @c, $e if $count{$e} == 2;
+  }
+
+  return @c;
 }
 
 exit;
