@@ -276,9 +276,6 @@ my $candBasename = basename($trRefFileBasename, @suffixes); ## This may have to 
 my $candAlgn = "$trDir/" . $candBasename . ".align";
 my $candFile = $candBasename . ".align";
 
-print "\ncandFile: $candFile\n";
-print "candAlgn: $candAlgn\n\n";
-
 print "--- Calculating alignment range of $candFile\n" if !$quiet;
 
 my $startStats = Statistics::Descriptive::Full->new();
@@ -458,6 +455,21 @@ my $truncGr = $origGrPrefix . "_". $varReg;
 $cmd = "outgroup_rectifier.pl -i $truncGr";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed:$?" if !$dryRun;
+
+
+print "\n--- Generating a tree with species names at leaves\n";
+my $sppTreeFile = $trPrefix . "_" . $varReg . "_spp.tree";
+$cmd = "rm -f $sppTreeFile; nw_rename $rrTreeFile $trTxFile | nw_order - > $sppTreeFile";
+print "\tcmd=$cmd\n" if $dryRun || $debug;
+system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+
+
+print "--- Generating a condensed tree with species clades collapsed to a single node \n";
+my $condSppTreeFile = $trPrefix . "_" . $varReg . "_sppCondensed.tree";
+$cmd = "rm -f $condSppTreeFile; nw_condense $sppTreeFile > $condSppTreeFile";
+print "\tcmd=$cmd\n" if $dryRun || $debug;
+system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+
 
 
 ####################################################################
