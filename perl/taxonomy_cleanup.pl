@@ -268,9 +268,6 @@ if (@commTL != @treeLeaves || @commTL != @seqIDs)
   exit;
 }
 
-print "\nTaxonomy before cleanup\n";
-printLineage();
-
 my %spTbl;
 my %geTbl;
 my %faTbl;
@@ -333,6 +330,9 @@ for my $id ( keys %lineageTbl )
   push @{$phTbl{$ph}}, $id;
 }
 
+
+print "\nTaxonomy before cleanup\n";
+printLineage();
 
 my $summaryStatsFile = "summary_stats.txt";
 open my $SRYOUT, ">$summaryStatsFile" or die "Cannot open $summaryStatsFile for writing: $OS_ERROR\n";
@@ -424,7 +424,7 @@ print "--- Generating species ann and query files\n";
 my $annFile = "spp_ann.tx";
 my $queryFile = "spp_query.seqIDs";
 my $vicutDir = "spp_vicut_dir";
-
+my $nQuerySeqs = 0;
 open QOUT, ">$queryFile" or die "Cannot open $queryFile for writing: $OS_ERROR\n";
 open ANNOUT, ">$annFile" or die "Cannot open $annFile for writing: $OS_ERROR\n";
 for my $id ( keys %spp )
@@ -435,6 +435,7 @@ for my $id ( keys %spp )
   if ( defined $suffix && $suffix eq "sp" && !defined $sspSpecies{$t} ) # do not add _sp species coming from genera where they are the only species = this is why !defined $sspSpecies{$t}
   {
     print QOUT "$id\n";
+    $nQuerySeqs++;
   }
   else
   {
@@ -445,8 +446,14 @@ close ANNOUT;
 close QOUT;
 
 print "--- Running vicut\n";
-$cmd = "vicut -t $treeFile -a $annFile -q $queryFile -o $vicutDir";
-##$cmd = "vicut -t $treeFile -a $annFile -o $vicutDir";
+if ($nQuerySeqs)
+{
+  $cmd = "vicut -t $treeFile -a $annFile -q $queryFile -o $vicutDir";
+}
+else
+{
+  $cmd = "vicut -t $treeFile -a $annFile -o $vicutDir";
+}
 print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 
