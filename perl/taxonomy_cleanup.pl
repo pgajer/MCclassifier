@@ -602,13 +602,17 @@ my @ann2;
 for my $id ( keys %newSpp )
 {
   my $t = $newSpp{$id};
-  my ($g, $suffix) = split "_", $t;
+  my @f = split "_", $t;
+  my $g = shift @f;
+  my $suffix = shift @f;
+  my $suffix2 = shift @f;
 
   if ( defined $suffix && $suffix eq "sp" )
   {
-    if ( !defined $sspSeqID{$id} )
+    if ( !defined $sspSeqID{$id} && !defined $suffix2 )
     {
       push @query2, "$id\n";
+      print "Query2: $id\t$t\n" if $debug;
     }
     else
     {
@@ -618,6 +622,7 @@ for my $id ( keys %newSpp )
   elsif ( $g eq "Unclassified" )
   {
     push @query2, "$id\n";
+    print "Query2b: $id\t$t\n" if $debug;
   }
   else
   {
