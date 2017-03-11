@@ -145,7 +145,7 @@ if ( defined $johanna )
 {
   $mothur = "/Users/jholm/bin/mothur";
   $dB     = "/Users/jholm/RDP/";
-  $usearch6 = "/Users/jholm/bin/usearch6.0.203_i86linux32";
+  $usearch6 = "/Users/jholm/bin/usearch9.2.64_i86osx32";
 }
 
 local $ENV{LD_LIBRARY_PATH} = "/usr/local/packages/readline/lib:/usr/local/packages/gcc-5.3.0/lib64";
