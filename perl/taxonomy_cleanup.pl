@@ -255,7 +255,7 @@ if ( scalar(@ogDiff) != 0 )
 }
 
 print "\n\tNumber of seq's in the trimmed alignment/lineage files: " . @seqIDs . "\n";
-print "\tNumber of outgroup seq's: " . @ogSeqIDs . "\n";
+print "\tNumber of outgroup seq's: " . @ogSeqIDs . "\n\n";
 
 
 print "--- Testing if $treeFile is consistent with the trimmed alignment file\n";
@@ -276,6 +276,13 @@ if (@commTL != @treeLeaves || @commTL != @seqIDs)
   print "Number of seq IDs of $algnFile: " . @seqIDs . "\n";
   print "Number of common seq IDs elements: " . @commTL . "\n";
   exit;
+}
+
+if ($debug)
+{
+  print "\n\n\tNumber of seq IDs of $treeFile: " . @treeLeaves . "\n";
+  print      "\tNumber of seq IDs of $algnFile: " . @seqIDs . "\n";
+  print      "\tNumber of common seq IDs elements: " . @commTL . "\n\n";
 }
 
 my %spTbl;
@@ -431,10 +438,12 @@ print $SRYOUT "\nNumber of singletons (species with only one reference sequence)
 
 
 print "--- Generating species ann and query files\n";
-my $annFile = "spp_ann.tx";
-my $queryFile = "spp_query.seqIDs";
-my $vicutDir = "spp_vicut_dir";
+my $annFile    = "spp_ann.tx";
+my $queryFile  = "spp_query.seqIDs";
+my $vicutDir   = "spp_vicut_dir";
 my $nQuerySeqs = 0;
+my $nAnnSeqs   = 0;
+my %querySpp; # species => count of seq's of that species in the query file
 open QOUT, ">$queryFile" or die "Cannot open $queryFile for writing: $OS_ERROR\n";
 open ANNOUT, ">$annFile" or die "Cannot open $annFile for writing: $OS_ERROR\n";
 for my $id ( keys %spp )
@@ -446,14 +455,29 @@ for my $id ( keys %spp )
   {
     print QOUT "$id\n";
     $nQuerySeqs++;
+    $querySpp{$t}++;
   }
   else
   {
     print ANNOUT "$id\t$t\n"; # all OG seq's end up here as their suffices will not be _sp
+    $nAnnSeqs++;
   }
 }
 close ANNOUT;
 close QOUT;
+
+if ($debug)
+{
+  print "\n\n\tNumber of annotation seq's: $nAnnSeqs\n";
+  print     "\tNumber of query seq's:      $nQuerySeqs\n";
+  print     "\tSum:                        " . ($nAnnSeqs + $nQuerySeqs) . "\n";
+  print     "\tNumber of leaves: " . @treeLeaves . "\n\n";
+
+  print     "Query species:\n";
+  my @q = sort { $querySpp{$b} <=> $querySpp{$a} } keys %querySpp;
+  printFormatedTbl(\%querySpp, \@q);
+  print "\n\n"
+}
 
 print "--- Running vicut\n";
 if ($nQuerySeqs)
@@ -467,11 +491,11 @@ else
 print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 
-## update_tx_tree.pl takes vicut clusters and updates taxonomy using majority vote.
+## update_spp_tx.pl takes vicut clusters and updates taxonomy using majority vote.
 ## Moreover, if a species is present in more than 1 cluster, it changes
 ## taxonomies of sequences from the small clusters to <genus>_sp
-print "--- Running update_tx_tree.pl\n";
-$cmd = "update_tx_tree.pl $debugStr $useLongSppNamesStr -a $txFile -t $treeFile -d $vicutDir";
+print "--- Running update_spp_tx.pl\n";
+$cmd = "update_spp_tx.pl $debugStr $useLongSppNamesStr -a $txFile -d $vicutDir";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 
@@ -650,8 +674,8 @@ if (@query2)
   print "\tcmd=$cmd\n" if $dryRun || $debug;
   system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 
-  print "--- Running update_tx_tree.pl\n";
-  $cmd = "update_tx_tree.pl $debugStr $useLongSppNamesStr -a $vicutFinalTx -t $treeFile -d $vicutDir";
+  print "--- Running update_spp_tx.pl\n";
+  $cmd = "update_spp_tx.pl $debugStr $useLongSppNamesStr -a $vicutFinalTx -d $vicutDir";
   print "\tcmd=$cmd\n" if $dryRun || $debug;
   system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 }
@@ -850,20 +874,29 @@ writeTbl(\%gen, $geFile);
 
 
 my %id2genTbl;  # seqID => genus
+my %annGenera;  # genus => count of seq's of that genus
 $annFile = "genus_ann.tx";
 open ANNOUT, ">$annFile" or die "Cannot open $annFile for writing: $OS_ERROR\n";
 for my $id ( keys %newTx )
 {
   my ($g, $suffix) = split "_", $newTx{$id};
-  #my $g = $gen{$id};
   $id2genTbl{$id} = $g;
   print ANNOUT "$id\t$g\n";
+  $annGenera{$g}++;
   if (!$g)
   {
     warn "WARNING: undefined genus for $newTx{$id}";
   }
 }
 close ANNOUT;
+
+if ($debug)
+{
+  print "\nAnnotation Genera:\n";
+  my @q = sort { $annGenera{$b} <=> $annGenera{$a} } keys %annGenera;
+  printFormatedTbl(\%annGenera, \@q);
+  print "\n\n"
+}
 
 
 print "\n--- Running genus vicut on pruned (after spp cleanup) tree\n";
@@ -892,13 +925,13 @@ foreach (<IN>)
 }
 close IN;
 
-my $geprunedTreeFile = $grPrefix . "_tx_pruned_genus.tree";
+my $geprunedTreeFile = $grPrefix . "_genus.tree";
 $cmd = "cp $prunedTreeFile $geprunedTreeFile";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 
-print "--- Running update_tx_tree.pl for genus level\n";
-$cmd = "update_tx_tree.pl $debugStr -a $finalTxFile -t $geprunedTreeFile -d $geVicutDir";
+print "--- Running update_tx.pl for genus level\n";
+$cmd = "update_tx.pl $debugStr -a $finalTxFile -d $geVicutDir";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 
