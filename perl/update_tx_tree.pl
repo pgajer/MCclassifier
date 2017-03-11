@@ -287,12 +287,36 @@ for my $cl ( keys %clFreqTbl )
       my $newName;
       if ( $g1 eq $g2 )
       {
-	$newName = $g1 . "_" . $s1 . "_" . $s2;
+	if ($s1 ne "sp" && $sp1 ne "NA" && $s2 ne "sp" && $sp2 ne "NA")
+	{
+	  $newName = $g1 . "_" . $s1 . "_" . $s2;
+	}
+	elsif ( $s1 ne "sp" && $sp1 ne "NA" )
+	{
+	  $newName = $g1 . "_" . $s1;
+	}
+	else
+	{
+	  $newName = $g1 . "_" . $s2;
+	}
       }
       else
       {
-	$newName = $sp1 . "_" . $sp2;
+	if ( $sp1 ne "NA" && $sp2 ne "NA" )
+	{
+	  $newName = $sp1 . "_" . $sp2;
+	}
+	elsif ( $sp1 ne "NA" )
+	{
+	  $newName = $sp1;
+	}
+	else
+	{
+	  $newName = $sp2;
+	}
       }
+
+      print "\nnewName: $newName\tsp1: $sp1\tsp2: $sp2\n" if $debug;
 
       for my $id ( @{$clTbl{$cl}} )
       {
