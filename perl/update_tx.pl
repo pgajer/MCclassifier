@@ -207,7 +207,7 @@ for my $cl ( keys %clFreqTbl )
 
     if ($debug)
     {
-      print "Changing taxonomy of all sequences of the cluster to $newTx\n\n";
+      print "\tChanging taxonomy of all sequences of the cluster to $newTx\n\n";
     }
     for my $id ( @{$clTbl{$cl}} )
     {
