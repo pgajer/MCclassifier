@@ -188,7 +188,6 @@ for my $tx ( keys %txCltrFreq )
       }
       $clCount++;
     }
-    print FREQOUT "\n";
   }
   else
   {
