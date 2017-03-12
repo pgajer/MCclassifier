@@ -685,7 +685,7 @@ $cmd = "genotype_spp.pl -d $vicutDir";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 
-print "--- Generating final lineage and taxonomy files\n";
+print "--- Generating final species taxonomy files\n";
 
 ##my $vicutFinalTx = "$vicutDir/minNodeCut.cltrs";
 
@@ -708,36 +708,6 @@ for my $id (keys %newTx)
   $newChildren{$gen{$id}}{$newTx{$id}}++;
   push @{$newSpTbl{$newTx{$id}}}, $id;
 }
-
-my $finalLineageFile = $grPrefix . "_final.lineage";
-my $finalLineageFile2 = $grPrefix . "_final_no_tGTs.lineage";
-open LOUT, ">$finalLineageFile" or die "Cannot open $finalLineageFile for writing: $OS_ERROR\n";
-open LOUT2, ">$finalLineageFile2" or die "Cannot open $finalLineageFile2 for writing: $OS_ERROR\n";
-for my $id (keys %newTx)
-{
-  my $lineage = $lineageTbl{$id};
-  my @f = split ";", $lineage;
-  my $sp = pop @f;
-  print LOUT "$id\t";
-  print LOUT2 "$id\t";
-  for (@f)
-  {
-    print LOUT "$_;";
-    print LOUT2 "$_;";
-  }
-  if ( ! exists $ogInd{$id} )
-  {
-    print LOUT $newTx{$id} . "\n";
-    print LOUT2 $newTxNoTGTs{$id} . "\n";
-  }
-  else
-  {
-    print LOUT $sp . "\n";
-    print LOUT2 $sp . "\n";
-  }
-}
-close LOUT;
-close LOUT2;
 
 my $finalTxFile = $grPrefix . "_final.tx";
 if ($rmOGfromTx) # if OG seq's are to be removed from the final tx file
@@ -801,10 +771,6 @@ $cmd = "cmp_tx.pl -i $txFile -j $newTxFile -o old_vs_new_spp_cmp";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 
-print "\nTaxonomy AFTER cleanup\n";
-printLineageAfterSpp();
-
-printLineageAfterSppToFile();
 
 
 ##
@@ -935,22 +901,23 @@ $cmd = "update_tx.pl $debugStr -a $finalTxFile -d $geVicutDir";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 
-print "--- Running genotype_genus.pl for genus level\n";
-$cmd = "genotype_genus.pl -d $geVicutDir";
+print "--- Running genotype_tx.pl for genus level\n";
+$cmd = "genotype_tx.pl -d $geVicutDir";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 
-my $finalgeTx = "$geVicutDir/updated2.tx";
+my $finalGenusTx = "$geVicutDir/updated2.tx";
+my %genusTx = readTbl($finalGenusTx);
 
 print "\n--- Generating a tree with final genus names at leaves\n";
 my $finalgeTreeFile = "$grPrefix" . "_final_genus.tree";
-$cmd = "rm -f $finalgeTreeFile; nw_rename $geprunedTreeFile $finalgeTx | nw_order - > $finalgeTreeFile";
+$cmd = "rm -f $finalgeTreeFile; nw_rename $geprunedTreeFile $finalGenusTx | nw_order - > $finalgeTreeFile";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 
 print "--- Generating tree with <final genus name>_<seqID> labels at leaves\n";
 my $finalgeSeqIDsFile = "$grPrefix" . "_final_genus.seqIDs";
-$cmd = "awk '{print \$1\"\\t\"\$2\"__\"\$1}' $finalgeTx > $finalgeSeqIDsFile";
+$cmd = "awk '{print \$1\"\\t\"\$2\"__\"\$1}' $finalGenusTx > $finalgeSeqIDsFile";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 
@@ -964,6 +931,130 @@ my $finalCondgeTreeFile = "$grPrefix" . "_final_geCondensed.tree";
 $cmd = "rm -f $finalCondgeTreeFile; nw_condense $finalgeTreeFile > $finalCondgeTreeFile";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+
+
+
+##
+## family-level cleanup
+##
+print "--- Generating family ann and query files\n";
+
+my $famFile = "$grPrefix" . ".family";
+print "--- Writing family assignments to $famFile file\n";
+writeTbl(\%fam, $famFile);
+
+my %annFamilies;  # family => count of seq's of that family
+$annFile = "family_ann.tx";
+open ANNOUT, ">$annFile" or die "Cannot open $annFile for writing: $OS_ERROR\n";
+for my $id ( keys %newTx )
+{
+  my $f = $fam{$id};
+  print ANNOUT "$id\t$f\n";
+  $annFamilies{$f}++;
+  if (!$f)
+  {
+    warn "\n\n\tWARNING: undefined family $id";
+    print "\n\n";
+  }
+}
+close ANNOUT;
+
+if ($debug)
+{
+  print "\nAnnotation Families:\n";
+  my @q = sort { $annFamilies{$b} <=> $annFamilies{$a} } keys %annFamilies;
+  printFormatedTbl(\%annFamilies, \@q);
+  print "\n\n"
+}
+
+
+print "\n--- Running family vicut on pruned (after spp cleanup) tree\n";
+my $familyVicutDir = "family_vicut_dir";
+$cmd = "vicut -t $prunedTreeFile -a $annFile -o $familyVicutDir";
+print "\tcmd=$cmd\n" if $dryRun || $debug;
+system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+
+my $familyTxFile = "$vicutDir/minNodeCut.cltrs";
+if ( ! -f $familyTxFile )
+{
+  warn "\nERROR: $familyTxFile does not exist";
+  exit;
+}
+
+print "--- Running update_tx.pl for family level\n";
+$cmd = "update_tx.pl $debugStr -a $familyTxFile -d $familyVicutDir";
+print "\tcmd=$cmd\n" if $dryRun || $debug;
+system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+
+print "--- Running genotype_tx.pl for family level\n";
+$cmd = "genotype_tx.pl -d $familyVicutDir";
+print "\tcmd=$cmd\n" if $dryRun || $debug;
+system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+
+my $finalFamilyTx = "$familyVicutDir/updated2.tx";
+my %familyTx = readTbl($finalFamilyTx);
+
+print "\n--- Generating a tree with final family names at leaves\n";
+my $familyTreeFile = "$grPrefix" . "_final_family.tree";
+$cmd = "rm -f $familyTreeFile; nw_rename $prunedTreeFile $finalFamilyTx | nw_order - > $familyTreeFile";
+print "\tcmd=$cmd\n" if $dryRun || $debug;
+system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+
+print "--- Generating tree with <final family name>_<seqID> labels at leaves\n";
+my $familySeqIDsFile = "$grPrefix" . "_final_family.seqIDs";
+$cmd = "awk '{print \$1\"\\t\"\$2\"__\"\$1}' $finalFamilyTx > $familySeqIDsFile";
+print "\tcmd=$cmd\n" if $dryRun || $debug;
+system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+
+my $familySeqIdTreeFile = "$grPrefix" . "_final_geSeqIDs.tree";
+$cmd = "rm -f $familySeqIdTreeFile; nw_rename $prunedTreeFile $familySeqIDsFile | nw_order -  > $familySeqIdTreeFile";
+print "\tcmd=$cmd\n" if $dryRun || $debug;
+system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+
+print "--- Generating a condensed tree with final families collapsed to a single node \n";
+my $familyCondTreeFile = "$grPrefix" . "_final_geCondensed.tree";
+$cmd = "rm -f $familyCondTreeFile; nw_condense $familyTreeFile > $familyCondTreeFile";
+print "\tcmd=$cmd\n" if $dryRun || $debug;
+system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+
+
+
+print "--- Generating final lineage files\n";
+
+my $finalLineageFile = $grPrefix . "_final.lineage";
+my $finalLineageFile2 = $grPrefix . "_final_no_tGTs.lineage";
+open LOUT, ">$finalLineageFile" or die "Cannot open $finalLineageFile for writing: $OS_ERROR\n";
+open LOUT2, ">$finalLineageFile2" or die "Cannot open $finalLineageFile2 for writing: $OS_ERROR\n";
+for my $id (keys %newTx)
+{
+  my $lineage = $lineageTbl{$id};
+  my @f = split ";", $lineage;
+  my $sp = pop @f;
+  print LOUT "$id\t";
+  print LOUT2 "$id\t";
+  for (@f)
+  {
+    print LOUT "$_;";
+    print LOUT2 "$_;";
+  }
+  if ( ! exists $ogInd{$id} )
+  {
+    print LOUT $newTx{$id} . "\n";
+    print LOUT2 $newTxNoTGTs{$id} . "\n";
+  }
+  else
+  {
+    print LOUT $sp . "\n";
+    print LOUT2 $sp . "\n";
+  }
+}
+close LOUT;
+close LOUT2;
+
+print "\nTaxonomy AFTER cleanup\n";
+printLineageAfterSpp();
+
+printLineageAfterSppToFile();
 
 
 
