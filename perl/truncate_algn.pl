@@ -100,6 +100,7 @@ GetOptions(
   "help|h!"          	  => \my $help,
   "igs"                   => \my $igs,
   "johanna"               => \my $johanna,
+  "manual"				  => \my $manual,
 
   )
   or pod2usage(verbose => 0,exitstatus => 1);
@@ -338,8 +339,19 @@ print "Median:\t" . $endStats->median() . "\n";
 print "IQR:\t" . $endStats->percentile(25) . "-" . $endStats->percentile(75) . "\n";
 print "Mean:\t" . $endStats->mean() . "\n\n";
 
-my $s = $startStats->mode();
-my $e = $endStats->mode();
+my $s;
+my $e;
+
+if (defined $manual) {
+	print "Please examine above table and indicate the base to START truncation: \n";
+	chomp ($s = <STDIN>);
+	print "Please examine above table and indicate the base to END truncation: \n";
+	chomp ($e = <STDIN>);
+	}
+else {
+$s = $startStats->mode();
+$e = $endStats->mode();
+}
 
 #print "s: $s\te: $e\n";
 
