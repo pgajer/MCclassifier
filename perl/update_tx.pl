@@ -165,7 +165,9 @@ if ($debug)
     $txFreq{$sp}++;
   }
 
-  printTbl(\%txFreq, "txFreq");
+  print "\n\ntxFreq:\n";
+  my @q = sort { $txFreq{$b} <=> $txFreq{$a} } keys %txFreq;
+  printFormatedTbl(\%txFreq, \@q);
 }
 
 my %txIDs;
@@ -355,6 +357,36 @@ sub comm
   }
 
   return @c;
+}
+
+# print elements of a hash table so that arguments are aligned
+sub printFormatedTbl{
+
+  my ($rTbl, $rSub) = @_; # the second argument is a subarray of the keys of the table
+
+  my @args;
+  if ($rSub)
+  {
+    @args = @{$rSub};
+  }
+  else
+  {
+    @args = keys %{$rTbl};
+  }
+
+  my $maxStrLen = 0;
+  map { $maxStrLen = length($_) if( length($_) > $maxStrLen )} @args;
+
+  for (@args)
+  {
+    my $n = $maxStrLen - length($_);
+    my $pad = ": ";
+    for (my $i=0; $i<$n; $i++)
+    {
+      $pad .= " ";
+    }
+    print "$_$pad" . $rTbl->{$_} . "\n";
+  }
 }
 
 exit;

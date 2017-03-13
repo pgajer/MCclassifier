@@ -173,7 +173,9 @@ if ($debug)
     $spFreq{$sp}++;
   }
 
-  printTbl(\%spFreq, "spFreq");
+  print "\n\nspFreq:\n";
+  my @q = sort { $spFreq{$b} <=> $spFreq{$a} } keys %spFreq;
+  printFormatedTbl(\%spFreq, \@q);
 }
 
 my %spIDs;
@@ -189,10 +191,11 @@ print "    then set all small cluster's taxonomies to <genus>_sp\n";
 print "    and keep the taxonomy of the largest cluster\n";
 for my $sp ( keys %spFreqTbl )
 {
+  print "\n\nsp: $sp\n";
   my @f = split "_", $sp;
   my $g = shift @f;
   my $s = shift @f;
-  next if $s eq "sp"; # do not process _sp species
+  next if defined $s && $s eq "sp"; # do not process _sp species
 
   my @cls = sort { $spFreqTbl{$sp}{$b} <=> $spFreqTbl{$sp}{$a} } keys %{$spFreqTbl{$sp}};
   if ( @cls > 1 && $spFreqTbl{$sp}{$cls[0]} > $spFreqTbl{$sp}{$cls[1]} )
@@ -204,14 +207,15 @@ for my $sp ( keys %spFreqTbl )
       print "\n\nProcessing $sp\tnCltrs: " . @cls . "\n";
       print "Cluster sizes: ";
       map { print $spFreqTbl{$sp}{$_} . ", "} @cls;
+      print "\n";
     }
 
     @f = split "_", $sp;
     $g = shift @f;
-    print "Genus: $g\n" if $debug;
+    #print "\nGenus: $g\n" if $debug;
     my $cmax = shift @cls;
     my $spSp = $g . "_sp";
-    print "sp species: $spSp\n" if $debug;
+    #print "sp species: $spSp\n" if $debug;
     for my $cl (@cls)
     {
       my @spSeqIDs = comm($clTbl{$cl}, $spIDs{$sp});
@@ -233,7 +237,9 @@ if ($debug)
     $spFreq2{$sp}++;
   }
 
-  printTbl(\%spFreq2, "spFreq2");
+  print "\n\nspFreq2:\n";
+  my @q = sort { $spFreq2{$b} <=> $spFreq2{$a} } keys %spFreq2;
+  printFormatedTbl(\%spFreq2, \@q);
 }
 
 
@@ -501,6 +507,37 @@ sub comm
   }
 
   return @c;
+}
+
+# print elements of a hash table so that arguments are aligned
+sub printFormatedTbl{
+
+  my ($rTbl, $rSub) = @_; # the second argument is a subarray of the keys of the table
+
+  my @args;
+  if ($rSub)
+  {
+    @args = @{$rSub};
+  }
+  else
+  {
+    @args = keys %{$rTbl};
+  }
+
+  my $maxStrLen = 0;
+  map { $maxStrLen = length($_) if( length($_) > $maxStrLen )} @args;
+
+  for (@args)
+  {
+    my $n = $maxStrLen - length($_);
+    my $pad = ": ";
+    for (my $i=0; $i<$n; $i++)
+    {
+      $pad .= " ";
+    }
+    print "$_$pad" . $rTbl->{$_} . "\n";
+  }
+  print "\n\n";
 }
 
 exit;
