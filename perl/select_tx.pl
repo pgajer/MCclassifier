@@ -10,7 +10,7 @@
 
 =head1 SYNOPSIS
 
-  select_tx.pl -s <seq IDs> -i <input file> -o <output file> [Options]
+  select_tx.pl [-s|-e] <seq IDs> -i <input file> -o <output file> [Options]
 
 =head1 OPTIONS
 
