@@ -205,8 +205,8 @@ else
 if (!$quiet)
 {
   print "\r                                                           ";
-  print "\n\tNumer of sequences in the input fasta file:  $count\n";
-  print "  \tNumer of sequences in the output fasta file: $selCount\n\n";
+  print "\n\tNumber of sequences in the input fasta file:  $count\n";
+  print "  \tNumber of sequences in the output fasta file: $selCount\n\n";
 
   print "\rSelected sequences written to $outFile\n";
 }
