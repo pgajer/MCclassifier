@@ -92,7 +92,7 @@ $OUTPUT_AUTOFLUSH = 1;
 # my $masterSeqLenFile  = "/Users/pgajer/devel/MCextras/data/RDP/rdp_Bacteria_fp_seqlen_amb_filtered_wBVAB_nr2.seqLen";
 # my $masterFaFile      = "/Users/pgajer/devel/MCextras/data/RDP/rdp_Bacteria_fp_seqlen_amb_filtered_wBVAB_nr2.fa";
 
-my $masterLineageFile = "/Users/pgajer/devel/MCextras/data/RDP/rdp_Bacteria_fp_seqlen_amb_filtered_wBVAB.lineage";
+my $masterLineageFile = "/Users/pgajer/devel/MCextras/data/RDP/rdp_Bacteria_fp_seqlen_amb_filtered_wBVAB_no_incertae_sedis.lineage";
 my $masterSeqLenFile  = "/Users/pgajer/devel/MCextras/data/RDP/rdp_Bacteria_fp_seqlen_amb_filtered_wBVAB.seqLen";
 my $masterFaFile      = "/Users/pgajer/devel/MCextras/data/RDP/rdp_Bacteria_fp_seqlen_amb_filtered_wBVAB.fa";
 
