@@ -6,7 +6,7 @@
 
 =head1 VERSION
 
-  Versionn 1.0
+  Version 1.0
 
 
 =head1 DESCRIPTION
