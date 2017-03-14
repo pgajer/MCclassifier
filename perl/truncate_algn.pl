@@ -172,6 +172,12 @@ if ( ! -e $algnFile )
   exit;
 }
 
+if ( -l $algnFile )
+{
+  $algnFile = readlink($algnFile);
+}
+
+
 if ( ! -e $ogSeqIDsFile )
 {
   warn "ERROR: $ogSeqIDsFile does not exist";
@@ -190,26 +196,20 @@ if ( ! -e $lineageFile )
   exit;
 }
 
+if ( -l $txFile )
+{
+  $txFile = readlink($txFile);
+  if ( ! -e $txFile )
+  {
+    warn "ERROR: txaxonomy file, $txFile, does not exist";
+    exit;
+  }
+}
+
 # if ( -l $ogSeqIDsFile )
 # {
 #   $ogSeqIDsFile = readlink($ogSeqIDsFile);
 # }
-
-if ( -l $txFile )
-{
-  $txFile = readlink($txFile);
-  if ( ! -s $txFile )
-  {
-    $txFile = $grDir . "/" . $txFile;
-    $txFile = abs_path( $txFile );
-
-    if ( ! -s $txFile )
-    {
-      warn "ERROR: txaxonomy file, $txFile, does not exist";
-      exit;
-    }
-  }
-}
 
 # test consistency of tx and algn_trimmed_final
 
@@ -258,12 +258,17 @@ my $scriptFile = createCommandTxt(\@tmp);
 
 $cmd = "$mothur < $scriptFile; rm -f $scriptFile";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
-system($cmd) == 0 or die "system($cmd) failed:$?" if !$dryRun;
+###system($cmd) == 0 or die "system($cmd) failed:$?" if !$dryRun;
 
 my @suffixes = (".fasta",".fa",".fna");
 my $candBasename = basename($trRefFileBasename, @suffixes); ## This may have to change ($trRefFileBasename to $trRefFile, depending on where mothur writes it)
 my $candAlgn = "$trDir/" . $candBasename . ".align";
 my $candFile = $candBasename . ".align";
+
+## removing $trRefFile as it is not needed anymore
+$cmd = "rm -f $trRefFile";
+print "\tcmd=$cmd\n" if $dryRun || $debug;
+system($cmd) == 0 or die "system($cmd) failed:$?" if !$dryRun;
 
 print "--- Calculating alignment range of $candFile\n" if !$quiet;
 
@@ -327,16 +332,17 @@ print "Mean:\t" . $endStats->mean() . "\n\n";
 
 my $s;
 my $e;
-
-if (defined $manual) {
-	print "Please examine above table and indicate the base to START truncation: \n";
-	chomp ($s = <STDIN>);
-	print "Please examine above table and indicate the base to END truncation: \n";
-	chomp ($e = <STDIN>);
-	}
-else {
-$s = $startStats->mode();
-$e = $endStats->mode();
+if (defined $manual)
+{
+  print "Please examine above table and indicate the base to START truncation: \n";
+  chomp ($s = <STDIN>);
+  print "Please examine above table and indicate the base to END truncation: \n";
+  chomp ($e = <STDIN>);
+}
+else
+{
+  $s = $startStats->mode();
+  $e = $endStats->mode();
 }
 
 #print "s: $s\te: $e\n";
@@ -359,11 +365,11 @@ my $trNRfile = $trPrefix . "_". $varReg . "_nr.fa";
 my $trUCfilelog = $trPrefix . "_". $varReg . "_uc.log";
 $cmd = "$usearch6 -cluster_fast $trFaFile -id 1.0 -uc $trUCfile -centroids $trNRfile";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
-system($cmd) == 0 or die "system($cmd) failed:$?" if !$dryRun;
+###system($cmd) == 0 or die "system($cmd) failed:$?" if !$dryRun;
 
 $cmd = "mv $trNRfile $trFaFile";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
-system($cmd) == 0 or die "system($cmd) failed:$?" if !$dryRun;
+###system($cmd) == 0 or die "system($cmd) failed:$?" if !$dryRun;
 
 
 print "--- Creating non-redundatn seq's taxonomy file\n" if !$quiet;
@@ -402,9 +408,9 @@ my $unrootedTreeFile = $trPrefix . "_". $varReg . "_unrooted.tree";
 print "--- Producing phylogenetic tree from $unrootedTreeFile\n";
 $cmd = "FastTree -nt $trAlgnFileNR > $unrootedTreeFile";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
-system($cmd) == 0 or die "system($cmd) failed:$?" if !$dryRun;
+###system($cmd) == 0 or die "system($cmd) failed:$?" if !$dryRun;
 
-print "--- Reading outgroup IDs for full length seq's\n" if !$quiet;
+print "--- Reading outgroup IDs for full length seq's\n    and selecting those that ended up in the non-redundant set of truncated seq's\n" if !$quiet;
 my @ogSeqIDs = readArray($ogSeqIDsFile);
 
 printArrayByRow(\@ogSeqIDs, "ogSeqIDs") if $debug;
@@ -423,15 +429,16 @@ for (@ogSeqIDs)
 
 printArrayByRow(\@trOGs, "trOGs") if $debug;
 
+if (@trOGs == 0)
+{
+  warn "\n\n\tERROR: All outgroup sequences has been lost";
+  print "\n\n\n";
+  exit;
+}
 
 my $trOGseqIDsFile = $trPrefix . "_". $varReg . "_outgroup.seqIDs";
 print "--- Writing update OG seq IDs to $trOGseqIDsFile";
 writeArray(\@trOGs, $trOGseqIDsFile);
-
-# print "--- Copying $ogSeqIDsFile to $trOGseqIDsFile";
-# $cmd = "cp $ogSeqIDsFile $trOGseqIDsFile";
-# print "\tcmd=$cmd\n" if $dryRun || $debug;
-# system($cmd) == 0 or die "system($cmd) failed:$?" if !$dryRun;
 
 my $rrTreeFile = $trPrefix . "_". $varReg . ".tree";
 print "--- Rerooting the tree using outgroup seq's\n" if !$quiet;
@@ -439,9 +446,18 @@ $cmd = "rm -f $rrTreeFile; nw_reroot $unrootedTreeFile @trOGs > $rrTreeFile";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed:$?" if !$dryRun;
 
+if (@trOGs > 1)
+{
+  print "--- Rectifying outgroup sequences - making of them a monophyletic clade if they do not form one\n";
+  my $truncGr = $origGrPrefix . "_". $varReg;
+  $cmd = "outgroup_rectifier.pl -i $truncGr";
+  print "\tcmd=$cmd\n" if $dryRun || $debug;
+  system($cmd) == 0 or die "system($cmd) failed:$?" if !$dryRun;
+}
+
 print "--- Generating tree with <species name>_<seqID> labels at leaves\n";
 my $sppSeqIDsFile = $trPrefix . "_". $varReg . "_spp.seqIDs";
-$cmd = "awk '{print \$1\"\\t\"\$2\"__\"\$1}' $trTxFile > $sppSeqIDsFile";
+$cmd = "rm -f $sppSeqIDsFile; awk '{print \$1\"\\t\"\$2\"__\"\$1}' $trTxFile > $sppSeqIDsFile";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed:$?" if !$dryRun;
 
@@ -449,13 +465,6 @@ my $sppSeqIdTreeFile = $trPrefix . "_". $varReg . "_sppSeqIDs.tree";
 $cmd = "rm -f $sppSeqIdTreeFile; nw_rename $rrTreeFile $sppSeqIDsFile | nw_order -  > $sppSeqIdTreeFile";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed:$?" if !$dryRun;
-
-print "--- Rectifying outgroup sequences - making of them a monophyletic clade if they do not form one\n";
-my $truncGr = $origGrPrefix . "_". $varReg;
-$cmd = "outgroup_rectifier.pl -i $truncGr";
-print "\tcmd=$cmd\n" if $dryRun || $debug;
-system($cmd) == 0 or die "system($cmd) failed:$?" if !$dryRun;
-
 
 print "\n--- Generating a tree with species names at leaves\n";
 my $sppTreeFile = $trPrefix . "_" . $varReg . "_spp.tree";
@@ -465,7 +474,7 @@ system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 
 
 print "--- Generating a condensed tree with species clades collapsed to a single node \n";
-my $condSppTreeFile = $trPrefix . "_" . $varReg . "_sppCondensed.tree";
+my $condSppTreeFile = $trPrefix . "_" . $varReg . "_spp_condensed.tree";
 $cmd = "rm -f $condSppTreeFile; nw_condense $sppTreeFile > $condSppTreeFile";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
