@@ -320,8 +320,8 @@ print "\t$newTxFile\n";
 
 if ( $ogSeqIDsFile ne $newOutgroupFile )
 {
-  print "Producing symbolic link for $newOutgroupFile to $ogSeqIDsFile";
-  my $cmd = "rm -f $newOutgroupFile; ln -s $ogSeqIDsFile $newOutgroupFile";
+  print "Copying $newOutgroupFile to $ogSeqIDsFile";
+  my $cmd = "rm -f $newOutgroupFile; cp $ogSeqIDsFile $newOutgroupFile";
   print "\tcmd=$cmd\n" if $dryRun || $debug;
   system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
   print "\t$newOutgroupFile\n";
