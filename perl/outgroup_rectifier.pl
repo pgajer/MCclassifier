@@ -170,6 +170,19 @@ my @ogSeqIDs = readArray($ogSeqIDsFile);
 
 printArrayByRow(\@ogSeqIDs, "ogSeqIDs") if ($debug);
 
+if ( @ogSeqIDs == 1 )
+{
+  print "\n\tNumber of outgroup seq's: " . @ogSeqIDs . "\n";
+  print "\tNothing to be done\n\n";
+  exit;
+}
+elsif ( @ogSeqIDs == 0 )
+{
+  warn "\n\n\tERROR: No outgroup sequences found";
+  print "\n\n\n";
+  exit;
+}
+
 my @allSeqIDs = keys %lineageTbl;
 my @noOGseqIDs = diff(\@allSeqIDs, \@ogSeqIDs);
 
