@@ -162,7 +162,7 @@ elsif ( ! -f $algnFile )
 }
 elsif ( ! -f $trimmedAlgnFile )
 {
-  warn "WARNING: $trimmedAlgnFile does not exist. Creaint a symbolic link to $algnFile.\n";
+  warn "WARNING: $trimmedAlgnFile does not exist. Creating a symbolic link to $algnFile.\n";
   my $ap = abs_path( $algnFile );
   #print "ap: $ap\n"; exit;
   my $cmd = "ln -s $ap $trimmedAlgnFile";
