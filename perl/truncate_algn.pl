@@ -164,7 +164,7 @@ $grPrefix = "$grDir/$grPrefix";
 my $txFile       = $grPrefix . "_final.tx";
 my $algnFile     = $grPrefix . "_algn_trimmed_final.fa";
 my $ogSeqIDsFile = $grPrefix . "_outgroup.seqIDs"; # and here _final_outgroup.seqIDs
-my $lineageFile  = $grPrefix . "_final.lineage";
+my $lineageFile  = $grPrefix . "_final_no_tGTs.lineage";
 
 if ( ! -e $algnFile )
 {
@@ -371,6 +371,7 @@ $cmd = "mv $trNRfile $trFaFile";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed:$?" if !$dryRun;
 
+
 print "--- Creating non-redundant seq's taxonomy file\n" if !$quiet;
 ## extracting seq IDs from the alignment file and selecting those IDs from the taxon file
 my $trSeqIDs = $trPrefix  . "_". $varReg . "_nr.seqIDs";
@@ -455,6 +456,13 @@ $cmd = "rm -f $sppSeqIdTreeFile; nw_rename $rrTreeFile $sppSeqIDsFile | nw_order
 print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed:$?" if !$dryRun;
 
+print "\n--- Generating a tree with species names at leaves\n";
+my $sppTreeFile = $trPrefix . "_" . $varReg . "_spp.tree";
+$cmd = "rm -f $sppTreeFile; nw_rename $rrTreeFile $trTxFile | nw_order - > $sppTreeFile";
+print "\tcmd=$cmd\n" if $dryRun || $debug;
+system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+
+
 if (@trOGs > 1)
 {
   print "--- Rectifying outgroup sequences - making a monophyletic clade if they do not form one\n";
@@ -463,13 +471,6 @@ if (@trOGs > 1)
   print "\tcmd=$cmd\n" if $dryRun || $debug;
   system($cmd) == 0 or die "system($cmd) failed:$?" if !$dryRun;
 }
-
-print "\n--- Generating a tree with species names at leaves\n";
-my $sppTreeFile = $trPrefix . "_" . $varReg . "_spp.tree";
-$cmd = "rm -f $sppTreeFile; nw_rename $rrTreeFile $trTxFile | nw_order - > $sppTreeFile";
-print "\tcmd=$cmd\n" if $dryRun || $debug;
-system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
-
 
 print "--- Generating a condensed tree with species clades collapsed to a single node \n";
 my $condSppTreeFile = $trPrefix . "_" . $varReg . "_spp_condensed.tree";
