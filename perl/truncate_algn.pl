@@ -164,7 +164,7 @@ $grPrefix = "$grDir/$grPrefix";
 my $txFile       = $grPrefix . "_final.tx";
 my $algnFile     = $grPrefix . "_algn_trimmed_final.fa";
 my $ogSeqIDsFile = $grPrefix . "_outgroup.seqIDs"; # and here _final_outgroup.seqIDs
-my $lineageFile  = $grPrefix . "_final_no_tGTs.lineage";
+my $lineageFile  = $grPrefix . "_final.lineage";
 
 if ( ! -e $algnFile )
 {
@@ -223,7 +223,7 @@ if ($varReg =~ 'V3V4')
 {
   $trRefFileBasename = "V400.unique.subsampled.fa";
   #$trRefFile = $dB . $trRefFileBasename;
-  print "\n--- Trimming to V3V4 variable region\n"
+  print "\n--- Trimming $trRefFileBasename to V3V4 variable region\n"
 }
 elsif ($varReg =~ 'V4')
 {
@@ -258,7 +258,7 @@ my $scriptFile = createCommandTxt(\@tmp);
 
 $cmd = "$mothur < $scriptFile; rm -f $scriptFile";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
-###system($cmd) == 0 or die "system($cmd) failed:$?" if !$dryRun;
+system($cmd) == 0 or die "system($cmd) failed:$?" if !$dryRun;
 
 my @suffixes = (".fasta",".fa",".fna");
 my $candBasename = basename($trRefFileBasename, @suffixes); ## This may have to change ($trRefFileBasename to $trRefFile, depending on where mothur writes it)
@@ -266,9 +266,9 @@ my $candAlgn = "$trDir/" . $candBasename . ".align";
 my $candFile = $candBasename . ".align";
 
 ## removing $trRefFile as it is not needed anymore
-$cmd = "rm -f $trRefFile";
-print "\tcmd=$cmd\n" if $dryRun || $debug;
-system($cmd) == 0 or die "system($cmd) failed:$?" if !$dryRun;
+#$cmd = "rm -f $trRefFile";
+#print "\tcmd=$cmd\n" if $dryRun || $debug;
+#system($cmd) == 0 or die "system($cmd) failed:$?" if !$dryRun;
 
 print "--- Calculating alignment range of $candFile\n" if !$quiet;
 
@@ -359,20 +359,19 @@ $cmd = "rmGaps -i $trAlgnFile -o $trFaFile";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed:$?" if !$dryRun;
 
-print "--- Dereplicatin $trFaFile\n" if !$quiet;
+print "--- Dereplicating $trFaFile\n" if !$quiet;
 my $trUCfile = $trPrefix . "_". $varReg . ".uc";
 my $trNRfile = $trPrefix . "_". $varReg . "_nr.fa";
 my $trUCfilelog = $trPrefix . "_". $varReg . "_uc.log";
 $cmd = "$usearch6 -cluster_fast $trFaFile -id 1.0 -uc $trUCfile -centroids $trNRfile";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
-###system($cmd) == 0 or die "system($cmd) failed:$?" if !$dryRun;
+system($cmd) == 0 or die "system($cmd) failed:$?" if !$dryRun;
 
 $cmd = "mv $trNRfile $trFaFile";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
-###system($cmd) == 0 or die "system($cmd) failed:$?" if !$dryRun;
+system($cmd) == 0 or die "system($cmd) failed:$?" if !$dryRun;
 
-
-print "--- Creating non-redundatn seq's taxonomy file\n" if !$quiet;
+print "--- Creating non-redundant seq's taxonomy file\n" if !$quiet;
 ## extracting seq IDs from the alignment file and selecting those IDs from the taxon file
 my $trSeqIDs = $trPrefix  . "_". $varReg . "_nr.seqIDs";
 $cmd = "extract_seq_IDs.pl -i $trFaFile -o $trSeqIDs";
@@ -384,7 +383,7 @@ $cmd = "select_tx.pl -s $trSeqIDs -i $txFile -o $trTxFile";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 
-print "--- Creating non-redundatn seq's lineage file\n" if !$quiet;
+print "--- Creating non-redundant seq's lineage file\n" if !$quiet;
 my $trLineageFile = $trPrefix . "_". $varReg . ".lineage";
 $cmd = "select_tx.pl -s $trSeqIDs -i $lineageFile -o $trLineageFile";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
@@ -403,14 +402,13 @@ $cmd = "mv $trAlgnFileNR $trAlgnFile; ln -s $ap $trAlgnFileNR";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed:$?" if !$dryRun;
 
-
 my $unrootedTreeFile = $trPrefix . "_". $varReg . "_unrooted.tree";
 print "--- Producing phylogenetic tree from $unrootedTreeFile\n";
 $cmd = "FastTree -nt $trAlgnFileNR > $unrootedTreeFile";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
-###system($cmd) == 0 or die "system($cmd) failed:$?" if !$dryRun;
+system($cmd) == 0 or die "system($cmd) failed:$?" if !$dryRun;
 
-print "--- Reading outgroup IDs for full length seq's\n    and selecting those that ended up in the non-redundant set of truncated seq's\n" if !$quiet;
+print "--- Reading outgroup IDs for full length $grPrefix seq's\n    and selecting those that ended up in the non-redundant set of truncated seq's\n" if !$quiet;
 my @ogSeqIDs = readArray($ogSeqIDsFile);
 
 printArrayByRow(\@ogSeqIDs, "ogSeqIDs") if $debug;
@@ -446,15 +444,6 @@ $cmd = "rm -f $rrTreeFile; nw_reroot $unrootedTreeFile @trOGs > $rrTreeFile";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed:$?" if !$dryRun;
 
-if (@trOGs > 1)
-{
-  print "--- Rectifying outgroup sequences - making of them a monophyletic clade if they do not form one\n";
-  my $truncGr = $origGrPrefix . "_". $varReg;
-  $cmd = "outgroup_rectifier.pl -i $truncGr";
-  print "\tcmd=$cmd\n" if $dryRun || $debug;
-  system($cmd) == 0 or die "system($cmd) failed:$?" if !$dryRun;
-}
-
 print "--- Generating tree with <species name>_<seqID> labels at leaves\n";
 my $sppSeqIDsFile = $trPrefix . "_". $varReg . "_spp.seqIDs";
 $cmd = "rm -f $sppSeqIDsFile; awk '{print \$1\"\\t\"\$2\"__\"\$1}' $trTxFile > $sppSeqIDsFile";
@@ -465,6 +454,15 @@ my $sppSeqIdTreeFile = $trPrefix . "_". $varReg . "_sppSeqIDs.tree";
 $cmd = "rm -f $sppSeqIdTreeFile; nw_rename $rrTreeFile $sppSeqIDsFile | nw_order -  > $sppSeqIdTreeFile";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed:$?" if !$dryRun;
+
+if (@trOGs > 1)
+{
+  print "--- Rectifying outgroup sequences - making a monophyletic clade if they do not form one\n";
+  my $truncGr = $origGrPrefix . "_". $varReg;
+  $cmd = "outgroup_rectifier.pl -i $truncGr";
+  print "\tcmd=$cmd\n" if $dryRun || $debug;
+  system($cmd) == 0 or die "system($cmd) failed:$?" if !$dryRun;
+}
 
 print "\n--- Generating a tree with species names at leaves\n";
 my $sppTreeFile = $trPrefix . "_" . $varReg . "_spp.tree";
