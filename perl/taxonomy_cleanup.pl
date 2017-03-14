@@ -915,64 +915,12 @@ for my $g (keys %genusFinal)
 my %sppFreqFinal2; ## frequency table of species sequence frequencies
 map { $sppFreqFinal2{$_}++ } values %sppFreqFinal;
 
-
+## Creating a symbolic link for final.tx to point to vicutDir/updated2.tx
 my $finalTxFile = $grPrefix . "_final.tx";
-# if ($rmOGfromTx) # if OG seq's are to be removed from the final tx file
-# {
-#   print "   Removing outgroup sequences from final taxonomy file, as requested";
-#   open OUT, ">$finalTxFile" or die "Cannot open $finalTxFile for writing: $OS_ERROR\n";
-#   for my $id (keys %newTx)
-#   {
-#     if ( ! exists $ogInd{$id} )
-#     {
-#       print OUT "$id\t" . $newTx{$id} . "\n";
-#     }
-#     else
-#     {
-#       print "Outgroup sequence $id (" . $newTx{$id} . ") excluded from $finalTxFile\n";
-#     }
-#   }
-#   close OUT;
-# }
-# else
-# {
 my $ap = abs_path( $newTxFile );
 $cmd = "rm -f $finalTxFile; ln -s $ap $finalTxFile";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
-#}
-
-#%newTx = readTbl($finalTxFile);
-
-## final alignment
-# my $finalAlgnFile = $grPrefix . "_algn_trimmed_final.fa";
-
-# my $finalnSeqs  = keys %newTx;
-# my $nSeqs       = keys %spp;
-
-# if ($nSeqs != $finalnSeqs)
-# {
-#   print "\nInitial number of sequences: $nSeqs\n";
-#   print "Final number of sequences: $finalnSeqs\n\n";
-
-#   print "--- Generating final alignment files (removing sequences lost in taxonomy cleanup).\n";
-#   print "    NOTE: No outgroup sequences here !\n\n";
-
-#   $cmd = "cut -f1 $finalTxFile > final.seqIDs";
-#   print "\tcmd=$cmd\n" if $dryRun || $debug;
-#   system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
-
-#   $cmd = "select_seqs.pl --quiet -s final.seqIDs -i $trimmedAlgnFile -o $finalAlgnFile";
-#   print "\tcmd=$cmd\n" if $dryRun || $debug;
-#   system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
-# }
-# else
-# {
-#   my $ap = abs_path( $trimmedAlgnFile );
-#   $cmd = "rm -f $finalAlgnFile; ln -s $ap $finalAlgnFile";
-#   print "\tcmd=$cmd\n" if $dryRun || $debug;
-#   system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
-# }
 
 ## comparison between old and new species assignments
 print "--- Comparing old and new species assignments\n";
@@ -982,12 +930,12 @@ system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 
 
 ##
-## phylo tree with final taxonomy
+## phylogenetic tree with final taxonomy
 ##
 
 print "\n--- Generating a tree with final species names at leaves\n";
 my $finalSppTreeFile = "$grPrefix" . "_final_spp.tree";
-$cmd = "rm -f $finalSppTreeFile; nw_rename $treeFile $newTxFile | nw_order - > $finalSppTreeFile";
+$cmd = "rm -f $finalSppTreeFile; nw_rename $treeFile $newTxFile | nw_order -c n  - > $finalSppTreeFile";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 
@@ -999,7 +947,7 @@ print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 
 my $finalSppSeqIdTreeFile = "$grPrefix" . "_final_sppSeqIDs.tree";
-$cmd = "rm -f $finalSppSeqIdTreeFile; nw_rename $treeFile $finalSppSeqIDsFile | nw_order -  > $finalSppSeqIdTreeFile";
+$cmd = "rm -f $finalSppSeqIdTreeFile; nw_rename $treeFile $finalSppSeqIDsFile | nw_order -c n  -  > $finalSppSeqIdTreeFile";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 
@@ -1094,7 +1042,7 @@ for my $id (keys %genusTx)
 
 print "\n--- Generating a tree with final genus names at leaves\n";
 my $finalgeTreeFile = "$grPrefix" . "_final_genus.tree";
-$cmd = "rm -f $finalgeTreeFile; nw_rename $treeFile $finalGenusTx | nw_order - > $finalgeTreeFile";
+$cmd = "rm -f $finalgeTreeFile; nw_rename $treeFile $finalGenusTx | nw_order -c n  - > $finalgeTreeFile";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 
@@ -1105,7 +1053,7 @@ print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 
 my $finalgeSeqIdTreeFile = "$grPrefix" . "_final_geSeqIDs.tree";
-$cmd = "rm -f $finalgeSeqIdTreeFile; nw_rename $treeFile $finalgeSeqIDsFile | nw_order -  > $finalgeSeqIdTreeFile";
+$cmd = "rm -f $finalgeSeqIdTreeFile; nw_rename $treeFile $finalgeSeqIDsFile | nw_order -c n  -  > $finalgeSeqIdTreeFile";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 
@@ -1201,7 +1149,7 @@ for my $id (keys %familyTx)
 
 print "\n--- Generating a tree with final family names at leaves\n";
 my $familyTreeFile = "$grPrefix" . "_final_family.tree";
-$cmd = "rm -f $familyTreeFile; nw_rename $treeFile $finalFamilyTx | nw_order - > $familyTreeFile";
+$cmd = "rm -f $familyTreeFile; nw_rename $treeFile $finalFamilyTx | nw_order -c n  - > $familyTreeFile";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 
@@ -1212,7 +1160,7 @@ print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 
 my $familySeqIdTreeFile = "$grPrefix" . "_final_family_seqIDs.tree";
-$cmd = "rm -f $familySeqIdTreeFile; nw_rename $treeFile $familySeqIDsFile | nw_order -  > $familySeqIdTreeFile";
+$cmd = "rm -f $familySeqIdTreeFile; nw_rename $treeFile $familySeqIDsFile | nw_order -c n  -  > $familySeqIdTreeFile";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 
@@ -1309,7 +1257,7 @@ for my $id (keys %orderTx)
 
 print "\n--- Generating a tree with final order names at leaves\n";
 my $orderTreeFile = "$grPrefix" . "_final_order.tree";
-$cmd = "rm -f $orderTreeFile; nw_rename $treeFile $finalOrderTx | nw_order - > $orderTreeFile";
+$cmd = "rm -f $orderTreeFile; nw_rename $treeFile $finalOrderTx | nw_order -c n  - > $orderTreeFile";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 
@@ -1320,7 +1268,7 @@ print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 
 my $orderSeqIdTreeFile = "$grPrefix" . "_final_order_seqIDs.tree";
-$cmd = "rm -f $orderSeqIdTreeFile; nw_rename $treeFile $orderSeqIDsFile | nw_order -  > $orderSeqIdTreeFile";
+$cmd = "rm -f $orderSeqIdTreeFile; nw_rename $treeFile $orderSeqIDsFile | nw_order -c n  -  > $orderSeqIdTreeFile";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 
@@ -1416,7 +1364,7 @@ for my $id (keys %classTx)
 
 print "\n--- Generating a tree with final class names at leaves\n";
 my $classTreeFile = "$grPrefix" . "_final_class.tree";
-$cmd = "rm -f $classTreeFile; nw_rename $treeFile $finalClassTx | nw_order - > $classTreeFile";
+$cmd = "rm -f $classTreeFile; nw_rename $treeFile $finalClassTx | nw_order -c n  - > $classTreeFile";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 
@@ -1427,7 +1375,7 @@ print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 
 my $classSeqIdTreeFile = "$grPrefix" . "_final_class_seqIDs.tree";
-$cmd = "rm -f $classSeqIdTreeFile; nw_rename $treeFile $classSeqIDsFile | nw_order -  > $classSeqIdTreeFile";
+$cmd = "rm -f $classSeqIdTreeFile; nw_rename $treeFile $classSeqIDsFile | nw_order -c n  -  > $classSeqIdTreeFile";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 
@@ -1567,6 +1515,57 @@ my $readmeFile = "README";
 generateREADMEfile($readmeFile);
 
 
+
+## Number of species per genus
+my @genera = keys %geTbl;
+my %genusSize; # <genus> => <number of species of that genus>
+for my $g (@genera)
+{
+  $genusSize{$g} = keys %{$children{$g}};
+}
+@genera = sort {$genusSize{$b} <=> $genusSize{$a}} keys %genusSize;
+printFormatedTblToFile(\%genusSize, \@genera, $SRYOUT, "\n==== Number of species per genus ====");
+print "\n==== Number of species per genus ====\n";
+printFormatedTbl(\%genusSize, \@genera);
+
+## Number of genera per family
+my @families = keys %faTbl;
+my %familySize; # <family> => <number of genera of that family>
+for my $f (@families)
+{
+  $familySize{$f} = keys %{$children{$f}};
+}
+@families = sort {$familySize{$b} <=> $familySize{$a}} keys %familySize;
+printFormatedTblToFile(\%familySize, \@families, $SRYOUT, "\n==== Number of genera per family ====");
+print "\n==== Number of genera per family ====\n";
+printFormatedTbl(\%familySize, \@families);
+
+## Number of families per order
+my @orders = keys %orTbl;
+my %orderSize; # <order> => <number of families of that order>
+for my $o (@orders)
+{
+  $orderSize{$o} = keys %{$children{$o}};
+}
+@orders = sort {$orderSize{$b} <=> $orderSize{$a}} keys %orderSize;
+printFormatedTblToFile(\%orderSize, \@orders, $SRYOUT, "\n==== Number of families per order ====");
+print "\n==== Number of families per order ====\n";
+printFormatedTbl(\%orderSize, \@orders);
+
+
+## Number of orders per class
+my @classes = keys %clTbl;
+my %classSize; # <class> => <number of orders of that class>
+for my $c (@classes)
+{
+  $classSize{$c} = keys %{$children{$c}};
+}
+@classes = sort {$classSize{$b} <=> $classSize{$a}} keys %classSize;
+printFormatedTblToFile(\%classSize, \@classes, $SRYOUT, "\n==== Number of orders per class ====");
+print "\n==== Number of orders per class ====\n";
+printFormatedTbl(\%classSize, \@classes);
+
+
 print $SRYOUT "\n\n--- Final summary\n";
 
 print $SRYOUT  "\n\tNumber of species (with OG seq's) BEFORE taxonomic cleanup: " . scalar( keys %sppFreq ) . "\n";
@@ -1601,7 +1600,7 @@ close $SRYOUT;
 
 print  "\n\n--- Final summary\n";
 
-print   "\n\tNumber of species (with OG seq's) BEFORE taxonomic cleanup: " . scalar( keys %sppFreq ) . "\n";
+print   "\n\n\tNumber of species (with OG seq's) BEFORE taxonomic cleanup: " . scalar( keys %sppFreq ) . "\n";
 print     "\tNumber of species (with OG seq's) AFTER taxonomic cleanup and tentative ribotype splits:  " . scalar( keys %sppFreqFinal ) . "\n\n";
 
 print  "\tNumber of _sp species BEFORE taxonomic cleanup: $nSpSpp\n";
@@ -1631,6 +1630,9 @@ print   "\tNumber of phyla AFTER taxonomic cleanup: " . scalar( keys %phTbl ) . 
 
 print "\n\n\tSee $grDir/$readmeFile for info about the taxonomy curation algorithm and the content of the output directory.\n";
 print     "\tSummary stats written to $grDir/$summaryStatsFile\n\n";
+
+
+
 
 ####################################################################
 ##                               SUBS
@@ -2003,6 +2005,40 @@ sub printFormatedTbl{
     }
     print "$_$pad" . $rTbl->{$_} . "\n";
   }
+  print "\n";
+}
+
+# print elements of a hash table so that arguments are aligned
+sub printFormatedTblToFile{
+
+  my ($rTbl, $rSub, $fh, $msg) = @_; # the second argument is a subarray of the keys of the table
+
+  print $fh "\n$msg\n";
+
+  my @args;
+  if ($rSub)
+  {
+    @args = @{$rSub};
+  }
+  else
+  {
+    @args = keys %{$rTbl};
+  }
+
+  my $maxStrLen = 0;
+  map { $maxStrLen = length($_) if( length($_) > $maxStrLen )} @args;
+
+  for (@args)
+  {
+    my $n = $maxStrLen - length($_);
+    my $pad = ": ";
+    for (my $i=0; $i<$n; $i++)
+    {
+      $pad .= " ";
+    }
+    print $fh "$_$pad" . $rTbl->{$_} . "\n";
+  }
+  print $fh "\n";
 }
 
 # common part of two arrays
