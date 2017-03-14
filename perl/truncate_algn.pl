@@ -4,20 +4,6 @@
 
   truncate_algn.pl
 
-=head1 VERSION
-
-  Versionn 0.92
-
-=head1 CHANGE LOG
-
-  Mar 6, 2017:
-  - Fixed the issue with inability of select_seqs.pl not handling symbolic links properly.
-
-  Mar 5, 2017:
-  - clstr2_spp.pl use for generating updated taxonomy has been removed as it was
-    introducing c<cluster number> type taxonomies. Now the updated taxonomy is
-    derived directly from the full length seq's taxonomy
-
 
 =head1 DESCRIPTION
 

@@ -4,10 +4,6 @@
 
   outgroup_rectifier.pl
 
-=head1 VERSION
-
-  Version 1.0
-
 
 =head1 DESCRIPTION
 

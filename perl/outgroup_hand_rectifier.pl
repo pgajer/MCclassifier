@@ -4,10 +4,6 @@
 
   outgroup_hand_rectifier.pl
 
-=head1 VERSION
-
-  Versionn 1.0
-
 
 =head1 DESCRIPTION
 
