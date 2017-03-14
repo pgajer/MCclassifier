@@ -191,7 +191,7 @@ print "    then set all small cluster's taxonomies to <genus>_sp\n";
 print "    and keep the taxonomy of the largest cluster\n";
 for my $sp ( keys %spFreqTbl )
 {
-  print "\n\nsp: $sp\n";
+  ##print "\n\nsp: $sp\n";
   my @f = split "_", $sp;
   my $g = shift @f;
   my $s = shift @f;
@@ -219,7 +219,7 @@ for my $sp ( keys %spFreqTbl )
     for my $cl (@cls)
     {
       my @spSeqIDs = comm($clTbl{$cl}, $spIDs{$sp});
-      print "Processing seq's of cluster $cl of size " . @spSeqIDs . "\n" if $debug;
+      print "Changing tx of seq's of cluster $cl of size " . @spSeqIDs . " to $spSp\n" if $debug;
       for my $id ( @spSeqIDs )
       {
 	$txTbl{$id} = $spSp;
