@@ -192,14 +192,6 @@ my @seqIDs = get_seqIDs_from_fa($trimmedAlgnFile);
 print "--- Parsing lineage table\n";
 my %lineageTbl = read2colTbl($lineageFile);
 
-# if ($debug)
-# {
-#   print "\n\n--- Testing if S002972785 is in lineage\n";
-#   my $bool = exists $lineageTbl{"S002972785"};
-#   print "exists lineageTbl{S002972785}: $bool\n\n\n";
-#   exit;
-# }
-
 ## testing if lineage and fa files has the same seq IDs
 print "--- Checking if seqIDs of $trimmedAlgnFile and $lineageFile are the same\n";
 my @lSeqIDs = keys %lineageTbl;
@@ -250,8 +242,8 @@ if (@commTL != @treeLeaves || @commTL != @seqIDs)
 if ($debug)
 {
   print "\n\n\tNumber of seq IDs of $treeFile: " . @treeLeaves . "\n";
-  print      "\tNumber of seq IDs of $trimmedAlgnFile: " . @seqIDs . "\n";
-  print      "\tNumber of common seq IDs elements: " . @commTL . "\n\n";
+  print     "\tNumber of seq IDs of $trimmedAlgnFile: " . @seqIDs . "\n";
+  print     "\tNumber of common seq IDs elements: " . @commTL . "\n\n";
 }
 
 
@@ -667,26 +659,31 @@ if ( @extraOG )
 
   # pruning alignment
   print "--- Pruning extraOG seq's from $trimmedAlgnFile\n";
-  my $origAlgnFile = $grPrefix . "_algn_trimmed_orig.fa";
-  $cmd = "mv $trimmedAlgnFile $origAlgnFile";
+  my $prunedAlgnFile = $grPrefix . "_algn_trimmed_pruned.fa";
+  $cmd = "select_seqs.pl --quiet -e $extraOGfile -i $trimmedAlgnFile -o $prunedAlgnFile";
   print "\tcmd=$cmd\n" if $dryRun || $debug;
   system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 
-  $cmd = "select_seqs.pl --quiet -e $extraOGfile -i $origAlgnFile -o $trimmedAlgnFile";
-  print "\tcmd=$cmd\n" if $dryRun || $debug;
-  system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+  $trimmedAlgnFile = $prunedAlgnFile;
 
   # pruning tree
   print "--- Pruning extraOG seq's from $treeFile\n";
-  my $origTreeFile = $grPrefix . "_orig.tree";
-  $cmd = "mv $treeFile $origTreeFile";
+  my $prunedTreeFile = $grPrefix . "_pruned.tree";
+  $cmd = "nw_prune $treeFile @extraOG > $prunedTreeFile";
   print "\tcmd=$cmd\n" if $dryRun || $debug;
   system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 
-  $cmd = "nw_prune $origTreeFile @extraOG > $treeFile";
-  print "\tcmd=$cmd\n" if $dryRun || $debug;
-  system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+  $treeFile = $prunedTreeFile;
 }
+
+## Creating symbolic link to the most recent trimmed alignment file for use with
+## truncate_algn.pl
+my $finalAlgnFile = $grPrefix . "_algn_trimmed_final.fa";
+my $ap = abs_path( $trimmedAlgnFile );
+$cmd = "rm -f $finalAlgnFile; ln -s $ap $finalAlgnFile";
+print "\tcmd=$cmd\n" if $dryRun || $debug;
+system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+
 
 ## Removing outgroup sequences from the updated.tx file and the phylogenetic
 ## tree.
@@ -711,24 +708,22 @@ $cmd = "select_tx.pl -e $ogFile -i $origNewTxFileNoTGTs -o $newTxFileNoTGTs";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 
-# pruning tree
+# pruning tree from OG seq's
 print "--- Pruning OG seq's from $treeFile\n";
-my $origTreeFile = $grPrefix . "_orig2.tree";
-$cmd = "mv $treeFile $origTreeFile";
+my $prunedTreeFile = $grPrefix . "_pruned2.tree";
+$cmd = "nw_prune $treeFile @ogSeqIDs > $prunedTreeFile";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 
-$cmd = "nw_prune $origTreeFile @ogSeqIDs > $treeFile";
-print "\tcmd=$cmd\n" if $dryRun || $debug;
-system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+$treeFile = $prunedTreeFile;
+
 
 ## Testing consistency between the phylo tree and sequences after taxonomy
 ## cleanup. In particular, the set of leave seqIDs has to be equal to the set of
 ## seqIDs of the new taxonomy.
 
 ## extracting leave IDs
-$treeLeavesFile = "$grPrefix" . "_tree.leaves";
-$cmd = "nw_labels -I $treeFile > $treeLeavesFile";
+$cmd = "rm -f $treeLeavesFile; nw_labels -I $treeFile > $treeLeavesFile";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 
@@ -739,19 +734,17 @@ my %newTx = readTbl($newTxFileNoTGTs);
 my @survivedIDs = keys %newTx;
 my @lostLeaves = diff(\@treeLeaves, \@survivedIDs);
 
-## prunning
+## prunning tree from lost IDs
 if (@lostLeaves>0)
 {
-  $origTreeFile = $grPrefix . "_orig3.tree";
-  $cmd = "mv $treeFile $origTreeFile";
+  $prunedTreeFile = $grPrefix . "_pruned3.tree";
+  print "\n\tSpecies cleanup eliminated " . @lostLeaves . " sequences\n";
+  print "--- Pruning lost seqIDs from the current phylo tree\n";
+  $cmd = "nw_prune $treeFile @lostLeaves > $prunedTreeFile";
   print "\tcmd=$cmd\n" if $dryRun || $debug;
   system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 
-  print "\n\tSpecies cleanup eliminated " . @lostLeaves . " sequences\n";
-  print "--- Pruning lost seqIDs from the current phylo tree\n";
-  $cmd = "nw_prune $origTreeFile @lostLeaves > $treeFile";
-  print "\tcmd=$cmd\n" if $dryRun || $debug;
-  system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+  $treeFile = $prunedTreeFile;
 }
 
 
@@ -794,19 +787,17 @@ system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 @survivedIDs = keys %newTx;
 @lostLeaves = diff(\@treeLeaves, \@survivedIDs);
 
-## prunning
+## prunning tree
 if (@lostLeaves>0)
 {
-  $origTreeFile = $grPrefix . "_orig4.tree";
-  $cmd = "mv $treeFile $origTreeFile";
+  $prunedTreeFile = $grPrefix . "_pruned4.tree";
+  print "\n\tSpecies cleanup eliminated " . @lostLeaves . " sequences\n";
+  print "--- Pruning lost seqIDs from the current phylo tree\n";
+  $cmd = "nw_prune $treeFile @lostLeaves > $prunedTreeFile";
   print "\tcmd=$cmd\n" if $dryRun || $debug;
   system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 
-  print "\n\tSpecies cleanup eliminated " . @lostLeaves . " sequences\n";
-  print "--- Pruning lost seqIDs from the current phylo tree\n";
-  $cmd = "nw_prune $origTreeFile @lostLeaves > $treeFile";
-  print "\tcmd=$cmd\n" if $dryRun || $debug;
-  system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+  $treeFile = $prunedTreeFile;
 }
 
 
@@ -917,7 +908,7 @@ map { $sppFreqFinal2{$_}++ } values %sppFreqFinal;
 
 ## Creating a symbolic link for final.tx to point to vicutDir/updated2.tx
 my $finalTxFile = $grPrefix . "_final.tx";
-my $ap = abs_path( $newTxFile );
+$ap = abs_path( $newTxFile );
 $cmd = "rm -f $finalTxFile; ln -s $ap $finalTxFile";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
