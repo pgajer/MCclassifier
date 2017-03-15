@@ -9,9 +9,15 @@
 
   truncate_algn.pl will truncate the aligned, full-length 16S rRNA database of
   a taxonomic group of interest to the variable region of choice and place this
-  into a new directory. New taxonomy, lineage, and seqID files will be made.
+  into a new directory. New lineage, alignment, outgroup files will be made.
   Additionally, a phylogenetic tree will be produced, re-rooted, and outgroup
   sequences tested for correct placement on the new tree with outgroup_rectifier.pl.
+
+  The multiple sequence alignment produced by taxonomy_cleanup.pl (which is run
+  before this script) may leave it out of synch with the lineage file. Therefore,
+  the first order of business is to make sure we use the same sequence IDs for
+  both and that we still have at least one outgroup sequence there.
+
 
 =head1 SYNOPSIS
 
@@ -48,15 +54,9 @@
 
 =head1 EXAMPLE
 
-  cd /local/scratch/jbh_pecan_new_tx/nr_files
-
-  truncate_algn.pl -i Chloroflexi -v V3V4 --igs
-
-
-
   cd ~/devel/MCextras/data/RDP/rdp_Bacteria_phylum_dir/Proteobacteria_dir
 
-  truncate_algn.pl -i Proteobacteria_group_0 -v V3V4 --min-seq-len 350
+  truncate_algn.pl -i Firmicutes_group_0 -v V3V4 --min-seq-len 350
 
 =cut
 
@@ -86,7 +86,7 @@ GetOptions(
   "help|h!"          	  => \my $help,
   "igs"                   => \my $igs,
   "johanna"               => \my $johanna,
-  "manual"				  => \my $manual,
+  "manual"		  => \my $manual,
 
   )
   or pod2usage(verbose => 0,exitstatus => 1);
@@ -141,6 +141,8 @@ local $ENV{LD_LIBRARY_PATH} = "/usr/local/packages/readline/lib:/usr/local/packa
 ##                               MAIN
 ####################################################################
 
+my $debugStr = "";
+$debugStr = "--debug" if $debug;
 
 my $grDir = $grPrefix . "_dir";
 
@@ -161,10 +163,13 @@ my $trPrefix = "$trDir/$grPrefix";
 my $origGrPrefix = $grPrefix;
 $grPrefix = "$grDir/$grPrefix";
 
-my $txFile       = $grPrefix . "_final.tx";
+#my $txFile       = $grPrefix . "_final.tx";
+# the taxonomy file does not contain OG seq's and the lineage file does
+# we will use it to extract species data
+my $lineageFile  = $grPrefix . "_final_no_tGTs.lineage";
 my $algnFile     = $grPrefix . "_algn_trimmed_final.fa";
 my $ogSeqIDsFile = $grPrefix . "_outgroup.seqIDs"; # and here _final_outgroup.seqIDs
-my $lineageFile  = $grPrefix . "_final_no_tGTs.lineage";
+
 
 if ( ! -e $algnFile )
 {
@@ -184,38 +189,11 @@ if ( ! -e $ogSeqIDsFile )
   exit;
 }
 
-if ( ! -e $txFile )
-{
-  warn "ERROR: $txFile does not exist";
-  exit;
-}
-
 if ( ! -e $lineageFile )
 {
   warn "ERROR: $lineageFile does not exist";
   exit;
 }
-
-if ( -l $txFile )
-{
-  $txFile = readlink($txFile);
-  if ( ! -e $txFile )
-  {
-    warn "ERROR: txaxonomy file, $txFile, does not exist";
-    exit;
-  }
-}
-
-# if ( -l $ogSeqIDsFile )
-# {
-#   $ogSeqIDsFile = readlink($ogSeqIDsFile);
-# }
-
-# test consistency of tx and algn_trimmed_final
-
-## also check consistency of OG in og file and sppSeqIDs tree
-
-#print "-- Debug end\n"; exit;
 
 my $trRefFile;
 my $trRefFileBasename;
@@ -223,16 +201,17 @@ if ($varReg =~ 'V3V4')
 {
   $trRefFileBasename = "V400.unique.subsampled.fa";
   #$trRefFile = $dB . $trRefFileBasename;
-  print "\n--- Trimming $trRefFileBasename to V3V4 variable region\n"
+  print "--- Detected ref db for the V3V4 variable region\n"
 }
 elsif ($varReg =~ 'V4')
 {
   $trRefFileBasename = "BEAM.unique.subsampled.fa";
-  print "\n--- Trimming to V4 variable region\n"
+  print "--- Detected ref db for the V4 variable region\n"
 }
 else
 {
-  print "\nVariable region $varReg not defined or invalid\n\n";
+  warn "\n\n\tERROR: Invalid variable region $varReg";
+  print "\n\n";
   exit;
 }
 
@@ -248,6 +227,74 @@ $trRefFile = "$trDir/" . $trRefFileBasename;
 $cmd = "cp $dbTrRefFileBasename $trRefFile";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed:$?" if !$dryRun;
+
+
+# The multiple sequence alignment produced by taxonomy_cleanup.pl (which is run
+# before this script) may leave it out of synch with the lineage file. Therefore,
+# the first order of business is to make sure we use the same sequence IDs for
+# both and that we still have at least one outgroup sequence there.
+
+print "--- Extracting seq IDs from trimmed alignment fasta file\n";
+my @seqIDs = get_seqIDs_from_fa($algnFile);
+
+print "--- Parsing lineage table\n";
+my %lineageTbl = read2colTbl($lineageFile);
+
+## testing if lineage and fa files has the same seq IDs
+print "--- Checking if seqIDs of $algnFile and $lineageFile are the same\n";
+my @lSeqIDs = keys %lineageTbl;
+my @commSeqIDs = comm(\@seqIDs, \@lSeqIDs);
+if (@commSeqIDs != @seqIDs || @commSeqIDs != @lSeqIDs)
+{
+  warn "\n\tWARNING: seq IDs of trimmed alignment fasta file and lineage file do not match";
+  print "\tNumber of elements in the trimmed alignment file: " . @seqIDs . "\n";
+  print "\tNumber of elements in the lineage file: " . @lSeqIDs . "\n";
+  print "\tNumber of elements common to the alignment and lineage files: " . @commSeqIDs . "\n";
+  print "\tNOTE: the sequences common to both will be used to construct truncated alignment\n\n";
+
+  if ( @lSeqIDs > @commSeqIDs )
+  {
+    my @d = diff(\@lSeqIDs, \@commSeqIDs);
+    delete @lineageTbl{@d};
+  }
+
+  if (@commSeqIDs != @seqIDs)
+  {
+    my $commSeqIDsFile = $trPrefix . "_". $varReg . "_comm.seqIDs";
+    writeArray(\@commSeqIDs, $commSeqIDsFile);
+
+    print "---  Selecting seq IDs common to the lineage and the alignment\n";
+    my $tmpAlgnFile = $trPrefix . "_". $varReg . "_pruned_algn.fa";
+    my $cmd = "select_seqs.pl -s $commSeqIDsFile -i $algnFile -o $tmpAlgnFile";
+    print "\tcmd=$cmd\n" if $dryRun || $debug;
+    system($cmd) == 0 or die "system($cmd) failed:$?" if !$dryRun;
+
+    $algnFile = $tmpAlgnFile;
+  }
+}
+
+print "--- Parsing $ogSeqIDsFile\n";
+my @ogSeqIDs = readArray($ogSeqIDsFile);
+
+print "--- Testing if outgroup sequences are part of seqIDs\n";
+my @ogDiff = diff( \@ogSeqIDs, \@commSeqIDs );
+@ogSeqIDs = comm( \@ogSeqIDs, \@commSeqIDs );
+
+if ( scalar(@ogDiff) != 0 )
+{
+  warn "\n\tWARNING: the following outgroup seq IDs are not in the trimmed alignment file:\n\n";
+  printArray(\@ogDiff);
+}
+
+if ( scalar(@ogSeqIDs) == 0 )
+{
+  warn "\n\tERROR: All outgroup seq's were lost";
+  print "\n\n";
+  exit;
+}
+
+print "\n\tNumber of seq's present in the trimmed alignment and lineage files: " . @commSeqIDs . "\n";
+print "\tNumber of outgroup seq's: " . @ogSeqIDs . "\n\n";
 
 
 print "--- Aligning $trRefFileBasename to $algnFile file\n" if !$quiet;
@@ -374,26 +421,21 @@ system($cmd) == 0 or die "system($cmd) failed:$?" if !$dryRun;
 
 print "--- Creating non-redundant seq's taxonomy file\n" if !$quiet;
 ## extracting seq IDs from the alignment file and selecting those IDs from the taxon file
-my $trSeqIDs = $trPrefix  . "_". $varReg . "_nr.seqIDs";
-$cmd = "extract_seq_IDs.pl -i $trFaFile -o $trSeqIDs";
-print "\tcmd=$cmd\n" if $dryRun || $debug;
-system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
-
-my $trTxFile = $trPrefix . "_". $varReg . ".tx";
-$cmd = "select_tx.pl -s $trSeqIDs -i $txFile -o $trTxFile";
+my $nrSeqIDs = $trPrefix  . "_". $varReg . "_nr.seqIDs";
+$cmd = "extract_seq_IDs.pl -i $trFaFile -o $nrSeqIDs";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 
 print "--- Creating non-redundant seq's lineage file\n" if !$quiet;
 my $trLineageFile = $trPrefix . "_". $varReg . ".lineage";
-$cmd = "select_tx.pl -s $trSeqIDs -i $lineageFile -o $trLineageFile";
+$cmd = "select_tx.pl -s $nrSeqIDs -i $lineageFile -o $trLineageFile";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 
 
 my $trAlgnFileNR = $trPrefix . "_". $varReg . "_algn_nr.fa";
 print "--- Dereplicating truncated alignment file\n" if !$quiet;
-$cmd = "rm -f $trAlgnFileNR; select_seqs.pl -s $trSeqIDs -i $trAlgnFile -o $trAlgnFileNR";
+$cmd = "rm -f $trAlgnFileNR; select_seqs.pl -s $nrSeqIDs -i $trAlgnFile -o $trAlgnFileNR";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed:$?" if !$dryRun;
 
@@ -409,24 +451,11 @@ $cmd = "FastTree -nt $trAlgnFileNR > $unrootedTreeFile";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed:$?" if !$dryRun;
 
-print "--- Reading outgroup IDs for full length $grPrefix seq's\n    and selecting those that ended up in the non-redundant set of truncated seq's\n" if !$quiet;
-my @ogSeqIDs = readArray($ogSeqIDsFile);
+print "--- Identifying outgroup seq's in the non-redundant set of truncated seq's\n" if !$quiet;
+printArrayByRow(\@ogSeqIDs, "\nOG seqIDs BEFORE selection of non-redundant OG seq's") if $debug;
 
-printArrayByRow(\@ogSeqIDs, "ogSeqIDs") if $debug;
-
-my @trSeqIDs = readArray($trSeqIDs);
-my %trSeqIDsTbl = map { $_ => 1 } @trSeqIDs;
-
-my @trOGs;
-for (@ogSeqIDs)
-{
-  if (exists $trSeqIDsTbl{$_})
-  {
-    push @trOGs, $_;
-  }
-}
-
-printArrayByRow(\@trOGs, "trOGs") if $debug;
+my @trSeqIDs = readArray($nrSeqIDs);
+my @trOGs = comm(\@trSeqIDs, \@ogSeqIDs);
 
 if (@trOGs == 0)
 {
@@ -435,15 +464,48 @@ if (@trOGs == 0)
   exit;
 }
 
+printArrayByRow(\@trOGs, "OG seqIDs AFTER selection of non-redundant OG seq's") if $debug;
+
+
 my $trOGseqIDsFile = $trPrefix . "_". $varReg . "_outgroup.seqIDs";
 print "--- Writing update OG seq IDs to $trOGseqIDsFile";
 writeArray(\@trOGs, $trOGseqIDsFile);
+
+my %ogInd = map{$_ =>1} @trOGs; # outgroup elements indicator table
 
 my $rrTreeFile = $trPrefix . "_". $varReg . ".tree";
 print "--- Rerooting the tree using outgroup seq's\n" if !$quiet;
 $cmd = "rm -f $rrTreeFile; nw_reroot $unrootedTreeFile @trOGs > $rrTreeFile";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed:$?" if !$dryRun;
+
+print "--- Extracting species taxonomy from the lineage data\n";
+
+my %spp;
+my $nOG = 0;
+for my $id ( keys %lineageTbl )
+{
+  my $lineage = $lineageTbl{$id};
+  my @f = split ";", $lineage;
+  my $sp = pop @f;
+  if ( exists $ogInd{$id} )
+  {
+    $sp .= "_OG";
+    $nOG++;
+  }
+  $spp{$id} = $sp;
+}
+
+if ( $nOG != @trOGs )
+{
+  warn "";
+  print "\n\n";
+  exit;
+}
+
+my $trTxFile = $trPrefix . "_". $varReg . ".tx";
+print "--- Writing species taxonomy to $trTxFile\n";
+writeTbl(\%spp, $trTxFile);
 
 print "--- Generating tree with <species name>_<seqID> labels at leaves\n";
 my $sppSeqIDsFile = $trPrefix . "_". $varReg . "_spp.seqIDs";
@@ -456,20 +518,40 @@ $cmd = "rm -f $sppSeqIdTreeFile; nw_rename $rrTreeFile $sppSeqIDsFile | nw_order
 print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed:$?" if !$dryRun;
 
-print "\n--- Generating a tree with species names at leaves\n";
+print "--- Generating a tree with species names at leaves\n";
 my $sppTreeFile = $trPrefix . "_" . $varReg . "_spp.tree";
 $cmd = "rm -f $sppTreeFile; nw_rename $rrTreeFile $trTxFile | nw_order - > $sppTreeFile";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 
-
 if (@trOGs > 1)
 {
   print "--- Rectifying outgroup sequences - making a monophyletic clade if they do not form one\n";
   my $truncGr = $origGrPrefix . "_". $varReg;
-  $cmd = "outgroup_rectifier.pl -i $truncGr";
+  $cmd = "outgroup_rectifier.pl $debugStr -i $truncGr";
   print "\tcmd=$cmd\n" if $dryRun || $debug;
   system($cmd) == 0 or die "system($cmd) failed:$?" if !$dryRun;
+
+  ## In principle we should test if outgroup_rectifier.pl made any changes and
+  ## only then recreate the following trees. Yet, since its so fast we can as
+  ## well done it without any checks.
+  print "--- Generating tree with <species name>_<seqID> labels at leaves\n";
+  my $sppSeqIDsFile = $trPrefix . "_". $varReg . "_spp.seqIDs";
+  $cmd = "rm -f $sppSeqIDsFile; awk '{print \$1\"\\t\"\$2\"__\"\$1}' $trTxFile > $sppSeqIDsFile";
+  print "\tcmd=$cmd\n" if $dryRun || $debug;
+  system($cmd) == 0 or die "system($cmd) failed:$?" if !$dryRun;
+
+  my $sppSeqIdTreeFile = $trPrefix . "_". $varReg . "_sppSeqIDs.tree";
+  $cmd = "rm -f $sppSeqIdTreeFile; nw_rename $rrTreeFile $sppSeqIDsFile | nw_order -  > $sppSeqIdTreeFile";
+  print "\tcmd=$cmd\n" if $dryRun || $debug;
+  system($cmd) == 0 or die "system($cmd) failed:$?" if !$dryRun;
+
+  print "--- Generating a tree with species names at leaves\n";
+  my $sppTreeFile = $trPrefix . "_" . $varReg . "_spp.tree";
+  $cmd = "rm -f $sppTreeFile; nw_rename $rrTreeFile $trTxFile | nw_order - > $sppTreeFile";
+  print "\tcmd=$cmd\n" if $dryRun || $debug;
+  system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+
 }
 
 print "--- Generating a condensed tree with species clades collapsed to a single node \n";
@@ -571,7 +653,6 @@ sub writeTbl{
   open OUT, ">$outFile" or die "Cannot open $outFile for reading: $OS_ERROR\n";
   map {print OUT $_ . "\t" . $tbl{$_} . "\n"} keys %tbl;
   close OUT;
-  print "Table written to $outFile\n";
 }
 
 # write array to a file (one column format)
@@ -581,6 +662,114 @@ sub writeArray
   open OUT, ">$outFile" or die "Cannot open $outFile for writing: $OS_ERROR\n";
   map {print OUT "$_\n"} @{$a};
   close OUT
+}
+
+# common part of two arrays
+sub comm{
+
+  my ($a1, $a2) = @_;
+
+  my @c; # common array
+  my %count;
+
+  foreach my $e (@{$a1}, @{$a2}){ $count{$e}++ }
+
+  foreach my $e (keys %count)
+  {
+    push @c, $e if $count{$e} == 2;
+  }
+
+  return @c;
+}
+
+# difference of two arrays
+sub diff{
+
+  my ($a1, $a2) = @_;
+
+  my (%aa1, %aa2);
+
+  foreach my $e (@{$a1}){ $aa1{$e} = 1; }
+  foreach my $e (@{$a2}){ $aa2{$e} = 1; }
+
+  my @d; # dfference array
+
+  foreach my $e (keys %aa1, keys %aa2)
+  {
+    push @d, $e if exists $aa1{$e} && !exists $aa2{$e};
+  }
+
+  return @d;
+}
+
+sub get_seqIDs_from_fa
+{
+  my $file = shift;
+
+  my $quiet = 1;
+  my $startRun = time();
+  my $endRun = time();
+
+  open (IN, "<$file") or die "Cannot open $file for reading: $OS_ERROR\n";
+  $/ = ">";
+  my $junkFirstOne = <IN>;
+  my $count = 1;
+  my $timeStr = "";
+  my @seqIDs;
+  while (<IN>)
+  {
+    if ( !$quiet && ($count % 500 == 0) )
+    {
+      $endRun = time();
+      my $runTime = $endRun - $startRun;
+      if ( $runTime > 60 )
+      {
+	my $timeMin = int($runTime / 60);
+	my $timeSec = sprintf("%02d", $runTime % 60);
+	$timeStr = "$timeMin:$timeSec";
+      }
+      else
+      {
+	my $runTime = sprintf("%02d", $runTime);
+	$timeStr = "0:$runTime";
+      }
+      print "\r$timeStr";
+    }
+
+    chomp;
+    my ($id,@seqlines) = split /\n/, $_;
+    push @seqIDs, $id;
+    $count++;
+  }
+  close IN;
+  $/ = "\n";
+
+  return @seqIDs;
+}
+
+# read two column table; create a table that assigns
+# elements of the first column to the second column
+sub read2colTbl{
+
+  my $file = shift;
+
+  if ( ! -f $file )
+  {
+    warn "\n\nERROR in read2colTbl(): $file does not exist\n\n\n";
+    exit;
+  }
+
+  my %tbl;
+  open IN, "$file" or die "Cannot open $file for reading: $OS_ERROR\n";
+  foreach (<IN>)
+  {
+    chomp;
+    my ($id, $t) = split /\s+/,$_;
+    $tbl{$id} = $t;
+  }
+  close IN;
+
+  return %tbl;
 }
 
 exit;
