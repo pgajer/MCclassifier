@@ -141,15 +141,23 @@ if (!$grPrefix)
 
 # and will update the above files.
 
-my $grDir = $grPrefix . "_dir";
+my $grDir     = $grPrefix . "_dir";
+$grPrefix     = "$grDir/$grPrefix";
+my $errorFile = $grPrefix . "_outgroup_rectifier_ERROR"; # this is a file that indicates that outgroup_rectifier.pl finished with an error
+
+print "\n\nerrorFile: $errorFile\n" if $debug;
+
+if ( -e $errorFile )
+{
+  unlink($errorFile);
+}
 
 if ( ! -d $grDir )
 {
   warn "ERROR: $grDir does not exist";
+  touchFile( $errorFile );
   exit;
 }
-
-$grPrefix = "$grDir/$grPrefix";
 
 my $faGrFile        = $grPrefix . ".fa";
 my $lineageFile     = $grPrefix . ".lineage";
@@ -180,6 +188,7 @@ elsif ( @ogSeqIDs == 0 )
 {
   warn "\n\n\tERROR: No outgroup sequences found";
   print "\n\n\n";
+  touchFile( $errorFile );
   exit;
 }
 
@@ -197,6 +206,7 @@ my $sppSeqIdTreeFile = $grPrefix . "_sppSeqIDs.tree";
 if ( ! -e $sppSeqIdTreeFile )
 {
   warn "ERROR: $sppSeqIdTreeFile does not exist";
+  touchFile( $errorFile );
   exit;
 }
 
@@ -268,6 +278,7 @@ if ( scalar(@start) != scalar(@end) )
   warn "$grPrefix\nERROR: start and end arrays have different lengths!";
   print "length(start): " . @start . "\n";
   print "length(end): " . @end . "\n";
+  touchFile( $errorFile );
   exit;
 }
 
@@ -712,6 +723,7 @@ if (@rangeSize>1)
     warn "$grPrefix\nERROR: start and end arrays have different lengths!";
     print "length(start): " . @start . "\n";
     print "length(end):   " . @end . "\n";
+    touchFile( $errorFile );
     exit;
   }
 
@@ -735,6 +747,7 @@ if (@rangeSize>1)
   if (@start > 1)
   {
     warn "$grPrefix\nERROR: In the pruned tree outgroups still are found in more than one cluster!";
+    touchFile( $errorFile );
 
     print "\nstart\tend\tsize\n";
     for my $i (0..$#start)
@@ -782,6 +795,8 @@ if (@rangeSize>1)
   if ( !( $start[0] == 0 || $end[0] == $#leaves) )
   {
     warn "$grPrefix\nERROR: In the pruned tree outgroups sequences are not at the top or bottom of the tree!";
+    touchFile( $errorFile );
+
     print "Number of leaves: " . @leaves . "\n";
     print "\nstart\tend\tsize\n";
     for my $i (0..$#start)
@@ -860,6 +875,7 @@ else
     warn "$grPrefix\nERROR: start and end arrays have different lengths!";
     print "length(start): " . @start . "\n";
     print "length(end): " . @end . "\n";
+    touchFile( $errorFile );
     exit;
   }
 
@@ -883,6 +899,8 @@ else
   if ( !( $start[0] == 0 || $end[0] == $#leaves) )
   {
     warn "$grPrefix\nERROR: Outgroups sequences are not at the top or bottom of the tree!";
+    touchFile( $errorFile );
+
     print "Number of leaves: " . @leaves . "\n";
     print "\nstart\tend\tsize\n";
     for my $i (0..$#start)
@@ -1703,4 +1721,12 @@ sub writeArray
   close OUT
 }
 
+sub touchFile
+{
+  my $file = shift;
+
+  my $cmd = "touch $file";
+  print "\tcmd=$cmd\n" if $dryRun || $debug;
+  system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+}
 exit;
