@@ -1607,7 +1607,14 @@ print $SRYOUT "\tNumber of _sp species BEFORE taxonomic cleanup: $nSpSpp\n";
 print $SRYOUT "\tNumber of _sp species AFTER taxonomic cleanup: $nSpSppFinal\n\n";
 
 print $SRYOUT  "\tNumber of singletons species BEFORE taxonomic cleanup: $sppFreq2{1}\n";
-print $SRYOUT  "\tNumber of singletons species AFTER taxonomic cleanup: $sppFreqFinal2{1}\n\n";
+if (exists $sppFreqFinal2{1})
+{
+  print $SRYOUT  "\tNumber of singletons species AFTER taxonomic cleanup: $sppFreqFinal2{1}\n\n";
+}
+else
+{
+  print $SRYOUT  "\tNo singletons species AFTER taxonomic cleanup\n\n";
+}
 
 print $SRYOUT  "\tNumber of genera BEFORE taxonomic cleanup: $initNumGenera\n";
 print $SRYOUT  "\tNumber of genera AFTER taxonomic cleanup: " . scalar( keys %geTbl ) . "\n\n";
@@ -1639,7 +1646,14 @@ print  "\tNumber of _sp species BEFORE taxonomic cleanup: $nSpSpp\n";
 print  "\tNumber of _sp species AFTER taxonomic cleanup: $nSpSppFinal\n\n";
 
 print   "\tNumber of singletons species BEFORE taxonomic cleanup: $sppFreq2{1}\n";
-print   "\tNumber of singletons species AFTER taxonomic cleanup: $sppFreqFinal2{1}\n\n";
+if (exists $sppFreqFinal2{1})
+{
+  print   "\tNumber of singletons species AFTER taxonomic cleanup: $sppFreqFinal2{1}\n\n";
+}
+else
+{
+  print   "\tNo singletons species AFTER taxonomic cleanup\n\n";
+}
 
 print   "\tNumber of genera BEFORE taxonomic cleanup: $initNumGenera\n";
 print   "\tNumber of genera AFTER taxonomic cleanup: " . scalar( keys %geTbl ) . "\n\n";
