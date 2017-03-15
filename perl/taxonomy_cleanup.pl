@@ -744,7 +744,7 @@ system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 
 # pruning tree from OG seq's
 print "--- Pruning OG seq's from $treeFile\n";
-my $prunedTreeFile = $grPrefix . "_pruned2.tree";
+my $prunedTreeFile = $grPrefix . "_no_OG_seqs.tree";
 $cmd = "nw_prune $treeFile @ogSeqIDs > $prunedTreeFile";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
@@ -771,7 +771,7 @@ my @lostLeaves = diff(\@treeLeaves, \@survivedIDs);
 ## prunning tree from lost IDs
 if (@lostLeaves>0)
 {
-  $prunedTreeFile = $grPrefix . "_pruned3.tree";
+  $prunedTreeFile = $grPrefix . "_no_OG_seqs_pruned.tree";
   print "\n\tSpecies cleanup eliminated " . @lostLeaves . " sequences\n";
   print "--- Pruning lost seqIDs from the current phylo tree\n";
   $cmd = "nw_prune $treeFile @lostLeaves > $prunedTreeFile";
@@ -824,7 +824,7 @@ system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 ## prunning tree
 if (@lostLeaves>0)
 {
-  $prunedTreeFile = $grPrefix . "_pruned4.tree";
+  $prunedTreeFile = $grPrefix . "_no_OG_seqs_pruned2.tree";
   print "\n\tSpecies cleanup eliminated " . @lostLeaves . " sequences\n";
   print "--- Pruning lost seqIDs from the current phylo tree\n";
   $cmd = "nw_prune $treeFile @lostLeaves > $prunedTreeFile";
@@ -833,6 +833,13 @@ if (@lostLeaves>0)
 
   $treeFile = $prunedTreeFile;
 }
+
+print "--- Creating a symbolic link to the most recent version of the phylogenetic tree\n";
+my $finalTreeFile = $grPrefix . "_final.tree";
+my $ap = abs_path( $treeFile );
+$cmd = "rm -f $finalTreeFile; ln -s $ap $finalTreeFile";
+print "\tcmd=$cmd\n" if $dryRun || $debug;
+system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 
 
 for my $id (keys %lineageTbl)
