@@ -836,7 +836,7 @@ if (@lostLeaves>0)
 
 print "--- Creating a symbolic link to the most recent version of the phylogenetic tree\n";
 my $finalTreeFile = $grPrefix . "_final.tree";
-my $ap = abs_path( $treeFile );
+$ap = abs_path( $treeFile );
 $cmd = "rm -f $finalTreeFile; ln -s $ap $finalTreeFile";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
