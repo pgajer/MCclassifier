@@ -189,6 +189,64 @@ for my $id ( keys %txTbl )
 
 # Changing taxonomy of multi-species clusters based on majority vote
 
+# The new taxon names will be concatenations of split w/r '_' base taxon names.
+# Thus, its possible that two different clusters may have the same names and so
+# we need to add indicices to those that appear more than once (this will be done
+# in genotype_tx.pl).
+
+my %clTx;
+my %nameCount;
+for my $cl ( keys %clFreqTbl )
+{
+  my @txs = sort { $clFreqTbl{$cl}{$b} <=> $clFreqTbl{$cl}{$a} || $a cmp $b } keys %{$clFreqTbl{$cl}};
+  # if ($debug)
+  # {
+  #   print "Cluster $cl taxons:\n";
+  #   map {print "\t$_\t" . $clFreqTbl{$cl}{$_} . "\n"} @txs;
+  #   print "\n";
+  # }
+  if ( @txs > 1 )
+  {
+    my $newTx = shift @txs;
+    $newTx =~ s/_tRT_\d+//;
+    my @f = split "_", $newTx;
+    my %locTx;
+    for (@f)
+    {
+      $locTx{$_}++;
+    }
+
+    for my $p (@txs)
+    {
+      $p =~ s/_tRT_\d+//;
+      @f = split "_", $p;
+      for (@f)
+      {
+	$locTx{$_}++;
+      }
+    }
+
+    my @tx = sort { $locTx{$b} <=> $locTx{$a} } keys %locTx;
+    my $txStr = join "_", @tx;
+    $clTx{$cl} = $txStr;
+    $nameCount{$txStr}++;
+  }
+  else
+  {
+    my $t = shift @txs;
+    $t =~ s/_tRT_\d+//;
+    $clTx{$cl} = $t;
+    $nameCount{$t}++;
+  }
+}
+
+print "\nDetected taxon names\n";
+my @a = sort { $nameCount{$b} <=> $nameCount{$a} } keys %nameCount;
+printFormatedTbl(\%nameCount, \@a);
+print "\n\n";
+
+
+my %newNameIdx;
 for my $cl ( keys %clFreqTbl )
 {
   my @txs = sort { $clFreqTbl{$cl}{$b} <=> $clFreqTbl{$cl}{$a} || $a cmp $b } keys %{$clFreqTbl{$cl}};
@@ -199,28 +257,22 @@ for my $cl ( keys %clFreqTbl )
     print "\n";
   }
 
-  if ( @txs > 1 )
+  my $newTx = $clTx{$cl};
+  # if ( $nameCount{$newTx}>1 )
+  # {
+  #   $newNameIdx{$newTx}++;
+  #   $newTx = $newTx . "_" . $newNameIdx{$newTx};
+  # }
+
+  print "\tChanging taxonomy of all sequences of the cluster to $newTx\n\n" if ($debug);
+
+  for my $id ( @{$clTbl{$cl}} )
   {
-    my $newTx = shift @txs;
-    for (@txs)
-    {
-      $newTx .= "_" . $_;
-    }
-
-    if ($debug)
-    {
-      print "\tChanging taxonomy of all sequences of the cluster to $newTx\n\n";
-    }
-    for my $id ( @{$clTbl{$cl}} )
-    {
-      $txTbl{$id} = $newTx;
-    }
-
-  } # end of if ( @txs > 1 )
-}
+    $txTbl{$id} = $newTx;
+  }
+} # end of if ( @txs > 1 )
 
 print "\n\n" if $debug;
-
 
 my $updatedTxFile = "$vicutDir/updated.tx";
 writeTbl2(\%txTbl, $updatedTxFile);
