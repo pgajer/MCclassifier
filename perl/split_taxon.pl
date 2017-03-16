@@ -54,6 +54,7 @@
 =head1 EXAMPLE
 
   split_taxon.pl --debug -i Firmicutes_group_6_V3V4 -p 0.10 -t spp
+  split_taxon.pl --debug -i Firmicutes_group_0_V3V4 -p 0.10 -t genus
 
 =cut
 
