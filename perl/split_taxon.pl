@@ -161,14 +161,81 @@ if ( !defined $treeFile )
 my $lineageFile = $grPrefix . "_final.lineage";
 if ( ! -f $lineageFile )
 {
-  warn "ERROR: $lineageFile does not exist\n";
+  warn "\n\n\tERROR: $lineageFile does not exist";
+  print "\n\n";
   exit;
 }
+
+my $newLineageFile = $grPrefix . "_final2.lineage";
 
 
 ####################################################################
 ##                               MAIN
 ####################################################################
+
+print "--- Parsing lineage table\n";
+my %lineageTbl = read2colTbl($lineageFile);
+
+print "--- Creating taxon lineage table\n";
+my %txLineage; # taxon (for example species) => lineage of the taxon (species)
+
+if ($taxon eq "spp")
+{
+  for my $id ( keys %lineageTbl )
+  {
+    my $lineage = $lineageTbl{$id};
+    my @f = split ";", $lineage;
+    my $sp = pop @f;
+    $txLineage{$sp} = $lineage;
+  }
+}
+elsif ($taxon eq "genus")
+{
+  for my $id ( keys %lineageTbl )
+  {
+    my $lineage = $lineageTbl{$id};
+    my @f = split ";", $lineage;
+    my $sp = pop @f;
+    my $ge = pop @f;
+    my $fa = pop @f;
+    my $or = pop @f;
+    my $cl = pop @f;
+    my $ph = pop @f;
+    $txLineage{$ge} = $lineage;
+  }
+}
+elsif ($taxon eq "family")
+{
+  for my $id ( keys %lineageTbl )
+  {
+    my $lineage = $lineageTbl{$id};
+    my @f = split ";", $lineage;
+    my $sp = pop @f;
+    my $ge = pop @f;
+    my $fa = pop @f;
+    my $or = pop @f;
+    my $cl = pop @f;
+    my $ph = pop @f;
+    $txLineage{$fa} = $lineage;
+  }
+}
+elsif ($taxon eq "order")
+{
+  for my $id ( keys %lineageTbl )
+  {
+    my $lineage = $lineageTbl{$id};
+    my @f = split ";", $lineage;
+    my $sp = pop @f;
+    my $ge = pop @f;
+    my $fa = pop @f;
+    my $or = pop @f;
+    my $cl = pop @f;
+    my $ph = pop @f;
+    $txLineage{$or} = $lineage;
+  }
+}
+
+
 
 print "--- Running phylo partitioning on $treeFile at $percThld percentile thld\n";
 my $partFile     = $grPrefix . "_phyloPart_$percThld" . ".txt";
@@ -310,13 +377,26 @@ if ($taxon eq "spp")
   print "--- Changing cluster names\n";
   my %genusIdx;
   my %cltr2;
+  my %spSubGenus;
   my @q = sort { @{$cltr{$b}} <=> @{$cltr{$a}} } keys %cltr;
   for my $cl (@q)
   {
     my $tx = $clGenus{$cl};
     $genusIdx{$tx}++;
-    $tx = "sub_$tx" . "_$genusIdx{$tx}";
+    if ( $genera{$tx}>1 )
+    {
+      $tx = "sub_$tx" . "_$genusIdx{$tx}";
+    }
+    else
+    {
+      $tx = "sub_$tx";
+    }
     $cltr2{$tx} = $cltr{$cl};
+    print "\tProcessing cluster $cl with new taxonomy $tx\n";
+    for (@{$cltr{$cl}})
+    {
+      $spSubGenus{$_} = $tx;
+    }
   }
 
   print "\nVicut updated phylo partition clusters with new names:\n";
@@ -330,6 +410,29 @@ if ($taxon eq "spp")
     }
   }
   print "\n\n";
+
+  print "---Updating lineage table\n";
+  my %lineageTbl2;
+  for my $id ( keys %lineageTbl )
+  {
+    my $lineage = $lineageTbl{$id};
+    my @f = split ";", $lineage;
+    my $sp = pop @f;
+    my $subGenus = $spSubGenus{$sp};
+    my @t = (@f, $subGenus, $sp);
+    $lineageTbl2{$id} = join ";", @t;
+  }
+
+  open OUT, ">$newLineageFile" or die "Cannot open $newLineageFile for writing: $OS_ERROR\n";
+  for my $id (keys %lineageTbl2)
+  {
+    my $lineage = $lineageTbl2{$id};
+    print OUT "$id\t$lineage\n";
+  }
+  close OUT;
+
+  print "\n\n\tUpdated lineage written to $newLineageFile\n\n";
+
 }
 
 
@@ -508,5 +611,29 @@ sub readTbl{
   return %tbl;
 }
 
+# read two column table; create a table that assigns
+# elements of the first column to the second column
+sub read2colTbl{
+
+  my $file = shift;
+
+  if ( ! -f $file )
+  {
+    warn "\n\nERROR in read2colTbl(): $file does not exist\n\n\n";
+    exit;
+  }
+
+  my %tbl;
+  open IN, "$file" or die "Cannot open $file for reading: $OS_ERROR\n";
+  foreach (<IN>)
+  {
+    chomp;
+    my ($id, $t) = split /\s+/,$_;
+    $tbl{$id} = $t;
+  }
+  close IN;
+
+  return %tbl;
+}
 
 exit;
