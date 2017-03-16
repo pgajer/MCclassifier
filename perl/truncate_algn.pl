@@ -27,7 +27,7 @@
 
 =over
 
-=item B<--input-file, -i>
+=item B<--group-prefix, -i>
   Group prefix.
 
 =item B<--variable-region, -v>
