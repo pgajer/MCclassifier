@@ -99,7 +99,8 @@ if ($help)
 
 if ( !$grPrefix )
 {
-  print "\n\nERROR: Missing input group name.\n\n\n";
+  warn "\n\n\tERROR: Missing input group name";
+  print "\n\n";
   pod2usage(verbose => 2,exitstatus => 0);
   exit;
 }
