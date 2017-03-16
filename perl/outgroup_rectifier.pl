@@ -785,6 +785,10 @@ if (@rangeSize>1)
     {
       printArrayByRow(\@ogCladeLeaves, "OG Clade Leaves");
     }
+    else
+    {
+      print "\n\tLeaves of the OG clade written to $ogCladeTreeLeavesFile\n"
+    }
 
     print "\n\tNumber of leaves of the OG clade: " . @ogCladeLeaves . "\n";
     print   "\tNumber of OG sequences: " . @og . "\n\n";
@@ -814,7 +818,7 @@ if (@rangeSize>1)
       printArrayByRow(\@ogBig, "Leaves from first to last OG seq");
     }
 
-    #print "--- Extracting the clade of OG sequences\n";
+    print "--- Extracting the clade of OG sequences\n";
     my $ogCladeTreeFile = "$grPrefix" . "_sppSeqIDs_OG_clade.tree";
     $cmd = "rm -f $ogCladeTreeFile; nw_clade $sppSeqIdTreeFile @og > $ogCladeTreeFile";
     print "\tcmd=$cmd\n" if $dryRun || $debug;
@@ -833,6 +837,10 @@ if (@rangeSize>1)
     if ( @ogCladeLeaves < $maxCladeSize )
     {
       printArrayByRow(\@ogCladeLeaves, "OG Clade Leaves");
+    }
+    else
+    {
+      print "\n\tLeaves of the OG clade written to $ogCladeTreeLeavesFile\n"
     }
 
     print "\n\tNumber of leaves of the OG clade: " . @ogCladeLeaves . "\n";
@@ -930,6 +938,10 @@ else
     if (@ogCladeLeaves<$maxCladeSize)
     {
       printArrayByRow(\@ogCladeLeaves, "OG Clade Leaves");
+    }
+    else
+    {
+      print "\n\tLeaves of the OG clade written to $ogCladeTreeLeavesFile\n"
     }
 
     print "\n\tNumber of leaves of the OG clade: " . @ogCladeLeaves . "\n";
