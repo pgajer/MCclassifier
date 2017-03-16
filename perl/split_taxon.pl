@@ -273,6 +273,64 @@ for my $cl (@q)
 print "\n\n";
 
 
+if ($taxon eq "spp")
+{
+  ## Each cluster will have the name sub_<genus>_<idx>
+  ## if all species of the cluster are from the same genus <genus>
+  ## and
+  ## sub_<genus_1>_<genus_2>_...<genus_n>_<idx>
+  ## if there is more than one genus within the cluster
+
+  my %genera;
+  my %clGenus;
+  for my $cl (keys %cltr)
+  {
+    #print "Cluster $cl:\n";
+    my %locGenera;
+    for (@{$cltr{$cl}})
+    {
+      my ($g, $suffix) = split "_", $_;
+      $locGenera{$g}++;
+    }
+
+    my @gen = sort { $locGenera{$b} <=> $locGenera{$a} } keys %locGenera;
+    my $genStr = join "_", @gen;
+    $genera{$genStr}++;
+    $clGenus{$cl} = $genStr;
+  }
+
+  print "\nDiscovered Cluster Genera\n";
+  my @a = sort { $genera{$b} <=> $genera{$a} } keys %genera;
+  for (@a)
+  {
+    print "\t$_\n";
+  }
+  print "\n";
+
+  print "--- Changing cluster names\n";
+  my %genusIdx;
+  my %cltr2;
+  my @q = sort { @{$cltr{$b}} <=> @{$cltr{$a}} } keys %cltr;
+  for my $cl (@q)
+  {
+    my $tx = $clGenus{$cl};
+    $genusIdx{$tx}++;
+    $tx = "sub_$tx" . "_$genusIdx{$tx}";
+    $cltr2{$tx} = $cltr{$cl};
+  }
+
+  print "\nVicut updated phylo partition clusters with new names:\n";
+  @q = sort { @{$cltr2{$b}} <=> @{$cltr2{$a}} } keys %cltr2;
+  for my $cl (@q)
+  {
+    print "Cluster $cl:\n";
+    for (@{$cltr2{$cl}})
+    {
+      print "\t$_\n";
+    }
+  }
+  print "\n\n";
+}
 
 
 ####################################################################
