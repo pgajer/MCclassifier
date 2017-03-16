@@ -173,14 +173,6 @@ if ( -e $errorFile )
   unlink($errorFile);
 }
 
-if ($debug)
-{
-  my $truncGr = $origGrPrefix  . "_" . $varReg;
-  print "errorFile: $errorFile\n";
-  $cmd = "outgroup_rectifier.pl $debugStr -i $truncGr";
-  print "cmd: $cmd\n\n";
-}
-
 if ( ! -e $algnFile )
 {
   warn "ERROR: $algnFile does not exist";
@@ -574,7 +566,6 @@ print "\n\n";
 
 ## Checking if outgroup_rectifier produced an error
 $errorFile = $trPrefix . "_outgroup_rectifier_ERROR"; # this is a file that indicates that outgroup_rectifier.pl finished with an error
-print "--- Testing for existence of $errorFile\n";
 if ( -e $errorFile )
 {
   print "\n\tERROR: outgroup_rectifier.pl finished with an error!\n";
