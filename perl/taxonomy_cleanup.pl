@@ -58,6 +58,8 @@
 
   taxonomy_cleanup.pl --debug -i Firmicutes_group_6
 
+  taxonomy_cleanup.pl --debug --use-long-spp-names -i Firmicutes_group_6_V3V4
+
 =cut
 
 use strict;
@@ -207,11 +209,18 @@ if (@commSeqIDs != @seqIDs || @commSeqIDs != @lSeqIDs)
 
 print "--- Testing if outgroup sequences are part of seqIDs\n";
 my @ogDiff = diff( \@ogSeqIDs, \@seqIDs );
+@ogSeqIDs = comm( \@ogSeqIDs, \@commSeqIDs );
 
 if ( scalar(@ogDiff) != 0 )
 {
-  warn "\n\tERROR the following outgroup seq IDs are not in the trimmed alignment file:\n\n";
+  warn "\n\tWARNING the following outgroup seq IDs are not in the trimmed alignment file:\n\n";
   printArray(\@ogDiff);
+}
+
+if ( scalar(@ogSeqIDs) == 0 )
+{
+  warn "\n\tERROR: All outgroup seq's were lost";
+  print "\n\n";
   exit;
 }
 
@@ -608,6 +617,19 @@ if (@query2)
   %newSpp = readTbl($vicutFinalTx);
 }
 
+for my $id (keys %lineageTbl)
+{
+  if ( exists $newSpp{$id} )
+  {
+    my $lineage = $lineageTbl{$id};
+    my @f = split ";", $lineage;
+    my $sp = pop @f;
+    my $newSp = $newSpp{$id};
+    my @t = (@f, $newSp);
+    #$lineageTbl{$id} = join ";", @t;
+    $spLineage{$newSp} = join ";", @t;
+  }
+}
 
 #printTbl(\%ogInd, "ogInd") if $debug;
 
@@ -655,7 +677,7 @@ for my $id (keys %newSpp)
 
       if ($s ne "sp")
       {
-	print "\n\n\tERROR: $sp is not and _sp species\n\n";
+	print "\n\n\tERROR: $sp is not an _sp species\n\n";
 	exit;
       }
 
@@ -836,7 +858,7 @@ if (@lostLeaves>0)
 
 print "--- Creating a symbolic link to the most recent version of the phylogenetic tree\n";
 my $finalTreeFile = $grPrefix . "_final.tree";
-my $ap = abs_path( $treeFile );
+$ap = abs_path( $treeFile );
 $cmd = "rm -f $finalTreeFile; ln -s $ap $finalTreeFile";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
