@@ -176,66 +176,25 @@ my $newLineageFile = $grPrefix . "_final2.lineage";
 print "--- Parsing lineage table\n";
 my %lineageTbl = read2colTbl($lineageFile);
 
-print "--- Creating taxon lineage table\n";
-my %txLineage; # taxon (for example species) => lineage of the taxon (species)
+my %parent;
+for my $id ( keys %lineageTbl )
+{
+  my $lineage = $lineageTbl{$id};
+  my @f = split ";", $lineage;
+  my $sp = pop @f;
+  my $ge = pop @f;
+  my $fa = pop @f;
+  my $or = pop @f;
+  my $cl = pop @f;
+  my $ph = pop @f;
 
-if ($taxon eq "spp")
-{
-  for my $id ( keys %lineageTbl )
-  {
-    my $lineage = $lineageTbl{$id};
-    my @f = split ";", $lineage;
-    my $sp = pop @f;
-    $txLineage{$sp} = $lineage;
-  }
+  $parent{$sp} = $ge;
+  $parent{$ge} = $fa;
+  $parent{$fa} = $or;
+  $parent{$or} = $cl;
+  $parent{$cl} = $ph;
+  $parent{$ph} = "d_Bacteria";
 }
-elsif ($taxon eq "genus")
-{
-  for my $id ( keys %lineageTbl )
-  {
-    my $lineage = $lineageTbl{$id};
-    my @f = split ";", $lineage;
-    my $sp = pop @f;
-    my $ge = pop @f;
-    my $fa = pop @f;
-    my $or = pop @f;
-    my $cl = pop @f;
-    my $ph = pop @f;
-    $txLineage{$ge} = $lineage;
-  }
-}
-elsif ($taxon eq "family")
-{
-  for my $id ( keys %lineageTbl )
-  {
-    my $lineage = $lineageTbl{$id};
-    my @f = split ";", $lineage;
-    my $sp = pop @f;
-    my $ge = pop @f;
-    my $fa = pop @f;
-    my $or = pop @f;
-    my $cl = pop @f;
-    my $ph = pop @f;
-    $txLineage{$fa} = $lineage;
-  }
-}
-elsif ($taxon eq "order")
-{
-  for my $id ( keys %lineageTbl )
-  {
-    my $lineage = $lineageTbl{$id};
-    my @f = split ";", $lineage;
-    my $sp = pop @f;
-    my $ge = pop @f;
-    my $fa = pop @f;
-    my $or = pop @f;
-    my $cl = pop @f;
-    my $ph = pop @f;
-    $txLineage{$or} = $lineage;
-  }
-}
-
-
 
 print "--- Running phylo partitioning on $treeFile at $percThld percentile thld\n";
 my $partFile     = $grPrefix . "_phyloPart_$percThld" . ".txt";
@@ -306,26 +265,54 @@ else
 print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 
-print "--- Running update_tx.pl to cluster singletons with larger clusters\n";
-$cmd = "update_tx.pl $debugStr -a $partCltrFile -d $vicutDir";
-print "\tcmd=$cmd\n" if $dryRun || $debug;
-system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+print "--- Parsing vicut clustering results\n";
 
-my $cltrFile = "$vicutDir/updated.tx";
-my %part2 = readTbl($cltrFile);
-
-my %cltr;
-for my $tx (keys %part2)
+my $cltrFile = "$vicutDir/minNodeCut.cltrs";
+if ( ! -f $cltrFile )
 {
-  my $cl = $part2{$tx};
-  push @{$cltr{$cl}}, $tx;
+  warn "\nERROR: $cltrFile does not exist";
+  exit;
 }
+
+my %part2;  # seqID => cltrID
+my %cltr;     # cltrID => ref to array of IDs in the given cluster
+open IN, "$cltrFile" or die "Cannot open $cltrFile for reading: $OS_ERROR\n";
+my $header = <IN>;
+foreach (<IN>)
+{
+  chomp;
+  my ($id, $cl, $tx) = split /\s+/,$_;
+  $part2{$id} = $cl;
+  push @{$cltr{$cl}}, $id;
+}
+close IN;
+
+# $cmd = "update_tx.pl $debugStr -a $partCltrFile -d $vicutDir";
+# print "\tcmd=$cmd\n" if $dryRun || $debug;
+# system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+
+# my $cltrFile = "$vicutDir/updated.tx";
+# my %part2 = readTbl($cltrFile);
+
+# my %cltr;
+# for my $tx (keys %part2)
+# {
+#   my $cl = $part2{$tx};
+#   push @{$cltr{$cl}}, $tx;
+# }
 
 print "Phylo partition sizes\n";
 my %partFreq; ## number of elements per phylo partition cluster
 map { $partFreq{$_}++ } values %part;
 
 printFormatedTbl(\%partFreq);
+
+print "After vicut phylo partition sizes\n";
+my %part2Freq; ## number of elements per phylo partition cluster
+map { $part2Freq{$_}++ } values %part2;
+
+printFormatedTbl(\%part2Freq);
+
 
 print "\nVicut updated phylo partition clusters:\n";
 my @q = sort { @{$cltr{$b}} <=> @{$cltr{$a}} } keys %cltr;
@@ -378,7 +365,9 @@ if ($taxon eq "spp")
   my %genusIdx;
   my %cltr2;
   my %spSubGenus;
+  my %spSubGenusIdx; # this is for species_idx tree only
   my @q = sort { @{$cltr{$b}} <=> @{$cltr{$a}} } keys %cltr;
+  my $count = 1;
   for my $cl (@q)
   {
     my $tx = $clGenus{$cl};
@@ -396,7 +385,9 @@ if ($taxon eq "spp")
     for (@{$cltr{$cl}})
     {
       $spSubGenus{$_} = $tx;
+      $spSubGenusIdx{$_} = $count;
     }
+    $count++;
   }
 
   print "\nVicut updated phylo partition clusters with new names:\n";
@@ -410,6 +401,20 @@ if ($taxon eq "spp")
     }
   }
   print "\n\n";
+
+  print "--- Creating tree with taxon_cluster leaf names\n";
+  my $spClFile = $grPrefix . ".sppCl";
+  open OUT, ">$spClFile" or die "Cannot open $spClFile for writing: $OS_ERROR\n";
+  for (keys %spSubGenusIdx)
+  {
+    print OUT "$_\t$_" . "_cl" . $spSubGenusIdx{$_} . "|\n";
+  }
+  close OUT;
+
+  my $treeFile2 = $grPrefix . "_final_" . $taxon . "_condensed_cltrs.tree";
+  $cmd = "nw_rename $treeFile $spClFile | nw_order -c n  - > $treeFile2";
+  print "\tcmd=$cmd\n" if $dryRun || $debug;
+  system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 
   print "---Updating lineage table\n";
   my %lineageTbl2;
@@ -431,10 +436,132 @@ if ($taxon eq "spp")
   }
   close OUT;
 
-  print "\n\n\tUpdated lineage written to $newLineageFile\n\n";
-
+  print "\n\n\tUpdated lineage written to $newLineageFile\n";
+  print "\tSpecies_cluster leaves tree written to $treeFile2\n\n";
 }
+else
+{
+  ## Each cluster will have the name sub_<parent>_<idx>
+  ## if all taxons of the cluster have the same parent
+  ## and
+  ## sub_<perent_1>_<parent_2>_...<parent_n>_<idx>
+  ## otherwise
 
+  my %pars;
+  my %clParent;
+  for my $cl (keys %cltr)
+  {
+    #print "Cluster $cl:\n";
+    my %locPars;
+    for (@{$cltr{$cl}})
+    {
+      my $p = $parent{$_};
+      $p =~ s/_tRT_\d+//;
+      my @f = split "_", $p;
+      for (@f)
+      {
+	$locPars{$_}++;
+      }
+    }
+
+    my @par = sort { $locPars{$b} <=> $locPars{$a} } keys %locPars;
+    my $parStr = join "_", @par;
+    $pars{$parStr}++;
+    $clParent{$cl} = $parStr;
+  }
+
+  print "\nDiscovered Cluster Parents\n";
+  my @a = sort { $pars{$b} <=> $pars{$a} } keys %pars;
+  for (@a)
+  {
+    print "\t$_\n";
+  }
+  print "\n";
+
+  print "--- Changing cluster names\n";
+  my %parentIdx;
+  my %cltr2;
+  my %txSubParent;
+  my %parentIdx;
+  my %txSubParentIdx; # this is for species_idx tree only
+  my @q = sort { @{$cltr{$b}} <=> @{$cltr{$a}} } keys %cltr;
+  my $count = 1;
+  for my $cl (@q)
+  {
+    my $tx = $clParent{$cl};
+    $parentIdx{$tx}++;
+    if ( $pars{$tx}>1 )
+    {
+      $tx = "sub_$tx" . "_$parentIdx{$tx}";
+    }
+    else
+    {
+      $tx = "sub_$tx";
+    }
+    $cltr2{$tx} = $cltr{$cl};
+    $parentIdx{$tx} = $count;
+    print "\tProcessing cluster $cl with new taxonomy $tx\n";
+    for (@{$cltr{$cl}})
+    {
+      $txSubParent{$_} = $tx;
+      $txSubParentIdx{$_} = $count;
+    }
+    $count++;
+  }
+
+  print "\nVicut updated phylo partition clusters with new names:\n";
+  @q = sort { @{$cltr2{$b}} <=> @{$cltr2{$a}} } keys %cltr2;
+  for my $cl (@q)
+  {
+    print "Cluster $cl => $parentIdx{$cl}:\n";
+    for (@{$cltr2{$cl}})
+    {
+      print "\t$_\n";
+    }
+  }
+  print "\n\n";
+
+  print "--- Creating tree with taxon_cluster leaf names\n";
+  my $spClFile = $grPrefix . ".sppCl";
+  open OUT, ">$spClFile" or die "Cannot open $spClFile for writing: $OS_ERROR\n";
+  for (keys %txSubParentIdx)
+  {
+    print OUT "$_\t$_" . "_cl" . $txSubParentIdx{$_} . "|\n";
+  }
+  close OUT;
+
+  my $treeFile2 = $grPrefix . "_final_" . $taxon . "_condensed_cltrs.tree";
+  $cmd = "nw_rename $treeFile $spClFile | nw_order -c n  - > $treeFile2";
+  print "\tcmd=$cmd\n" if $dryRun || $debug;
+  system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+
+  print "---Updating lineage table\n";
+  my %lineageTbl2;
+  if ($taxon eq "genus")
+  {
+    for my $id ( keys %lineageTbl )
+    {
+      my $lineage = $lineageTbl{$id};
+      my @f = split ";", $lineage;
+      my $sp = pop @f;
+      my $ge = pop @f;
+      my $subPar = $txSubParent{$ge};
+      my @t = (@f, $subPar, $ge, $sp);
+      $lineageTbl2{$id} = join ";", @t;
+    }
+  }
+
+  open OUT, ">$newLineageFile" or die "Cannot open $newLineageFile for writing: $OS_ERROR\n";
+  for my $id (keys %lineageTbl2)
+  {
+    my $lineage = $lineageTbl2{$id};
+    print OUT "$id\t$lineage\n";
+  }
+  close OUT;
+
+  print "\n\n\tUpdated lineage written to $newLineageFile\n";
+  print "\tTaxon_cluster leaves tree written to $treeFile2\n\n";
+}
 
 ####################################################################
 ##                               SUBS
