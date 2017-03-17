@@ -126,8 +126,8 @@ if ($igs)
 
 if ($johanna)
 {
-  $phyloPart = "???";
-  $readNewickFile = "???";
+  $phyloPart = "/Users/jholm/bin/PhyloPart_v2.1/PhyloPart_v2.1.jar";
+  $readNewickFile = "";
 }
 
 if ( ! -e $phyloPart )
