@@ -77,6 +77,7 @@ GetOptions(
   "taxon|t=s"            => \my $taxon,
   "perc-thld|p=f"        => \my $percThld,
   "tree-file|j=s"        => \my $treeFile,
+  "show-boot-vals"       => \my $showBoostrapVals,
   "igs"                  => \my $igs,
   "johanna"              => \my $johanna,
   "verbatim|v"           => \my $verbatim,
@@ -172,6 +173,14 @@ if ( ! -f $lineageFile )
 
 my $newLineageFile = $grPrefix . "_final2.lineage";
 
+if (defined $showBoostrapVals)
+{
+  $showBoostrapVals = "T";
+}
+else
+{
+  $showBoostrapVals = "F";
+}
 
 ####################################################################
 ##                               MAIN
@@ -871,7 +880,7 @@ tip.colors <- cltr[tr1\$tip.label]
 
 pdf(\"$pdfFile\", width=6, height=$figH)
 op <- par(mar=c(0,0,0,0), mgp=c(2.85,0.6,0),tcl = -0.3)
-plot(tr1,type=\"phylogram\", tip.color=tip.colors, no.margin=FALSE, show.node.label=F, cex=0.8)
+plot(tr1,type=\"phylogram\", tip.color=tip.colors, no.margin=FALSE, show.node.label=$showBoostrapVals, cex=0.8)
 par(op)
 dev.off()
 ~;
