@@ -458,12 +458,23 @@ if ($taxon eq "spp")
   print "\n\n\tUpdated lineage written to $newLineageFile\n";
   print "\tSpecies_cluster leaves tree written to $treeFile2\n\n";
 
+  my $nLeaves = scalar( keys %spSubGenusIdx );
+
+  ## calculating pdf file height
+
+  ## the following formula is a modification of a linear model for the height so
+  ## that when the number of leaves is 50 the height is 12in and when its 100,
+  ## the height is 18in.
+
+  my $figH = 6.0/50.0 * ( $nLeaves - 50) + 10;
+
+  print "\n\n\tNumber of leaves: $nLeaves\n" if $debug;
+  print "\tFigure height: $figH\n\n" if $debug;
+
   my $pdfTreeFile = abs_path( $grPrefix . "_final_" . $taxon . "_condensed_cltrs_tree.pdf" );
   my $treeFile2AbsPath = abs_path( $treeFile2 );
 
-  plotTree($treeFile2AbsPath, $spClFile2, $pdfTreeFile);
-
-  print "\n\nNumber of leaves: " . scalar( keys %spSubGenusIdx ) . "\n\n" if $debug;
+  plotTree($treeFile2AbsPath, $spClFile2, $pdfTreeFile, $figH);
 
   if ( $OSNAME eq "darwin")
   {
@@ -547,11 +558,19 @@ else
   @q = sort { @{$cltr2{$b}} <=> @{$cltr2{$a}} } keys %cltr2;
   for my $cl (@q)
   {
-    print "Cluster $cl => $parentIdx{$cl}:\n";
+    print "Cluster $cl => $parentIdx{$cl} (" . @{$cltr2{$cl}} . "):\n";
     for (@{$cltr2{$cl}})
     {
       print "\t$_\n";
     }
+  }
+  print "\n\n";
+
+  print "\nVicut updated phylo partition cluster sizes:\n";
+  @q = sort { @{$cltr2{$b}} <=> @{$cltr2{$a}} } keys %cltr2;
+  for my $cl (@q)
+  {
+    print "Cluster $cl " . @{$cltr2{$cl}} . "\n";
   }
   print "\n\n";
 
@@ -605,12 +624,22 @@ else
   print "\n\n\tUpdated lineage written to $newLineageFile\n";
   print "\tTaxon_cluster leaves tree written to $treeFile2\n\n";
 
+  my $nLeaves = scalar( keys %txSubParentIdx );
+
+  ## calculating pdf file height
+  ## the following formula is a linear model for the height
+  ## so that when the number of leaves is 50 the height is 12in
+  ## and when its 100, the height is 18in.
+
+  my $figH = 6.0/50.0 * ( $nLeaves - 50) + 10;
+
+  print "\n\n\tNumber of leaves: $nLeaves\n" if $debug;
+  print "\tFigure height: $figH\n\n" if $debug;
+
   my $pdfTreeFile = abs_path( $grPrefix . "_final_" . $taxon . "_condensed_cltrs_tree.pdf" );
   my $treeFile2AbsPath = abs_path( $treeFile2 );
 
-  plotTree($treeFile2AbsPath, $spClFile2, $pdfTreeFile);
-
-  print "\n\nNumber of leaves: " . scalar( keys %txSubParentIdx ) . "\n\n" if $debug;
+  plotTree($treeFile2AbsPath, $spClFile2, $pdfTreeFile, $figH);
 
   if ( $OSNAME eq "darwin")
   {
@@ -822,7 +851,7 @@ sub read2colTbl{
 
 sub plotTree
 {
-  my ($treeFile, $clFile, $pdfFile) = @_;
+  my ($treeFile, $clFile, $pdfFile, $figH) = @_;
 
   my $Rscript = qq~
 
@@ -840,7 +869,7 @@ tr1 <- collapse.singles(tr1)
 
 tip.colors <- cltr[tr1\$tip.label]
 
-pdf(\"$pdfFile\", width=6, height=12)
+pdf(\"$pdfFile\", width=6, height=$figH)
 op <- par(mar=c(0,0,0,0), mgp=c(2.85,0.6,0),tcl = -0.3)
 plot(tr1,type=\"phylogram\", tip.color=tip.colors, no.margin=FALSE, show.node.label=F, cex=0.8)
 par(op)
