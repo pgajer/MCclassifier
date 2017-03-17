@@ -115,16 +115,19 @@ elsif (!$taxon)
   exit;
 }
 
+my $readNewickFile = "/Users/pgajer/.Rlocal/read.newick.R";
 my $phyloPart = "/Users/pgajer/devel/MCclassifier/PhyloPart_v2.1/PhyloPart_v2.1.jar";
 
 if ($igs)
 {
   $phyloPart = "???";
+  $readNewickFile = "???";
 }
 
 if ($johanna)
 {
   $phyloPart = "???";
+  $readNewickFile = "???";
 }
 
 if ( ! -e $phyloPart )
@@ -266,9 +269,8 @@ else
 print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 
-print "--- Parsing vicut clustering results\n";
-
 my $cltrFile = "$vicutDir/minNodeCut.cltrs";
+print "--- Parsing vicut clustering file $cltrFile\n";
 if ( ! -f $cltrFile )
 {
   warn "\nERROR: $cltrFile does not exist";
@@ -412,6 +414,10 @@ if ($taxon eq "spp")
   }
   close OUT;
 
+  my $spClFileAbsPath = abs_path( $spClFile );
+  writeTbl(\%spSubGenusIdx, $spClFileAbsPath);
+  print "spSubGenusIdx written to $spClFileAbsPath\n" if $debug;
+
   my $treeFile2 = $grPrefix . "_final_" . $taxon . "_condensed_cltrs.tree";
   $cmd = "nw_rename $treeFile $spClFile | nw_order -c n  - > $treeFile2";
   print "\tcmd=$cmd\n" if $dryRun || $debug;
@@ -524,12 +530,21 @@ else
 
   print "--- Creating tree with taxon_cluster leaf names\n";
   my $spClFile = $grPrefix . ".sppCl";
+  my $spClFile2 = abs_path( $grPrefix . ".sppCl2" );
   open OUT, ">$spClFile" or die "Cannot open $spClFile for writing: $OS_ERROR\n";
+  open OUT2, ">$spClFile2" or die "Cannot open $spClFile2 for writing: $OS_ERROR\n";
   for (keys %txSubParentIdx)
   {
     print OUT "$_\t$_" . "_cl" . $txSubParentIdx{$_} . "|\n";
+    print OUT2 "$_" . "_cl" . $txSubParentIdx{$_} . "|\t" . $txSubParentIdx{$_} . "\n";
   }
   close OUT;
+  close OUT2;
+  print "\n\n--> Cluster index tbl written to $spClFile2\n" if $debug;
+
+  # my $spClFileAbsPath = abs_path( $spClFile );
+  # writeTbl(\%txSubParentIdx, $spClFileAbsPath);
+  # print "\n\n--> txSubParentIdx written to $spClFileAbsPath\n" if $debug;
 
   my $treeFile2 = $grPrefix . "_final_" . $taxon . "_condensed_cltrs.tree";
   $cmd = "nw_rename $treeFile $spClFile | nw_order -c n  - > $treeFile2";
@@ -562,6 +577,18 @@ else
 
   print "\n\n\tUpdated lineage written to $newLineageFile\n";
   print "\tTaxon_cluster leaves tree written to $treeFile2\n\n";
+
+  my $pdfTreeFile = abs_path( $grPrefix . "_final_" . $taxon . "_condensed_cltrs_tree.pdf" );
+  my $treeFile2AbsPath = abs_path( $treeFile2 );
+
+  plotTree($treeFile2AbsPath, $spClFile2, $pdfTreeFile);
+
+  if ( $OSNAME eq "darwin")
+  {
+    $cmd = "open $pdfTreeFile";
+    print "\tcmd=$cmd\n" if $dryRun || $debug;
+    system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+  }
 }
 
 ####################################################################
@@ -762,6 +789,66 @@ sub read2colTbl{
   close IN;
 
   return %tbl;
+}
+
+sub plotTree
+{
+  my ($treeFile, $clFile, $pdfFile) = @_;
+
+  my $Rscript = qq~
+
+clTbl <- read.table(\"$clFile\", header=F)
+str(clTbl)
+
+cltr <- clTbl[,2]
+names(cltr) <- clTbl[,1]
+
+source(\"$readNewickFile\")
+require(phytools)
+
+tr1 <- read.newick(file=\"$treeFile\")
+tr1 <- collapse.singles(tr1)
+
+tip.colors <- cltr[tr1\$tip.label]
+
+pdf(\"$pdfFile\", width=6, height=12)
+op <- par(mar=c(0,0,0,0), mgp=c(2.85,0.6,0),tcl = -0.3)
+plot(tr1,type=\"phylogram\", tip.color=tip.colors, no.margin=FALSE, show.node.label=F)
+par(op)
+dev.off()
+~;
+
+  runRscript( $Rscript );
+}
+
+  # execute an R-script
+sub runRscript{
+
+  my $Rscript = shift;
+
+  my $outFile = "rTmp.R";
+  open OUT, ">$outFile",  or die "cannot write to $outFile: $!\n";
+  print OUT "$Rscript";
+  close OUT;
+
+  my $cmd = "R CMD BATCH $outFile";
+  system($cmd) == 0 or die "system($cmd) failed:$?\n";
+
+  my $outR = $outFile . "out";
+  open IN, "$outR" or die "Cannot open $outR for reading: $OS_ERROR\n";
+  my $exitStatus = 1;
+
+  foreach my $line (<IN>)
+  {
+    if ( $line =~ /Error/ )
+    {
+      print "R script crashed at\n$line";
+      print "check $outR for details\n";
+      $exitStatus = 0;
+      exit;
+    }
+  }
+  close IN;
 }
 
 exit;
