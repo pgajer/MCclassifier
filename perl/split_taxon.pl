@@ -415,16 +415,20 @@ if ($taxon eq "spp")
 
   print "--- Creating tree with taxon_cluster leaf names\n";
   my $spClFile = $grPrefix . ".sppCl";
+  my $spClFile2 = abs_path( $grPrefix . ".sppCl2" );
   open OUT, ">$spClFile" or die "Cannot open $spClFile for writing: $OS_ERROR\n";
+  open OUT2, ">$spClFile2" or die "Cannot open $spClFile2 for writing: $OS_ERROR\n";
   for (keys %spSubGenusIdx)
   {
-    print OUT "$_\t$_" . "_cl" . $spSubGenusIdx{$_} . "|\n";
+    print OUT "$_\t$_" . "_cl_" . $spSubGenusIdx{$_} . "\n";
+    print OUT2 "$_" . "_cl_" . $spSubGenusIdx{$_} . "\t" . $spSubGenusIdx{$_} . "\n";
   }
   close OUT;
+  close OUT2;
 
-  my $spClFileAbsPath = abs_path( $spClFile );
-  writeTbl(\%spSubGenusIdx, $spClFileAbsPath);
-  print "spSubGenusIdx written to $spClFileAbsPath\n" if $debug;
+  # my $spClFileAbsPath = abs_path( $spClFile );
+  # writeTbl(\%spSubGenusIdx, $spClFileAbsPath);
+  # print "spSubGenusIdx written to $spClFileAbsPath\n" if $debug;
 
   my $treeFile2 = $grPrefix . "_final_" . $taxon . "_condensed_cltrs.tree";
   $cmd = "nw_rename $treeFile $spClFile | nw_order -c n  - > $treeFile2";
@@ -453,6 +457,21 @@ if ($taxon eq "spp")
 
   print "\n\n\tUpdated lineage written to $newLineageFile\n";
   print "\tSpecies_cluster leaves tree written to $treeFile2\n\n";
+
+  my $pdfTreeFile = abs_path( $grPrefix . "_final_" . $taxon . "_condensed_cltrs_tree.pdf" );
+  my $treeFile2AbsPath = abs_path( $treeFile2 );
+
+  plotTree($treeFile2AbsPath, $spClFile2, $pdfTreeFile);
+
+  print "\n\nNumber of leaves: " . scalar( keys %spSubGenusIdx ) . "\n\n" if $debug;
+
+  if ( $OSNAME eq "darwin")
+  {
+    $cmd = "open $pdfTreeFile";
+    print "\tcmd=$cmd\n" if $dryRun || $debug;
+    system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+  }
+
 }
 else
 {
@@ -590,6 +609,8 @@ else
   my $treeFile2AbsPath = abs_path( $treeFile2 );
 
   plotTree($treeFile2AbsPath, $spClFile2, $pdfTreeFile);
+
+  print "\n\nNumber of leaves: " . scalar( keys %txSubParentIdx ) . "\n\n" if $debug;
 
   if ( $OSNAME eq "darwin")
   {
