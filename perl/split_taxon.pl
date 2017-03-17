@@ -397,11 +397,19 @@ if ($taxon eq "spp")
   @q = sort { @{$cltr2{$b}} <=> @{$cltr2{$a}} } keys %cltr2;
   for my $cl (@q)
   {
-    print "Cluster $cl:\n";
+    print "Cluster $cl (" . @{$cltr2{$cl}} . "):\n";
     for (@{$cltr2{$cl}})
     {
       print "\t$_\n";
     }
+  }
+  print "\n\n";
+
+  print "\nVicut updated phylo partition cluster sizes:\n";
+  @q = sort { @{$cltr2{$b}} <=> @{$cltr2{$a}} } keys %cltr2;
+  for my $cl (@q)
+  {
+    print "Cluster $cl " . @{$cltr2{$cl}} . "\n";
   }
   print "\n\n";
 
@@ -535,8 +543,8 @@ else
   open OUT2, ">$spClFile2" or die "Cannot open $spClFile2 for writing: $OS_ERROR\n";
   for (keys %txSubParentIdx)
   {
-    print OUT "$_\t$_" . "_cl" . $txSubParentIdx{$_} . "|\n";
-    print OUT2 "$_" . "_cl" . $txSubParentIdx{$_} . "|\t" . $txSubParentIdx{$_} . "\n";
+    print OUT "$_\t$_" . "_cl_" . $txSubParentIdx{$_} . "\n";
+    print OUT2 "$_" . "_cl_" . $txSubParentIdx{$_} . "\t" . $txSubParentIdx{$_} . "\n";
   }
   close OUT;
   close OUT2;
@@ -813,7 +821,7 @@ tip.colors <- cltr[tr1\$tip.label]
 
 pdf(\"$pdfFile\", width=6, height=12)
 op <- par(mar=c(0,0,0,0), mgp=c(2.85,0.6,0),tcl = -0.3)
-plot(tr1,type=\"phylogram\", tip.color=tip.colors, no.margin=FALSE, show.node.label=F)
+plot(tr1,type=\"phylogram\", tip.color=tip.colors, no.margin=FALSE, show.node.label=F, cex=0.8)
 par(op)
 dev.off()
 ~;
