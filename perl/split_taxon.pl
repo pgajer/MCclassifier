@@ -476,14 +476,13 @@ if ($taxon eq "spp")
   ## the height is 18in.
 
   my $figH = 6.0/50.0 * ( $nLeaves - 50) + 10;
-
   print "\n\n\tNumber of leaves: $nLeaves\n" if $debug;
   print "\tFigure height: $figH\n\n" if $debug;
 
   my $pdfTreeFile = abs_path( $grPrefix . "_final_" . $taxon . "_condensed_cltrs_tree.pdf" );
   my $treeFile2AbsPath = abs_path( $treeFile2 );
 
-  plotTree($treeFile2AbsPath, $spClFile2, $pdfTreeFile, $figH);
+  plotTree($treeFile2AbsPath, $spClFile2, $pdfTreeFile);
 
   if ( $OSNAME eq "darwin")
   {
@@ -648,7 +647,7 @@ else
   my $pdfTreeFile = abs_path( $grPrefix . "_final_" . $taxon . "_condensed_cltrs_tree.pdf" );
   my $treeFile2AbsPath = abs_path( $treeFile2 );
 
-  plotTree($treeFile2AbsPath, $spClFile2, $pdfTreeFile, $figH);
+  plotTree($treeFile2AbsPath, $spClFile2, $pdfTreeFile);
 
   if ( $OSNAME eq "darwin")
   {
@@ -860,7 +859,7 @@ sub read2colTbl{
 
 sub plotTree
 {
-  my ($treeFile, $clFile, $pdfFile, $figH) = @_;
+  my ($treeFile, $clFile, $pdfFile) = @_;
 
   my $Rscript = qq~
 
@@ -878,7 +877,10 @@ tr1 <- collapse.singles(tr1)
 
 tip.colors <- cltr[tr1\$tip.label]
 
-pdf(\"$pdfFile\", width=6, height=$figH)
+nLeaves <- length(tr1\$tip.label)
+figH <- 6.0/50.0 * ( nLeaves - 50) + 10
+
+pdf(\"$pdfFile\", width=6, height=figH)
 op <- par(mar=c(0,0,0,0), mgp=c(2.85,0.6,0),tcl = -0.3)
 plot(tr1,type=\"phylogram\", tip.color=tip.colors, no.margin=FALSE, show.node.label=$showBoostrapVals, cex=0.8)
 par(op)
