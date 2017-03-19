@@ -462,7 +462,13 @@ my $figH = 6.0/50.0 * ( $nLeaves - 50) + 10;
 print "\n\n\tNumber of leaves: $nLeaves\n" if $debug;
 print "\tFigure height: $figH\n\n" if $debug;
 
-my $pdfTreeFile = abs_path( "phyloPart_$taxon" . "_final_condensed_cltrs_tree.pdf" );
+## from http://stackoverflow.com/questions/18532026/how-to-append-system-date-to-a-filename-in-perl
+my @now = localtime();
+my $timeStamp = sprintf("%04d-%02d-%02d_%02d_%02d_%02d",
+			$now[5]+1900, $now[4]+1, $now[3],
+			$now[2],      $now[1],   $now[0]);
+
+my $pdfTreeFile = abs_path( "phyloPart_$taxon" . "_cltrs_condensed_tree_$timeStamp.pdf" );
 my $treeFile2AbsPath = abs_path( $treeFile2 );
 
 plotTree($treeFile2AbsPath, $spClFile2, $pdfTreeFile, $figH);
