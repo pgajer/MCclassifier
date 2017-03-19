@@ -94,7 +94,7 @@ open IN, "$inFile" or die "Cannot open $inFile for reading: $OS_ERROR\n";
 my $tree = <IN>;
 close IN;
 
-$tree =~ s/0\.\d+:0.\d+;$/;/;
+$tree =~ s/\d\.\d+:\d\.\d+;$/;/;
 
 my $outFile = $inFile;
 open OUT, ">$outFile" or die "Cannot open $outFile for writing: $OS_ERROR\n";
