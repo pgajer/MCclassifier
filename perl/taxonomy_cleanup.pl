@@ -496,36 +496,28 @@ system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 ## changed to <genus>_sp to have their taxonomy updated to a proper species
 ## taxonomy, as now they will be put in the new query file.
 
-my $vicutFinalTx = "$vicutDir/updated.tx";
-my $newTxFile = $vicutFinalTx;
+my $updatedTxFile = "$vicutDir/updated.tx";
+my %newTx = readTbl($updatedTxFile);
 
-my %newSpp = readTbl($vicutFinalTx);
-
+my %idCl;    # seqID => cltrID
+my %cltrTbl; # cltrID => ref to array of IDs in the given cluster
 my $cltrFile = "$vicutDir/minNodeCut.cltrs";
-if ( ! -f $cltrFile )
-{
-  warn "\nERROR: $cltrFile does not exist";
-  exit;
-}
-
-my %id2cltrTbl;  # seqID => cltrID
-my %cltrTbl;     # cltrID => ref to array of IDs in the given cluster
 open IN, "$cltrFile" or die "Cannot open $cltrFile for reading: $OS_ERROR\n";
 my $header = <IN>;
 foreach (<IN>)
 {
   chomp;
   my ($id, $cl, $tx) = split /\s+/,$_;
-  $id2cltrTbl{$id} = $cl;
+  $idCl{$id} = $cl;
   push @{$cltrTbl{$cl}}, $id;
 }
 close IN;
 
 my %spFreqTbl;
-for my $id ( keys %newSpp )
+for my $id ( keys %newTx )
 {
-  my $sp = $newSpp{$id};
-  my $cl = $id2cltrTbl{$id};
+  my $sp = $newTx{$id};
+  my $cl = $idCl{$id};
   $spFreqTbl{$sp}{$cl}++;
 }
 
@@ -558,9 +550,9 @@ print "\n\n" if $debug;
 
 my @query2;
 my @ann2;
-for my $id ( keys %newSpp )
+for my $id ( keys %newTx )
 {
-  my $t = $newSpp{$id};
+  my $t = $newTx{$id};
   my @f = split "_", $t;
   my $g = shift @f;
   my $suffix = shift @f;
@@ -610,22 +602,22 @@ if (@query2)
   system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 
   print "--- Running update_spp_tx.pl\n";
-  $cmd = "update_spp_tx.pl $debugStr $useLongSppNamesStr -a $vicutFinalTx -d $vicutDir";
+  $cmd = "update_spp_tx.pl $debugStr $useLongSppNamesStr -a $updatedTxFile -d $vicutDir";
   print "\tcmd=$cmd\n" if $dryRun || $debug;
   system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 
-  $vicutFinalTx = "$vicutDir/updated.tx";
-  %newSpp = readTbl($vicutFinalTx);
+  $updatedTxFile = "$vicutDir/updated.tx";
+  %newTx = readTbl($updatedTxFile);
 }
 
 for my $id (keys %lineageTbl)
 {
-  if ( exists $newSpp{$id} )
+  if ( exists $newTx{$id} )
   {
     my $lineage = $lineageTbl{$id};
     my @f = split ";", $lineage;
     my $sp = pop @f;
-    my $newSp = $newSpp{$id};
+    my $newSp = $newTx{$id};
     my @t = (@f, $newSp);
     #$lineageTbl{$id} = join ";", @t;
     $spLineage{$newSp} = join ";", @t;
@@ -635,11 +627,11 @@ for my $id (keys %lineageTbl)
 #printTbl(\%ogInd, "ogInd") if $debug;
 
 my @extraOG; # array of seqIDs that had their taxonomy changed to OG - they will be removed
-for my $id (keys %newSpp)
+for my $id (keys %newTx)
 {
   next if exists $ogInd{$id};
 
-  my $sp = $newSpp{$id};
+  my $sp = $newTx{$id};
 
   if (!exists $spLineage{$sp})
   {
@@ -649,7 +641,7 @@ for my $id (keys %newSpp)
       print "\tlineageTbl{$id}: " . $lineageTbl{$id} . "\n\n";
       push @extraOG, $id;
       delete $lineageTbl{$id};
-      delete $newSpp{$id};
+      delete $newTx{$id};
       next;
     }
     else
@@ -697,20 +689,20 @@ for my $id (keys %newSpp)
   $lineageTbl{$id} = $spLineage{$sp};
 }
 
-if ( @extraOG )
+if ( @extraOG>0 )
 {
   # removing elements of extraOG from the updated.tx file
-  my $newTxFileNoTGTs = "$vicutDir/updated.tx";
-  print "--- Removing elements of extraOG from $newTxFileNoTGTs\n";
+  $updatedTxFile = "$vicutDir/updated.tx";
+  print "--- Removing elements of extraOG from $updatedTxFile\n";
   my $origNewTxFileNoTGTs = "$vicutDir/updated_orig.tx";
   my $extraOGfile = "$vicutDir/extraOG.seqIDs";
   writeArray(\@extraOG, $extraOGfile);
 
-  $cmd = "mv $newTxFileNoTGTs $origNewTxFileNoTGTs";
+  $cmd = "mv $updatedTxFile $origNewTxFileNoTGTs";
   print "\tcmd=$cmd\n" if $dryRun || $debug;
   system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 
-  $cmd = "select_tx.pl -e $extraOGfile -i $origNewTxFileNoTGTs -o $newTxFileNoTGTs";
+  $cmd = "select_tx.pl -e $extraOGfile -i $origNewTxFileNoTGTs -o $updatedTxFile";
   print "\tcmd=$cmd\n" if $dryRun || $debug;
   system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 
@@ -726,11 +718,12 @@ if ( @extraOG )
   # pruning tree
   print "--- Pruning extraOG seq's from $treeFile\n";
   my $prunedTreeFile = $grPrefix . "_pruned.tree";
-  $cmd = "nw_prune $treeFile @extraOG > $prunedTreeFile";
+  $cmd = "rm -f $prunedTreeFile; nw_prune $treeFile @extraOG > $prunedTreeFile";
   print "\tcmd=$cmd\n" if $dryRun || $debug;
   system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 
   $treeFile = $prunedTreeFile;
+  $trimmedAlgnFile = $prunedAlgnFile;
 }
 
 ## Creating symbolic link to the most recent trimmed alignment file for use with
@@ -745,30 +738,31 @@ system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 ## Removing outgroup sequences from the updated.tx file and the phylogenetic
 ## tree.
 
-## Deleting outgroup sequences from %newSpp !!!!
-delete @newSpp{@ogSeqIDs};
+## Deleting outgroup sequences from %newTx !!!!
+delete @newTx{@ogSeqIDs};
+delete @newTx{@extraOG};
 
-my %newTxNoTGTs = %newSpp; ## readTbl($newTxFileNoTGTs);
+my %newTxNoTGTs = %newTx; ## readTbl($updatedTxFile);
 
 # removing OG seq's from the updated.tx file
-my $newTxFileNoTGTs = "$vicutDir/updated.tx";
-print "--- Removing OG seq's from $newTxFileNoTGTs\n";
+#$updatedTxFile = "$vicutDir/updated.tx";
+print "--- Removing OG seq's from $updatedTxFile\n";
 my $origNewTxFileNoTGTs = "$vicutDir/updated_orig2.tx";
 my $ogFile = "$vicutDir/og.seqIDs";
 writeArray(\@ogSeqIDs, $ogFile);
 
-$cmd = "mv $newTxFileNoTGTs $origNewTxFileNoTGTs";
+$cmd = "mv $updatedTxFile $origNewTxFileNoTGTs";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 
-$cmd = "select_tx.pl -e $ogFile -i $origNewTxFileNoTGTs -o $newTxFileNoTGTs";
+$cmd = "select_tx.pl -e $ogFile -i $origNewTxFileNoTGTs -o $updatedTxFile";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 
 # pruning tree from OG seq's
 print "--- Pruning OG seq's from $treeFile\n";
 my $prunedTreeFile = $grPrefix . "_no_OG_seqs.tree";
-$cmd = "nw_prune $treeFile @ogSeqIDs > $prunedTreeFile";
+$cmd = "rm -f $prunedTreeFile; nw_prune $treeFile @ogSeqIDs > $prunedTreeFile";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 
@@ -784,7 +778,7 @@ $cmd = "rm -f $treeLeavesFile; nw_labels -I $treeFile > $treeLeavesFile";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 
-my %newTx = readTbl($newTxFileNoTGTs);
+%newTx = readTbl($updatedTxFile);
 
 ## looking at the difference between leaf IDs and newTx keys
 @treeLeaves = readArray($treeLeavesFile);
@@ -797,12 +791,271 @@ if (@lostLeaves>0)
   $prunedTreeFile = $grPrefix . "_no_OG_seqs_pruned.tree";
   print "\n\tSpecies cleanup eliminated " . @lostLeaves . " sequences\n";
   print "--- Pruning lost seqIDs from the current phylo tree\n";
-  $cmd = "nw_prune $treeFile @lostLeaves > $prunedTreeFile";
+  $cmd = "rm -f $prunedTreeFile; nw_prune $treeFile @lostLeaves > $prunedTreeFile";
   print "\tcmd=$cmd\n" if $dryRun || $debug;
   system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 
   $treeFile = $prunedTreeFile;
 }
+
+print "--- Removing _sp singletons clusters\n";
+%idCl = ();
+my %clSize;
+my %clSeqs;
+$cltrFile = "$vicutDir/minNodeCut.cltrs";
+open IN, "$cltrFile" or die "Cannot open $cltrFile for reading: $OS_ERROR\n";
+$header = <IN>;
+foreach (<IN>)
+{
+  chomp;
+  my ($id, $cl, $tx) = split /\s+/,$_;
+  if (exists $newTx{$id})
+  {
+    $idCl{$id} = $cl;
+    $clSize{$cl}++;
+    push @{$clSeqs{$cl}}, $id;
+  }
+}
+close IN;
+
+
+%spFreqTbl = ();
+for my $id ( keys %newTx )
+{
+  my $sp = $newTx{$id};
+  my $cl = $idCl{$id};
+  $spFreqTbl{$sp}{$cl}++;
+}
+
+my @spSingletons;
+for my $sp (keys %spFreqTbl)
+{
+  my @f = split "_", $sp;
+  my $g = shift @f;
+  my $s = shift @f;
+
+  if ($s eq "sp")
+  {
+    my @cls = keys %{$spFreqTbl{$sp}};
+    for my $cl (@cls)
+    {
+      if ($clSize{$cl}==1)
+      {
+	push @spSingletons, @{$clSeqs{$cl}};
+      }
+    }
+  }
+}
+
+if ( @spSingletons )
+{
+  delete @newTx{@spSingletons};
+
+  # removing elements of extraOG from the updated.tx file
+  my $updatedTxFile = "$vicutDir/updated.tx";
+  print "--- Removing elements of spSingletons from $updatedTxFile\n";
+  my $origNewTxFileNoTGTs = "$vicutDir/updated_orig2.tx";
+  my $spSingletonsFile = "$vicutDir/spSingletons.seqIDs";
+  writeArray(\@spSingletons, $spSingletonsFile);
+
+  $cmd = "mv $updatedTxFile $origNewTxFileNoTGTs";
+  print "\tcmd=$cmd\n" if $dryRun || $debug;
+  system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+
+  $cmd = "select_tx.pl -e $spSingletonsFile -i $origNewTxFileNoTGTs -o $updatedTxFile";
+  print "\tcmd=$cmd\n" if $dryRun || $debug;
+  system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+
+  # pruning alignment
+  print "--- Pruning spSingletons seq's from $trimmedAlgnFile\n";
+  my $prunedAlgnFile = $grPrefix . "_algn_trimmed_pruned.fa";
+  $cmd = "select_seqs.pl --quiet -e $spSingletonsFile -i $trimmedAlgnFile -o $prunedAlgnFile";
+  print "\tcmd=$cmd\n" if $dryRun || $debug;
+  system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+
+  $trimmedAlgnFile = $prunedAlgnFile;
+
+  # pruning tree
+  print "--- Pruning spSingletons seq's from $treeFile\n";
+  my $prunedTreeFile = $grPrefix . "_pruned.tree";
+  $cmd = "rm -f $prunedTreeFile; nw_prune $treeFile @spSingletons > $prunedTreeFile";
+  print "\tcmd=$cmd\n" if $dryRun || $debug;
+  system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+
+  $treeFile = $prunedTreeFile;
+
+  ## running vicut again
+  ## NOTE: I am abandoning the strategy of protecting singleton _sp species (the only species of a genus that is an _sp species)
+  my @query3;
+  my @ann3;
+  for my $id ( keys %newTx )
+  {
+    my $t = $newTx{$id};
+    my @f = split "_", $t;
+    my $g = shift @f;
+    my $suffix = shift @f;
+    my $suffix2 = shift @f;
+
+    if ( defined $suffix && $suffix eq "sp" )
+    {
+      push @query3, "$id\n";
+    }
+    else
+    {
+      push @ann3, "$id\t$t\n";
+    }
+  }
+
+  my $queryFile3 = "spp_query3.seqIDs";
+  my $annFile3   = "spp_ann3.tx";
+  ## If _sp sequences, print to file, and set vicutDir to 2nd run directory
+  $vicutDir  = "spp_vicut_dir3";
+  open QOUT, ">$queryFile3" or die "Cannot open $queryFile3 for writing: $OS_ERROR\n";
+  print QOUT @query3;
+  close QOUT;
+
+  open ANNOUT, ">$annFile3" or die "Cannot open $annFile3 for writing: $OS_ERROR\n";
+  print ANNOUT @ann3;
+  close ANNOUT;
+
+  print "--- Running vicut on species data the 3rd time\n";
+  if (@query3)
+  {
+    $cmd = "vicut -t $treeFile -a $annFile3 -q $queryFile3 -o $vicutDir";
+  }
+  else
+  {
+    $cmd = "vicut -t $treeFile -a $annFile3 -o $vicutDir";
+  }
+  print "\tcmd=$cmd\n" if $dryRun || $debug;
+  system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+
+  print "--- Running update_spp_tx.pl\n";
+  $cmd = "update_spp_tx.pl $debugStr $useLongSppNamesStr -a $updatedTxFile -d $vicutDir";
+  print "\tcmd=$cmd\n" if $dryRun || $debug;
+  system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+
+  $updatedTxFile = "$vicutDir/updated.tx";
+  %newTx = readTbl($updatedTxFile);
+}
+
+## Generating species curation diagnostic plots
+## condensed species (using nw_condense2 showing the number of sequences in
+## each species) with vicut cluster number
+
+print "\n--- Generating a tree with species names at leaves\n";
+my $sppTreeFile = "$grPrefix" . "_preGenotyping_spp.tree";
+$cmd = "rm -f $sppTreeFile; nw_rename $treeFile $updatedTxFile | nw_order -c n  - > $sppTreeFile";
+print "\tcmd=$cmd\n" if $dryRun || $debug;
+system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+
+if (0)
+{
+  print "--- Generating tree with <species name>_<seqID> labels at leaves\n";
+  my $sppSeqIDsFile = "$grPrefix" . "_preGenotyping_spp.seqIDs";
+  $cmd = "awk '{print \$1\"\\t\"\$2\"__\"\$1}' $updatedTxFile > $sppSeqIDsFile";
+  print "\tcmd=$cmd\n" if $dryRun || $debug;
+  system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+
+  my $sppSeqIdTreeFile = "$grPrefix" . "_preGenotyping_sppSeqIDs.tree";
+  $cmd = "rm -f $sppSeqIdTreeFile; nw_rename $treeFile $sppSeqIDsFile | nw_order -c n  -  > $sppSeqIdTreeFile";
+  print "\tcmd=$cmd\n" if $dryRun || $debug;
+  system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+}
+
+# print "--- Generating a condensed tree with species clades collapsed to a single node \n";
+# my $condSppTreeFile = "$grPrefix" . "_preGenotyping_spp_condensed.tree";
+# $cmd = "rm -f $condSppTreeFile; nw_condense2 $sppTreeFile > $condSppTreeFile";
+# print "\tcmd=$cmd\n" if $dryRun || $debug;
+# system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+
+# print "--- Extracting leaves of the species condensed tree\n";
+# my $csppTreeLeavesFile = "$grPrefix" . "_preGenotyping_spp_condensed_tree.leaves";
+# my $cmd = "nw_labels -I $condSppTreeFile > $csppTreeLeavesFile";
+# print "\tcmd=$cmd\n" if $dryRun || $debug;
+# system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+
+# my @csppTreeLeaves = readArray($csppTreeLeavesFile);
+# printArray(\@csppTreeLeaves, "\ncsppTreeLeaves\n") if $debug;
+
+my $cltrFile = "$vicutDir/minNodeCut.cltrs";
+%idCl = ();
+%clSize = ();
+open IN, "$cltrFile" or die "Cannot open $cltrFile for reading: $OS_ERROR\n";
+my $header = <IN>;
+foreach (<IN>)
+{
+  chomp;
+  my ($id, $cl, $tx) = split /\s+/,$_;
+  if (exists $newTx{$id})
+  {
+    #$sppCltr{$newTx{$id}} = $cl;
+    $idCl{$id} = $cl;
+    $clSize{$cl}++;
+  }
+}
+close IN;
+
+my %clIdx; # assigning each cluster of index from 1 to <number of cluster> with
+# 1 assigned to the largest one, 2 to second largest etc
+my $idx = 1;
+for my $cl (sort {$clSize{$b} <=> $clSize{$a}} keys %clSize)
+{
+  $clIdx{$cl} = $idx;
+  $idx++;
+}
+
+my %idSppCltr;     # species => sppSizeCltr
+my %idSppCltrIdx;  # sppSizeCltr => idx
+for my $id (keys %newTx)
+{
+  my $cl = $idCl{$id};
+  $idSppCltr{$id} = $newTx{$id} . "_n" . $clSize{$cl} . "_cl_" . $clIdx{$cl};
+  $idSppCltrIdx{$idSppCltr{$id}} = $clIdx{$cl};
+}
+
+# print "\nidSppCltrIdx table:\n";
+# my @a = sort { $idSppCltrIdx{$a} <=> $idSppCltrIdx{$b} } keys %idSppCltrIdx;
+# printFormatedTbl(\%idSppCltrIdx, \@a);
+# print "\n\n";
+
+print "--- Creating species_nSize_clID tree\n";
+my $spSizeCltrFile = "$grPrefix" . "_preGenotyping.spp_size_cltr";
+open OUT, ">$spSizeCltrFile" or die "Cannot open $spSizeCltrFile for writing: $OS_ERROR\n";
+for my $id (keys %idSppCltr)
+{
+  print OUT "$id\t" . $idSppCltr{$id} . "\n";
+}
+close OUT;
+
+print "\n--- Generating a tree with species names sizes and cluster index at leaves\n";
+my $sppSizeCltrTreeFile = "$grPrefix" . "_preGenotyping_sppSizeCltr.tree";
+$cmd = "rm -f $sppSizeCltrTreeFile; nw_rename $treeFile $spSizeCltrFile | nw_order -c n  - > $sppSizeCltrTreeFile";
+print "\tcmd=$cmd\n" if $dryRun || $debug;
+system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+
+my $condSppSizeCltrTreeFile = "$grPrefix" . "_preGenotyping_sppSizeCltr_condensed.tree";
+$cmd = "rm -f $condSppSizeCltrTreeFile; nw_condense $sppSizeCltrTreeFile > $condSppSizeCltrTreeFile";
+print "\tcmd=$cmd\n" if $dryRun || $debug;
+system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+
+my $pdfTreeFile = abs_path( "$grPrefix" . "_preGenotyping_sppSizeCltr_condensed_tree.pdf" );
+my $condSppSizeCltrTreeFileAbsPath = abs_path( $condSppSizeCltrTreeFile );
+
+my $idSppCltrIdxFile = abs_path( "$grPrefix" . "_preGenotyping_sppSizeCltr.idx" );
+writeTbl(\%idSppCltrIdx, $idSppCltrIdxFile);
+
+plotTree($condSppSizeCltrTreeFileAbsPath, $idSppCltrIdxFile, $pdfTreeFile);
+
+if ( $OSNAME eq "darwin")
+{
+  $cmd = "open $pdfTreeFile";
+  print "\tcmd=$cmd\n" if $dryRun || $debug;
+  system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+}
+
+## applying phyloPart to the current treeFile
+
 
 
 print "--- Running genotype_spp.pl\n";
@@ -810,8 +1063,8 @@ $cmd = "genotype_spp.pl -d $vicutDir";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 
-$newTxFile = "$vicutDir/updated2.tx";
-%newTx = readTbl($newTxFile);
+my $updatedTxFile2 = "$vicutDir/updated2.tx";
+%newTx = readTbl($updatedTxFile2);
 #delete @newTx{@ogSeqIDs};
 
 print "--- Updating lineage using new species taxonomy\n";
@@ -850,7 +1103,7 @@ if (@lostLeaves>0)
   $prunedTreeFile = $grPrefix . "_no_OG_seqs_pruned2.tree";
   print "\n\tSpecies cleanup eliminated " . @lostLeaves . " sequences\n";
   print "--- Pruning lost seqIDs from the current phylo tree\n";
-  $cmd = "nw_prune $treeFile @lostLeaves > $prunedTreeFile";
+  $cmd = "rm -f $prunedTreeFile; nw_prune $treeFile @lostLeaves > $prunedTreeFile";
   print "\tcmd=$cmd\n" if $dryRun || $debug;
   system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 
@@ -972,14 +1225,14 @@ map { $sppFreqFinal2{$_}++ } values %sppFreqFinal;
 
 ## Creating a symbolic link for final.tx to point to vicutDir/updated2.tx
 my $finalTxFile = $grPrefix . "_final.tx";
-$ap = abs_path( $newTxFile );
+$ap = abs_path( $updatedTxFile2 );
 $cmd = "rm -f $finalTxFile; ln -s $ap $finalTxFile";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 
 ## comparison between old and new species assignments
 print "--- Comparing old and new species assignments\n";
-$cmd = "cmp_tx.pl -i $txFile -j $newTxFile -o old_vs_new_spp_cmp";
+$cmd = "cmp_tx.pl -i $txFile -j $updatedTxFile2 -o old_vs_new_spp_cmp";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 
@@ -990,7 +1243,7 @@ system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 
 print "\n--- Generating a tree with final species names at leaves\n";
 my $finalSppTreeFile = "$grPrefix" . "_final_spp.tree";
-$cmd = "rm -f $finalSppTreeFile; nw_rename $treeFile $newTxFile | nw_order -c n  - > $finalSppTreeFile";
+$cmd = "rm -f $finalSppTreeFile; nw_rename $treeFile $updatedTxFile2 | nw_order -c n  - > $finalSppTreeFile";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 
@@ -1706,6 +1959,73 @@ print     "\tSummary stats written to $grDir/$summaryStatsFile\n\n";
 ####################################################################
 ##                               SUBS
 ####################################################################
+
+sub plotTree
+{
+  my ($treeFile, $clFile, $pdfFile) = @_;
+
+  my $readNewickFile = "/Users/pgajer/.Rlocal/read.newick.R";
+  my $showBoostrapVals = "F";
+
+  my $Rscript = qq~
+
+clTbl <- read.table(\"$clFile\", header=F)
+str(clTbl)
+
+cltr <- clTbl[,2]
+names(cltr) <- clTbl[,1]
+
+source(\"$readNewickFile\")
+require(phytools)
+
+tr1 <- read.newick(file=\"$treeFile\")
+tr1 <- collapse.singles(tr1)
+
+tip.colors <- cltr[tr1\$tip.label]
+
+nLeaves <- length(tr1\$tip.label)
+figH <- 6.0/50.0 * ( nLeaves - 50) + 10
+figW <- 6.0/50.0 * ( nLeaves - 50) + 6
+
+pdf(\"$pdfFile\", width=figW, height=figH)
+op <- par(mar=c(0,0,1.5,0), mgp=c(2.85,0.6,0),tcl = -0.3)
+plot(tr1,type=\"phylogram\", no.margin=FALSE, show.node.label=$showBoostrapVals, cex=0.8, tip.color=sample(rainbow(25,start=1/6,end=0)), main=\"$grPrefix\") # tip.color=tip.colors
+par(op)
+dev.off()
+~;
+
+  runRscript( $Rscript );
+}
+
+  # execute an R-script
+sub runRscript{
+
+  my $Rscript = shift;
+
+  my $outFile = "rTmp.R";
+  open OUT, ">$outFile",  or die "cannot write to $outFile: $!\n";
+  print OUT "$Rscript";
+  close OUT;
+
+  my $cmd = "R CMD BATCH $outFile";
+  system($cmd) == 0 or die "system($cmd) failed:$?\n";
+
+  my $outR = $outFile . "out";
+  open IN, "$outR" or die "Cannot open $outR for reading: $OS_ERROR\n";
+  my $exitStatus = 1;
+
+  foreach my $line (<IN>)
+  {
+    if ( $line =~ /Error/ )
+    {
+      print "R script crashed at\n$line";
+      print "check $outR for details\n";
+      $exitStatus = 0;
+      exit;
+    }
+  }
+  close IN;
+}
 
 sub get_seqIDs_from_fa
 {
