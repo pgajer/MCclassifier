@@ -37,6 +37,9 @@
 =item B<--output-file, -o>
   Output file with <taxon> => <cluster name> table.
 
+=item B<--show-tree>
+  Open the pdf file with the tree used to do clustering.
+
 =item B<--verbatim, -v>
   Prints content of some output files.
 
@@ -80,6 +83,7 @@ GetOptions(
   "parent-file|f=s"      => \my $parentFile,
   "output-file|o=s"      => \my $outFile,
   "show-boot-vals"       => \my $showBoostrapVals,
+  "show-tree"            => \my $showTree,
   "igs"                  => \my $igs,
   "johanna"              => \my $johanna,
   "verbatim|v"           => \my $verbatim,
@@ -473,7 +477,7 @@ my $treeFile2AbsPath = abs_path( $treeFile2 );
 
 plotTree($treeFile2AbsPath, $spClFile2, $pdfTreeFile, $figH);
 
-if ( $OSNAME eq "darwin")
+if ( $showTree && $OSNAME eq "darwin")
 {
   $cmd = "open $pdfTreeFile";
   print "\tcmd=$cmd\n" if $dryRun || $debug;
