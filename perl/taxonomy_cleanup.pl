@@ -1045,7 +1045,7 @@ my $condSppSizeCltrTreeFileAbsPath = abs_path( $condSppSizeCltrTreeFile );
 my $idSppCltrIdxFile = abs_path( "$grPrefix" . "_preGenotyping_sppSizeCltr.idx" );
 writeTbl(\%idSppCltrIdx, $idSppCltrIdxFile);
 
-plotTree($condSppSizeCltrTreeFileAbsPath, $idSppCltrIdxFile, $pdfTreeFile);
+plotTree($condSppSizeCltrTreeFileAbsPath, $idSppCltrIdxFile, $pdfTreeFile, "plotBlackAndWhite");
 
 if ( $OSNAME eq "darwin")
 {
@@ -1962,11 +1962,20 @@ print     "\tSummary stats written to $grDir/$summaryStatsFile\n\n";
 
 sub plotTree
 {
-  my ($treeFile, $clFile, $pdfFile) = @_;
+  my ($treeFile, $clFile, $pdfFile, $bw) = @_;
 
   my $readNewickFile = "/Users/pgajer/.Rlocal/read.newick.R";
   my $showBoostrapVals = "F";
 
+  my $plotStr;
+  if (defined $bw)
+  {
+    $plotStr = "plot(tr1,type=\"phylogram\", no.margin=FALSE, show.node.label=$showBoostrapVals, cex=0.8, main=\"$grPrefix\")";
+  }
+  else
+  {
+    $plotStr = "plot(tr1,type=\"phylogram\", no.margin=FALSE, show.node.label=$showBoostrapVals, cex=0.8, tip.color=sample(rainbow(25,start=1/6,end=0)), main=\"$grPrefix\") # tip.color=tip.colors";
+  }
   my $Rscript = qq~
 
 clTbl <- read.table(\"$clFile\", header=F)
@@ -1989,7 +1998,7 @@ figW <- 6.0/50.0 * ( nLeaves - 50) + 6
 
 pdf(\"$pdfFile\", width=figW, height=figH)
 op <- par(mar=c(0,0,1.5,0), mgp=c(2.85,0.6,0),tcl = -0.3)
-plot(tr1,type=\"phylogram\", no.margin=FALSE, show.node.label=$showBoostrapVals, cex=0.8, tip.color=sample(rainbow(25,start=1/6,end=0)), main=\"$grPrefix\") # tip.color=tip.colors
+$plotStr
 par(op)
 dev.off()
 ~;
