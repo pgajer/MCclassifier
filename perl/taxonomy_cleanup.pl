@@ -87,6 +87,7 @@ GetOptions(
   "skip-FastTree"       => \my $skipFastTree,
   "use-long-spp-names"  => \my $useLongSppNames,
   "taxon-size-thld"     => \$taxonSizeThld,
+  "show-all-trees"      => \my $showAllTrees,
   "igs"                 => \my $igs,
   "johanna"             => \my $johanna,
   "verbose|v"           => \my $verbose,
@@ -132,6 +133,13 @@ if ($useLongSppNames)
 {
   $useLongSppNamesStr = "--use-long-spp-names";
 }
+
+my $showAllTreesStr = "";
+if ($showAllTrees)
+{
+  $showAllTreesStr = "--show-tree";
+}
+
 ####################################################################
 ##                               MAIN
 ####################################################################
@@ -984,11 +992,11 @@ if (0)
 # my @csppTreeLeaves = readArray($csppTreeLeavesFile);
 # printArray(\@csppTreeLeaves, "\ncsppTreeLeaves\n") if $debug;
 
-my $cltrFile = "$vicutDir/minNodeCut.cltrs";
+$cltrFile = "$vicutDir/minNodeCut.cltrs";
 %idCl = ();
 %clSize = ();
 open IN, "$cltrFile" or die "Cannot open $cltrFile for reading: $OS_ERROR\n";
-my $header = <IN>;
+$header = <IN>;
 foreach (<IN>)
 {
   chomp;
@@ -1047,13 +1055,12 @@ system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 
 my $pdfTreeFile = abs_path( "$grPrefix" . "_preGenotyping_sppSizeCltr_condensed_tree.pdf" );
 my $condSppSizeCltrTreeFileAbsPath = abs_path( $condSppSizeCltrTreeFile );
+# my $idSppCltrIdxFile = abs_path( "$grPrefix" . "_preGenotyping_sppSizeCltr.idx" );
+# writeTbl(\%idSppCltrIdx, $idSppCltrIdxFile);
 
-my $idSppCltrIdxFile = abs_path( "$grPrefix" . "_preGenotyping_sppSizeCltr.idx" );
-writeTbl(\%idSppCltrIdx, $idSppCltrIdxFile);
+plot_tree_bw($condSppSizeCltrTreeFileAbsPath, $pdfTreeFile);
 
-plotTree($condSppSizeCltrTreeFileAbsPath, $idSppCltrIdxFile, $pdfTreeFile, "plotBlackAndWhite");
-
-if ( $OSNAME eq "darwin")
+if ( $showAllTrees && $OSNAME eq "darwin")
 {
   $cmd = "open $pdfTreeFile";
   print "\tcmd=$cmd\n" if $dryRun || $debug;
@@ -1269,7 +1276,7 @@ print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 
 print "--- Generating a condensed tree with final species clades collapsed to a single node \n";
-my $finalCondSppTreeFile = "$grPrefix" . "_final_spp_condensed.tree";
+my $finalCondSppTreeFile = abs_path( $grPrefix . "_final_spp_condensed.tree" );
 $cmd = "rm -f $finalCondSppTreeFile; nw_condense $finalSppTreeFile > $finalCondSppTreeFile";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
@@ -1325,11 +1332,38 @@ my $spParentFile = $grPrefix . ".spParent";
 writeTbl(\%spParent, $spParentFile);
 
 my $sppGenusFile = $grPrefix . "_spp.genusTx";
-$cmd = "cluster_taxons.pl -i $finalCondSppTreeFile -p 0.1 -f $spParentFile -t species -o $sppGenusFile";
+$cmd = "cluster_taxons.pl $showAllTreesStr -i $finalCondSppTreeFile -p 0.1 -f $spParentFile -t species -o $sppGenusFile";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 
 my %sppGenus = readTbl($sppGenusFile);
+
+print "--- Updating lineage table at the genu level\n";
+my %geParent;
+for my $id (keys %lineageTbl)
+{
+  my $lineage = $lineageTbl{$id};
+  my @f = split ";", $lineage;
+  my $sp = pop @f;
+
+  if ( exists $sppGenus{$sp} )
+  {
+    my $ge = pop @f;
+    my $newGenus = $sppGenus{$sp};
+    my @t = (@f, $newGenus, $sp);
+    $lineageTbl{$id} = join ";", @t;
+
+    my $fa = pop @f;
+    $geParent{$newGenus} = $fa;
+  }
+  else
+  {
+    warn "\n\n\tERROR: $id with sp: $sp not detected in sppGenus table";
+    print "\n\n";
+    exit;
+    #delete $lineageTbl{$id};
+  }
+}
 
 my %geChildren;
 for my $sp (keys %sppGenus)
@@ -1348,6 +1382,7 @@ if ($debug)
 }
 
 print "--- Splitting phylo-vicut-based genera if their sizes are above taxonSizeThld\n";
+my %subgeParent;
 my @a = sort { scalar(keys %{$geChildren{$b}}) <=> scalar(keys %{$geChildren{$a}}) } keys %geChildren;
 for my $ge (@a)
 {
@@ -1413,7 +1448,7 @@ for my $ge (@a)
 
 
     $sppGenusFile = $grPrefix . "_$ge" . "_spp.genusTx";
-    $cmd = "cluster_taxons.pl -i $prunedTreeFile -p 0.1 -f $spParentFile -t species -o $sppGenusFile";
+    $cmd = "cluster_taxons.pl $showAllTreesStr -i $prunedTreeFile -p 0.1 -f $spParentFile -t species -o $sppGenusFile";
     print "\tcmd=$cmd\n" if $dryRun || $debug;
     system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 
@@ -1450,7 +1485,48 @@ for my $ge (@a)
 
     @sppGenus{@spp} = @sppGenus2{@spp};
 
+    print "--- Updating lineage table at the sub-genu of $ge level\n";
+    for my $id (keys %lineageTbl)
+    {
+      my $lineage = $lineageTbl{$id};
+      my @f = split ";", $lineage;
+      my $sp = pop @f;
+
+      if ( exists $sppGenus2{$sp} )
+      {
+	##my $ge = pop @f; # keeping genus
+	my $newSubGenus = $sppGenus2{$sp};
+	my @t = (@f, $newSubGenus, $sp);
+	$lineageTbl{$id} = join ";", @t;
+
+	my $ge = pop @f;
+	$subgeParent{$newSubGenus} = $ge;
+      }
+    }
+
   }
+  else
+  {
+    my @spp = keys %{$geChildren{$ge}};
+    my %sppInd = map{$_ =>1} @spp;
+
+    print "--- Updating lineage table at the sub-genu level for small genus $ge\n";
+    for my $id (keys %lineageTbl)
+    {
+      my $lineage = $lineageTbl{$id};
+      my @f = split ";", $lineage;
+      my $sp = pop @f;
+
+      if ( exists $sppInd{$sp} )
+      {
+	my $ge = pop @f; # keeping genus
+	my @t = (@f, $ge, $ge, $sp);
+	$lineageTbl{$id} = join ";", @t;
+	$subgeParent{$ge} = $ge;
+      }
+    }
+  }
+
 }
 
 undef %geChildren;
@@ -1469,96 +1545,115 @@ if ($debug)
   print "\n\n"
 }
 
-
-print "\n--- Running genus vicut on pruned (after spp cleanup) tree\n";
-my $genusVicutDir = "genus_vicut_dir";
-$cmd = "vicut -t $treeFile -a $annFile -o $genusVicutDir";
-print "\tcmd=$cmd\n" if $dryRun || $debug;
-system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
-
-print "--- Running update_tx.pl for genus level\n";
-$cmd = "update_tx.pl $debugStr -a $genusTxFile -d $genusVicutDir";
-print "\tcmd=$cmd\n" if $dryRun || $debug;
-system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
-
-print "--- Running genotype_tx.pl for genus level\n";
-$cmd = "genotype_tx.pl -d $genusVicutDir";
-print "\tcmd=$cmd\n" if $dryRun || $debug;
-system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
-
-my $finalGenusTx = "$genusVicutDir/updated2.tx";
-my %genusTx = readTbl($finalGenusTx);
-
-## updating lineage
-my %sppGenus2;
-for my $id (keys %genusTx)
+my $finalGenusTxFile = $grPrefix . "_final_genus.tx";
+my $finalSubGenusTxFile = $grPrefix . "_final_sub_genus.tx";
+open GOUT, ">$finalGenusTxFile" or die "Cannot open $finalGenusTxFile for writing: $OS_ERROR\n";
+open SGOUT, ">$finalSubGenusTxFile" or die "Cannot open $finalSubGenusTxFile for writing: $OS_ERROR\n";
+for my $id (keys %lineageTbl)
 {
-  next if exists $ogInd{$id};
-
   my $lineage = $lineageTbl{$id};
-  if (!defined $lineage)
-  {
-    warn "\n\n\tERROR: lineage not found for $id";
-    print "\n\n";
-    exit;
-  }
   my @f = split ";", $lineage;
   my $sp = pop @f;
+  my $subge = pop @f;
+  print SGOUT "$id\t$subge\n";
   my $ge = pop @f;
-  # my $fa = pop @f;
-  # my $or = pop @f;
-  # my $cl = pop @f;
-  # my $ph = pop @f;
-  # "d_Bacteria";
-
-  my $newGenus = $genusTx{$id};
-  my @t = (@f, $newGenus, $sp);
-  $sppGenus2{$sp} = $newGenus;
-  $lineageTbl{$id} = join ";", @t;
+  print GOUT "$id\t$ge\n";
 }
+close SGOUT;
+close GOUT;
 
-my %geChildren2;
-for my $sp (keys %sppGenus2)
-{
-  my $ge = $sppGenus2{$sp};
-  $geChildren2{$ge}{$sp}++;
-}
-
-if ($debug)
-{
-  print "\n\nNumber of vicut-only based genera: " . scalar(keys %geChildren2) . "\n";
-  print "\n\nSpecies frequencies in the vicut-only based genera:\n";
-  my @a = sort { scalar(keys %{$geChildren2{$b}}) <=> scalar(keys %{$geChildren2{$a}}) } keys %geChildren2;
-  printFormatedTableValuedTbl(\%geChildren2, \@a);
-  print "\n\n"
-}
-
-exit;
 
 print "\n--- Generating a tree with final genus names at leaves\n";
-my $finalgeTreeFile = "$grPrefix" . "_final_genus.tree";
-$cmd = "rm -f $finalgeTreeFile; nw_rename $treeFile $finalGenusTx | nw_order -c n  - > $finalgeTreeFile";
-print "\tcmd=$cmd\n" if $dryRun || $debug;
-system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
-
-print "--- Generating tree with <final genus name>_<seqID> labels at leaves\n";
-my $finalgeSeqIDsFile = "$grPrefix" . "_final_genus.seqIDs";
-$cmd = "awk '{print \$1\"\\t\"\$2\"__\"\$1}' $finalGenusTx > $finalgeSeqIDsFile";
-print "\tcmd=$cmd\n" if $dryRun || $debug;
-system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
-
-my $finalgeSeqIdTreeFile = "$grPrefix" . "_final_geSeqIDs.tree";
-$cmd = "rm -f $finalgeSeqIdTreeFile; nw_rename $treeFile $finalgeSeqIDsFile | nw_order -c n  -  > $finalgeSeqIdTreeFile";
+my $finalGenusTreeFile = "$grPrefix" . "_final_genus.tree";
+$cmd = "rm -f $finalGenusTreeFile; nw_rename $treeFile $finalGenusTxFile | nw_order -c n  - > $finalGenusTreeFile";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 
 print "--- Generating a condensed tree with final genera collapsed to a single node \n";
-my $finalCondgeTreeFile = "$grPrefix" . "_final_genus_condensed.tree";
-$cmd = "rm -f $finalCondgeTreeFile; nw_condense $finalgeTreeFile > $finalCondgeTreeFile";
+my $finalCondGenusTreeFile = abs_path( "$grPrefix" . "_final_genus_condensed.tree" );
+$cmd = "rm -f $finalCondGenusTreeFile; nw_condense $finalGenusTreeFile > $finalCondGenusTreeFile";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 
 
+my $pdfCondGenusTreeFile = abs_path( "$grPrefix" . "_final_genus_condensed_tree.pdf" );
+plot_tree_bw($finalCondGenusTreeFile, $pdfCondGenusTreeFile);
+
+if ( $showAllTrees &&  $OSNAME eq "darwin")
+{
+  $cmd = "open $pdfCondGenusTreeFile";
+  print "\tcmd=$cmd\n" if $dryRun || $debug;
+  system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+}
+
+
+print "\n--- Generating a tree with final genus names at leaves\n";
+my $finalSubGenusTreeFile = "$grPrefix" . "_final_sub_genus.tree";
+$cmd = "rm -f $finalSubGenusTreeFile; nw_rename $treeFile $finalSubGenusTxFile | nw_order -c n  - > $finalSubGenusTreeFile";
+print "\tcmd=$cmd\n" if $dryRun || $debug;
+system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+
+print "--- Generating a condensed tree with final genera collapsed to a single node \n";
+my $finalCondSubGenusTreeFile = abs_path( "$grPrefix" . "_final_sub_genus_condensed.tree" );
+$cmd = "rm -f $finalCondSubGenusTreeFile; nw_condense $finalSubGenusTreeFile > $finalCondSubGenusTreeFile";
+print "\tcmd=$cmd\n" if $dryRun || $debug;
+system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+
+my $pdfCondSubGenusTreeFile = abs_path( "$grPrefix" . "_final_sub_genus_condensed_tree.pdf" );
+plot_tree_bw($finalCondSubGenusTreeFile, $pdfCondSubGenusTreeFile);
+
+if ( $showAllTrees && $OSNAME eq "darwin")
+{
+  $cmd = "open $pdfCondSubGenusTreeFile";
+  print "\tcmd=$cmd\n" if $dryRun || $debug;
+  system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+}
+
+
+## generating pdf figure of species condensed tree colored by sub-genus
+
+# Assigning to each sub-genus an index
+my @subgenera = values %sppGenus;
+@subgenera = unique(\@subgenera);
+my $subgeneraCount = 1;
+my %subgenusIdx = map{ $_ => $subgeneraCount++ } @subgenera;
+
+if ($debug)
+{
+  print "\n\nsubgenusIdx:\n";
+  printFormatedTbl(\%subgenusIdx);
+  print "\n\n";
+}
+
+my $subgenusIdxFile = abs_path( "$grPrefix" . "_subgenus.idx" );
+open OUT, ">$subgenusIdxFile" or die "Cannot open $subgenusIdxFile for writing: $OS_ERROR\n";
+for my $sp (keys %sppGenus)
+{
+  print OUT "$sp\t" . $subgenusIdx{$sppGenus{$sp}} . "\n";
+}
+close OUT;
+
+my $pdfCsppTreeFile = abs_path( $grPrefix . "_final_spp_condensed_tree_with_sub_genus_colors.pdf" );
+
+plot_tree($finalCondSppTreeFile, $subgenusIdxFile, $pdfCsppTreeFile);
+
+if ( $OSNAME eq "darwin")
+{
+  $cmd = "open $pdfCsppTreeFile";
+  print "\tcmd=$cmd\n" if $dryRun || $debug;
+  system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+}
+
+my $finalLineageFile0 = $grPrefix . "_final.lineage";
+open OUT, ">$finalLineageFile0" or die "Cannot open $finalLineageFile0 for writing: $OS_ERROR\n";
+for my $id (keys %newTx)
+{
+  my $lineage = $lineageTbl{$id};
+  print OUT "$id\t$lineage\n";
+}
+close OUT;
+
+exit;
 
 ##
 ## family-level cleanup
@@ -2147,22 +2242,13 @@ print     "\tSummary stats written to $grDir/$summaryStatsFile\n\n";
 ##                               SUBS
 ####################################################################
 
-sub plotTree
+sub plot_tree
 {
   my ($treeFile, $clFile, $pdfFile, $bw) = @_;
 
   my $readNewickFile = "/Users/pgajer/.Rlocal/read.newick.R";
   my $showBoostrapVals = "F";
 
-  my $plotStr;
-  if (defined $bw)
-  {
-    $plotStr = "plot(tr1,type=\"phylogram\", no.margin=FALSE, show.node.label=$showBoostrapVals, cex=0.8, main=\"$grPrefix\")";
-  }
-  else
-  {
-    $plotStr = "plot(tr1,type=\"phylogram\", no.margin=FALSE, show.node.label=$showBoostrapVals, cex=0.8, tip.color=sample(rainbow(25,start=1/6,end=0)), main=\"$grPrefix\") # tip.color=tip.colors";
-  }
   my $Rscript = qq~
 
 clTbl <- read.table(\"$clFile\", header=F)
@@ -2179,13 +2265,56 @@ tr1 <- collapse.singles(tr1)
 
 tip.colors <- cltr[tr1\$tip.label]
 
-nLeaves <- length(tr1\$tip.label)
-figH <- 6.0/50.0 * ( nLeaves - 50) + 10
-figW <- 6.0/50.0 * ( nLeaves - 50) + 6
+(nLeaves <- length(tr1\$tip.label))
+
+figH <- 8
+figW <- 6
+if ( nLeaves >= 50 )
+{
+    figH <- 6.0/50.0 * ( nLeaves - 50) + 10
+    figW <- 6.0/50.0 * ( nLeaves - 50) + 6
+}
 
 pdf(\"$pdfFile\", width=figW, height=figH)
 op <- par(mar=c(0,0,1.5,0), mgp=c(2.85,0.6,0),tcl = -0.3)
-$plotStr
+plot(tr1,type=\"phylogram\", no.margin=FALSE, show.node.label=$showBoostrapVals, cex=0.8, tip.color=tip.colors, main=\"$grPrefix\")
+par(op)
+dev.off()
+~;
+
+  runRscript( $Rscript );
+}
+
+
+## plot tree with without any colors
+sub plot_tree_bw
+{
+  my ($treeFile, $pdfFile) = @_;
+
+  my $readNewickFile = "/Users/pgajer/.Rlocal/read.newick.R";
+  my $showBoostrapVals = "F";
+
+  my $Rscript = qq~
+
+source(\"$readNewickFile\")
+require(phytools)
+
+tr1 <- read.newick(file=\"$treeFile\")
+tr1 <- collapse.singles(tr1)
+
+(nLeaves <- length(tr1\$tip.label))
+
+figH <- 8
+figW <- 6
+if ( nLeaves >= 50 )
+{
+    figH <- 6.0/50.0 * ( nLeaves - 50) + 10
+    figW <- 6.0/50.0 * ( nLeaves - 50) + 6
+}
+
+pdf(\"$pdfFile\", width=figW, height=figH)
+op <- par(mar=c(0,0,1.5,0), mgp=c(2.85,0.6,0),tcl = -0.3)
+plot(tr1,type=\"phylogram\", no.margin=FALSE, show.node.label=$showBoostrapVals, cex=0.8, main=\"$grPrefix\")
 par(op)
 dev.off()
 ~;
