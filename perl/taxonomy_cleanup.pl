@@ -79,6 +79,9 @@ $OUTPUT_AUTOFLUSH = 1;
 ##                             OPTIONS
 ####################################################################
 
+my $maxStrLen     = 150;  # maximal number of characters in a taxon string; if
+			  # larger file names using the taxon name will use an
+			  # abbreviated version of the taxon name
 my $taxonSizeThld = 20;
 
 GetOptions(
@@ -1428,15 +1431,21 @@ for my $ge (@a)
     print "\n\tSplitting $ge\n" if $debug;
     my @spp = keys %{$geChildren{$ge}};
 
+    my $geStr = $ge;
+    if ( length($geStr) > $maxStrLen )
+    {
+      my $geStr = substr( $ge, 0, $maxStrLen);
+    }
+
     # prune the final species condensed tree to contain the given genus only
-    my $prunedTreeFile = $grPrefix . "_pruned_$ge.tree";
+    my $prunedTreeFile = $grPrefix . "_pruned_$geStr.tree";
     print "--- Restricting $finalCondSppTreeFile to the species of $ge\n";
     $cmd = "rm -f $prunedTreeFile; nw_clade $finalCondSppTreeFile @spp > $prunedTreeFile";
     print "\tcmd=$cmd\n" if $dryRun || $debug;
     system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 
     # testing if the resulting tree has the same number of leaves as @spp array
-    my $prunedTreeLeavesFile = $grPrefix . "_pruned_$ge.leaves";
+    my $prunedTreeLeavesFile = $grPrefix . "_pruned_$geStr.leaves";
     $cmd = "rm -f $prunedTreeLeavesFile; nw_labels -I $prunedTreeFile > $prunedTreeLeavesFile";
     print "\tcmd=$cmd\n" if $dryRun || $debug;
     system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
@@ -1475,7 +1484,7 @@ for my $ge (@a)
     ## assignment after splitting this genus to something like
     ## <genus>_<idx>s<newIdx>.
 
-    $spParentFile = $grPrefix . "_$ge.spParent";
+    $spParentFile = $grPrefix . "_$geStr.spParent";
     my %spParent2;
     for (@spp)
     {
@@ -1484,7 +1493,7 @@ for my $ge (@a)
     writeTbl(\%spParent2, $spParentFile);
 
 
-    $sppGenusFile = $grPrefix . "_$ge" . "_spp.genusTx";
+    $sppGenusFile = $grPrefix . "_$geStr" . "_spp.genusTx";
     $cmd = "cluster_taxons.pl $showAllTreesStr -i $prunedTreeFile -p 0.1 -f $spParentFile -t species -o $sppGenusFile";
     print "\tcmd=$cmd\n" if $dryRun || $debug;
     system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
