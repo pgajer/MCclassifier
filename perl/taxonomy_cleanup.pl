@@ -1054,18 +1054,16 @@ if ( $OSNAME eq "darwin")
   system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 }
 
-## applying phyloPart to the current treeFile
-
-
 
 print "--- Running genotype_spp.pl\n";
+## Here species that appear more than twice are being indexed so each species
+## forms a monophyletic clade on the reference tree
 $cmd = "genotype_spp.pl -d $vicutDir";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 
 my $updatedTxFile2 = "$vicutDir/updated2.tx";
 %newTx = readTbl($updatedTxFile2);
-#delete @newTx{@ogSeqIDs};
 
 print "--- Updating lineage using new species taxonomy\n";
 ## updating lineage
@@ -1118,6 +1116,8 @@ print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 
 
+print "--- Updating lineage table\n";
+my %spParent;
 for my $id (keys %lineageTbl)
 {
   #next if exists $ogInd{$id};
@@ -1137,6 +1137,9 @@ for my $id (keys %lineageTbl)
     my @t = (@f, $newSp);
 
     $lineageTbl{$id} = join ";", @t;
+
+    my $ge = pop @f;
+    $spParent{$newSp} = $ge;
   }
   else
   {
@@ -1144,7 +1147,7 @@ for my $id (keys %lineageTbl)
   }
 }
 
-## Testing consistency between lineageTbl and newTx keys
+print "--- Testing consistency between lineageTbl and newTx keys\n";
 @newTxKeys      = keys %newTx;
 @lineageTblKeys = keys %lineageTbl;
 my @tlComm = comm(\@newTxKeys, \@lineageTblKeys);
@@ -1184,7 +1187,7 @@ if (@tlComm != @newTxKeys || @tlComm != @lineageTblKeys)
   exit;
 }
 
-
+## Generating some summary tables
 my %sppFreqFinal; ## table of number of sequences per species
 map { $sppFreqFinal{$_}++ } values %newTx;
 
@@ -1266,12 +1269,13 @@ print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 
 
+
 ##
 ## genus-level cleanup
 ##
 print "--- Generating genus ann and query files\n";
 
-my $genusTxFile = "$grPrefix" . ".genus";
+my $genusTxFile = "$grPrefix" . "_genus.tx";
 print "--- Writing genus assignments to $genusTxFile file\n";
 writeTbl(\%gen, $genusTxFile);
 
@@ -1301,6 +1305,42 @@ if ($debug)
   print "\n\n"
 }
 
+#
+# Using phyloPart followed by vicut to generate genus taxonomy
+#
+# Given a condenset tree at some taxonomic rank (say species), a percentile
+# threshold and a taxonomic parent table, the script performs a partition of a
+# phylogenetic tree with the given percentile distance threshold using phyloPart
+# and then does vicut clustering using all except 0 clusters of phyloPart as
+# annotation and elements of cluster 0 as query leaves and uses the taxonomic
+# parent table to assign taxonomically relevant names to the clusters.
+
+my $spParentFile = $grPrefix . ".spParent";
+writeTbl(\%spParent, $spParentFile);
+
+my $sppGenusFile = $grPrefix . "_spp.genusTx";
+$cmd = "cluster_taxons.pl -i $finalCondSppTreeFile -p 0.1 -f $spParentFile -t species -o $sppGenusFile";
+print "\tcmd=$cmd\n" if $dryRun || $debug;
+system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+
+my %sppGenus = readTbl($sppGenusFile);
+
+my %geChildren;
+for my $sp (keys %sppGenus)
+{
+  my $ge = $sppGenus{$sp};
+  $geChildren{$ge}{$sp}++;
+}
+
+if ($debug)
+{
+  print "\n\nNumber of phylo-partition-vicut based genera: " . scalar(keys %geChildren) . "\n";
+  print "\nSpecies frequencies in phylo-partition-vicut based genera:\n";
+  my @a = sort { scalar(keys %{$geChildren{$b}}) <=> scalar(keys %{$geChildren{$a}}) } keys %geChildren;
+  printFormatedTableValuedTbl(\%geChildren, \@a);
+  print "\n\n"
+}
+
 
 print "\n--- Running genus vicut on pruned (after spp cleanup) tree\n";
 my $genusVicutDir = "genus_vicut_dir";
@@ -1322,6 +1362,7 @@ my $finalGenusTx = "$genusVicutDir/updated2.tx";
 my %genusTx = readTbl($finalGenusTx);
 
 ## updating lineage
+my %sppGenus2;
 for my $id (keys %genusTx)
 {
   next if exists $ogInd{$id};
@@ -1344,9 +1385,27 @@ for my $id (keys %genusTx)
 
   my $newGenus = $genusTx{$id};
   my @t = (@f, $newGenus, $sp);
-
+  $sppGenus2{$sp} = $newGenus;
   $lineageTbl{$id} = join ";", @t;
 }
+
+my %geChildren2;
+for my $sp (keys %sppGenus2)
+{
+  my $ge = $sppGenus2{$sp};
+  $geChildren2{$ge}{$sp}++;
+}
+
+if ($debug)
+{
+  print "\n\nNumber of vicut-only based genera: " . scalar(keys %geChildren2) . "\n";
+  print "\n\nSpecies frequencies in the vicut-only based genera:\n";
+  my @a = sort { scalar(keys %{$geChildren2{$b}}) <=> scalar(keys %{$geChildren2{$a}}) } keys %geChildren2;
+  printFormatedTableValuedTbl(\%geChildren2, \@a);
+  print "\n\n"
+}
+
+exit;
 
 print "\n--- Generating a tree with final genus names at leaves\n";
 my $finalgeTreeFile = "$grPrefix" . "_final_genus.tree";
@@ -2402,6 +2461,39 @@ sub printFormatedTbl{
       $pad .= " ";
     }
     print "$_$pad" . $rTbl->{$_} . "\n";
+  }
+  print "\n";
+}
+
+# print elements of a hash table whose values are reference to a hash table so
+# that sizes of the value hash tables are aligned
+sub printFormatedTableValuedTbl{
+
+  my ($rTbl, $rSub) = @_; # the second argument is a subarray of the keys of the table
+
+  my @args;
+  if ($rSub)
+  {
+    @args = @{$rSub};
+  }
+  else
+  {
+    @args = keys %{$rTbl};
+  }
+
+  my $maxStrLen = 0;
+  map { $maxStrLen = length($_) if( length($_) > $maxStrLen )} @args;
+
+  for (@args)
+  {
+    my $n = $maxStrLen - length($_);
+    my $pad = ": ";
+    for (my $i=0; $i<$n; $i++)
+    {
+      $pad .= " ";
+    }
+    my $size = keys %{$rTbl->{$_}};
+    print "$_$pad$size\n";
   }
   print "\n";
 }
