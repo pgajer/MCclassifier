@@ -38,6 +38,9 @@
 =item B<--use-long-spp-names>
   Use long species names for sequences from multi-species vicut clusters.
 
+=item B<--taxon-size-thld>
+  Upper limit for the number of elements within each taxon
+
 =item B<--verbose, -v>
   Prints content of some output files.
 
@@ -76,11 +79,14 @@ $OUTPUT_AUTOFLUSH = 1;
 ##                             OPTIONS
 ####################################################################
 
+my $taxonSizeThld = 20;
+
 GetOptions(
   "input-group|i=s" 	=> \my $grPrefix,
   "rm-OGs-from-tx|r"    => \my $rmOGfromTx,
   "skip-FastTree"       => \my $skipFastTree,
   "use-long-spp-names"  => \my $useLongSppNames,
+  "taxon-size-thld"     => \$taxonSizeThld,
   "igs"                 => \my $igs,
   "johanna"             => \my $johanna,
   "verbose|v"           => \my $verbose,
@@ -1336,6 +1342,128 @@ if ($debug)
 {
   print "\n\nNumber of phylo-partition-vicut based genera: " . scalar(keys %geChildren) . "\n";
   print "\nSpecies frequencies in phylo-partition-vicut based genera:\n";
+  my @a = sort { scalar(keys %{$geChildren{$b}}) <=> scalar(keys %{$geChildren{$a}}) } keys %geChildren;
+  printFormatedTableValuedTbl(\%geChildren, \@a);
+  print "\n\n"
+}
+
+print "--- Splitting phylo-vicut-based genera if their sizes are above taxonSizeThld\n";
+my @a = sort { scalar(keys %{$geChildren{$b}}) <=> scalar(keys %{$geChildren{$a}}) } keys %geChildren;
+for my $ge (@a)
+{
+  if ( scalar(keys %{$geChildren{$ge}}) > $taxonSizeThld ) # try to split this cluster into smaller pieces
+  {
+    print "\n\tSplitting $ge\n" if $debug;
+    my @spp = keys %{$geChildren{$ge}};
+
+    # prune the final species condensed tree to contain the given genus only
+    my $prunedTreeFile = $grPrefix . "_pruned_$ge.tree";
+    print "--- Restricting $finalCondSppTreeFile to the species of $ge\n";
+    $cmd = "rm -f $prunedTreeFile; nw_clade $finalCondSppTreeFile @spp > $prunedTreeFile";
+    print "\tcmd=$cmd\n" if $dryRun || $debug;
+    system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+
+    # testing if the resulting tree has the same number of leaves as @spp array
+    my $prunedTreeLeavesFile = $grPrefix . "_pruned_$ge.leaves";
+    $cmd = "rm -f $prunedTreeLeavesFile; nw_labels -I $prunedTreeFile > $prunedTreeLeavesFile";
+    print "\tcmd=$cmd\n" if $dryRun || $debug;
+    system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+
+    my @cladeLeaves = readArray($prunedTreeLeavesFile);
+
+    my @commSpp = comm(\@cladeLeaves, \@spp);
+    if (@commSpp != @cladeLeaves || @commSpp != @spp)
+    {
+      warn "ERROR: leaves of $prunedTreeLeavesFile and genus $ge species do not match";
+      print "Number of leaves of $prunedTreeLeavesFile: " . @cladeLeaves . "\n";
+      print "Number of species in $ge: " . @spp . "\n";
+      print "Number of common species: " . @commSpp . "\n";
+      exit;
+    }
+
+    # make this a rooted tree
+    $cmd = "root_tree.pl -i $prunedTreeFile";
+    print "\tcmd=$cmd\n" if $dryRun || $debug;
+    system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+
+    # Creating parent table
+    my $coreGenusName = $ge;
+    $coreGenusName =~ s/_(\d+)//;
+    print "coreGenusName: $coreGenusName\n" if $debug;
+    if ($1)
+    {
+      print "Index suffix: $1\n" if $debug;
+    }
+    else
+    {
+      print "Index suffix undef\n" if $debug;
+    }
+
+    ## If the genus has a numeric suffix, idx, we will have to change genus
+    ## assignment after splitting this genus to something like
+    ## <genus>_<idx>s<newIdx>.
+
+    $spParentFile = $grPrefix . "_$ge.spParent";
+    my %spParent2;
+    for (@spp)
+    {
+      $spParent2{$_} = $coreGenusName;
+    }
+    writeTbl(\%spParent2, $spParentFile);
+
+
+    $sppGenusFile = $grPrefix . "_$ge" . "_spp.genusTx";
+    $cmd = "cluster_taxons.pl -i $prunedTreeFile -p 0.1 -f $spParentFile -t species -o $sppGenusFile";
+    print "\tcmd=$cmd\n" if $dryRun || $debug;
+    system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+
+    my %sppGenus2 = readTbl($sppGenusFile);
+
+    if ($1)
+    {
+      # Changing cluster IDs to <genus>_<idx>s<newIdx>
+      for my $sp (keys %sppGenus2)
+      {
+	my $g = $sppGenus2{$sp};
+	my @f = split "_", $g;
+	my $i = pop @f;
+	my $b = join "_", @f;
+	$sppGenus2{$sp} = $b . "_$1" . "s$i";
+      }
+    }
+
+    my %geChildren2;
+    for my $sp (keys %sppGenus2)
+    {
+      my $ge = $sppGenus2{$sp};
+      $geChildren2{$ge}{$sp}++;
+    }
+
+    if ($debug)
+    {
+      print "\nNumber of phylo-partition-vicut based genera: " . scalar(keys %geChildren2) . "\n";
+      print "\nSpecies frequencies in phylo-partition-vicut based genera:\n";
+      my @a = sort { scalar(keys %{$geChildren2{$b}}) <=> scalar(keys %{$geChildren2{$a}}) } keys %geChildren2;
+      printFormatedTableValuedTbl(\%geChildren2, \@a);
+      print "\n\n"
+    }
+
+    @sppGenus{@spp} = @sppGenus2{@spp};
+
+  }
+}
+
+undef %geChildren;
+for my $sp (keys %sppGenus)
+{
+  my $ge = $sppGenus{$sp};
+  $geChildren{$ge}{$sp}++;
+}
+
+if ($debug)
+{
+  print "\n\nAFTER splitting of genera the number of phylo-partition-vicut based genera: " . scalar(keys %geChildren) . "\n";
+  print "\nSpecies frequencies in the new phylo-partition-vicut based genera:\n";
   my @a = sort { scalar(keys %{$geChildren{$b}}) <=> scalar(keys %{$geChildren{$a}}) } keys %geChildren;
   printFormatedTableValuedTbl(\%geChildren, \@a);
   print "\n\n"
