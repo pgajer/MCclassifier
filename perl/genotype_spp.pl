@@ -44,13 +44,13 @@
   outliers and vicut was run on them to reclassify them. Here we apply a
   different philosophy treating even small clusters as potential true ribotype
   forms of the given species. Thus the cluster of Lactobacillus_johnsonii will be
-  labeled Lactobacillus_johnsonii_tRT_1, Lactobacillus_johnsonii_tRT_2,
-  Lactobacillus_johnsonii_tRT_3, Lactobacillus_johnsonii_tRT_4.
+  labeled Lactobacillus_johnsonii_1, Lactobacillus_johnsonii_2,
+  Lactobacillus_johnsonii_3, Lactobacillus_johnsonii_4.
 
 
   What to do with _sp only clusters ???
 
-  STRATEGY 1. Create Genus_sp_tRT_i taxonomy for each vicut cluster of Genus_sp
+  STRATEGY 1. Create Genus_sp_i taxonomy for each vicut cluster of Genus_sp
   species (use the majority vote if different _sp species end up in the same
   cluster).
 
@@ -243,7 +243,7 @@ for my $sp ( keys %spp )
       print FREQOUT "\t$clID\t" . scalar(@{$spCltrs{$clID}}) . "\n";
       for my $seqID (@{$spCltrs{$clID}})
       {
-	print TXOUT "$seqID\t$sp" . "_tRT_$clCount\n";
+	print TXOUT "$seqID\t$sp" . "_$clCount\n";
 	$nFinal++;
       }
       $clCount++;
@@ -268,7 +268,7 @@ for my $sp ( keys %spp )
 	{
 	  for my $seqID (@{$spCltrs{$clID}})
 	  {
-	    print TXOUT "$seqID\t$sp" . "_tRT_$clCount\n";
+	    print TXOUT "$seqID\t$sp" . "_$clCount\n";
 	    $nFinal++;
 	  }
 	  $clCount++;

@@ -184,7 +184,7 @@ for my $tx ( keys %txCltrFreq )
     {
       for my $seqID (@{$txCltrs{$clID}})
       {
-	print TXOUT "$seqID\t$tx" . "_tRT_$clCount\n";
+	print TXOUT "$seqID\t$tx" . "_$clCount\n";
       }
       $clCount++;
     }
