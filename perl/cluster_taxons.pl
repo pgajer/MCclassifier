@@ -374,7 +374,7 @@ for my $cl (keys %cltr)
   for (@{$cltr{$cl}})
   {
     my $p = $parent{$_};
-    $p =~ s/_tRT_\d+//;
+    $p =~ s/_\d+//;
     my @f = split "_", $p;
     for (@f)
     {
