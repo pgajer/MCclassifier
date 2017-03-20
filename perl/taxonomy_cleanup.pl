@@ -117,14 +117,18 @@ if ( !$grPrefix )
 
 my $mothur = "/Users/pgajer/bin/mothur";
 
+my $igsStr = "";
 if ( defined $igs )
 {
   $mothur = "/usr/local/packages/mothur-1.36.1/mothur";
+  $igsStr = "--igs";
 }
 
+my $johannaStr = "";
 if ( defined $johanna )
 {
   $mothur = "/Users/pgajer/bin/mothur";
+  $johannaStr = "--johanna";
 }
 
 ## export LD_LIBRARY_PATH=/usr/local/packages/readline/lib:/usr/local/packages/gcc-5.3.0/lib64
@@ -1367,8 +1371,15 @@ print "--- Running cluster_taxons.pl on condensed species tree\n";
 my $spParentFile = $grPrefix . ".spParent";
 writeTbl(\%spParent, $spParentFile);
 
+if ($debug)
+{
+  print "\nspParent table:\n";
+  printFormatedTbl(\%spParent);
+  print "\n\n";
+}
+
 my $sppGenusFile = $grPrefix . "_spp.genusTx";
-$cmd = "cluster_taxons.pl $showAllTreesStr -i $finalCondSppTreeFile -p 0.1 -f $spParentFile -t species -o $sppGenusFile";
+$cmd = "cluster_taxons.pl $igsStr $johannaStr $debugStr $showAllTreesStr -i $finalCondSppTreeFile -p 0.1 -f $spParentFile -t species -o $sppGenusFile";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 
@@ -1568,7 +1579,7 @@ for my $ge (@a)
     writeTbl(\%spParent2, $spParentFile);
 
     $sppGenusFile = $grPrefix . "_$geStr" . "_spp.genusTx";
-    $cmd = "cluster_taxons.pl $showAllTreesStr -i $prunedTreeFile -p 0.1 -f $spParentFile -t species -o $sppGenusFile";
+    $cmd = "cluster_taxons.pl $igsStr $johannaStr $debugStr $showAllTreesStr -i $prunedTreeFile -p 0.1 -f $spParentFile -t species -o $sppGenusFile";
     print "\tcmd=$cmd\n" if $dryRun || $debug;
     system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 
@@ -1773,8 +1784,15 @@ print "--- Running cluster_taxons.pl on condensed genus tree\n";
 my $geParentFile = $grPrefix . ".geParent";
 writeTbl(\%geParent, $geParentFile);
 
+if ($debug)
+{
+  print "\ngeParent table:\n";
+  printFormatedTbl(\%geParent);
+  print "\n\n";
+}
+
 my $genusFamilyFile = $grPrefix . "_genus.familyTx";
-$cmd = "cluster_taxons.pl $showAllTreesStr -i $finalCondGenusTreeFile -p 0.1 -f $geParentFile -t genus -o $genusFamilyFile";
+$cmd = "cluster_taxons.pl $igsStr $johannaStr $debugStr $showAllTreesStr -i $finalCondGenusTreeFile -p 0.1 -f $geParentFile -t genus -o $genusFamilyFile";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 
@@ -1782,7 +1800,7 @@ my %genusFamily = readTbl($genusFamilyFile);
 
 if ($debug)
 {
-  print "\n\ngenus => family table:\n";
+  print "\n\ngenus => family phyloPart-vicut table:\n";
   printFormatedTbl(\%genusFamily);
   print "\n\n";
 }
@@ -1912,7 +1930,7 @@ if ( scalar(keys %faChildren) > 1 )
   writeTbl(\%faParent, $faParentFile);
 
   my $familyOrderFile = $grPrefix . "_family.orderTx";
-  $cmd = "cluster_taxons.pl $showAllTreesStr -i $finalCondFamilyTreeFile -p 0.1 -f $faParentFile -t family -o $familyOrderFile";
+  $cmd = "cluster_taxons.pl $igsStr $johannaStr $debugStr $showAllTreesStr -i $finalCondFamilyTreeFile -p 0.1 -f $faParentFile -t family -o $familyOrderFile";
   print "\tcmd=$cmd\n" if $dryRun || $debug;
   system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 
@@ -2059,7 +2077,7 @@ if ( scalar(keys %faChildren) > 1 )
     writeTbl(\%orParent, $orParentFile);
 
     my $orderClassFile = $grPrefix . "_order.classTx";
-    $cmd = "cluster_taxons.pl $showAllTreesStr -i $finalCondOrderTreeFile -p 0.1 -f $orParentFile -t order -o $orderClassFile";
+    $cmd = "cluster_taxons.pl $igsStr $johannaStr $debugStr $showAllTreesStr -i $finalCondOrderTreeFile -p 0.1 -f $orParentFile -t order -o $orderClassFile";
     print "\tcmd=$cmd\n" if $dryRun || $debug;
     system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 
@@ -2137,7 +2155,7 @@ if ( scalar(keys %faChildren) > 1 )
     {
       print "\n--- Generating a tree with final class names at leaves\n";
       my $finalClassTreeFile = "$grPrefix" . "_final_class.tree";
-      $cmd = "rm -f $finalClassTreeFile; nw_rename $treeFile $finalClassTxFile | nw_class -c n  - > $finalClassTreeFile";
+      $cmd = "rm -f $finalClassTreeFile; nw_rename $treeFile $finalClassTxFile | nw_order -c n  - > $finalClassTreeFile";
       print "\tcmd=$cmd\n" if $dryRun || $debug;
       system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 
@@ -2208,6 +2226,7 @@ my $initNumPhyla    = scalar( keys %phTbl );
 
 undef %spTbl;
 undef %geTbl;
+my %subGeTbl;
 undef %faTbl;
 undef %orTbl;
 undef %clTbl;
@@ -2220,6 +2239,7 @@ for my $id ( keys %lineageTbl )
   my $lineage = $lineageTbl{$id};
   my @f = split ";", $lineage;
   my $sp = pop @f;
+  my $subGe = pop @f;
   my $ge = pop @f;
   my $fa = pop @f;
   my $or = pop @f;
@@ -2228,13 +2248,15 @@ for my $id ( keys %lineageTbl )
 
   ##$sp = "s_$sp";
   $sp .= "_OG" if ( exists $ogInd{$id} );
+  $subGe = "sg_$subGe";
   $ge = "g_$ge";
   $fa = "f_$fa";
   $or = "o_$or";
   $cl = "c_$cl";
   $ph = "p_$ph";
 
-  $parent{$sp} = $ge;
+  $parent{$sp} = $subGe;
+  $parent{$subGe} = $ge;
   $parent{$ge} = $fa;
   $parent{$fa} = $or;
   $parent{$or} = $cl;
@@ -2246,9 +2268,11 @@ for my $id ( keys %lineageTbl )
   $children{$cl}{$or}++;
   $children{$or}{$fa}++;
   $children{$fa}{$ge}++;
-  $children{$ge}{$sp}++;
+  $children{$ge}{$subGe}++;
+  $children{$subGe}{$sp}++;
 
   push @{$spTbl{$sp}}, $id;
+  push @{$subGeTbl{$subGe}}, $id;
   push @{$geTbl{$ge}}, $id;
   push @{$faTbl{$fa}}, $id;
   push @{$orTbl{$or}}, $id;
@@ -2259,8 +2283,8 @@ for my $id ( keys %lineageTbl )
 
 
 print "\nTaxonomy AFTER cleanup\n";
-printLineage();
-printLineageToFile($SRYOUT, "\n\n====== Taxonomy AFTER cleanup ======\n");
+printLineage2();
+printLineageToFile2($SRYOUT, "\n\n====== Taxonomy AFTER cleanup ======\n");
 
 
 my $finalLineageFile = $grPrefix . "_final.lineage";
@@ -2326,7 +2350,19 @@ generateREADMEfile($readmeFile);
 
 
 
-## Number of species per genus
+## Number of species per sub-genus
+my @subGenera = keys %subGeTbl;
+my %subGenusSize; # <sub-genus> => <number of species of that genus>
+for my $g (@subGenera)
+{
+  $subGenusSize{$g} = keys %{$children{$g}};
+}
+@subGenera = sort {$subGenusSize{$b} <=> $subGenusSize{$a}} keys %subGenusSize;
+printFormatedTblToFile(\%subGenusSize, \@subGenera, $SRYOUT, "\n==== Number of species per sub-genus ====");
+print "\n==== Number of species per sub-genus ====\n";
+printFormatedTbl(\%subGenusSize, \@subGenera);
+
+## Number of sub-genera per genus
 @genera = keys %geTbl;
 my %genusSize; # <genus> => <number of species of that genus>
 for my $g (@genera)
@@ -2334,8 +2370,8 @@ for my $g (@genera)
   $genusSize{$g} = keys %{$children{$g}};
 }
 @genera = sort {$genusSize{$b} <=> $genusSize{$a}} keys %genusSize;
-printFormatedTblToFile(\%genusSize, \@genera, $SRYOUT, "\n==== Number of species per genus ====");
-print "\n==== Number of species per genus ====\n";
+printFormatedTblToFile(\%genusSize, \@genera, $SRYOUT, "\n==== Number of sub-genera per genus ====");
+print "\n==== Number of sub-genera per genus ====\n";
 printFormatedTbl(\%genusSize, \@genera);
 
 ## Number of genera per order
@@ -2869,6 +2905,7 @@ sub printLineage
   }
 }
 
+
 sub printLineageToFile
 {
   my ($fh, $msg) = @_;
@@ -2913,6 +2950,106 @@ sub printLineageToFile
     }
   }
 }
+
+## print lineage after adding subgenus taxon
+sub printLineage2
+{
+  my @phs = keys %phTbl;
+  my $phKVL = getKeyValStrLengths(\%phTbl);
+  for my $ph (@phs)
+  {
+    printF(0, $ph, scalar(@{$phTbl{$ph}}), $phKVL);
+    my @cls = keys %{$children{$ph}};
+    my $clKVL = getKeyValStrLengths(\%clTbl, \@cls);
+    for my $cl ( sort{scalar(@{$clTbl{$a}}) <=> scalar(@{$clTbl{$b}})} @cls)
+    {
+      printF(1, $cl, scalar(@{$clTbl{$cl}}), $clKVL);
+      my @ors = keys %{$children{$cl}};
+      my $orKVL = getKeyValStrLengths(\%orTbl, \@ors);
+      for my $or ( sort{scalar(@{$orTbl{$a}}) <=> scalar(@{$orTbl{$b}})} @ors)
+      {
+	printF(2, $or, scalar(@{$orTbl{$or}}), $orKVL);
+	my @fas = keys %{$children{$or}};
+	my $faKVL = getKeyValStrLengths(\%faTbl, \@fas);
+	for my $fa ( sort{scalar(@{$faTbl{$a}}) <=> scalar(@{$faTbl{$b}})} @fas)
+	{
+	  printF(3, $fa, scalar(@{$faTbl{$fa}}), $faKVL);
+	  my @ges = keys %{$children{$fa}};
+	  my $geKVL = getKeyValStrLengths(\%geTbl, \@ges);
+	  for my $ge ( sort{scalar(@{$geTbl{$a}}) <=> scalar(@{$geTbl{$b}})} @ges)
+	  {
+	    printF(4, $ge, scalar(@{$geTbl{$ge}}), $geKVL);
+	    my @subGes = keys %{$children{$ge}};
+	    my $subgeKVL = getKeyValStrLengths(\%subGeTbl, \@subGes);
+	    for my $sge ( sort{scalar(@{$subGeTbl{$a}}) <=> scalar(@{$subGeTbl{$b}})} @subGes)
+	    {
+	      printF(5, $sge, scalar(@{$subGeTbl{$sge}}), $subgeKVL);
+	      my @sps = keys %{$children{$sge}};
+	      my $spKVL = getKeyValStrLengths(\%spTbl, \@sps);
+	      for my $sp ( sort{scalar(@{$spTbl{$a}}) <=> scalar(@{$spTbl{$b}})} @sps)
+	      {
+		printF(6, $sp, scalar(@{$spTbl{$sp}}), $spKVL);
+	      }
+	    }
+	  }
+	}
+      }
+    }
+  }
+}
+
+sub printLineageToFile2
+{
+  my ($fh, $msg) = @_;
+
+  print $fh "\n$msg\n";
+
+  my @phs = keys %phTbl;
+  my $phKVL = getKeyValStrLengths(\%phTbl);
+
+  for my $ph (@phs)
+  {
+    printF2(0, $ph, scalar(@{$phTbl{$ph}}), $phKVL, $fh);
+    my @cls = keys %{$children{$ph}};
+    my $clKVL = getKeyValStrLengths(\%clTbl, \@cls);
+    for my $cl ( sort{scalar(@{$clTbl{$a}}) <=> scalar(@{$clTbl{$b}})} @cls)
+    {
+      printF2(1, $cl, scalar(@{$clTbl{$cl}}), $clKVL, $fh);
+      my @ors = keys %{$children{$cl}};
+      my $orKVL = getKeyValStrLengths(\%orTbl, \@ors);
+      for my $or ( sort{scalar(@{$orTbl{$a}}) <=> scalar(@{$orTbl{$b}})} @ors)
+      {
+	printF2(2, $or, scalar(@{$orTbl{$or}}), $orKVL, $fh);
+	my @fas = keys %{$children{$or}};
+	my $faKVL = getKeyValStrLengths(\%faTbl, \@fas);
+	for my $fa ( sort{scalar(@{$faTbl{$a}}) <=> scalar(@{$faTbl{$b}})} @fas)
+	{
+	  printF2(3, $fa, scalar(@{$faTbl{$fa}}), $faKVL, $fh);
+	  my @ges = keys %{$children{$fa}};
+	  my $geKVL = getKeyValStrLengths(\%geTbl, \@ges);
+	  for my $ge ( sort{scalar(@{$geTbl{$a}}) <=> scalar(@{$geTbl{$b}})} @ges)
+	  {
+	    printF2(4, $ge, scalar(@{$geTbl{$ge}}), $geKVL, $fh);
+	    my @subGes = keys %{$children{$ge}};
+	    my $subgeKVL = getKeyValStrLengths(\%subGeTbl, \@subGes);
+	    for my $sge ( sort{scalar(@{$subGeTbl{$a}}) <=> scalar(@{$subGeTbl{$b}})} @subGes)
+	    {
+	      printF2(5, $sge, scalar(@{$subGeTbl{$sge}}), $subgeKVL, $fh);
+	      my @sps = keys %{$children{$sge}};
+	      my $spKVL = getKeyValStrLengths(\%spTbl, \@sps);
+	      for my $sp ( sort{scalar(@{$spTbl{$a}}) <=> scalar(@{$spTbl{$b}})} @sps)
+	      {
+		printF2(6, $sp, scalar(@{$spTbl{$sp}}), $spKVL, $fh);
+	      }
+	    }
+	  }
+	}
+      }
+    }
+  }
+}
+
+
 
 # print elements of a hash table
 sub printTbl{
