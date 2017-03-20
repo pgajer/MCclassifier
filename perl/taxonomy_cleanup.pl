@@ -627,6 +627,7 @@ if (@query2)
   %newTx = readTbl($updatedTxFile);
 }
 
+## making sure spLineage is defined for new species
 for my $id (keys %lineageTbl)
 {
   if ( exists $newTx{$id} )
@@ -634,11 +635,42 @@ for my $id (keys %lineageTbl)
     my $lineage = $lineageTbl{$id};
     my @f = split ";", $lineage;
     my $sp = pop @f;
+
     my $newSp = $newTx{$id};
-    my @t = (@f, $newSp);
-    #$lineageTbl{$id} = join ";", @t;
-    $spLineage{$newSp} = join ";", @t;
-  }
+
+    if ($newSp ne $sp)
+    {
+      @f = split "_", $newSp;
+      my $newSp0;
+      if (@f > 1)
+      {
+	$newSp0 = $f[0] . "_" . $f[1];
+      }
+      else
+      {
+	$newSp0 = $f[0];
+      }
+
+      if ( exists $spLineage{$newSp0} )
+      {
+	if ($newSp0 ne $newSp)
+	{
+	  #print "\n\nsp: $sp\tnewSp: $newSp\tnewSp0: $newSp0\n" if $debug;
+	  $lineage = $spLineage{$newSp0};
+	  @f = split ";", $lineage;
+	  $sp = pop @f;
+	  my @t = (@f, $newSp);
+	  $spLineage{$newSp} = join ";", @t;
+	}
+      }
+      else
+      {
+	warn "\n\n\tERROR: spLineage{$newSp0} does not exist";
+	print "\tnewSp: $newSp\tid: $id\n\n";
+	exit;
+      }
+    }
+  } # end of if ( exists $newTx{$id} )
 }
 
 #printTbl(\%ogInd, "ogInd") if $debug;
@@ -1139,6 +1171,7 @@ for my $id (keys %lineageTbl)
   #next if exists $ogInd{$id};
   if ( exists $newTx{$id} )
   {
+    my $newSp = $newTx{$id};
     my $lineage = $lineageTbl{$id};
     my @f = split ";", $lineage;
     my $sp = pop @f;
@@ -1149,13 +1182,37 @@ for my $id (keys %lineageTbl)
     # my $ph = pop @f;
     # "d_Bacteria";
 
-    my $newSp = $newTx{$id};
-    my @t = (@f, $newSp);
+    if ( $newSp ne $sp )
+    {
+      my $newSp0 = $newSp;
+      $newSp0 =~ s/_\d+//;
 
-    $lineageTbl{$id} = join ";", @t;
+      if (exists $spLineage{$newSp0})
+      {
+	$lineage = $spLineage{$newSp0};
+	@f = split ";", $lineage;
+	$sp = pop @f;
+	my @t = (@f, $newSp);
+	$lineageTbl{$id} = join ';', @t;
+	$spLineage{$newSp} = $lineageTbl{$id};
 
-    my $ge = pop @f;
-    $spParent{$newSp} = $ge;
+	my $ge = pop @f;
+	$spParent{$newSp} = $ge;
+      }
+      else
+      {
+	warn "\n\n\tERROR: spLineage{$newSp0} does not exist";
+	print "\nnewSp: $newSp\n";
+	print "\n\n";
+	exit;
+      }
+    }
+    else
+    {
+      # we are hear b/c sp=newSp
+      my $ge = pop @f;
+      $spParent{$sp} = $ge;
+    }
   }
   else
   {
@@ -1285,10 +1342,15 @@ print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 
 
+my $section = qq~
 
 ##
 ## genus-level cleanup
 ##
+
+~;
+print "$section";
+
 
 #
 # Using phyloPart followed by vicut to generate genus taxonomy
@@ -1316,6 +1378,8 @@ print "--- Updating lineage table at the genu level\n";
 my $finalGenusTxFile = $grPrefix . "_final_genus.tx";
 open OUT, ">$finalGenusTxFile" or die "Cannot open $finalGenusTxFile for writing: $OS_ERROR\n";
 my %geParent;
+# my $outFile = "tmp.txt";
+# open TEMPOUT, ">$outFile" or die "Cannot open $outFile for writing: $OS_ERROR\n";
 for my $id (keys %lineageTbl)
 {
   my $lineage = $lineageTbl{$id};
@@ -1327,8 +1391,16 @@ for my $id (keys %lineageTbl)
     my $ge = pop @f;
     my $newGenus = $sppGenus{$sp};
     print OUT "$id\t$newGenus\n";
-    my @t = (@f, $newGenus, $sp);
-    $lineageTbl{$id} = join ";", @t;
+
+    if ( $newGenus ne $ge )
+    {
+      my @t = (@f, $newGenus, $sp);
+      $lineageTbl{$id} = join ";", @t;
+
+      # print TEMPOUT "\nge: $ge\tnewGe: $newGenus\n";
+      # print TEMPOUT "lineage BEFORE: $lineage\n";
+      # print TEMPOUT "lineage AFTER: " . $lineageTbl{$id} . "\n";
+    }
 
     my $fa = pop @f;
     $geParent{$newGenus} = $fa;
@@ -1342,6 +1414,7 @@ for my $id (keys %lineageTbl)
   }
 }
 close OUT;
+#close TEMPOUT;
 
 my %geChildren;
 for my $sp (keys %sppGenus)
@@ -1430,6 +1503,8 @@ for my $ge (@a)
     $detectedLargeGenus = 1;
     print "\n\tSplitting $ge\n" if $debug;
     my @spp = keys %{$geChildren{$ge}};
+    print "Species of $ge:\n";
+    printArray(\@spp);
 
     my $geStr = $ge;
     if ( length($geStr) > $maxStrLen )
@@ -1468,30 +1543,29 @@ for my $ge (@a)
     system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 
     # Creating parent table
-    my $coreGenusName = $ge;
-    $coreGenusName =~ s/_(\d+)//;
-    print "coreGenusName: $coreGenusName\n" if $debug;
-    if ($1)
-    {
-      print "Index suffix: $1\n" if $debug;
-    }
-    else
-    {
-      print "Index suffix undef\n" if $debug;
-    }
+    # Assigning to each species its genus.
 
-    ## If the genus has a numeric suffix, idx, we will have to change genus
-    ## assignment after splitting this genus to something like
-    ## <genus>_<idx>s<newIdx>.
-
+    print "\nCreating spParent2 table\n" if $debug;
     $spParentFile = $grPrefix . "_$geStr.spParent";
     my %spParent2;
-    for (@spp)
+    for my $sp (@spp)
     {
-      $spParent2{$_} = $coreGenusName;
+      #print "\nsp: $sp\n" if $debug;
+      my ($g, $s) = split "_", $sp;
+      if (!defined $g)
+      {
+	print "Genus undef for $sp\n" if $debug;
+	exit;
+      }
+      else
+      {
+	$spParent2{$sp} = $g;
+	#print "g: $g\n" if $debug;
+      }
     }
-    writeTbl(\%spParent2, $spParentFile);
 
+    print "Writing spParent2 to $spParentFile\n" if $debug;
+    writeTbl(\%spParent2, $spParentFile);
 
     $sppGenusFile = $grPrefix . "_$geStr" . "_spp.genusTx";
     $cmd = "cluster_taxons.pl $showAllTreesStr -i $prunedTreeFile -p 0.1 -f $spParentFile -t species -o $sppGenusFile";
@@ -1499,6 +1573,22 @@ for my $ge (@a)
     system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 
     my %sppGenus2 = readTbl($sppGenusFile);
+
+    ## If the genus has a numeric suffix, idx, we will have to change genus
+    ## assignment after splitting this genus to something like
+    ## <genus>_<idx>s<newIdx>.
+
+    my $coreGenusName = $ge;
+    $coreGenusName =~ s/_(\d+)//;
+    # print "coreGenusName: $coreGenusName\n" if $debug;
+    # if ($1)
+    # {
+    #   print "Index suffix: $1\n" if $debug;
+    # }
+    # else
+    # {
+    #   print "Index suffix undef\n" if $debug;
+    # }
 
     if ($1)
     {
@@ -1669,10 +1759,14 @@ else
 }
 
 
+$section = qq~
 
 ##
 ## family-level cleanup
 ##
+
+~;
+print "$section";
 
 print "--- Running cluster_taxons.pl on condensed genus tree\n";
 
@@ -1803,10 +1897,15 @@ if ( scalar(keys %faChildren) > 1 )
     system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
   }
 
+  $section = qq~
 
   ##
   ## order-level cleanup
   ##
+
+  ~;
+  print "$section";
+
   print "--- Running cluster_taxons.pl on condensed family tree\n";
 
   my $faParentFile = $grPrefix . ".faParent";
@@ -1945,9 +2044,15 @@ if ( scalar(keys %faChildren) > 1 )
       system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
     }
 
+    $section = qq~
+
     ##
     ## class-level cleanup
     ##
+
+    ~;
+    print "$section";
+
     print "--- Running cluster_taxons.pl on condensed order tree\n";
 
     my $orParentFile = $grPrefix . ".orParent";
