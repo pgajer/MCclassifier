@@ -154,7 +154,7 @@ if ( ! -d $grDir )
 
 my $trDir = $grPrefix . "_" . $varReg . "_dir";
 print "--- Generating truncated data directory $trDir\n";
-my $cmd = "mkdir -p $trDir";
+my $cmd = "rm -rf $trDir; mkdir -p $trDir";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed:$?" if !$dryRun;
 
