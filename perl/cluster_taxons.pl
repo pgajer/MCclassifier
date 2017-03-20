@@ -262,62 +262,76 @@ print     "\tNumber of query seq's:      $nQuerySeqs\n";
 print     "\tSum:                        " . ($nAnnSeqs + $nQuerySeqs) . "\n";
 print     "\tNumber of leaves: " . @treeLeaves . "\n";
 
-my $nParent = keys %parent;
-print     "\tNumber of elemets of the parent table: $nParent\n\n";
-
-if ( $nParent != @treeLeaves )
+my %part2;  # leaf label => cltrID
+my %cltr;   # cltrID => ref to array of IDs in the given cluster
+if ($nAnnSeqs > 0)
 {
-  warn "\n\n\tERROR: $treeFile and $parentFile should have the same number of elements";
-  print "\n\n";
-  exit;
-}
+  my $nParent = keys %parent;
+  print     "\tNumber of elemets of the parent table: $nParent\n\n";
 
-# Checking if keys of parent and leaves of the tree are the same sets
-my @parentElts = keys %parent;
-my @commElts = comm(\@parentElts, \@treeLeaves);
-if (@commElts != @parentElts || @commElts != @treeLeaves)
-{
-  warn "\n\n\tERROR: $treeFile and $parentFile should have the same elements";
-  print "Number of elements in $treeFile: " . @treeLeaves . "\n";
-  print "Number of elements in $parentFile: $nParent\n";
-  print "Number of common elements: " . @commElts . "\n\n";
-  exit;
-}
+  if ( $nParent != @treeLeaves )
+  {
+    warn "\n\n\tERROR: $treeFile and $parentFile should have the same number of elements";
+    print "\n\n";
+    exit;
+  }
 
-printArray(\@queryTx, "Query taxons:\n");
+  # Checking if keys of parent and leaves of the tree are the same sets
+  my @parentElts = keys %parent;
+  my @commElts = comm(\@parentElts, \@treeLeaves);
+  if (@commElts != @parentElts || @commElts != @treeLeaves)
+  {
+    warn "\n\n\tERROR: $treeFile and $parentFile should have the same elements";
+    print "Number of elements in $treeFile: " . @treeLeaves . "\n";
+    print "Number of elements in $parentFile: $nParent\n";
+    print "Number of common elements: " . @commElts . "\n\n";
+    exit;
+  }
 
-print "--- Running vicut\n";
-if ($nQuerySeqs)
-{
-  $cmd = "vicut -t $treeFile -a $annFile -q $queryFile -o $vicutDir";
+  printArray(\@queryTx, "Query taxons:\n");
+
+  print "--- Running vicut\n";
+  if ($nQuerySeqs)
+  {
+    $cmd = "vicut -t $treeFile -a $annFile -q $queryFile -o $vicutDir";
+  }
+  else
+  {
+    $cmd = "vicut -t $treeFile -a $annFile -o $vicutDir";
+  }
+  print "\tcmd=$cmd\n" if $dryRun || $debug;
+  system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+
+  my $cltrFile = "$vicutDir/minNodeCut.cltrs";
+  print "--- Parsing vicut clustering file $cltrFile\n";
+  if ( ! -f $cltrFile )
+  {
+    warn "\nERROR: $cltrFile does not exist";
+    exit;
+  }
+
+  open IN, "$cltrFile" or die "Cannot open $cltrFile for reading: $OS_ERROR\n";
+  my $header = <IN>;
+  foreach (<IN>)
+  {
+    chomp;
+    my ($id, $cl, $tx) = split /\s+/,$_;
+    $part2{$id} = $cl;
+    push @{$cltr{$cl}}, $id;
+  }
+  close IN;
 }
 else
 {
-  $cmd = "vicut -t $treeFile -a $annFile -o $vicutDir";
+  # putting each leaf to its own cluster
+  my $count = 1;
+  %part2 = map { $_ => $count++ } keys %part;
+  for my $id (keys %part2)
+  {
+    my $cl = $part2{$id};
+    push @{$cltr{$cl}}, $id;
+  }
 }
-print "\tcmd=$cmd\n" if $dryRun || $debug;
-system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
-
-my $cltrFile = "$vicutDir/minNodeCut.cltrs";
-print "--- Parsing vicut clustering file $cltrFile\n";
-if ( ! -f $cltrFile )
-{
-  warn "\nERROR: $cltrFile does not exist";
-  exit;
-}
-
-my %part2;  # leaf label => cltrID
-my %cltr;   # cltrID => ref to array of IDs in the given cluster
-open IN, "$cltrFile" or die "Cannot open $cltrFile for reading: $OS_ERROR\n";
-my $header = <IN>;
-foreach (<IN>)
-{
-  chomp;
-  my ($id, $cl, $tx) = split /\s+/,$_;
-  $part2{$id} = $cl;
-  push @{$cltr{$cl}}, $id;
-}
-close IN;
 
 print "Phylo partition sizes\n";
 my %partFreq; ## number of elements per phylo partition cluster
