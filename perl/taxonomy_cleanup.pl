@@ -1434,7 +1434,7 @@ for my $ge (@a)
     my $geStr = $ge;
     if ( length($geStr) > $maxStrLen )
     {
-      my $geStr = substr( $ge, 0, $maxStrLen);
+      $geStr = substr( $ge, 0, $maxStrLen);
     }
 
     # prune the final species condensed tree to contain the given genus only
@@ -1674,7 +1674,7 @@ else
 ## family-level cleanup
 ##
 
-print "--- Running cluster_taxons.pl on condensed species tree\n";
+print "--- Running cluster_taxons.pl on condensed genus tree\n";
 
 my $geParentFile = $grPrefix . ".geParent";
 writeTbl(\%geParent, $geParentFile);
@@ -1686,7 +1686,14 @@ system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 
 my %genusFamily = readTbl($genusFamilyFile);
 
-print "--- Updating lineage table at the genu level\n";
+if ($debug)
+{
+  print "\n\ngenus => family table:\n";
+  printFormatedTbl(\%genusFamily);
+  print "\n\n";
+}
+
+print "--- Updating lineage table at the family level\n";
 my $finalFamilyTxFile = $grPrefix . "_final_family.tx";
 open OUT, ">$finalFamilyTxFile" or die "Cannot open $finalFamilyTxFile for writing: $OS_ERROR\n";
 my %faParent;
@@ -1762,7 +1769,7 @@ if ( scalar(keys %faChildren) > 1 )
 
   ## generating pdf figure of species condensed tree colored by families
 
-  # Assigning to each sub-family an index
+  # Assigning to each family an index
   my @families = values %genusFamily;
   @families = unique(\@families);
   my $familiesCount = 1;
@@ -1797,221 +1804,291 @@ if ( scalar(keys %faChildren) > 1 )
   }
 
 
-  exit;
-
   ##
   ## order-level cleanup
   ##
-  print "--- Generating order ann and query files\n";
+  print "--- Running cluster_taxons.pl on condensed family tree\n";
 
-  my $orderTxFile = "$grPrefix" . ".order";
-  print "--- Writing order assignments to $orderTxFile file\n";
-  writeTbl(\%orr, $orderTxFile);
+  my $faParentFile = $grPrefix . ".faParent";
+  writeTbl(\%faParent, $faParentFile);
 
-  my %annOrders;  # order => count of seq's of that order
-  $annFile = "order_ann.tx";
-  open ANNOUT, ">$annFile" or die "Cannot open $annFile for writing: $OS_ERROR\n";
-  for my $id ( keys %newTx )
-  {
-    my $f = $orr{$id};
-    if (!$f)
-    {
-      warn "\n\n\tWARNING: undefined order for $id";
-      print "\n\n";
-    }
-    $f =~ s/^o_//;
-    print ANNOUT "$id\t$f\n";
-    $annOrders{$f}++;
-  }
-  close ANNOUT;
+  my $familyOrderFile = $grPrefix . "_family.orderTx";
+  $cmd = "cluster_taxons.pl $showAllTreesStr -i $finalCondFamilyTreeFile -p 0.1 -f $faParentFile -t family -o $familyOrderFile";
+  print "\tcmd=$cmd\n" if $dryRun || $debug;
+  system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+
+  my %familyOrder = readTbl($familyOrderFile);
 
   if ($debug)
   {
-    print "\nAnnotation Orders:\n";
-    my @q = sort { $annOrders{$b} <=> $annOrders{$a} } keys %annOrders;
-    printFormatedTbl(\%annOrders, \@q);
+    print "\n\nfamily => order table:\n";
+    printFormatedTbl(\%familyOrder);
+    print "\n\n";
+  }
+
+  print "--- Updating lineage table at the order level\n";
+  my %orParent;
+
+  # testing if the resulting clustering does not consists of singlentons
+  # if it does, keep lineage as it is and stop the taxonomy update
+  my $nFamilies = keys %faParent;
+  my @orders = values %familyOrder;
+  @orders = unique(\@orders);
+
+  my $finalOrderTxFile = $grPrefix . "_final_order.tx";
+  if ( @orders < $nFamilies )
+  {
+    open OUT, ">$finalOrderTxFile" or die "Cannot open $finalOrderTxFile for writing: $OS_ERROR\n";
+    for my $id (keys %lineageTbl)
+    {
+      my $lineage = $lineageTbl{$id};
+      my @f = split ";", $lineage;
+      my $sp = pop @f;
+      my $sge = pop @f;
+      my $ge = pop @f;
+      my $fa = pop @f;
+
+      if ( exists $familyOrder{$fa} )
+      {
+	my $or = pop @f;
+	my $newOrder = $familyOrder{$fa};
+	print OUT "$id\t$newOrder\n";
+	my @t = (@f, $newOrder, $fa, $ge, $sge, $sp);
+	$lineageTbl{$id} = join ";", @t;
+
+	my $cl = pop @f;
+	$orParent{$newOrder} = $cl;
+      }
+      else
+      {
+	warn "\n\n\tERROR: $id with fa: $fa not detected in familyOrder table";
+	print "\n\n";
+	exit;
+      }
+    }
+    close OUT;
+  }
+
+  my %orChildren;
+  for my $fa (keys %familyOrder)
+  {
+    my $or = $familyOrder{$fa};
+    $orChildren{$or}{$fa}++;
+  }
+
+  if ($debug)
+  {
+    print "\n\nNumber of phylo-partition-vicut based orders: " . scalar(keys %orChildren) . "\n";
+    print "\nFamily frequencies in phylo-partition-vicut based orders:\n";
+    my @a = sort { scalar(keys %{$orChildren{$b}}) <=> scalar(keys %{$orChildren{$a}}) } keys %orChildren;
+    printFormatedTableValuedTbl(\%orChildren, \@a);
     print "\n\n"
   }
 
 
-  print "\n--- Running order vicut on pruned (after genus cleanup) tree\n";
-  my $orderVicutDir = "order_vicut_dir";
-  $cmd = "vicut -t $treeFile -a $annFile -o $orderVicutDir";
-  print "\tcmd=$cmd\n" if $dryRun || $debug;
-  system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
-
-  print "--- Running update_tx.pl for order level\n";
-  $cmd = "update_tx.pl $debugStr -a $orderTxFile -d $orderVicutDir";
-  print "\tcmd=$cmd\n" if $dryRun || $debug;
-  system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
-
-  print "--- Running genotype_tx.pl for order level\n";
-  $cmd = "genotype_tx.pl -d $orderVicutDir";
-  print "\tcmd=$cmd\n" if $dryRun || $debug;
-  system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
-
-  my $finalOrderTx = "$orderVicutDir/updated2.tx";
-  my %orderTx = readTbl($finalOrderTx);
-
-  ## updating lineage
-  for my $id (keys %orderTx)
+  if ( (scalar(keys %orChildren) > 1) && (@orders < $nFamilies) )
   {
-    next if exists $ogInd{$id};
+    print "\n--- Generating a tree with final order names at leaves\n";
+    my $finalOrderTreeFile = "$grPrefix" . "_final_order.tree";
+    $cmd = "rm -f $finalOrderTreeFile; nw_rename $treeFile $finalOrderTxFile | nw_order -c n  - > $finalOrderTreeFile";
+    print "\tcmd=$cmd\n" if $dryRun || $debug;
+    system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 
-    my $lineage = $lineageTbl{$id};
-    if (!defined $lineage)
+    print "--- Generating a condensed tree with final families collapsed to a single node \n";
+    my $finalCondOrderTreeFile = abs_path( "$grPrefix" . "_final_order_condensed.tree" );
+    $cmd = "rm -f $finalCondOrderTreeFile; nw_condense $finalOrderTreeFile > $finalCondOrderTreeFile";
+    print "\tcmd=$cmd\n" if $dryRun || $debug;
+    system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+
+    my $pdfCondOrderTreeFile = abs_path( "$grPrefix" . "_final_order_condensed_tree.pdf" );
+    plot_tree_bw($finalCondOrderTreeFile, $pdfCondOrderTreeFile);
+
+    if ( $showAllTrees &&  $OSNAME eq "darwin")
     {
-      warn "\n\n\tERROR: lineage not found for $id";
-      print "\n\n";
-      exit;
+      $cmd = "open $pdfCondOrderTreeFile";
+      print "\tcmd=$cmd\n" if $dryRun || $debug;
+      system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
     }
 
-    my @f = split ";", $lineage;
-    my $sp = pop @f;
-    my $ge = pop @f;
-    my $fa = pop @f;
-    my $or = pop @f;
-    # my $cl = pop @f;
-    # my $ph = pop @f;
-    # "d_Bacteria";
 
-    my $newOrd = $orderTx{$id};
-    my @t = (@f, $newOrd, $fa, $ge, $sp);
+    ## generating pdf figure of species condensed tree colored by orders
 
-    $lineageTbl{$id} = join ";", @t;
-  }
+    # Assigning to each order an index
+    my $ordersCount = 1;
+    my %orderIdx = map{ $_ => $ordersCount++ } @orders;
 
-  print "\n--- Generating a tree with final order names at leaves\n";
-  my $orderTreeFile = "$grPrefix" . "_final_order.tree";
-  $cmd = "rm -f $orderTreeFile; nw_rename $treeFile $finalOrderTx | nw_order -c n  - > $orderTreeFile";
-  print "\tcmd=$cmd\n" if $dryRun || $debug;
-  system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
-
-  print "--- Generating tree with <final order name>_<seqID> labels at leaves\n";
-  my $orderSeqIDsFile = "$grPrefix" . "_final_order.seqIDs";
-  $cmd = "awk '{print \$1\"\\t\"\$2\"__\"\$1}' $finalOrderTx > $orderSeqIDsFile";
-  print "\tcmd=$cmd\n" if $dryRun || $debug;
-  system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
-
-  my $orderSeqIdTreeFile = "$grPrefix" . "_final_order_seqIDs.tree";
-  $cmd = "rm -f $orderSeqIdTreeFile; nw_rename $treeFile $orderSeqIDsFile | nw_order -c n  -  > $orderSeqIdTreeFile";
-  print "\tcmd=$cmd\n" if $dryRun || $debug;
-  system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
-
-  print "--- Generating a condensed tree with final orders collapsed to a single node \n";
-  my $orderCondTreeFile = "$grPrefix" . "_final_order_condensed.tree";
-  $cmd = "rm -f $orderCondTreeFile; nw_condense $orderTreeFile > $orderCondTreeFile";
-  print "\tcmd=$cmd\n" if $dryRun || $debug;
-  system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
-
-
-
-  ##
-  ## class-level cleanup
-  ##
-  print "--- Generating class ann and query files\n";
-
-  my $classTxFile = "$grPrefix" . ".class";
-  print "--- Writing class assignments to $classTxFile file\n";
-  writeTbl(\%orr, $classTxFile);
-
-  my %annClasss;  # class => count of seq's of that class
-  $annFile = "class_ann.tx";
-  open ANNOUT, ">$annFile" or die "Cannot open $annFile for writing: $OS_ERROR\n";
-  for my $id ( keys %newTx )
-  {
-    my $f = $cls{$id};
-    if (!$f)
+    if ($debug)
     {
-      warn "\n\n\tWARNING: undefined class for $id";
+      print "\n\norderIdx:\n";
+      printFormatedTbl(\%orderIdx);
       print "\n\n";
     }
-    $f =~ s/^c_//;
-    print ANNOUT "$id\t$f\n";
-    $annClasss{$f}++;
-  }
-  close ANNOUT;
 
-  if ($debug)
-  {
-    print "\nAnnotation Classes:\n";
-    my @q = sort { $annClasss{$b} <=> $annClasss{$a} } keys %annClasss;
-    printFormatedTbl(\%annClasss, \@q);
-    print "\n\n"
-  }
-
-
-  print "\n--- Running class vicut on pruned (after genus cleanup) tree\n";
-  my $classVicutDir = "class_vicut_dir";
-  $cmd = "vicut -t $treeFile -a $annFile -o $classVicutDir";
-  print "\tcmd=$cmd\n" if $dryRun || $debug;
-  system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
-
-  print "--- Running update_tx.pl for class level\n";
-  $cmd = "update_tx.pl $debugStr -a $classTxFile -d $classVicutDir";
-  print "\tcmd=$cmd\n" if $dryRun || $debug;
-  system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
-
-  print "--- Running genotype_tx.pl for class level\n";
-  $cmd = "genotype_tx.pl -d $classVicutDir";
-  print "\tcmd=$cmd\n" if $dryRun || $debug;
-  system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
-
-  my $finalClassTx = "$classVicutDir/updated2.tx";
-  my %classTx = readTbl($finalClassTx);
-
-  ## updating lineage
-  for my $id (keys %classTx)
-  {
-    next if exists $ogInd{$id};
-
-    my $lineage = $lineageTbl{$id};
-    if (!defined $lineage)
+    my $orderIdxFile = abs_path( "$grPrefix" . "_order.idx" );
+    open OUT, ">$orderIdxFile" or die "Cannot open $orderIdxFile for writing: $OS_ERROR\n";
+    for my $sp (keys %sppGenus)
     {
-      warn "\n\n\tERROR: lineage not found for $id";
-      print "\n\n";
-      exit;
+      my $ge = $sppGenus{$sp};
+      print OUT "$sp\t" . $orderIdx{$familyOrder{$genusFamily{$ge}}} . "\n";
+    }
+    close OUT;
+
+    my $pdfOrderColorsCsppTreeFile = abs_path( $grPrefix . "_final_species_condensed_tree_with_order_colors.pdf" );
+
+    $title = $grPrefix . " - orders";
+    plot_tree($finalCondSppTreeFile, $orderIdxFile, $pdfOrderColorsCsppTreeFile, $title);
+
+    if ( $OSNAME eq "darwin")
+    {
+      $cmd = "open $pdfOrderColorsCsppTreeFile";
+      print "\tcmd=$cmd\n" if $dryRun || $debug;
+      system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
     }
 
-    my @f = split ";", $lineage;
-    my $sp = pop @f;
-    my $ge = pop @f;
-    my $fa = pop @f;
-    my $or = pop @f;
-    my $cl = pop @f;
-    # my $ph = pop @f;
-    # "d_Bacteria";
+    ##
+    ## class-level cleanup
+    ##
+    print "--- Running cluster_taxons.pl on condensed order tree\n";
 
-    my $newCl = $classTx{$id};
-    my @t = (@f, $newCl, $or, $fa, $ge, $sp);
+    my $orParentFile = $grPrefix . ".orParent";
+    writeTbl(\%orParent, $orParentFile);
 
-    $lineageTbl{$id} = join ";", @t;
+    my $orderClassFile = $grPrefix . "_order.classTx";
+    $cmd = "cluster_taxons.pl $showAllTreesStr -i $finalCondOrderTreeFile -p 0.1 -f $orParentFile -t order -o $orderClassFile";
+    print "\tcmd=$cmd\n" if $dryRun || $debug;
+    system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+
+    my %orderClass = readTbl($orderClassFile);
+
+    if ($debug)
+    {
+      print "\n\norder => class table:\n";
+      printFormatedTbl(\%orderClass);
+      print "\n\n";
+    }
+
+    print "--- Updating lineage table at the class level\n";
+    my %clParent;
+
+    # testing if the resulting clustering does not consists of singlentons
+    # if it does, keep lineage as it is and stop the taxonomy update
+    my $nOrders = keys %orParent;
+    my @classes = values %orderClass;
+    @classes = unique(\@classes);
+
+    my $finalClassTxFile = $grPrefix . "_final_class.tx";
+    if ( @classes < $nOrders )
+    {
+      open OUT, ">$finalClassTxFile" or die "Cannot open $finalClassTxFile for writing: $OS_ERROR\n";
+      for my $id (keys %lineageTbl)
+      {
+	my $lineage = $lineageTbl{$id};
+	my @f = split ";", $lineage;
+	my $sp = pop @f;
+	my $sge = pop @f;
+	my $ge = pop @f;
+	my $fa = pop @f;
+	my $or = pop @f;
+
+	if ( exists $orderClass{$or} )
+	{
+	  my $cl = pop @f;
+	  my $newClass = $orderClass{$or};
+	  print OUT "$id\t$newClass\n";
+	  my @t = (@f, $newClass, $or, $fa, $ge, $sge, $sp);
+	  $lineageTbl{$id} = join ";", @t;
+
+	  my $ph = pop @f;
+	  $clParent{$newClass} = $ph;
+	}
+	else
+	{
+	  warn "\n\n\tERROR: $id with or: $or not detected in orderClass table";
+	  print "\n\n";
+	  exit;
+	}
+      }
+      close OUT;
+    }
+
+    my %clChildren;
+    for my $or (keys %orderClass)
+    {
+      my $cl = $orderClass{$or};
+      $clChildren{$cl}{$or}++;
+    }
+
+    if ($debug)
+    {
+      print "\n\nNumber of phylo-partition-vicut based classes: " . scalar(keys %clChildren) . "\n";
+      print "\nOrder frequencies in phylo-partition-vicut based classes:\n";
+      my @a = sort { scalar(keys %{$clChildren{$b}}) <=> scalar(keys %{$clChildren{$a}}) } keys %clChildren;
+      printFormatedTableValuedTbl(\%clChildren, \@a);
+      print "\n\n"
+    }
+
+
+    if ( scalar(keys %clChildren) > 1 )
+    {
+      print "\n--- Generating a tree with final class names at leaves\n";
+      my $finalClassTreeFile = "$grPrefix" . "_final_class.tree";
+      $cmd = "rm -f $finalClassTreeFile; nw_rename $treeFile $finalClassTxFile | nw_class -c n  - > $finalClassTreeFile";
+      print "\tcmd=$cmd\n" if $dryRun || $debug;
+      system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+
+      print "--- Generating a condensed tree with final families collapsed to a single node \n";
+      my $finalCondClassTreeFile = abs_path( "$grPrefix" . "_final_class_condensed.tree" );
+      $cmd = "rm -f $finalCondClassTreeFile; nw_condense $finalClassTreeFile > $finalCondClassTreeFile";
+      print "\tcmd=$cmd\n" if $dryRun || $debug;
+      system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+
+      my $pdfCondClassTreeFile = abs_path( "$grPrefix" . "_final_class_condensed_tree.pdf" );
+      plot_tree_bw($finalCondClassTreeFile, $pdfCondClassTreeFile);
+
+      if ( $showAllTrees &&  $OSNAME eq "darwin")
+      {
+	$cmd = "open $pdfCondClassTreeFile";
+	print "\tcmd=$cmd\n" if $dryRun || $debug;
+	system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+      }
+
+
+      ## generating pdf figure of species condensed tree colored by classes
+
+      # Assigning to each class an index
+      my $classesCount = 1;
+      my %classIdx = map{ $_ => $classesCount++ } @classes;
+
+      if ($debug)
+      {
+	print "\n\nclassIdx:\n";
+	printFormatedTbl(\%classIdx);
+	print "\n\n";
+      }
+
+      my $classIdxFile = abs_path( "$grPrefix" . "_class.idx" );
+      open OUT, ">$classIdxFile" or die "Cannot open $classIdxFile for writing: $OS_ERROR\n";
+      for my $sp (keys %sppGenus)
+      {
+	my $ge = $sppGenus{$sp};
+	print OUT "$sp\t" . $classIdx{$orderClass{$familyOrder{$genusFamily{$ge}}}} . "\n";
+      }
+      close OUT;
+
+      my $pdfClassColorsCsppTreeFile = abs_path( $grPrefix . "_final_species_condensed_tree_with_class_colors.pdf" );
+
+      $title = $grPrefix . " - classes";
+      plot_tree($finalCondSppTreeFile, $classIdxFile, $pdfClassColorsCsppTreeFile, $title);
+
+      if ( $OSNAME eq "darwin")
+      {
+	$cmd = "open $pdfClassColorsCsppTreeFile";
+	print "\tcmd=$cmd\n" if $dryRun || $debug;
+	system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+      }
+    }
   }
-
-  print "\n--- Generating a tree with final class names at leaves\n";
-  my $classTreeFile = "$grPrefix" . "_final_class.tree";
-  $cmd = "rm -f $classTreeFile; nw_rename $treeFile $finalClassTx | nw_order -c n  - > $classTreeFile";
-  print "\tcmd=$cmd\n" if $dryRun || $debug;
-  system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
-
-  print "--- Generating tree with <final class name>_<seqID> labels at leaves\n";
-  my $classSeqIDsFile = "$grPrefix" . "_final_class.seqIDs";
-  $cmd = "awk '{print \$1\"\\t\"\$2\"__\"\$1}' $finalClassTx > $classSeqIDsFile";
-  print "\tcmd=$cmd\n" if $dryRun || $debug;
-  system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
-
-  my $classSeqIdTreeFile = "$grPrefix" . "_final_class_seqIDs.tree";
-  $cmd = "rm -f $classSeqIdTreeFile; nw_rename $treeFile $classSeqIDsFile | nw_order -c n  -  > $classSeqIdTreeFile";
-  print "\tcmd=$cmd\n" if $dryRun || $debug;
-  system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
-
-  print "--- Generating a condensed tree with final classs collapsed to a single node \n";
-  my $classCondTreeFile = "$grPrefix" . "_final_class_condensed.tree";
-  $cmd = "rm -f $classCondTreeFile; nw_condense $classTreeFile > $classCondTreeFile";
-  print "\tcmd=$cmd\n" if $dryRun || $debug;
-  system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
-
-} # end if ( scalar(keys %faChildren) > 1 )
+} # end if ( scalar(keys %orChildren) > 1 )
 
 
 
@@ -2156,7 +2233,7 @@ printFormatedTblToFile(\%genusSize, \@genera, $SRYOUT, "\n==== Number of species
 print "\n==== Number of species per genus ====\n";
 printFormatedTbl(\%genusSize, \@genera);
 
-## Number of genera per family
+## Number of genera per order
 my @families = keys %faTbl;
 my %familySize; # <family> => <number of genera of that family>
 for my $f (@families)
