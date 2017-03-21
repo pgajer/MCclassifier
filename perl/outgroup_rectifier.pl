@@ -145,8 +145,6 @@ my $grDir     = $grPrefix . "_dir";
 $grPrefix     = "$grDir/$grPrefix";
 my $errorFile = $grPrefix . "_outgroup_rectifier_ERROR"; # this is a file that indicates that outgroup_rectifier.pl finished with an error
 
-print "\n\nerrorFile: $errorFile\n" if $debug;
-
 if ( -e $errorFile )
 {
   unlink($errorFile);
