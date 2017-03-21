@@ -310,6 +310,7 @@ my %parent;
 
 my %spLineage; # species => lineage of the species (recorded as a string)
 my %geLineage; # genus   => lineage of the genus (skipping species)
+my %spParent;
 
 for my $id ( keys %lineageTbl )
 {
@@ -321,6 +322,8 @@ for my $id ( keys %lineageTbl )
   my $or = pop @f;
   my $cl = pop @f;
   my $ph = pop @f;
+
+  $spParent{$sp} = $ge;
 
   $spLineage{$sp} = $lineage;
 
@@ -1187,7 +1190,6 @@ if (@d2)
 }
 
 print "--- Updating lineageTbl after genotype_spp.pl\n";
-my %spParent;
 for my $id (keys %lineageTbl)
 {
   if ( exists $newTx{$id} )
@@ -1198,7 +1200,16 @@ for my $id (keys %lineageTbl)
 
     my $newSp = $newTx{$id};
     my ($g, $s) = split "_", $newSp;
-    $spParent{$newSp} = $g;
+    if ($s)
+    {
+      $spParent{$newSp} = $g;
+    }
+    elsif (!exists $spParent{$newSp})
+    {
+      warn "\n\n\tERROR: count not find a genus corresponding to $newSp";
+      print "\n\n";
+      exit;
+    }
 
     if ($newSp ne $sp)
     {
