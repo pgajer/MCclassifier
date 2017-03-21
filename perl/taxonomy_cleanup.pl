@@ -2505,7 +2505,7 @@ print     "\tSummary stats written to $grDir/$summaryStatsFile\n\n";
 sub plot_tree
 {
   my ($treeFile, $clFile, $pdfFile, $title) = @_;
-  #my $readNewickFile = "/Users/pgajer/.Rlocal/read.newick.R";
+
   my $showBoostrapVals = "F";
 
   if (!defined $title)
@@ -2555,7 +2555,6 @@ sub plot_tree_bw
 {
   my ($treeFile, $pdfFile, $title) = @_;
 
-  #my $readNewickFile = "/Users/pgajer/.Rlocal/read.newick.R";
   my $showBoostrapVals = "F";
 
   if (!defined $title)
