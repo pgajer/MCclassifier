@@ -309,6 +309,7 @@ my %children;
 my %parent;
 
 my %spLineage; # species => lineage of the species (recorded as a string)
+my %geLineage; # genus   => lineage of the genus (skipping species)
 
 for my $id ( keys %lineageTbl )
 {
@@ -322,6 +323,11 @@ for my $id ( keys %lineageTbl )
   my $ph = pop @f;
 
   $spLineage{$sp} = $lineage;
+
+  @f = split ";", $lineage;
+  $sp = pop @f;
+  $lineage = join ";", @f;
+  $geLineage{$ge} = $lineage;
 
   ##$sp = "s_$sp";
   #$sp .= "_OG" if ( exists $ogInd{$id} );
@@ -634,7 +640,7 @@ if (@query2)
   %newTx = readTbl($updatedTxFile);
 }
 
-## making sure spLineage is defined for new species
+print "--- Updating lineageTbl after second vicut and detecting seq's that had their taxonomy changed to OG\n";
 my @extraOG; # array of seqIDs that had their taxonomy changed to OG - they will be removed
 for my $id (keys %lineageTbl)
 {
@@ -642,10 +648,6 @@ for my $id (keys %lineageTbl)
 
   if ( exists $newTx{$id} )
   {
-    my $lineage = $lineageTbl{$id};
-    my @f = split ";", $lineage;
-    my $sp = pop @f;
-
     my $newSp = $newTx{$id};
 
     if ( $newSp =~ /OG$/ )
@@ -658,75 +660,25 @@ for my $id (keys %lineageTbl)
       next;
     }
 
+    my $lineage = $lineageTbl{$id};
+    my @f = split ";", $lineage;
+    my $sp = pop @f;
+
     if ($newSp ne $sp)
     {
-      @f = split "_", $newSp;
-      my $newSp0;
-      if (@f > 1)
-      {
-	$newSp0 = $f[0] . "_" . $f[1];
-      }
-      else
-      {
-	$newSp0 = $f[0];
-      }
+      my ($g, $s) = split "_", $newSp;
 
-      if ( exists $spLineage{$newSp0} )
+      if ( exists $geLineage{$g} )
       {
-	if ($newSp0 ne $newSp)
-	{
-	  #print "\n\nsp: $sp\tnewSp: $newSp\tnewSp0: $newSp0\n" if $debug;
-	  $lineage = $spLineage{$newSp0};
-	  @f = split ";", $lineage;
-	  $sp = pop @f;
-	  my @t = (@f, $newSp);
-	  $spLineage{$newSp} = join ";", @t;
-	}
+	$lineageTbl{$id} = $geLineage{$g} . ";$newSp";
       }
       else
       {
-	warn "\n\n\tWARNING: $newSp0 not found in spLineage";
+	warn "\n\n\tERROR: $g not found in geLineage";
+	print "\tnewSp: $newSp\n";
 	print "\tlineageTbl{$id}: " . $lineageTbl{$id} . "\n";
 	print "\n\n";
-
-	## Its possible that an _sp species is not present in the lineage table
-	## as the only species of the corresponding genus were all properly names.
-	## For example,
-
-	## Root;Bacteria;Firmicutes;Erysipelotrichia;Erysipelotrichales;Erysipelotrichaceae;Allobaculum;Allobaculum_stercoricanis
-
-	## is the only species of Allobaculum genus and so Allobaculum_sp is not
-	## present in the spLineage table. Allobaculum_sp gets created because
-	## Allobaculum_stercoricanis does not form a monophyletic cluster.
-
-	## First, we are going to test if the missing species is an _sp species and
-	## if it is, find any species of the corresponding genus and use it to define
-	## spLineage on that species.
-
-	my @f = split "_", $newSp;
-	my $g = shift @f;
-	my $s = shift @f;
-
-	if ($s ne "sp")
-	{
-	  print "\n\n\tERROR: $newSp is not an _sp species\n\n";
-	  exit;
-	}
-
-	my @selSpp = grep { $_ =~ /$g/ } keys %spLineage;
-	print "\n\nselSpp: @selSpp\n" if $debug;
-	my $properSp = shift @selSpp;
-	@f = split ";", $spLineage{$properSp};
-	my $selSp = pop @f;
-	my @t = (@f, $newSp);
-	$spLineage{$newSp} = join ";", @t;
-	print "spLineage{$newSp}: " . $spLineage{$newSp} . "\n\n" if $debug;
-
-	$lineageTbl{$id} = $spLineage{$newSp};
-
-	# warn "\n\n\tERROR: spLineage{$newSp0} does not exist";
-	# print "\tnewSp: $newSp\tid: $id\n\n";
-	# exit;
+	exit;
       }
     }
   } # end of if ( exists $newTx{$id} )
@@ -735,6 +687,9 @@ for my $id (keys %lineageTbl)
 
 if ( @extraOG>0 )
 {
+  delete @lineageTbl{@extraOG};
+  delete @newTx{@extraOG};
+
   # removing elements of extraOG from the updated.tx file
   $updatedTxFile = "$vicutDir/updated.tx";
   print "--- Removing elements of extraOG from $updatedTxFile\n";
@@ -767,52 +722,6 @@ if ( @extraOG>0 )
   system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 
   $treeFile = $prunedTreeFile;
-}
-
-## making sure spLineage is defined for new species
-for my $id (keys %lineageTbl)
-{
-  if ( exists $newTx{$id} )
-  {
-    my $lineage = $lineageTbl{$id};
-    my @f = split ";", $lineage;
-    my $sp = pop @f;
-
-    my $newSp = $newTx{$id};
-
-    if ($newSp ne $sp)
-    {
-      @f = split "_", $newSp;
-      my $newSp0;
-      if (@f > 1)
-      {
-	$newSp0 = $f[0] . "_" . $f[1];
-      }
-      else
-      {
-	$newSp0 = $f[0];
-      }
-
-      if ( exists $spLineage{$newSp0} )
-      {
-	if ($newSp0 ne $newSp)
-	{
-	  #print "\n\nsp: $sp\tnewSp: $newSp\tnewSp0: $newSp0\n" if $debug;
-	  $lineage = $spLineage{$newSp0};
-	  @f = split ";", $lineage;
-	  $sp = pop @f;
-	  my @t = (@f, $newSp);
-	  $spLineage{$newSp} = join ";", @t;
-	}
-      }
-      else
-      {
-	warn "\n\n\tERROR: spLineage{$newSp0} does not exist";
-	print "\tnewSp: $newSp\tid: $id\n\n";
-	exit;
-      }
-    }
-  } # end of if ( exists $newTx{$id} )
 }
 
 my $sppLineageFile = $grPrefix . "_spp.lineage";
@@ -850,7 +759,7 @@ system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 
 ## Deleting outgroup sequences from %newTx !!!!
 delete @newTx{@ogSeqIDs};
-delete @newTx{@extraOG};
+delete @lineageTbl{@ogSeqIDs};
 
 my %newTxNoTGTs = %newTx; ## readTbl($updatedTxFile);
 
@@ -877,6 +786,7 @@ print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 
 $treeFile = $prunedTreeFile;
+
 
 
 ## Testing consistency between the phylo tree and sequences after taxonomy
@@ -960,6 +870,7 @@ for my $sp (keys %spFreqTbl)
 if ( @spSingletons )
 {
   delete @newTx{@spSingletons};
+  delete @lineageTbl{@spSingletons};
 
   # removing elements of extraOG from the updated.tx file
   my $updatedTxFile = "$vicutDir/updated.tx";
@@ -1047,6 +958,36 @@ if ( @spSingletons )
 
   $updatedTxFile = "$vicutDir/updated.tx";
   %newTx = readTbl($updatedTxFile);
+
+  print "--- Updating lineageTbl after 3rd run of vicut\n";
+  for my $id (keys %lineageTbl)
+  {
+    if ( exists $newTx{$id} )
+    {
+      my $lineage = $lineageTbl{$id};
+      my @f = split ";", $lineage;
+      my $sp = pop @f;
+      my $newSp = $newTx{$id};
+      if ($newSp ne $sp)
+      {
+	my ($g, $s) = split "_", $newSp;
+
+	if ( exists $geLineage{$g} )
+	{
+	  $lineageTbl{$id} = $geLineage{$g} . ";$newSp";
+	}
+	else
+	{
+	  warn "\n\n\tERROR: $g not found in geLineage";
+	  print "\tnewSp: $newSp\n";
+	  print "\tlineageTbl{$id}: " . $lineageTbl{$id} . "\n";
+	  print "\n\n";
+	  exit;
+	}
+      }
+    } # end of if ( exists $newTx{$id} )
+  }
+
 }
 
 ## Checking the number of species, to make sure its > 1
@@ -1245,7 +1186,43 @@ if (@d2)
   delete @lineageTbl{@d2};
 }
 
-## Testing again consistency between the phylo tree and sequences after taxonomy cleanup.
+print "--- Updating lineageTbl after genotype_spp.pl\n";
+my %spParent;
+for my $id (keys %lineageTbl)
+{
+  if ( exists $newTx{$id} )
+  {
+    my $lineage = $lineageTbl{$id};
+    my @f = split ";", $lineage;
+    my $sp = pop @f;
+
+    my $newSp = $newTx{$id};
+    my ($g, $s) = split "_", $newSp;
+    $spParent{$newSp} = $g;
+
+    if ($newSp ne $sp)
+    {
+      if ( exists $geLineage{$g} )
+      {
+	$lineageTbl{$id} = $geLineage{$g} . ";$newSp";
+      }
+      else
+      {
+	warn "\n\n\tERROR: $g not found in geLineage";
+	print "\tnewSp: $newSp\n";
+	print "\tlineageTbl{$id}: " . $lineageTbl{$id} . "\n";
+	print "\n\n";
+	exit;
+      }
+    }
+  } # end of if ( exists $newTx{$id} )
+  else
+  {
+    delete $lineageTbl{$id};
+  }
+}
+
+print "--- Testing again consistency between the phylo tree and sequences after taxonomy cleanup\n";
 
 ## extracting leave IDs
 $cmd = "rm -f $treeLeavesFile; nw_labels -I $treeFile > $treeLeavesFile";
@@ -1277,62 +1254,6 @@ $cmd = "rm -f $finalTreeFile; ln -s $ap $finalTreeFile";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 
-
-print "--- Updating lineage table\n";
-my %spParent;
-for my $id (keys %lineageTbl)
-{
-  #next if exists $ogInd{$id};
-  if ( exists $newTx{$id} )
-  {
-    my $newSp = $newTx{$id};
-    my $lineage = $lineageTbl{$id};
-    my @f = split ";", $lineage;
-    my $sp = pop @f;
-    # my $ge = pop @f;
-    # my $fa = pop @f;
-    # my $or = pop @f;
-    # my $cl = pop @f;
-    # my $ph = pop @f;
-    # "d_Bacteria";
-
-    if ( $newSp ne $sp )
-    {
-      my $newSp0 = $newSp;
-      $newSp0 =~ s/_\d+//;
-
-      if (exists $spLineage{$newSp0})
-      {
-	$lineage = $spLineage{$newSp0};
-	@f = split ";", $lineage;
-	$sp = pop @f;
-	my @t = (@f, $newSp);
-	$lineageTbl{$id} = join ';', @t;
-	$spLineage{$newSp} = $lineageTbl{$id};
-
-	my $ge = pop @f;
-	$spParent{$newSp} = $ge;
-      }
-      else
-      {
-	warn "\n\n\tERROR: spLineage{$newSp0} does not exist";
-	print "\nnewSp: $newSp\n";
-	print "\n\n";
-	exit;
-      }
-    }
-    else
-    {
-      # we are hear b/c sp=newSp
-      my $ge = pop @f;
-      $spParent{$sp} = $ge;
-    }
-  }
-  else
-  {
-    delete $lineageTbl{$id};
-  }
-}
 
 print "--- Testing consistency between lineageTbl and newTx keys\n";
 @newTxKeys      = keys %newTx;
@@ -2538,6 +2459,8 @@ else
   print $SRYOUT  "\tNo singletons species AFTER taxonomic cleanup\n\n";
 }
 
+print $SRYOUT  "\tNumber of sub-genera AFTER taxonomic cleanup: " . scalar( keys %subGeTbl ) . "\n\n";
+
 print $SRYOUT  "\tNumber of genera BEFORE taxonomic cleanup: $initNumGenera\n";
 print $SRYOUT  "\tNumber of genera AFTER taxonomic cleanup: " . scalar( keys %geTbl ) . "\n\n";
 
@@ -2576,6 +2499,8 @@ else
 {
   print   "\tNo singletons species AFTER taxonomic cleanup\n\n";
 }
+
+print  "\tNumber of sub-genera AFTER taxonomic cleanup: " . scalar( keys %subGeTbl ) . "\n\n";
 
 print   "\tNumber of genera BEFORE taxonomic cleanup: $initNumGenera\n";
 print   "\tNumber of genera AFTER taxonomic cleanup: " . scalar( keys %geTbl ) . "\n\n";
