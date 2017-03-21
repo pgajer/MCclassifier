@@ -163,7 +163,8 @@ my $trPrefix = "$trDir/$grPrefix" . "_". $varReg;
 my $origGrPrefix = $grPrefix;
 $grPrefix = "$grDir/$grPrefix";
 
-my $lineageFile  = $grPrefix . "_final_no_tGTs.lineage";
+#my $lineageFile  = $grPrefix . "_final_no_tGTs.lineage";
+my $lineageFile  = $grPrefix . "_spp.lineage";
 my $algnFile     = $grPrefix . "_algn_trimmed_final.fa";
 my $ogSeqIDsFile = $grPrefix . "_outgroup.seqIDs"; # and here _final_outgroup.seqIDs
 

@@ -134,12 +134,12 @@ if ( defined $johanna )
   $readNewickFile = "/Users/jholm/MCclassifier/perl/read.newick.R";
 }
 
-## export LD_LIBRARY_PATH=/usr/local/packages/readline/lib:/usr/local/packages/gcc-5.3.0/lib64
+## Export LD_LIBRARY_PATH=/usr/local/packages/readline/lib:/usr/local/packages/gcc-5.3.0/lib64
 
 local $ENV{LD_LIBRARY_PATH} = "/usr/local/packages/readline/lib:/usr/local/packages/gcc-5.3.0/lib64";
 
 my $useLongSppNamesStr = "";
-if ($useLongSppNames)
+if ( defined $useLongSppNames )
 {
   $useLongSppNamesStr = "--use-long-spp-names";
 }
