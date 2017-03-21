@@ -783,6 +783,27 @@ for my $id (keys %lineageTbl)
   } # end of if ( exists $newTx{$id} )
 }
 
+my $sppLineageFile = $grPrefix . "_spp.lineage";
+open OUT, ">$sppLineageFile" or die "Cannot open $sppLineageFile for writing: $OS_ERROR\n";
+my $wCount = 1;
+for my $id (keys %newTx)
+{
+  if ( exists $lineageTbl{$id} )
+  {
+    print OUT "$id\t" . $lineageTbl{$id} . "\n";
+  }
+  elsif ( exists $ogLineageTbl{$id} )
+  {
+    print OUT "$id\t" . $ogLineageTbl{$id} . "\n";
+  }
+  else
+  {
+    warn "$wCount: WARNING: $id does not exist in lineageTbl and ogLineageTbl";
+    $wCount++;
+  }
+}
+close OUT;
+
 ## Creating symbolic link to the most recent trimmed alignment file for use with
 ## truncate_algn.pl
 my $finalAlgnFile = $grPrefix . "_algn_trimmed_final.fa";
@@ -995,6 +1016,59 @@ if ( @spSingletons )
   $updatedTxFile = "$vicutDir/updated.tx";
   %newTx = readTbl($updatedTxFile);
 }
+
+## Checking the number of species, to make sure its > 1
+## if not we end here (after updating lineage table)
+
+my %sppFreqFinal; ## table of number of sequences per species
+map { $sppFreqFinal{$_}++ } values %newTx;
+my $nSpecies = keys %sppFreqFinal;
+
+if ( $nSpecies == 1 )
+{
+  print "\n\n\tWARNING:  This group of sequences consists of only one species !!!\n";
+  print "\tAbandoning taxonomic cleanup at the higher taxonomic ranks\n\n";
+
+  print "--- Updating lineage file at the species level\n";
+
+  my @ids = keys %newTx;
+  my $id = $ids[0];
+  my $newSp = $newTx{$id};
+  my $newSpNoExt = $newSp;
+  $newSpNoExt =~ s/_\d+$//;
+
+  my $lineage = $lineageTbl{$id};
+  my @f = split ";", $lineage;
+  my $sp = pop @f;
+  my $ge = pop @f;
+  my @t1 = (@f, $ge, $newSpNoExt);
+  my @t2 = (@f, $ge, $ge, $newSp); # making genus also a sub-genus for the sake of consistency with other phyla
+  my $lineageNoExt = join ';', @t1;
+  my $lineageExt = join ';', @t2;
+
+  my $finalLineageFile = $grPrefix . "_final.lineage";
+  open OUT1, ">$finalLineageFile" or die "Cannot open $finalLineageFile for writing: $OS_ERROR\n";
+  my $finalLineageFile2 = $grPrefix . "_final_no_tGTs.lineage";
+  open OUT2, ">$finalLineageFile2" or die "Cannot open $finalLineageFile2 for writing: $OS_ERROR\n";
+  for my $id (keys %newTx)
+  {
+    my $lineage = $lineageTbl{$id};
+    print OUT1 "$id\t$lineageExt\n";
+    print OUT2 "$id\t$lineageNoExt\n";
+  }
+  for my $id ( keys %ogLineageTbl )
+  {
+    my $lineage = $ogLineageTbl{$id};
+    print OUT2 "$id\t$lineage\n";
+  }
+  close OUT2;
+  close OUT1;
+
+  print "\n\tUpdated lineage tables written to:\n\t\t$finalLineageFile\n\t\t$finalLineageFile2\n\n";
+
+  exit;
+}
+
 
 ## Generating species curation diagnostic plots
 ## condensed species (using nw_condense2 showing the number of sequences in
@@ -1269,7 +1343,7 @@ if (@tlComm != @newTxKeys || @tlComm != @lineageTblKeys)
 }
 
 ## Generating some summary tables
-my %sppFreqFinal; ## table of number of sequences per species
+%sppFreqFinal; ## table of number of sequences per species
 map { $sppFreqFinal{$_}++ } values %newTx;
 
 ## number of _sp species
@@ -2309,12 +2383,10 @@ for my $id (keys %newTx)
 
   my @f = split ";", $lineage;
   my $sp = pop @f;
-  print OUT "$id\t";
-  for (@f)
-  {
-    print OUT "$_;";
-  }
-  print OUT $newTxNoTGTs{$id} . "\n";
+  my $sge = pop @f; # getting rid of sub-genus
+  push @f, $newTxNoTGTs{$id};
+  my $l = join ";", @f;
+  print OUT "$id\t$l\n";
 }
 for my $id ( keys %ogLineageTbl )
 {
