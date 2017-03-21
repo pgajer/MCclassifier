@@ -550,7 +550,7 @@ if (@trOGs > 1)
   system($cmd) == 0 or die "system($cmd) failed:$?" if !$dryRun;
 
   print "--- Generating a tree with species names at leaves\n";
-  my $sppTreeFile = $trPrefix . "_" . $varReg . "_spp.tree";
+  my $sppTreeFile = $trPrefix . "_spp.tree";
   $cmd = "rm -f $sppTreeFile; nw_rename $rrTreeFile $trTxFile | nw_order - > $sppTreeFile";
   print "\tcmd=$cmd\n" if $dryRun || $debug;
   system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
@@ -558,7 +558,7 @@ if (@trOGs > 1)
 }
 
 print "--- Generating a condensed tree with species clades collapsed to a single node \n";
-my $condSppTreeFile = $trPrefix . "_" . $varReg . "_spp_condensed.tree";
+my $condSppTreeFile = $trPrefix . "_spp_condensed.tree";
 $cmd = "rm -f $condSppTreeFile; nw_condense $sppTreeFile > $condSppTreeFile";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
