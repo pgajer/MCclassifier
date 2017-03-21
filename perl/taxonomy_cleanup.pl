@@ -638,23 +638,25 @@ if (@query2)
 my @extraOG; # array of seqIDs that had their taxonomy changed to OG - they will be removed
 for my $id (keys %lineageTbl)
 {
+  next if exists $ogInd{$id};
+
   if ( exists $newTx{$id} )
   {
     my $lineage = $lineageTbl{$id};
     my @f = split ";", $lineage;
     my $sp = pop @f;
 
-    if ( $sp =~ /OG$/ && !exists $ogInd{$id})
+    my $newSp = $newTx{$id};
+
+    if ( $newSp =~ /OG$/ )
     {
-      print "\n\tWARNING: non-OG seq $id was changed to OG species => $sp; Scheduling removal of the sequence.\n";
+      print "\n\tWARNING: non-OG seq $id was changed to OG species => $newSp; Scheduling removal of the sequence.\n";
       print "\tlineageTbl{$id}: " . $lineageTbl{$id} . "\n\n";
       push @extraOG, $id;
       delete $lineageTbl{$id};
       delete $newTx{$id};
       next;
     }
-
-    my $newSp = $newTx{$id};
 
     if ($newSp ne $sp)
     {
@@ -683,9 +685,48 @@ for my $id (keys %lineageTbl)
       }
       else
       {
-	warn "\n\n\tERROR: spLineage{$newSp0} does not exist";
-	print "\tnewSp: $newSp\tid: $id\n\n";
-	exit;
+	warn "\n\n\tWARNING: $newSp0 not found in spLineage";
+	print "\tlineageTbl{$id}: " . $lineageTbl{$id} . "\n";
+	print "\n\n";
+
+	## Its possible that an _sp species is not present in the lineage table
+	## as the only species of the corresponding genus were all properly names.
+	## For example,
+
+	## Root;Bacteria;Firmicutes;Erysipelotrichia;Erysipelotrichales;Erysipelotrichaceae;Allobaculum;Allobaculum_stercoricanis
+
+	## is the only species of Allobaculum genus and so Allobaculum_sp is not
+	## present in the spLineage table. Allobaculum_sp gets created because
+	## Allobaculum_stercoricanis does not form a monophyletic cluster.
+
+	## First, we are going to test if the missing species is an _sp species and
+	## if it is, find any species of the corresponding genus and use it to define
+	## spLineage on that species.
+
+	my @f = split "_", $newSp;
+	my $g = shift @f;
+	my $s = shift @f;
+
+	if ($s ne "sp")
+	{
+	  print "\n\n\tERROR: $newSp is not an _sp species\n\n";
+	  exit;
+	}
+
+	my @selSpp = grep { $_ =~ /$g/ } keys %spLineage;
+	print "\n\nselSpp: @selSpp\n" if $debug;
+	my $properSp = shift @selSpp;
+	@f = split ";", $spLineage{$properSp};
+	my $selSp = pop @f;
+	my @t = (@f, $newSp);
+	$spLineage{$newSp} = join ";", @t;
+	print "spLineage{$newSp}: " . $spLineage{$newSp} . "\n\n" if $debug;
+
+	$lineageTbl{$id} = $spLineage{$newSp};
+
+	# warn "\n\n\tERROR: spLineage{$newSp0} does not exist";
+	# print "\tnewSp: $newSp\tid: $id\n\n";
+	# exit;
       }
     }
   } # end of if ( exists $newTx{$id} )
