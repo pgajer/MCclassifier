@@ -116,12 +116,14 @@ if ( !$grPrefix )
 }
 
 my $mothur = "/Users/pgajer/bin/mothur";
+my $readNewickFile = "/Users/pgajer/.Rlocal/read.newick.R";
 
 my $igsStr = "";
 if ( defined $igs )
 {
   $mothur = "/usr/local/packages/mothur-1.36.1/mothur";
   $igsStr = "--igs";
+  $readNewickFile = "??";
 }
 
 my $johannaStr = "";
@@ -129,6 +131,7 @@ if ( defined $johanna )
 {
   $mothur = "/Users/pgajer/bin/mothur";
   $johannaStr = "--johanna";
+  $readNewickFile = "/Users/jholm/MCclassifier/perl/read.newick.R";
 }
 
 ## export LD_LIBRARY_PATH=/usr/local/packages/readline/lib:/usr/local/packages/gcc-5.3.0/lib64
@@ -2501,8 +2504,7 @@ print     "\tSummary stats written to $grDir/$summaryStatsFile\n\n";
 sub plot_tree
 {
   my ($treeFile, $clFile, $pdfFile, $title) = @_;
-
-  my $readNewickFile = "/Users/pgajer/.Rlocal/read.newick.R";
+  #my $readNewickFile = "/Users/pgajer/.Rlocal/read.newick.R";
   my $showBoostrapVals = "F";
 
   if (!defined $title)
@@ -2552,7 +2554,7 @@ sub plot_tree_bw
 {
   my ($treeFile, $pdfFile, $title) = @_;
 
-  my $readNewickFile = "/Users/pgajer/.Rlocal/read.newick.R";
+  #my $readNewickFile = "/Users/pgajer/.Rlocal/read.newick.R";
   my $showBoostrapVals = "F";
 
   if (!defined $title)
