@@ -814,7 +814,6 @@ sub plot_tree
 {
   my ($treeFile, $clFile, $pdfFile, $title) = @_;
 
-  #my $readNewickFile = "/Users/pgajer/.Rlocal/read.newick.R";
   my $showBoostrapVals = "F";
 
   if (!defined $title)
