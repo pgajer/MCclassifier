@@ -634,51 +634,6 @@ if (@query2)
   %newTx = readTbl($updatedTxFile);
 }
 
-## making sure spLineage is defined for new species
-for my $id (keys %lineageTbl)
-{
-  if ( exists $newTx{$id} )
-  {
-    my $lineage = $lineageTbl{$id};
-    my @f = split ";", $lineage;
-    my $sp = pop @f;
-
-    my $newSp = $newTx{$id};
-
-    if ($newSp ne $sp)
-    {
-      @f = split "_", $newSp;
-      my $newSp0;
-      if (@f > 1)
-      {
-	$newSp0 = $f[0] . "_" . $f[1];
-      }
-      else
-      {
-	$newSp0 = $f[0];
-      }
-
-      if ( exists $spLineage{$newSp0} )
-      {
-	if ($newSp0 ne $newSp)
-	{
-	  #print "\n\nsp: $sp\tnewSp: $newSp\tnewSp0: $newSp0\n" if $debug;
-	  $lineage = $spLineage{$newSp0};
-	  @f = split ";", $lineage;
-	  $sp = pop @f;
-	  my @t = (@f, $newSp);
-	  $spLineage{$newSp} = join ";", @t;
-	}
-      }
-      else
-      {
-	warn "\n\n\tERROR: spLineage{$newSp0} does not exist";
-	print "\tnewSp: $newSp\tid: $id\n\n";
-	exit;
-      }
-    }
-  } # end of if ( exists $newTx{$id} )
-}
 
 #printTbl(\%ogInd, "ogInd") if $debug;
 
@@ -780,6 +735,52 @@ if ( @extraOG>0 )
 
   $treeFile = $prunedTreeFile;
   $trimmedAlgnFile = $prunedAlgnFile;
+}
+
+## making sure spLineage is defined for new species
+for my $id (keys %lineageTbl)
+{
+  if ( exists $newTx{$id} )
+  {
+    my $lineage = $lineageTbl{$id};
+    my @f = split ";", $lineage;
+    my $sp = pop @f;
+
+    my $newSp = $newTx{$id};
+
+    if ($newSp ne $sp)
+    {
+      @f = split "_", $newSp;
+      my $newSp0;
+      if (@f > 1)
+      {
+	$newSp0 = $f[0] . "_" . $f[1];
+      }
+      else
+      {
+	$newSp0 = $f[0];
+      }
+
+      if ( exists $spLineage{$newSp0} )
+      {
+	if ($newSp0 ne $newSp)
+	{
+	  #print "\n\nsp: $sp\tnewSp: $newSp\tnewSp0: $newSp0\n" if $debug;
+	  $lineage = $spLineage{$newSp0};
+	  @f = split ";", $lineage;
+	  $sp = pop @f;
+	  my @t = (@f, $newSp);
+	  $spLineage{$newSp} = join ";", @t;
+	}
+      }
+      else
+      {
+	warn "\n\n\tERROR: spLineage{$newSp0} does not exist";
+	print "\tnewSp: $newSp\tid: $id\n\n";
+	exit;
+      }
+    }
+  } # end of if ( exists $newTx{$id} )
 }
 
 ## Creating symbolic link to the most recent trimmed alignment file for use with
