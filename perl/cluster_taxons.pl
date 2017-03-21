@@ -234,10 +234,15 @@ if ($debug)
   print "\n";
 }
 
+print "--- Rooting the tree\n";
+my $cmd = "root_tree.pl -i $treeFile";
+print "\tcmd=$cmd\n" if $dryRun || $debug;
+system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+
 print "--- Running phylo partitioning on $treeFile at $percThld percentile thld\n";
 my $partFile     = "phyloPart_$taxon" . "_$percThld" . ".txt";
 my $phyloPartLog = "phyloPart_$taxon.log";
-my $cmd = "rm -f $phyloPartLog; java -jar $phyloPart $treeFile $percThld -o$partFile > $phyloPartLog ";
+$cmd = "rm -f $phyloPartLog; java -jar $phyloPart $treeFile $percThld -o$partFile > $phyloPartLog ";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 
