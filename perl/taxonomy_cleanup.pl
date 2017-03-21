@@ -734,7 +734,6 @@ if ( @extraOG>0 )
   system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 
   $treeFile = $prunedTreeFile;
-  $trimmedAlgnFile = $prunedAlgnFile;
 }
 
 ## making sure spLineage is defined for new species
@@ -946,7 +945,7 @@ if ( @spSingletons )
 
   # pruning alignment
   print "--- Pruning spSingletons seq's from $trimmedAlgnFile\n";
-  my $prunedAlgnFile = $grPrefix . "_algn_trimmed_pruned.fa";
+  my $prunedAlgnFile = $grPrefix . "_algn_trimmed_pruned2.fa";
   $cmd = "select_seqs.pl --quiet -e $spSingletonsFile -i $trimmedAlgnFile -o $prunedAlgnFile";
   print "\tcmd=$cmd\n" if $dryRun || $debug;
   system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
