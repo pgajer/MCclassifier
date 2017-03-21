@@ -670,18 +670,26 @@ for my $id (keys %lineageTbl)
     if ($newSp ne $sp)
     {
       my ($g, $s) = split "_", $newSp;
-
       if ( exists $geLineage{$g} )
       {
 	$lineageTbl{$id} = $geLineage{$g} . ";$newSp";
       }
       else
       {
-	warn "\n\n\tERROR: $g not found in geLineage";
-	print "\tnewSp: $newSp\n";
-	print "\tlineageTbl{$id}: " . $lineageTbl{$id} . "\n";
-	print "\n\n";
-	exit;
+	if (exists $spParent{$newSp})
+	{
+	  $g = $spParent{$newSp};
+	  $lineageTbl{$id} = $geLineage{$g} . ";$newSp";
+	}
+	else
+	{
+	  warn "\n\n\tERROR: $g not found in geLineage";
+	  print "\tand spParent{$newSp} not found\n";
+	  print "\tnewSp: $newSp\n";
+	  print "\tlineageTbl{$id}: " . $lineageTbl{$id} . "\n";
+	  print "\n\n";
+	  exit;
+	}
       }
     }
   } # end of if ( exists $newTx{$id} )
@@ -974,18 +982,26 @@ if ( @spSingletons )
       if ($newSp ne $sp)
       {
 	my ($g, $s) = split "_", $newSp;
-
 	if ( exists $geLineage{$g} )
 	{
 	  $lineageTbl{$id} = $geLineage{$g} . ";$newSp";
 	}
 	else
 	{
-	  warn "\n\n\tERROR: $g not found in geLineage";
-	  print "\tnewSp: $newSp\n";
-	  print "\tlineageTbl{$id}: " . $lineageTbl{$id} . "\n";
-	  print "\n\n";
-	  exit;
+	  if (exists $spParent{$newSp})
+	  {
+	    $g = $spParent{$newSp};
+	    $lineageTbl{$id} = $geLineage{$g} . ";$newSp";
+	  }
+	  else
+	  {
+	    warn "\n\n\tERROR: $g not found in geLineage";
+	    print "\tand spParent{$newSp} not found\n";
+	    print "\tnewSp: $newSp\n";
+	    print "\tlineageTbl{$id}: " . $lineageTbl{$id} . "\n";
+	    print "\n\n";
+	    exit;
+	  }
 	}
       }
     } # end of if ( exists $newTx{$id} )
