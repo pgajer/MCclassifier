@@ -29,6 +29,9 @@
 =item B<--output-file, -o>
   Output file.
 
+=item B<--quiet>
+  Do not print progress messages.
+
 =item B<-h|--help>
   Print help message and exit successfully.
 

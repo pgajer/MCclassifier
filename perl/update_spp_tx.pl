@@ -31,6 +31,9 @@
 =item B<--debug>
   Prints system commands
 
+=item B<--quiet>
+  Do not print progress messages.
+
 =item B<-h|--help>
   Print help message and exit successfully.
 
@@ -62,6 +65,7 @@ GetOptions(
   "use-long-spp-names" => \my $useLongSppNames,
   "dry-run"            => \my $dryRun,
   "debug"              => \my $debug,
+  "quiet"              => \my $quiet,
   "help|h!"            => \my $help,
   )
   or pod2usage(verbose => 0,exitstatus => 1);
@@ -104,10 +108,10 @@ if ( ! -f $newTxFile )
 ####################################################################
 
 
-print "--- Parsing tax table from before vicut taxonomy modifications\n";
+print "--- Parsing tax table from before vicut taxonomy modifications\n" if !$quiet;
 my %tx = read2colTbl($txFile);
 
-print "\t- Updating min-node-cut taxonomy using majority vote\n";
+print "\t- Updating min-node-cut taxonomy using majority vote\n" if !$quiet;
 
 my $cltrFile = "$vicutDir/minNodeCut.cltrs";
 if ( ! -f $cltrFile )
@@ -185,10 +189,14 @@ for my $id ( keys %txTbl )
   push @{$spIDs{$sp}}, $id;
 }
 
-print "--- Changing taxonomy of species found in more than one cluster\n";
-print "    if there is a dominating cluster (size > size of others)\n";
-print "    then set all small cluster's taxonomies to <genus>_sp\n";
-print "    and keep the taxonomy of the largest cluster\n";
+if (!$quiet)
+{
+  print "--- Changing taxonomy of species found in more than one cluster\n";
+  print "    if there is a dominating cluster (size > size of others)\n";
+  print "    then set all small cluster's taxonomies to <genus>_sp\n";
+  print "    and keep the taxonomy of the largest cluster\n";
+}
+
 for my $sp ( keys %spFreqTbl )
 {
   ##print "\n\nsp: $sp\n";
@@ -375,7 +383,7 @@ print "\n\n" if $debug;
 my $updatedTxFile = "$vicutDir/updated.tx";
 writeTbl2(\%txTbl, $updatedTxFile);
 
-#print "\tUpdated taxonomy  written to $updatedTxFile\n\n";
+print "\tUpdated taxonomy  written to $updatedTxFile\n\n" if !$quiet;
 
 
 ####################################################################

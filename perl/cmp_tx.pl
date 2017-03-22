@@ -37,6 +37,9 @@
 =item B<--dry-run>
   Print commands to be executed, but do not execute them.
 
+=item B<--quiet>
+  Do not print progress messages.
+
 =item B<-h|--help>
   Print help message and exit successfully.
 
@@ -68,6 +71,7 @@ GetOptions(
   "input-file2|j=s"  => \my $inFile2,
   "output-dir|o=s"   => \my $outDir,
   "dry-run"          => \my $dryRun,
+  "quiet"            => \my $quiet,
   "help|h!"          => \my $help,
   )
   or pod2usage(verbose => 0,exitstatus => 1);
@@ -152,15 +156,15 @@ close OUT;
 
 @mismatchedSpp = unique(\@mismatchedSpp);
 
-print "\nNumber of taxons:\t" . commify($count) . "\n";
+print "\nNumber of taxons:\t" . commify($count) . "\n" if !$quiet;
 
 my $pMatch = sprintf("%.2f",100 * $match / $count);
 ##print "Percentage of matches: $pMatch%\n";
-print "Matches:\t\t " . commify($match) . " ($pMatch\%)\n";
+print "Matches:\t\t " . commify($match) . " ($pMatch\%)\n" if !$quiet;
 
 my $pMismatch = sprintf("%.2f",100 * ($count - $match) / $count);
 ##print "Percentage of mismatches: $pMismatch\n";
-print "Mismatches:\t\t " . commify($count - $match) . " ($pMismatch\%)\n";
+print "Mismatches:\t\t " . commify($count - $match) . " ($pMismatch\%)\n" if !$quiet;
 
 my $outFile2 = "$outDir/spp.summary";
 open OUT, ">$outFile2" or die "Cannot open $outFile2 for writing: $OS_ERROR\n";
@@ -197,7 +201,7 @@ for my $sp (sort @mismatchedSpp)
 }
 close OUT;
 
-print "\nOutput written to\n$outFile1\n$outFile2\n$outFile3\n\n";
+print "\nOutput written to\n$outFile1\n$outFile2\n$outFile3\n\n" if !$quiet;
 
 ####################################################################
 ##                               SUBS
