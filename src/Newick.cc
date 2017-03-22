@@ -117,7 +117,7 @@ NewickTree_t::~NewickTree_t()
 //--------------------------------------------- loadFullTxTree -----
 void NewickTree_t::loadFullTxTree(const char *file) // file holds fullTx table
 {
-  #define DEBUG_LFTT 1
+  #define DEBUG_LFTT 0
 
   #if DEBUG_LFTT
   fprintf(stderr, "in NewickTree_t::loadFullTxTree()\n");
@@ -182,8 +182,10 @@ void NewickTree_t::loadFullTxTree(const char *file) // file holds fullTx table
   fprintf(stderr,"\n");
   #endif
 
-  // creating NewickNode_t pointers for all elements of txRank
-  // and storing it in tx2node map
+  #if DEBUG_LFTT
+  fprintf(stderr,"Creating NewickNode_t pointers for all elements of txRank\n");
+  fprintf(stderr,"and storing it in tx2node map\n");
+  #endif
   map< string, NewickNode_t* > tx2node; // this will leak memory as map<> is not going to free NewickNode_t objects members
   root_m = new NewickNode_t();
   root_m->label = string("d_Bacteria");
@@ -203,7 +205,9 @@ void NewickTree_t::loadFullTxTree(const char *file) // file holds fullTx table
     }
   }
 
-  // breath first search of the fullTx tree structure using children mapping
+  #if DEBUG_LFTT
+  fprintf(stderr,"Breath first search of the fullTx tree structure using children mapping\n");
+  #endif
   queue<string> bfs;
   bfs.push("d_Bacteria");
   string tx;
@@ -244,7 +248,10 @@ void NewickTree_t::loadFullTxTree(const char *file) // file holds fullTx table
     {
       // finding node in a children array of the parent node
       pnode = node->parent_m;
-      numChildren = pnode->children_m.size();
+      if ( pnode != NULL )
+	numChildren = pnode->children_m.size();
+      else
+	break;
 
       #if DEBUG_LFTT
       fprintf(stderr, "\n\nNode %s has only one child %s; %s's parent is %s with %d children\n",
@@ -2587,7 +2594,7 @@ void NewickTree_t::inodeTx( const char *fullTxFile, map<string, string> &inodeTx
   // BVAB3	g_Acetivibrio	f_Ruminococcaceae	o_Clostridiales	c_Clostridia	p_Firmicutes	d_Bacteria
   // Dialister_sp._type_1	g_Dialister	f_Veillonellaceae	o_Clostridiales	c_Clostridia	p_Firmicutes	d_Bacteria
 
-  const int NUM_TX = 6;
+  const int NUM_TX = 7;
   char ***txTbl;
   int nRows, nCols;
   readCharTbl( fullTxFile, &txTbl, &nRows, &nCols );
