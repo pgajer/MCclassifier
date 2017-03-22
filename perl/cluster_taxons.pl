@@ -835,7 +835,7 @@ require(phytools)
 tr1 <- read.newick(file=\"$treeFile\")
 tr1 <- collapse.singles(tr1)
 
-tip.cltr <- cltr[tr1$tip.label]
+tip.cltr <- cltr[tr1\$tip.label]
 
 colIdx <- 1
 tip.colors <- c()
