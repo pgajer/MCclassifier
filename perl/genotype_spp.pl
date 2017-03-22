@@ -154,7 +154,7 @@ if (!$vicutDir)
 ####################################################################
 
 ## parsing updated taxon table
-print "[genotype_spp.pl] --- Parsing updated taxon table";
+print "[genotype_spp.pl] --- Parsing updated taxon table" if $debug;
 my $txFile = "$vicutDir/updated.tx";
 my %tx = read2colTbl($txFile);
 
@@ -194,12 +194,12 @@ for my $g (keys %genus)
 }
 
 ## parsing cluster table
-print "\r[genotype_spp.pl] --- Parsing cluster table     ";
+print "\r[genotype_spp.pl] --- Parsing cluster table     " if $debug;
 my $cltrFile = "$vicutDir/minNodeCut.cltrs";
 my %cltr = read2colTbl($cltrFile);
 
 ## generating species within cluster frequency table
-print "\r[genotype_spp.pl] --- Generating species within cluster frequency table";
+print "\r[genotype_spp.pl] --- Generating species within cluster frequency table" if $debug;
 
 my %spp; # $spp{speciesName}{clID} holds sequence IDs of the given species that
 	 # belong to cluster clID
@@ -217,7 +217,7 @@ for ( keys %tx )
 }
 
 ## Generating file of species present in more than one cluster
-print "\r[genotype_spp.pl] --- Updating taxonomy                                 ";
+print "\r[genotype_spp.pl] --- Updating taxonomy                                 " if $debug;
 my $sppFreqFile = "$vicutDir/spp_freq.summary";
 my $newTxFile = "$vicutDir/updated2.tx";
 ##my %GTcounter; # $GTcounter{$sp} current index of _GT
@@ -329,9 +329,12 @@ for my $sp ( keys %spp )
 close FREQOUT;
 close TXOUT;
 
-print "\r                                                            ";
-print "\n\tNumber of input sequences: " . scalar(keys %tx) . "\n";
-print   "\tNumber of sequences in the final taxonomy file: $nFinal\n";
+if ($debug)
+{
+  print "\r                                                            ";
+  print "\n\tNumber of input sequences: " . scalar(keys %tx) . "\n";
+  print   "\tNumber of sequences in the final taxonomy file: $nFinal\n\n";
+}
 
 ####################################################################
 ##                               SUBS

@@ -50,6 +50,9 @@
 =item B<--verbose, -v>
   Prints content of some output files.
 
+=item B<--quiet>
+  Do not print progress messages.
+
 =item B<--debug>
   Prints system commands
 
@@ -162,9 +165,11 @@ if ($showAllTrees)
 ##                               MAIN
 ####################################################################
 my $debugStr = "";
+my $quietStr = "--quiet";
 if ($debug)
 {
   $debugStr = "--debug";
+  $quietStr = "";
 }
 
 my $grDir = $grPrefix . "_dir";
@@ -174,6 +179,15 @@ if ( ! -d $grDir )
   warn "ERROR: $grDir does not exist";
   exit;
 }
+
+my $section = qq~
+
+##
+## species-level cleanup
+##
+
+~;
+print "$section";
 
 chdir $grDir;
 print "--- Changed dir to $grDir\n";
@@ -260,9 +274,11 @@ if ( scalar(@ogSeqIDs) == 0 )
   exit;
 }
 
-print "\n\tNumber of seq's in the trimmed alignment/lineage files: " . @seqIDs . "\n";
-print "\tNumber of outgroup seq's: " . @ogSeqIDs . "\n\n";
-
+if ($debug)
+{
+  print "\n\tNumber of seq's in the trimmed alignment/lineage files: " . @seqIDs . "\n";
+  print "\tNumber of outgroup seq's: " . @ogSeqIDs . "\n\n";
+}
 
 print "--- Testing if $treeFile is consistent with $trimmedAlgnFile\n";
 ## extracting leaves' IDs
@@ -379,14 +395,15 @@ for my $id ( keys %lineageTbl )
   push @{$phTbl{$ph}}, $id;
 }
 
-
-print "\nTaxonomy BEFORE cleanup\n";
-printLineage();
+if ($debug)
+{
+  print "\nTaxonomy BEFORE cleanup\n";
+  printLineage();
+}
 
 my $summaryStatsFile = "summary_stats.txt";
 open my $SRYOUT, ">$summaryStatsFile" or die "Cannot open $summaryStatsFile for writing: $OS_ERROR\n";
 printLineageToFile($SRYOUT, "\n\n====== Taxonomy BEFORE cleanup ======\n");
-
 
 ## outgroup seq's lineage
 my %ogSpp;
@@ -519,11 +536,11 @@ if ($debug)
 print "--- Running vicut\n";
 if ($nQuerySeqs)
 {
-  $cmd = "vicut -t $treeFile -a $annFile -q $queryFile -o $vicutDir";
+  $cmd = "vicut $quietStr -t $treeFile -a $annFile -q $queryFile -o $vicutDir";
 }
 else
 {
-  $cmd = "vicut -t $treeFile -a $annFile -o $vicutDir";
+  $cmd = "vicut $quietStr -t $treeFile -a $annFile -o $vicutDir";
 }
 print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
@@ -532,7 +549,7 @@ system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 ## Moreover, if a species is present in more than 1 cluster, it changes
 ## taxonomies of sequences from the small clusters to <genus>_sp
 print "--- Running update_spp_tx.pl\n";
-$cmd = "update_spp_tx.pl $debugStr $useLongSppNamesStr -a $txFile -d $vicutDir";
+$cmd = "update_spp_tx.pl $quietStr $debugStr $useLongSppNamesStr -a $txFile -d $vicutDir";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 
@@ -640,13 +657,13 @@ if (@query2)
   close ANNOUT;
 
   print "--- Running vicut again\n";
-  $cmd = "vicut -t $treeFile -a $annFile2 -q $queryFile2 -o $vicutDir";
-  ##$cmd = "vicut -t $treeFile -a $annFile -o $vicutDir";
+  $cmd = "vicut $quietStr -t $treeFile -a $annFile2 -q $queryFile2 -o $vicutDir";
+  ##$cmd = "vicut $quietStr -t $treeFile -a $annFile -o $vicutDir";
   print "\tcmd=$cmd\n" if $dryRun || $debug;
   system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 
   print "--- Running update_spp_tx.pl\n";
-  $cmd = "update_spp_tx.pl $debugStr $useLongSppNamesStr -a $updatedTxFile -d $vicutDir";
+  $cmd = "update_spp_tx.pl $quietStr $debugStr $useLongSppNamesStr -a $updatedTxFile -d $vicutDir";
   print "\tcmd=$cmd\n" if $dryRun || $debug;
   system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 
@@ -723,14 +740,14 @@ if ( @extraOG>0 )
   print "\tcmd=$cmd\n" if $dryRun || $debug;
   system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 
-  $cmd = "select_tx.pl -e $extraOGfile -i $origNewTxFileNoTGTs -o $updatedTxFile";
+  $cmd = "select_tx.pl $quietStr -e $extraOGfile -i $origNewTxFileNoTGTs -o $updatedTxFile";
   print "\tcmd=$cmd\n" if $dryRun || $debug;
   system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 
   # pruning alignment
   print "--- Pruning extraOG seq's from $trimmedAlgnFile\n";
   my $prunedAlgnFile = $grPrefix . "_algn_trimmed_pruned.fa";
-  $cmd = "select_seqs.pl --quiet -e $extraOGfile -i $trimmedAlgnFile -o $prunedAlgnFile";
+  $cmd = "select_seqs.pl $quietStr -e $extraOGfile -i $trimmedAlgnFile -o $prunedAlgnFile";
   print "\tcmd=$cmd\n" if $dryRun || $debug;
   system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 
@@ -796,7 +813,7 @@ $cmd = "mv $updatedTxFile $origNewTxFileNoTGTs";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 
-$cmd = "select_tx.pl -e $ogFile -i $origNewTxFileNoTGTs -o $updatedTxFile";
+$cmd = "select_tx.pl $quietStr -e $ogFile -i $origNewTxFileNoTGTs -o $updatedTxFile";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 
@@ -905,14 +922,14 @@ if ( @spSingletons )
   print "\tcmd=$cmd\n" if $dryRun || $debug;
   system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 
-  $cmd = "select_tx.pl -e $spSingletonsFile -i $origNewTxFileNoTGTs -o $updatedTxFile";
+  $cmd = "select_tx.pl $quietStr -e $spSingletonsFile -i $origNewTxFileNoTGTs -o $updatedTxFile";
   print "\tcmd=$cmd\n" if $dryRun || $debug;
   system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 
   # pruning alignment
   print "--- Pruning spSingletons seq's from $trimmedAlgnFile\n";
   my $prunedAlgnFile = $grPrefix . "_algn_trimmed_pruned2.fa";
-  $cmd = "select_seqs.pl --quiet -e $spSingletonsFile -i $trimmedAlgnFile -o $prunedAlgnFile";
+  $cmd = "select_seqs.pl $quietStr -e $spSingletonsFile -i $trimmedAlgnFile -o $prunedAlgnFile";
   print "\tcmd=$cmd\n" if $dryRun || $debug;
   system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 
@@ -964,17 +981,17 @@ if ( @spSingletons )
   print "--- Running vicut on species data the 3rd time\n";
   if (@query3)
   {
-    $cmd = "vicut -t $treeFile -a $annFile3 -q $queryFile3 -o $vicutDir";
+    $cmd = "vicut $quietStr -t $treeFile -a $annFile3 -q $queryFile3 -o $vicutDir";
   }
   else
   {
-    $cmd = "vicut -t $treeFile -a $annFile3 -o $vicutDir";
+    $cmd = "vicut $quietStr -t $treeFile -a $annFile3 -o $vicutDir";
   }
   print "\tcmd=$cmd\n" if $dryRun || $debug;
   system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 
   print "--- Running update_spp_tx.pl\n";
-  $cmd = "update_spp_tx.pl $debugStr $useLongSppNamesStr -a $updatedTxFile -d $vicutDir";
+  $cmd = "update_spp_tx.pl $quietStr $debugStr $useLongSppNamesStr -a $updatedTxFile -d $vicutDir";
   print "\tcmd=$cmd\n" if $dryRun || $debug;
   system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 
@@ -1077,7 +1094,7 @@ if ( $nSpecies == 1 )
 ## condensed species (using nw_condense2 showing the number of sequences in
 ## each species) with vicut cluster number
 
-print "\n--- Generating a tree with species names at leaves\n";
+print "--- Generating a tree with species names at leaves\n";
 my $sppTreeFile = "$grPrefix" . "_preGenotyping_spp.tree";
 $cmd = "rm -f $sppTreeFile; nw_rename $treeFile $updatedTxFile | nw_order -c n  - > $sppTreeFile";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
@@ -1162,7 +1179,7 @@ for my $id (keys %idSppCltr)
 }
 close OUT;
 
-print "\n--- Generating a tree with species names sizes and cluster index at leaves\n";
+print "--- Generating a tree with species names sizes and cluster index at leaves\n";
 my $sppSizeCltrTreeFile = "$grPrefix" . "_preGenotyping_sppSizeCltr.tree";
 $cmd = "rm -f $sppSizeCltrTreeFile; nw_rename $treeFile $spSizeCltrFile | nw_order -c n  - > $sppSizeCltrTreeFile";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
@@ -1191,7 +1208,7 @@ if ( $showAllTrees && $OSNAME eq "darwin")
 print "--- Running genotype_spp.pl\n";
 ## Here species that appear more than twice are being indexed so each species
 ## forms a monophyletic clade on the reference tree
-$cmd = "genotype_spp.pl -d $vicutDir";
+$cmd = "genotype_spp.pl $debugStr -d $vicutDir";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 
@@ -1276,7 +1293,7 @@ system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 if (@lostLeaves>0)
 {
   $prunedTreeFile = $grPrefix . "_no_OG_seqs_pruned2.tree";
-  print "\n\tSpecies cleanup eliminated " . @lostLeaves . " sequences\n";
+  print "\n\tSpecies cleanup eliminated " . @lostLeaves . " sequences\n\n" if $debug;
   print "--- Pruning lost seqIDs from the current phylo tree\n";
   $cmd = "rm -f $prunedTreeFile; nw_prune $treeFile @lostLeaves > $prunedTreeFile";
   print "\tcmd=$cmd\n" if $dryRun || $debug;
@@ -1381,7 +1398,7 @@ map { $sppFreqFinal2{$_}++ } values %sppFreqFinal;
 
 ## comparison between old and new species assignments
 print "--- Comparing old and new species assignments\n";
-$cmd = "cmp_tx.pl -i $txFile -j $updatedTxFile2 -o old_vs_new_spp_cmp";
+$cmd = "cmp_tx.pl $quietStr -i $txFile -j $updatedTxFile2 -o old_vs_new_spp_cmp";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 
@@ -1390,7 +1407,7 @@ system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 ## phylogenetic tree with final taxonomy
 ##
 
-print "\n--- Generating a tree with final species names at leaves\n";
+print "--- Generating a tree with final species names at leaves\n";
 my $finalSppTreeFile = "$grPrefix" . "_final_spp.tree";
 $cmd = "rm -f $finalSppTreeFile; nw_rename $treeFile $updatedTxFile2 | nw_order -c n  - > $finalSppTreeFile";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
@@ -1415,7 +1432,7 @@ print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 
 
-my $section = qq~
+$section = qq~
 
 ##
 ## genus-level cleanup
@@ -1450,10 +1467,13 @@ my @spParentKeys = keys %spParent;
 my @excessSpp = diff(\@spParentKeys, \@treeLeaves);
 if (@excessSpp)
 {
-  print "\n\n\tWARNING: Detected spParent keys that are not tree leaves\n";
-  print "\tHere is the list of deleted keys\n";
-  printArray(\@excessSpp);
-  print "\n\tDeleting excess species from spParent table\n";
+  if ($debug)
+  {
+    print "\n\nWARNING: Detected spParent keys that are not tree leaves\n";
+    print "Here is the list of deleted keys\n";
+    printArray(\@excessSpp);
+    print "\n\tDeleting excess species from spParent table\n\n";
+  }
   delete @spParent{@excessSpp};
 }
 
@@ -1487,13 +1507,13 @@ if ($debug)
 }
 
 my $sppGenusFile = $grPrefix . "_spp.genusTx";
-$cmd = "cluster_taxons.pl $igsStr $johannaStr $debugStr $showAllTreesStr -i $finalCondSppTreeFile -p 0.1 -f $spParentFile -t species -o $sppGenusFile";
+$cmd = "cluster_taxons.pl $quietStr $igsStr $johannaStr $debugStr $showAllTreesStr -i $finalCondSppTreeFile -p 0.1 -f $spParentFile -t species -o $sppGenusFile";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 
 my %sppGenus = readTbl($sppGenusFile);
 
-print "--- Updating lineage table at the genu level\n";
+print "--- Updating lineage table at the genus level\n";
 my $finalGenusTxFile = $grPrefix . "_final_genus.tx";
 open OUT, ">$finalGenusTxFile" or die "Cannot open $finalGenusTxFile for writing: $OS_ERROR\n";
 my %geParent;
@@ -1551,7 +1571,7 @@ if ($debug)
   print "\n\n"
 }
 
-print "\n--- Generating a tree with final genus names at leaves\n";
+print "--- Generating a tree with final genus names at leaves\n";
 my $finalGenusTreeFile = "$grPrefix" . "_final_genus.tree";
 $cmd = "rm -f $finalGenusTreeFile; nw_rename $treeFile $finalGenusTxFile | nw_order -c n  - > $finalGenusTreeFile";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
@@ -1622,8 +1642,8 @@ for my $ge (@a)
     $detectedLargeGenus = 1;
     print "\n\tSplitting $ge\n" if $debug;
     my @spp = keys %{$geChildren{$ge}};
-    print "Species of $ge:\n";
-    printArray(\@spp);
+    print "Species of $ge:\n" if $debug;
+    printArray(\@spp) if $debug;
 
     my $geStr = $ge;
     if ( length($geStr) > $maxStrLen )
@@ -1687,7 +1707,7 @@ for my $ge (@a)
     writeTbl(\%spParent2, $spParentFile);
 
     $sppGenusFile = $grPrefix . "_$geStr" . "_spp.genusTx";
-    $cmd = "cluster_taxons.pl $igsStr $johannaStr $debugStr $showAllTreesStr -i $prunedTreeFile -p 0.1 -f $spParentFile -t species -o $sppGenusFile";
+    $cmd = "cluster_taxons.pl $quietStr $igsStr $johannaStr $debugStr $showAllTreesStr -i $prunedTreeFile -p 0.1 -f $spParentFile -t species -o $sppGenusFile";
     print "\tcmd=$cmd\n" if $dryRun || $debug;
     system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 
@@ -1740,7 +1760,7 @@ for my $ge (@a)
 
     @subSppGenus{@spp} = @sppGenus2{@spp};
 
-    print "--- Updating lineage table at the sub-genu of $ge level\n";
+    print "--- Updating lineage table at the sub-genus of $ge level\n" if $debug;
     for my $id (keys %lineageTbl)
     {
       my $lineage = $lineageTbl{$id};
@@ -1765,7 +1785,7 @@ for my $ge (@a)
     my @spp = keys %{$geChildren{$ge}};
     my %sppInd = map{$_ =>1} @spp;
 
-    print "--- Updating lineage table at the sub-genu level for small genus $ge\n";
+    print "--- Updating lineage table at the sub-genus level for small genus $ge\n" if $debug;
     for my $id (keys %lineageTbl)
     {
       my $lineage = $lineageTbl{$id};
@@ -1814,7 +1834,7 @@ if ($detectedLargeGenus)
   }
   close OUT;
 
-  print "\n--- Generating a tree with final sub genus names at leaves\n";
+  print "--- Generating a tree with final sub genus names at leaves\n";
   my $finalSubGenusTreeFile = "$grPrefix" . "_final_sub_genus.tree";
   $cmd = "rm -f $finalSubGenusTreeFile; nw_rename $treeFile $finalSubGenusTxFile | nw_order -c n  - > $finalSubGenusTreeFile";
   print "\tcmd=$cmd\n" if $dryRun || $debug;
@@ -1900,7 +1920,7 @@ if ($debug)
 }
 
 my $genusFamilyFile = $grPrefix . "_genus.familyTx";
-$cmd = "cluster_taxons.pl $igsStr $johannaStr $debugStr $showAllTreesStr -i $finalCondGenusTreeFile -p 0.1 -f $geParentFile -t genus -o $genusFamilyFile";
+$cmd = "cluster_taxons.pl $quietStr $igsStr $johannaStr $debugStr $showAllTreesStr -i $finalCondGenusTreeFile -p 0.1 -f $geParentFile -t genus -o $genusFamilyFile";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 
@@ -1964,7 +1984,7 @@ if ($debug)
 
 if ( scalar(keys %faChildren) > 1 )
 {
-  print "\n--- Generating a tree with final family names at leaves\n";
+  print "--- Generating a tree with final family names at leaves\n";
   my $finalFamilyTreeFile = "$grPrefix" . "_final_family.tree";
   $cmd = "rm -f $finalFamilyTreeFile; nw_rename $treeFile $finalFamilyTxFile | nw_order -c n  - > $finalFamilyTreeFile";
   print "\tcmd=$cmd\n" if $dryRun || $debug;
@@ -2038,7 +2058,7 @@ if ( scalar(keys %faChildren) > 1 )
   writeTbl(\%faParent, $faParentFile);
 
   my $familyOrderFile = $grPrefix . "_family.orderTx";
-  $cmd = "cluster_taxons.pl $igsStr $johannaStr $debugStr $showAllTreesStr -i $finalCondFamilyTreeFile -p 0.1 -f $faParentFile -t family -o $familyOrderFile";
+  $cmd = "cluster_taxons.pl $quietStr $igsStr $johannaStr $debugStr $showAllTreesStr -i $finalCondFamilyTreeFile -p 0.1 -f $faParentFile -t family -o $familyOrderFile";
   print "\tcmd=$cmd\n" if $dryRun || $debug;
   system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 
@@ -2113,7 +2133,7 @@ if ( scalar(keys %faChildren) > 1 )
 
   if ( (scalar(keys %orChildren) > 1) && (@orders < $nFamilies) )
   {
-    print "\n--- Generating a tree with final order names at leaves\n";
+    print "--- Generating a tree with final order names at leaves\n";
     my $finalOrderTreeFile = "$grPrefix" . "_final_order.tree";
     $cmd = "rm -f $finalOrderTreeFile; nw_rename $treeFile $finalOrderTxFile | nw_order -c n  - > $finalOrderTreeFile";
     print "\tcmd=$cmd\n" if $dryRun || $debug;
@@ -2185,7 +2205,7 @@ if ( scalar(keys %faChildren) > 1 )
     writeTbl(\%orParent, $orParentFile);
 
     my $orderClassFile = $grPrefix . "_order.classTx";
-    $cmd = "cluster_taxons.pl $igsStr $johannaStr $debugStr $showAllTreesStr -i $finalCondOrderTreeFile -p 0.1 -f $orParentFile -t order -o $orderClassFile";
+    $cmd = "cluster_taxons.pl $quietStr $igsStr $johannaStr $debugStr $showAllTreesStr -i $finalCondOrderTreeFile -p 0.1 -f $orParentFile -t order -o $orderClassFile";
     print "\tcmd=$cmd\n" if $dryRun || $debug;
     system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 
@@ -2261,7 +2281,7 @@ if ( scalar(keys %faChildren) > 1 )
 
     if ( scalar(keys %clChildren) > 1 )
     {
-      print "\n--- Generating a tree with final class names at leaves\n";
+      print "--- Generating a tree with final class names at leaves\n";
       my $finalClassTreeFile = "$grPrefix" . "_final_class.tree";
       $cmd = "rm -f $finalClassTreeFile; nw_rename $treeFile $finalClassTxFile | nw_order -c n  - > $finalClassTreeFile";
       print "\tcmd=$cmd\n" if $dryRun || $debug;
@@ -2392,11 +2412,12 @@ for my $id ( keys %lineageTbl )
 }
 
 
-
-print "\nTaxonomy AFTER cleanup\n";
-printLineage2();
+if ($debug)
+{
+  print "\nTaxonomy AFTER cleanup\n";
+  printLineage2();
+}
 printLineageToFile2($SRYOUT, "\n\n====== Taxonomy AFTER cleanup ======\n");
-
 
 my $finalLineageFile = $grPrefix . "_final.lineage";
 open OUT, ">$finalLineageFile" or die "Cannot open $finalLineageFile for writing: $OS_ERROR\n";
@@ -2459,12 +2480,12 @@ if ($buildModelData)
 
   print "--- Creating reference gap-free fasta file\n";
   my $tmpFile = $grPrefix . "_tmp.fa";
-  $cmd = "rmGaps --quiet -i $trimmedAlgnFile -o $tmpFile";
+  $cmd = "rmGaps $quietStr -i $trimmedAlgnFile -o $tmpFile";
   print "\tcmd=$cmd\n" if $dryRun || $debug;
   system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 
   my $faFile = $grPrefix . "_final.fa";
-  $cmd = "select_seqs.pl --quiet -s $txFile -i $tmpFile -o $faFile";
+  $cmd = "select_seqs.pl $quietStr -s $txFile -i $tmpFile -o $faFile";
   print "\tcmd=$cmd\n" if $dryRun || $debug;
   system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 
@@ -2558,8 +2579,11 @@ for my $g (@subGenera)
 }
 @subGenera = sort {$subGenusSize{$b} <=> $subGenusSize{$a}} keys %subGenusSize;
 printFormatedTblToFile(\%subGenusSize, \@subGenera, $SRYOUT, "\n==== Number of species per sub-genus ====");
-print "\n==== Number of species per sub-genus ====\n";
-printFormatedTbl(\%subGenusSize, \@subGenera);
+if ($debug)
+{
+  print "\n==== Number of species per sub-genus ====\n";
+  printFormatedTbl(\%subGenusSize, \@subGenera);
+}
 
 ## Number of sub-genera per genus
 @genera = keys %geTbl;
@@ -2570,8 +2594,11 @@ for my $g (@genera)
 }
 @genera = sort {$genusSize{$b} <=> $genusSize{$a}} keys %genusSize;
 printFormatedTblToFile(\%genusSize, \@genera, $SRYOUT, "\n==== Number of sub-genera per genus ====");
-print "\n==== Number of sub-genera per genus ====\n";
-printFormatedTbl(\%genusSize, \@genera);
+if ($debug)
+{
+  print "\n==== Number of sub-genera per genus ====\n";
+  printFormatedTbl(\%genusSize, \@genera);
+}
 
 ## Number of genera per order
 my @families = keys %faTbl;
@@ -2582,8 +2609,11 @@ for my $f (@families)
 }
 @families = sort {$familySize{$b} <=> $familySize{$a}} keys %familySize;
 printFormatedTblToFile(\%familySize, \@families, $SRYOUT, "\n==== Number of genera per family ====");
-print "\n==== Number of genera per family ====\n";
-printFormatedTbl(\%familySize, \@families);
+if ($debug)
+{
+  print "\n==== Number of genera per family ====\n";
+  printFormatedTbl(\%familySize, \@families);
+}
 
 ## Number of families per order
 my @orders = keys %orTbl;
@@ -2594,9 +2624,11 @@ for my $o (@orders)
 }
 @orders = sort {$orderSize{$b} <=> $orderSize{$a}} keys %orderSize;
 printFormatedTblToFile(\%orderSize, \@orders, $SRYOUT, "\n==== Number of families per order ====");
-print "\n==== Number of families per order ====\n";
-printFormatedTbl(\%orderSize, \@orders);
-
+if ($debug)
+{
+  print "\n==== Number of families per order ====\n";
+  printFormatedTbl(\%orderSize, \@orders);
+}
 
 ## Number of orders per class
 my @classes = keys %clTbl;
@@ -2607,9 +2639,11 @@ for my $c (@classes)
 }
 @classes = sort {$classSize{$b} <=> $classSize{$a}} keys %classSize;
 printFormatedTblToFile(\%classSize, \@classes, $SRYOUT, "\n==== Number of orders per class ====");
-print "\n==== Number of orders per class ====\n";
-printFormatedTbl(\%classSize, \@classes);
-
+if ($debug)
+{
+  print "\n==== Number of orders per class ====\n";
+  printFormatedTbl(\%classSize, \@classes);
+}
 
 print $SRYOUT "\n\n--- Final summary\n";
 
@@ -2652,44 +2686,46 @@ print $SRYOUT  "\tNumber of phyla AFTER taxonomic cleanup: " . scalar( keys %phT
 close $SRYOUT;
 
 
-print  "\n\n--- Final summary\n";
-
-print   "\n\n\tNumber of species (with OG seq's) BEFORE taxonomic cleanup: " . scalar( keys %sppFreq ) . "\n";
-print     "\tNumber of species (with OG seq's) AFTER taxonomic cleanup and tentative ribotype splits:  " . scalar( keys %sppFreqFinal ) . "\n\n";
-
-print  "\tNumber of _sp species BEFORE taxonomic cleanup: $nSpSpp\n";
-print  "\tNumber of _sp species AFTER taxonomic cleanup: $nSpSppFinal\n\n";
-
-print   "\tNumber of singletons species BEFORE taxonomic cleanup: $sppFreq2{1}\n";
-if (exists $sppFreqFinal2{1})
+if ($debug)
 {
-  print   "\tNumber of singletons species AFTER taxonomic cleanup: $sppFreqFinal2{1}\n\n";
+  print  "\n\n--- Final summary\n";
+
+  print   "\n\n\tNumber of species (with OG seq's) BEFORE taxonomic cleanup: " . scalar( keys %sppFreq ) . "\n";
+  print     "\tNumber of species (with OG seq's) AFTER taxonomic cleanup and tentative ribotype splits:  " . scalar( keys %sppFreqFinal ) . "\n\n";
+
+  print  "\tNumber of _sp species BEFORE taxonomic cleanup: $nSpSpp\n";
+  print  "\tNumber of _sp species AFTER taxonomic cleanup: $nSpSppFinal\n\n";
+
+  print   "\tNumber of singletons species BEFORE taxonomic cleanup: $sppFreq2{1}\n";
+  if (exists $sppFreqFinal2{1})
+  {
+    print   "\tNumber of singletons species AFTER taxonomic cleanup: $sppFreqFinal2{1}\n\n";
+  }
+  else
+  {
+    print   "\tNo singletons species AFTER taxonomic cleanup\n\n";
+  }
+
+  print  "\tNumber of sub-genera AFTER taxonomic cleanup: " . scalar( keys %subGeTbl ) . "\n\n";
+
+  print   "\tNumber of genera BEFORE taxonomic cleanup: $initNumGenera\n";
+  print   "\tNumber of genera AFTER taxonomic cleanup: " . scalar( keys %geTbl ) . "\n\n";
+
+  print   "\tNumber of genera with only one species and the species being _sp BEFORE taxonomic cleanup: $nSpGenera\n";
+  print   "\tNumber of genera with only one species and the species being _sp AFTER taxonomic cleanup: $nSpGeneraFinal\n\n";
+
+  print   "\tNumber of families BEFORE taxonomic cleanup: $initNumFamilies\n";
+  print   "\tNumber of families AFTER taxonomic cleanup: " . scalar( keys %faTbl ) . "\n\n";
+
+  print   "\tNumber of orders BEFORE taxonomic cleanup: $initNumOrders\n";
+  print   "\tNumber of orders AFTER taxonomic cleanup: " . scalar( keys %orTbl ) . "\n\n";
+
+  print   "\tNumber of classes BEFORE taxonomic cleanup: $initNumClasses\n";
+  print   "\tNumber of classes AFTER taxonomic cleanup: " . scalar( keys %clTbl ) . "\n\n";
+
+  print   "\tNumber of phyla BEFORE taxonomic cleanup: $initNumPhyla\n";
+  print   "\tNumber of phyla AFTER taxonomic cleanup: " . scalar( keys %phTbl ) . "\n\n";
 }
-else
-{
-  print   "\tNo singletons species AFTER taxonomic cleanup\n\n";
-}
-
-print  "\tNumber of sub-genera AFTER taxonomic cleanup: " . scalar( keys %subGeTbl ) . "\n\n";
-
-print   "\tNumber of genera BEFORE taxonomic cleanup: $initNumGenera\n";
-print   "\tNumber of genera AFTER taxonomic cleanup: " . scalar( keys %geTbl ) . "\n\n";
-
-print   "\tNumber of genera with only one species and the species being _sp BEFORE taxonomic cleanup: $nSpGenera\n";
-print   "\tNumber of genera with only one species and the species being _sp AFTER taxonomic cleanup: $nSpGeneraFinal\n\n";
-
-print   "\tNumber of families BEFORE taxonomic cleanup: $initNumFamilies\n";
-print   "\tNumber of families AFTER taxonomic cleanup: " . scalar( keys %faTbl ) . "\n\n";
-
-print   "\tNumber of orders BEFORE taxonomic cleanup: $initNumOrders\n";
-print   "\tNumber of orders AFTER taxonomic cleanup: " . scalar( keys %orTbl ) . "\n\n";
-
-print   "\tNumber of classes BEFORE taxonomic cleanup: $initNumClasses\n";
-print   "\tNumber of classes AFTER taxonomic cleanup: " . scalar( keys %clTbl ) . "\n\n";
-
-print   "\tNumber of phyla BEFORE taxonomic cleanup: $initNumPhyla\n";
-print   "\tNumber of phyla AFTER taxonomic cleanup: " . scalar( keys %phTbl ) . "\n\n";
-
 
 print "\n\n\tSee $grDir/$readmeFile for info about the taxonomy curation algorithm and the content of the output directory.\n";
 print     "\tSummary stats written to $grDir/$summaryStatsFile\n\n";
@@ -4002,7 +4038,7 @@ sub test_OG
     }
   }
 
-  print "\n\tOG seq's form a monophylectic clade at the top or bottom of the input tree\n\n";# if $debug_test_OG;
+  print "\n\tOG seq's form a monophylectic clade at the top or bottom of the input tree\n\n" if $debug_test_OG;
 }
 
 # print array to stdout

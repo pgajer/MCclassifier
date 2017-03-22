@@ -40,6 +40,9 @@
 =item B<--show-tree>
   Open the pdf file with the tree used to do clustering.
 
+=item B<--quiet>
+  Do not print progress messages.
+
 =item B<--verbatim, -v>
   Prints content of some output files.
 
@@ -84,6 +87,7 @@ GetOptions(
   "output-file|o=s"      => \my $outFile,
   "show-boot-vals"       => \my $showBoostrapVals,
   "show-tree"            => \my $showTree,
+  "quiet"                => \my $quiet,
   "igs"                  => \my $igs,
   "johanna"              => \my $johanna,
   "verbatim|v"           => \my $verbatim,
@@ -204,7 +208,18 @@ if ( ! exists $inputTaxonsTbl{$taxon} )
 ##                               MAIN
 ####################################################################
 
-print "--- Parsing parent table\n";
+my $quietStr = "";
+if ($quiet)
+{
+  $quietStr = "--quiet";
+}
+
+if ($debug)
+{
+  $quietStr = "";
+}
+
+print "--- Parsing parent table\n"  if !$quiet;
 my %parent = read2colTbl($parentFile);
 
 my %parentFreq; ## number of elements of parent clusters
@@ -234,19 +249,19 @@ if ($debug)
   print "\n";
 }
 
-print "--- Rooting the tree\n";
+print "--- Rooting the tree\n" if !$quiet;
 my $cmd = "root_tree.pl -i $treeFile";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 
-print "--- Running phylo partitioning on $treeFile at $percThld percentile thld\n";
+print "--- Running phylo partitioning on $treeFile at $percThld percentile thld\n" if !$quiet;
 my $partFile     = "phyloPart_$taxon" . "_$percThld" . ".txt";
 my $phyloPartLog = "phyloPart_$taxon.log";
 $cmd = "rm -f $phyloPartLog; java -jar $phyloPart $treeFile $percThld -o$partFile > $phyloPartLog ";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 
-print "--- Parsing phylo partitioning data\n";
+print "--- Parsing phylo partitioning data\n" if !$quiet;
 my %part = read_part_tbl($partFile);
 
 my %partTbl; ## cluster => elements of the cluster
@@ -281,12 +296,12 @@ if ($debug)
 }
 
 my $partCltrFile = "phyloPart_$taxon" . "_$percThld" . ".cltr";
-print "--- Writing phylo partitioning to $partCltrFile\n";
+print "--- Writing phylo partitioning to $partCltrFile\n" if !$quiet;
 writeTbl(\%part, $partCltrFile);
 
 if ( $nPhyloParts > 1 )
 {
-  print "--- Generating annotation and query files\n";
+  print "--- Generating annotation and query files\n" if !$quiet;
   my $annFile    = "phyloPart_$taxon" . "_ann.tx";
   my $queryFile  = "phyloPart_$taxon" . "_query.seqIDs";
   my $vicutDir   = "phyloPart_$taxon" . "_vicut_dir";
@@ -316,7 +331,7 @@ if ( $nPhyloParts > 1 )
   close ANNOUT;
   close QOUT;
 
-  print "--- Parsing tree leaves\n";
+  print "--- Parsing tree leaves\n" if !$quiet;
   my $treeLeavesFile = "phyloPart_$taxon" . "_tree.leaves";
   $cmd = "rm -f $treeLeavesFile; nw_labels -I $treeFile > $treeLeavesFile";
   print "\tcmd=$cmd\n" if $dryRun || $debug;
@@ -324,17 +339,20 @@ if ( $nPhyloParts > 1 )
 
   my @treeLeaves = readArray($treeLeavesFile);
 
-  print "\n\n\tNumber of annotation seq's: $nAnnSeqs\n";
-  print     "\tNumber of query seq's:      $nQuerySeqs\n";
-  print     "\tSum:                        " . ($nAnnSeqs + $nQuerySeqs) . "\n";
-  print     "\tNumber of leaves: " . @treeLeaves . "\n";
+  if ( !$quiet )
+  {
+    print "\n\n\tNumber of annotation seq's: $nAnnSeqs\n";
+    print     "\tNumber of query seq's:      $nQuerySeqs\n";
+    print     "\tSum:                        " . ($nAnnSeqs + $nQuerySeqs) . "\n";
+    print     "\tNumber of leaves: " . @treeLeaves . "\n";
+  }
 
   my %part2;  # leaf label => cltrID
   my %cltr;   # cltrID => ref to array of IDs in the given cluster
   if ($nAnnSeqs > 0)
   {
     my $nParent = keys %parent;
-    print     "\tNumber of elemets of the parent table: $nParent\n\n";
+    print     "\tNumber of elemets of the parent table: $nParent\n\n" if !$quiet;
 
     if ( $nParent != @treeLeaves )
     {
@@ -355,26 +373,29 @@ if ( $nPhyloParts > 1 )
       exit;
     }
 
-    printArray(\@annTx, "Annotation taxons:");
-    print "\n";
+    if ( $debug )
+    {
+      printArray(\@annTx, "Annotation taxons:");
+      print "\n";
 
-    printArray(\@queryTx, "Query taxons:");
-    print "\n";
+      printArray(\@queryTx, "Query taxons:");
+      print "\n";
+    }
 
-    print "--- Running vicut\n";
+    print "--- Running vicut\n" if !$quiet;
     if ($nQuerySeqs)
     {
-      $cmd = "vicut -t $treeFile -a $annFile -q $queryFile -o $vicutDir";
+      $cmd = "vicut $quietStr -t $treeFile -a $annFile -q $queryFile -o $vicutDir";
     }
     else
     {
-      $cmd = "vicut -t $treeFile -a $annFile -o $vicutDir";
+      $cmd = "vicut $quietStr -t $treeFile -a $annFile -o $vicutDir";
     }
     print "\tcmd=$cmd\n" if $dryRun || $debug;
     system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 
     my $cltrFile = "$vicutDir/minNodeCut.cltrs";
-    print "--- Parsing vicut clustering file $cltrFile\n";
+    print "--- Parsing vicut clustering file $cltrFile\n" if !$quiet;
     if ( ! -f $cltrFile )
     {
       warn "\nERROR: $cltrFile does not exist";
@@ -408,21 +429,24 @@ if ( $nPhyloParts > 1 )
     # }
   }
 
-  print "\nPhylo partition sizes\n";
-  printFormatedTbl(\%partFreq);
+  if ($debug)
+  {
+    print "\nPhylo partition sizes\n";
+    printFormatedTbl(\%partFreq);
+  }
 
-  print "After vicut phylo partition sizes\n";
+  print "After vicut phylo partition sizes\n" if !$quiet;
   my %part2Freq; ## number of elements per phylo partition cluster
   map { $part2Freq{$_}++ } values %part2;
 
-  printFormatedTbl(\%part2Freq);
+  printFormatedTbl(\%part2Freq) if !$quiet;
 
   my $nVicutCltrs = keys %part2Freq;
 
   if ( $nVicutCltrs <= $nPhyloParts )
   {
-    print "--- Number of vicut clusters, $nVicutCltrs, is not greater than the number of phylo parts, $nPhyloParts\n";
-    print "    Using phyloParts partition\n";
+    print "--- Number of vicut clusters, $nVicutCltrs, is not greater than the number of phylo parts, $nPhyloParts\n" if !$quiet;
+    print "    Using phyloParts partition\n" if !$quiet;
 
     my $clCounter = 1;
     undef %part2;
@@ -443,18 +467,20 @@ if ( $nPhyloParts > 1 )
     }
   }
 
-  print "\nVicut updated phylo partition clusters:\n";
-  my @q = sort { @{$cltr{$b}} <=> @{$cltr{$a}} } keys %cltr;
-  for my $cl (@q)
+  if ($debug)
   {
-    print "Cluster $cl:\n";
-    for (@{$cltr{$cl}})
+    print "\nVicut updated phylo partition clusters:\n";
+    my @q = sort { @{$cltr{$b}} <=> @{$cltr{$a}} } keys %cltr;
+    for my $cl (@q)
     {
-      print "\t$_\n";
+      print "Cluster $cl:\n";
+      for (@{$cltr{$cl}})
+      {
+	print "\t$_\n";
+      }
     }
+    print "\n\n";
   }
-  print "\n\n";
-
 
   ## Each cluster will have the name sub_<parent>_<idx>
   ## if all taxons of the cluster have the same parent
@@ -485,20 +511,23 @@ if ( $nPhyloParts > 1 )
     $clParent{$cl} = $parStr;
   }
 
-  print "\nDiscovered Cluster Parents\n";
-  my @a = sort { $pars{$b} <=> $pars{$a} } keys %pars;
-  for (@a)
+  if (!$quiet)
   {
-    print "\t$_\n";
+    print "\nDiscovered Cluster Parents\n";
+    my @a = sort { $pars{$b} <=> $pars{$a} } keys %pars;
+    for (@a)
+    {
+      print "\t$_\n";
+    }
+    print "\n";
   }
-  print "\n";
 
-  print "--- Changing cluster names\n";
+  print "--- Changing cluster names\n" if !$quiet;
   my %cltr2;
   my %txSubParent;
   my %parentIdx;
   my %txSubParentIdx; # this is for species_idx tree only
-  @q = sort { @{$cltr{$b}} <=> @{$cltr{$a}} } keys %cltr;
+  my @q = sort { @{$cltr{$b}} <=> @{$cltr{$a}} } keys %cltr;
   my $count = 1;
   open OUT, ">$outFile" or die "Cannot open $outFile for writing: $OS_ERROR\n";
   for my $cl (@q)
@@ -515,7 +544,7 @@ if ( $nPhyloParts > 1 )
     }
     $cltr2{$tx} = $cltr{$cl};
     $parentIdx{$tx} = $count;
-    print "\tProcessing cluster $cl with new taxonomy $tx\n";
+    print "\tProcessing cluster $cl with new taxonomy $tx\n" if $debug;
     for (@{$cltr{$cl}})
     {
       $txSubParent{$_} = $tx;
@@ -526,27 +555,31 @@ if ( $nPhyloParts > 1 )
   }
   close OUT;
 
-  print "\nVicut updated phylo partition clusters with new names:\n";
-  @q = sort { @{$cltr2{$b}} <=> @{$cltr2{$a}} } keys %cltr2;
-  for my $cl (@q)
+  if ($debug)
   {
-    print "Cluster $cl => $parentIdx{$cl} (" . @{$cltr2{$cl}} . "):\n";
-    for (@{$cltr2{$cl}})
+    print "\nVicut updated phylo partition clusters with new names:\n";
+    @q = sort { @{$cltr2{$b}} <=> @{$cltr2{$a}} } keys %cltr2;
+    for my $cl (@q)
     {
-      print "\t$_\n";
+      print "Cluster $cl => $parentIdx{$cl} (" . @{$cltr2{$cl}} . "):\n";
+      for (@{$cltr2{$cl}})
+      {
+	print "\t$_\n";
+      }
     }
-  }
-  print "\n\n";
+    print "\n\n";
 
-  print "\nVicut updated phylo partition cluster sizes:\n";
-  @q = sort { @{$cltr2{$b}} <=> @{$cltr2{$a}} } keys %cltr2;
-  for my $cl (@q)
-  {
-    print "Cluster $cl " . @{$cltr2{$cl}} . "\n";
+    print "\nVicut updated phylo partition cluster sizes:\n";
+    @q = sort { @{$cltr2{$b}} <=> @{$cltr2{$a}} } keys %cltr2;
+    for my $cl (@q)
+    {
+      print "Cluster $cl " . @{$cltr2{$cl}} . "\n";
+    }
+    print "\n\n";
   }
-  print "\n\n";
 
-  print "--- Creating tree with taxon_cluster leaf names\n";
+
+  print "--- Creating tree with taxon_cluster leaf names\n" if !$quiet;
   my $spClFile = "phyloPart_$taxon" . ".sppCl";
   my $spClFile2 = abs_path( "phyloPart_$taxon" . ".sppCl2" );
   open OUT, ">$spClFile" or die "Cannot open $spClFile for writing: $OS_ERROR\n";
@@ -595,8 +628,11 @@ else
   ## $nPhyloParts < $nParents
   ## using parent table
 
-  print "--- Phylo partition generated only one cluster\n";
-  print "    Putting all taxons in one cluster\n";
+  if (!$quiet)
+  {
+    print "--- Phylo partition generated only one cluster\n";
+    print "    Putting all taxons in one cluster\n";
+  }
 
   my @pars = sort { $parentFreq{$b} <=> $parentFreq{$a} } keys %parentFreq;
   my $tx = join "_", @pars;
