@@ -214,6 +214,9 @@ print "--- Parsing $outgroupFile\n";
 my @ogSeqIDs = readArray($outgroupFile);
 my %ogInd = map{$_ =>1} @ogSeqIDs; # outgroup elements indicator table
 
+print "--- Testing if OG seq's form a monophylectic clade at the top or bottom of the input tree\n";
+test_OG($treeFile, \%ogInd);
+
 print "--- Extracting seq IDs from trimmed alignment fasta file\n";
 my @seqIDs = get_seqIDs_from_fa($trimmedAlgnFile);
 
@@ -1324,7 +1327,7 @@ if (@tlComm != @newTxKeys || @tlComm != @lineageTblKeys)
 }
 
 ## Generating some summary tables
-%sppFreqFinal; ## table of number of sequences per species
+undef %sppFreqFinal; ## table of number of sequences per species
 map { $sppFreqFinal{$_}++ } values %newTx;
 
 ## number of _sp species
@@ -2610,7 +2613,7 @@ require(phytools)
 tr1 <- read.newick(file=\"$treeFile\")
 tr1 <- collapse.singles(tr1)
 
-tip.cltr <- cltr[tr1$tip.label]
+tip.cltr <- cltr[tr1\$tip.label]
 
 colIdx <- 1
 tip.colors <- c()
@@ -2628,7 +2631,7 @@ for ( i in 2:length(tip.cltr) )
     tip.colors[i] <- colIdx
     if ( colIdx==7 )
     {
-        tip.colors[i] <- "brown"
+        tip.colors[i] <- "brown" # using brown instead of yellow
     }
 }
 
@@ -3647,6 +3650,258 @@ step of the algorithm and the corresonding trees are labeled as
   open OUT, ">$file" or die "Cannot open $file for writing: $OS_ERROR\n";
   print OUT "$text\n";
   close OUT;
+}
+
+
+# test if OG seq's form one or more clusters in the tree
+sub test_OG
+{
+  my ($treeFile, $rogInd) = @_;
+
+  my %ogInd = %{$rogInd};
+
+  my $debug_test_OG = 0;
+
+  print "\t--- Extracting leaves\n" if $debug_test_OG;
+  my $treeLeavesFile = "$grPrefix" . "_sppSeqIDs.leaves";
+  my $cmd = "rm -f $treeLeavesFile; nw_labels -I $treeFile > $treeLeavesFile";
+  print "\tcmd=$cmd\n" if $dryRun || $debug_test_OG;
+  system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+
+  print "\t--- Reading leaves\n" if $debug_test_OG;
+  my @leaves = readArray($treeLeavesFile);
+
+  print "\t--- Checking the number of clusters formed by OG seqs\n" if $debug_test_OG;
+  my @ogIdx;
+  for my $i (0..$#leaves)
+  {
+    if ( exists $ogInd{$leaves[$i]} )
+    {
+      push @ogIdx, $i;
+    }
+  }
+
+  printArray(\@ogIdx, "\nPositions of OG seq's") if ($debug_test_OG);
+
+  ## identifying consecutive indices ranges
+  my @start;
+  my @end;
+
+  push @start, $ogIdx[0];
+  if (@ogIdx>1)
+  {
+    for my $i (1..$#ogIdx)
+    {
+      ##if ( !$foundEnd && $ogIdx[$i] != $start[$rIdx] )
+      if ( $ogIdx[$i-1]+1 != $ogIdx[$i] )
+      {
+	#$foundEnd = 1;
+	push @end, $ogIdx[$i-1];
+	push @start, $ogIdx[$i];
+      }
+      if ($i==$#ogIdx)
+      {
+	push @end, $ogIdx[$i];
+      }
+
+      if (0 && $debug_test_OG)
+      {
+	print "\ni: $i\n";
+	printArray(\@start, "start");
+	printArray(\@end, "end");
+      }
+    }
+  }
+  else
+  {
+    push @end, $ogIdx[0];
+  }
+
+  my @ogPos1;  # OG positions
+  for my $i (0..$#start)
+  {
+    push @ogPos1, ($start[$i] .. $end[$i]);
+  }
+
+  my @og = @leaves[@ogPos1];
+  my @ogBig = @leaves[($start[0] .. $end[$#end])];
+
+  printArrayByRow(\@og, "\nOutgroup elements") if ($debug_test_OG);
+
+  if ( scalar(@start) != scalar(@end) )
+  {
+    warn "$grPrefix\nERROR: start and end arrays have different lengths!";
+    print "length(start): " . @start . "\n";
+    print "length(end): " . @end . "\n";
+    exit;
+  }
+
+  my @rangeSize;
+  for my $i (0..$#start)
+  {
+    push @rangeSize, ($end[$i] - $start[$i]+1);
+  }
+
+  if ($debug_test_OG)
+  {
+    print "\nstart\tend\tsize\n";
+    for my $i (0..$#start)
+    {
+      print "$start[$i]\t$end[$i]\t$rangeSize[$i]\n";
+    }
+    print "\n";
+  }
+
+  if (@rangeSize>1)
+  {
+    warn "\n\n\tERROR: Detected multiple OG clusters";
+    print "\n\n";
+
+    my $imax = argmax(\@rangeSize);
+    print "imax: $imax\n";
+    print "Maximal range size: " . $rangeSize[$imax] . "\n";
+
+    my $minCladeSize = @leaves;
+    my $minCladeSizeIdx = $imax;
+    print "Clade size of each cluster of maximal range size\n";
+    print "\nidx\tstart\tend\trgSize\tcladeSize\n";
+    for my $i (0..$#rangeSize)
+    {
+      #if ($rangeSize[$i] == $rangeSize[$imax])
+      if (1)
+      {
+	my @pos = ($start[$i] .. $end[$i]);
+	my @og = @leaves[@pos];
+
+	#print "\t--- Extracting the clade of OG sequences\n";
+	my $ogCladeTreeFile = "$grPrefix" . "_clade.tree";
+	$cmd = "rm -f $ogCladeTreeFile; nw_clade $treeFile @og > $ogCladeTreeFile";
+	#print "\tcmd=$cmd\n" if $dryRun || $debug_test_OG;
+	system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+
+	#print "\t--- Extracting leaves of the OG clade\n";
+	my $ogCladeTreeLeavesFile = "$grPrefix" . "_clade.leaves";
+	$cmd = "rm -f $ogCladeTreeLeavesFile; nw_labels -I $ogCladeTreeFile > $ogCladeTreeLeavesFile";
+	#print "\tcmd=$cmd\n" if $dryRun || $debug_test_OG;
+	system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+
+	#print "\t--- Reading the leaves\n" if $debug_test_OG;
+	my @ogCladeLeaves = readArray($ogCladeTreeLeavesFile);
+
+	print "i: $i\t$start[$i]\t$end[$i]\t$rangeSize[$i]\t" . @ogCladeLeaves . "\n";
+	if ( @ogCladeLeaves < $minCladeSize )
+	{
+	  $minCladeSize = @ogCladeLeaves;
+	  $minCladeSizeIdx = $i;
+	}
+      }
+    }
+
+    # $imax = $minCladeSizeIdx;
+    # print "\nUpdated imax: $imax\n";
+    exit;
+  }
+  elsif ( !( $start[0] == 0 || $end[0] == $#leaves) )
+  {
+    warn "$\n\n\tERROR: In the pruned tree outgroups sequences are not at the top or bottom of the tree!";
+
+    print "\n\nNumber of leaves: " . @leaves . "\n";
+    print "\nstart\tend\tsize\n";
+    for my $i (0..$#start)
+    {
+      print "$start[$i]\t$end[$i]\t$rangeSize[$i]\n";
+    }
+    print "\n";
+
+    printArrayByRow(\@og, "og");
+    print "\n";
+
+    my $maxOGbigSize = 100;
+    if ( @ogBig < $maxOGbigSize )
+    {
+      printArrayByRow(\@ogBig, "Leaves from first to last OG seq");
+    }
+
+    print "\t--- Extracting the clade of OG sequences\n";
+    my $ogCladeTreeFile = "$grPrefix" . "_OG_clade.tree";
+    $cmd = "rm -f $ogCladeTreeFile; nw_clade $treeFile @og > $ogCladeTreeFile";
+    print "\tcmd=$cmd\n" if $dryRun || $debug_test_OG;
+    system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+
+    #print "\t--- Extracting leaves of the OG clade\n";
+    my $ogCladeTreeLeavesFile = "$grPrefix" . "_OG_clade.leaves";
+    $cmd = "rm -f $ogCladeTreeLeavesFile; nw_labels -I $ogCladeTreeFile > $ogCladeTreeLeavesFile";
+    print "\tcmd=$cmd\n" if $dryRun || $debug_test_OG;
+    system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+
+    #print "\t--- Reading the leaves\n" if $debug_test_OG;
+    my @ogCladeLeaves = readArray($ogCladeTreeLeavesFile);
+
+    my $maxCladeSize = 100;
+    if ( @ogCladeLeaves < $maxCladeSize )
+    {
+      printArrayByRow(\@ogCladeLeaves, "OG Clade Leaves");
+    }
+    else
+    {
+      print "\n\tLeaves of the OG clade written to $ogCladeTreeLeavesFile\n"
+    }
+
+    print "\n\tNumber of leaves of the OG clade: " . @ogCladeLeaves . "\n";
+    print   "\tNumber of OG sequences: " . @og . "\n\n";
+
+    exit;
+  }
+  else
+  {
+    print "\t--- Extracting the clade of OG sequences\n" if $debug_test_OG;
+    my $ogCladeTreeFile = "$grPrefix" . "_OG_clade.tree";
+    $cmd = "rm -f $ogCladeTreeFile; nw_clade $treeFile @og > $ogCladeTreeFile";
+    print "\tcmd=$cmd\n" if $dryRun || $debug_test_OG;
+    system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+
+    #print "\t--- Extracting leaves of the OG clade\n";
+    my $ogCladeTreeLeavesFile = "$grPrefix" . "_OG_clade.leaves";
+    $cmd = "rm -f $ogCladeTreeLeavesFile; nw_labels -I $ogCladeTreeFile > $ogCladeTreeLeavesFile";
+    print "\tcmd=$cmd\n" if $dryRun || $debug_test_OG;
+    system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+
+    #print "\t--- Reading the leaves\n" if $debug_test_OG;
+    my @ogCladeLeaves = readArray($ogCladeTreeLeavesFile);
+
+    if ( @ogCladeLeaves != @og )
+    {
+      warn "$\n\n\tERROR: The outgroup sequences do not form a monophyletic clade!";
+
+      my $maxCladeSize = 100;
+      if ( @ogCladeLeaves < $maxCladeSize )
+      {
+	printArrayByRow(\@ogCladeLeaves, "OG Clade Leaves");
+      }
+      else
+      {
+	print "\n\tLeaves of the OG clade written to $ogCladeTreeLeavesFile\n"
+      }
+
+      print "\n\tNumber of leaves of the OG clade: " . @ogCladeLeaves . "\n";
+      print   "\tNumber of OG sequences: " . @og . "\n\n";
+      exit;
+    }
+  }
+
+  print "\n\tOG seq's form a monophylectic clade at the top or bottom of the input tree\n\n";# if $debug_test_OG;
+}
+
+# print array to stdout
+sub printArrayByRow
+{
+  my ($a, $header) = @_;
+
+  local $" = '\n ';
+  ##local $, = ',';
+  print "$header:\n" if $header;
+  map { print "$_\n" } @{$a};
+  print "\n";
 }
 
 exit;
