@@ -326,13 +326,13 @@ if ($reportOnly)
 	my @og = @leaves[@pos];
 
 	#print "--- Extracting the clade of OG sequences\n";
-	my $ogCladeTreeFile = "$grPrefix" . "_clade.tree";
+	my $ogCladeTreeFile = "$grPrefix" . "_OG_clade.tree";
 	$cmd = "rm -f $ogCladeTreeFile; nw_clade $sppSeqIdTreeFile @og > $ogCladeTreeFile";
 	#print "\tcmd=$cmd\n" if $dryRun || $debug;
 	system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 
 	#print "--- Extracting leaves of the OG clade\n";
-	my $ogCladeTreeLeavesFile = "$grPrefix" . "_clade.leaves";
+	my $ogCladeTreeLeavesFile = "$grPrefix" . "_OG_clade.leaves";
 	$cmd = "rm -f $ogCladeTreeLeavesFile; nw_labels -I $ogCladeTreeFile > $ogCladeTreeLeavesFile";
 	#print "\tcmd=$cmd\n" if $dryRun || $debug;
 	system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
@@ -393,13 +393,13 @@ if (@rangeSize>1)
       my @og = @leaves[@pos];
 
       #print "--- Extracting the clade of OG sequences\n";
-      my $ogCladeTreeFile = "$grPrefix" . "_clade.tree";
+      my $ogCladeTreeFile = "$grPrefix" . "_OG_clade.tree";
       $cmd = "rm -f $ogCladeTreeFile; nw_clade $sppSeqIdTreeFile @og > $ogCladeTreeFile";
       #print "\tcmd=$cmd\n" if $dryRun || $debug;
       system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 
       #print "--- Extracting leaves of the OG clade\n";
-      my $ogCladeTreeLeavesFile = "$grPrefix" . "_clade.leaves";
+      my $ogCladeTreeLeavesFile = "$grPrefix" . "_OG_clade.leaves";
       $cmd = "rm -f $ogCladeTreeLeavesFile; nw_labels -I $ogCladeTreeFile > $ogCladeTreeLeavesFile";
       #print "\tcmd=$cmd\n" if $dryRun || $debug;
       system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
