@@ -91,6 +91,7 @@ GetOptions(
   "use-long-spp-names"  => \my $useLongSppNames,
   "taxon-size-thld"     => \$taxonSizeThld,
   "show-all-trees"      => \my $showAllTrees,
+  "do-not-pop-pdfs"     => \my $doNotPopPDFs,
   "igs"                 => \my $igs,
   "johanna"             => \my $johanna,
   "verbose|v"           => \my $verbose,
@@ -1578,7 +1579,7 @@ my $pdfCsppWithGenusColorsTreeFile = abs_path( $grPrefix . "_final_spp_condensed
 my $title = $grPrefix . " - genera";
 plot_tree($finalCondSppTreeFile, $genusIdxFile, $pdfCsppWithGenusColorsTreeFile, $title);
 
-if ( $OSNAME eq "darwin")
+if ( !$doNotPopPDFs && $OSNAME eq "darwin")
 {
   $cmd = "open $pdfCsppWithGenusColorsTreeFile";
   print "\tcmd=$cmd\n" if $dryRun || $debug;
@@ -1841,7 +1842,7 @@ if ($detectedLargeGenus)
   $title = $grPrefix . " - sub-genera";
   plot_tree($finalCondSppTreeFile, $subgenusIdxFile, $pdfCsppTreeFile, $title);
 
-  if ( $OSNAME eq "darwin")
+  if ( !$doNotPopPDFs && $OSNAME eq "darwin")
   {
     $cmd = "open $pdfCsppTreeFile";
     print "\tcmd=$cmd\n" if $dryRun || $debug;
@@ -1992,7 +1993,7 @@ if ( scalar(keys %faChildren) > 1 )
   $title = $grPrefix . " - families";
   plot_tree($finalCondSppTreeFile, $familyIdxFile, $pdfFamilyColorsCsppTreeFile, $title);
 
-  if ( $OSNAME eq "darwin")
+  if ( !$doNotPopPDFs && $OSNAME eq "darwin")
   {
     $cmd = "open $pdfFamilyColorsCsppTreeFile";
     print "\tcmd=$cmd\n" if $dryRun || $debug;
@@ -2139,7 +2140,7 @@ if ( scalar(keys %faChildren) > 1 )
     $title = $grPrefix . " - orders";
     plot_tree($finalCondSppTreeFile, $orderIdxFile, $pdfOrderColorsCsppTreeFile, $title);
 
-    if ( $OSNAME eq "darwin")
+    if ( !$doNotPopPDFs && $OSNAME eq "darwin")
     {
       $cmd = "open $pdfOrderColorsCsppTreeFile";
       print "\tcmd=$cmd\n" if $dryRun || $debug;
@@ -2287,7 +2288,7 @@ if ( scalar(keys %faChildren) > 1 )
       $title = $grPrefix . " - classes";
       plot_tree($finalCondSppTreeFile, $classIdxFile, $pdfClassColorsCsppTreeFile, $title);
 
-      if ( $OSNAME eq "darwin")
+      if ( !$doNotPopPDFs && $OSNAME eq "darwin")
       {
 	$cmd = "open $pdfClassColorsCsppTreeFile";
 	print "\tcmd=$cmd\n" if $dryRun || $debug;
