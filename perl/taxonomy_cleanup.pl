@@ -41,6 +41,12 @@
 =item B<--taxon-size-thld>
   Upper limit for the number of elements within each taxon
 
+=item B<--build-model-data>
+  Generate
+    - species lineage file (grPrefix_final.spLineage)
+    - taxon file (grPrefix_final.tx)
+    - ungapped fasta file corresponding to sequences present in the taxon file
+
 =item B<--verbose, -v>
   Prints content of some output files.
 
@@ -61,7 +67,7 @@
 
   taxonomy_cleanup.pl --debug -i Firmicutes_group_6
 
-  taxonomy_cleanup.pl --debug --use-long-spp-names -i Firmicutes_group_6_V3V4
+  taxonomy_cleanup.pl --do-not-pop-pdfs --build-model-data --use-long-spp-names -i Firmicutes_group_6_V3V4
 
 =cut
 
@@ -92,6 +98,7 @@ GetOptions(
   "taxon-size-thld"     => \$taxonSizeThld,
   "show-all-trees"      => \my $showAllTrees,
   "do-not-pop-pdfs"     => \my $doNotPopPDFs,
+  "build-model-data"    => \my $buildModelData,
   "igs"                 => \my $igs,
   "johanna"             => \my $johanna,
   "verbose|v"           => \my $verbose,
@@ -1365,12 +1372,12 @@ for my $g (keys %genusFinal)
 my %sppFreqFinal2; ## frequency table of species sequence frequencies
 map { $sppFreqFinal2{$_}++ } values %sppFreqFinal;
 
-## Creating a symbolic link for final.tx to point to vicutDir/updated2.tx
-my $finalTxFile = $grPrefix . "_final.tx";
-$ap = abs_path( $updatedTxFile2 );
-$cmd = "rm -f $finalTxFile; ln -s $ap $finalTxFile";
-print "\tcmd=$cmd\n" if $dryRun || $debug;
-system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+# ## Creating a symbolic link for final.tx to point to vicutDir/updated2.tx
+# my $finalTxFile = $grPrefix . "_final.tx";
+# $ap = abs_path( $updatedTxFile2 );
+# $cmd = "rm -f $finalTxFile; ln -s $ap $finalTxFile";
+# print "\tcmd=$cmd\n" if $dryRun || $debug;
+# system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 
 ## comparison between old and new species assignments
 print "--- Comparing old and new species assignments\n";
@@ -1392,7 +1399,7 @@ system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 
 print "--- Generating tree with <final species name>_<seqID> labels at leaves\n";
 my $finalSppSeqIDsFile = "$grPrefix" . "_final_spp.seqIDs";
-$cmd = "awk '{print \$1\"\\t\"\$2\"__\"\$1}' $finalTxFile > $finalSppSeqIDsFile";
+$cmd = "awk '{print \$1\"\\t\"\$2\"__\"\$1}' $updatedTxFile2 > $finalSppSeqIDsFile";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 
@@ -2334,6 +2341,7 @@ undef %clTbl;
 undef %phTbl;
 undef %children;
 undef %parent;
+undef %spLineage;
 
 for my $id ( keys %lineageTbl )
 {
@@ -2355,6 +2363,8 @@ for my $id ( keys %lineageTbl )
   $or = "o_$or";
   $cl = "c_$cl";
   $ph = "p_$ph";
+
+  $spLineage{$sp} = "$subGe\t$ge\t$fa\t$or\t$cl\t$ph\td_Bacteria";
 
   $parent{$sp} = $subGe;
   $parent{$subGe} = $ge;
@@ -2417,6 +2427,96 @@ for my $id ( keys %ogLineageTbl )
   print OUT "$id\t$lineage\n";
 }
 close OUT;
+
+if ($buildModelData)
+{
+  # Generate
+  #   - species lineage file (grPrefix_final.spLineage)
+  #   - taxon file (grPrefix_final.tx)
+  #   - ungapped fasta file corresponding to sequences present in the taxon file
+
+  print "--- Creating final taxonomy file\n";
+  my $txFile = $grPrefix . "_final.tx";
+  $cmd = "rm -f $txFile";
+  print "\tcmd=$cmd\n" if $dryRun || $debug;
+  system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+
+  open OUT, ">$txFile" or die "Cannot open $txFile for writing: $OS_ERROR\n";
+  for my $id (keys %newTx)
+  {
+    print OUT "$id\t" . $newTx{$id} . "\n";
+  }
+  close OUT;
+
+  print "--- Creating species lineage file\n";
+  my $spLineageFile = $grPrefix . "_final.spLineage";
+  open OUT, ">$spLineageFile" or die "Cannot open $spLineageFile for writing: $OS_ERROR\n";
+  for my $sp (keys %spLineage)
+  {
+    print OUT "$sp\t" . $spLineage{$sp} . "\n";
+  }
+  close OUT;
+
+  print "--- Creating reference gap-free fasta file\n";
+  my $tmpFile = $grPrefix . "_tmp.fa";
+  $cmd = "rmGaps --quiet -i $trimmedAlgnFile -o $tmpFile";
+  print "\tcmd=$cmd\n" if $dryRun || $debug;
+  system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+
+  my $faFile = $grPrefix . "_final.fa";
+  $cmd = "select_seqs.pl --quiet -s $txFile -i $tmpFile -o $faFile";
+  print "\tcmd=$cmd\n" if $dryRun || $debug;
+  system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+
+  # testing if faFile and txFile have the same seq IDs
+  my @faSeqIDs  = get_seqIDs_from_fa($faFile);
+  my @newTxKeys = keys %newTx;
+
+  my @commIDs = comm(\@newTxKeys, \@faSeqIDs);
+  if (@commIDs != @newTxKeys || @commIDs != @faSeqIDs)
+  {
+    warn "\n\nERROR: seq IDs of new taxonomy table and the fasta file do not match";
+    print "\n\tNumber of elements in the new taxonomy table: " . @newTxKeys . "\n";
+    print "\tNumber of elements in the fasta file: " . @faSeqIDs . "\n";
+    print "\tNumber of common elements: " . @commIDs . "\n";
+
+    writeArray(\@newTxKeys, "newTxKeys.txt");
+    writeArray(\@faSeqIDs, "faSeqIDs.txt");
+
+    print "\n\tNew taxon keys and fasta IDs written to newTxKeys.txt and faSeqIDs.txt, respectively\n\n";
+
+    if (@newTxKeys > @faSeqIDs)
+    {
+      my @d = diff(\@newTxKeys, \@faSeqIDs);
+      print "\nElements in new taxonomy that are not in new fasta:\n";
+      for (@d)
+      {
+	print "\t$_\t" . $newTx{$_} . "\n";
+      }
+      print "\n\n";
+    }
+
+    if (@faSeqIDs > @newTxKeys)
+    {
+      my @d = diff(\@faSeqIDs, \@newTxKeys);
+      print "\nElements in new fasta that are not in the new taxonomy:\n";
+      for (@d)
+      {
+	print "\t$_\t" . $lineageTbl{$_} . "\n";
+      }
+      print "\n\n";
+    }
+
+    exit;
+  }
+
+  print "--- Building model tree and creating taxon's reference fasta files\n";
+  my $mcDir = $grPrefix . "_MC_models_dir";
+  $cmd = "buildModelTree -l $spLineageFile -i $faFile -t $txFile -o $mcDir";
+  print "\tcmd=$cmd\n" if $dryRun || $debug;
+  system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+}
+
 
 
 ## ---------------------------------------
