@@ -1443,21 +1443,34 @@ my @spParentKeys = keys %spParent;
 my @excessSpp = diff(\@spParentKeys, \@treeLeaves);
 if (@excessSpp)
 {
+  print "\n\n\tWARNING: Detected spParent keys that are not tree leaves\n";
+  print "\tHere is the list of deleted keys\n";
+  printArray(\@excessSpp);
+  print "\n\tDeleting excess species from spParent table\n";
   delete @spParent{@excessSpp};
 }
 
 @spParentKeys = keys %spParent;
 
+my $spParentFile = $grPrefix . ".spParent";
+writeTbl(\%spParent, $spParentFile);
+
 if ( @spParentKeys != @treeLeaves )
 {
   warn "\n\n\tERROR: number of spParent species and $finalCondSppTreeFile leaves are not the same";
-  print "\tspParentKeys: " . @spParentKeys . "\n";
+
+  print "\n\tspParentKeys: " . @spParentKeys . "\n";
   print "\ttreeLeaves: " . @treeLeaves . "\n";
+
+  print "\n\tspParent tbl written to $spParentFile\n";
+
+  my @excessLeaves = diff(\@treeLeaves, \@spParentKeys);
+  print "\n\tHere is the list of tree leaves (species) that are missing in spParent table\n";
+  printArray(\@excessLeaves);
+
   exit;
 }
 
-my $spParentFile = $grPrefix . ".spParent";
-writeTbl(\%spParent, $spParentFile);
 
 if ($debug)
 {
@@ -3871,7 +3884,7 @@ sub test_OG
 
     if ( @ogCladeLeaves != @og )
     {
-      warn "$\n\n\tERROR: The outgroup sequences do not form a monophyletic clade!";
+      warn "\n\n\tERROR: The outgroup sequences do not form a monophyletic clade!";
 
       my $maxCladeSize = 100;
       if ( @ogCladeLeaves < $maxCladeSize )
@@ -3902,6 +3915,26 @@ sub printArrayByRow
   print "$header:\n" if $header;
   map { print "$_\n" } @{$a};
   print "\n";
+}
+
+sub argmax
+{
+  my $r = shift;
+
+  my $index = undef;
+  my $max   = undef;
+
+  my $count = 0;
+  foreach my $val(@{$r})
+  {
+    if ( not defined $max or $val > $max )
+    {
+      $max   = $val;
+      $index = $count;
+    }
+    $count++;
+  }
+  return $index;
 }
 
 exit;
