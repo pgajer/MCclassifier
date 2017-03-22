@@ -835,7 +835,27 @@ require(phytools)
 tr1 <- read.newick(file=\"$treeFile\")
 tr1 <- collapse.singles(tr1)
 
-tip.colors <- cltr[tr1\$tip.label]
+tip.cltr <- cltr[tr1$tip.label]
+
+colIdx <- 1
+tip.colors <- c()
+tip.colors[1] <- colIdx
+for ( i in 2:length(tip.cltr) )
+{
+    if ( tip.cltr[i] != tip.cltr[i-1] )
+    {
+        colIdx <- colIdx + 1
+        if ( colIdx==9 )
+        {
+            colIdx <- 1
+        }
+    }
+    tip.colors[i] <- colIdx
+    if ( colIdx==7 )
+    {
+        tip.colors[i] <- "brown"
+    }
+}
 
 (nLeaves <- length(tr1\$tip.label))
 
@@ -857,39 +877,10 @@ dev.off()
   runRscript( $Rscript );
 }
 
-sub plotTree
+
+# execute an R-script
+sub runRscript
 {
-  my ($treeFile, $clFile, $pdfFile, $figH) = @_;
-
-  my $Rscript = qq~
-
-clTbl <- read.table(\"$clFile\", header=F)
-str(clTbl)
-
-cltr <- clTbl[,2]
-names(cltr) <- clTbl[,1]
-
-source(\"$readNewickFile\")
-require(phytools)
-
-tr1 <- read.newick(file=\"$treeFile\")
-tr1 <- collapse.singles(tr1)
-
-tip.colors <- cltr[tr1\$tip.label]
-
-pdf(\"$pdfFile\", width=6, height=$figH)
-op <- par(mar=c(0,0,0,0), mgp=c(2.85,0.6,0),tcl = -0.3)
-plot(tr1,type=\"phylogram\", tip.color=tip.colors, no.margin=FALSE, show.node.label=$showBoostrapVals, cex=0.8)
-par(op)
-dev.off()
-~;
-
-  runRscript( $Rscript );
-}
-
-  # execute an R-script
-sub runRscript{
-
   my $Rscript = shift;
 
   my $outFile = "rTmp.R";

@@ -2610,7 +2610,27 @@ require(phytools)
 tr1 <- read.newick(file=\"$treeFile\")
 tr1 <- collapse.singles(tr1)
 
-tip.colors <- cltr[tr1\$tip.label]
+tip.cltr <- cltr[tr1$tip.label]
+
+colIdx <- 1
+tip.colors <- c()
+tip.colors[1] <- colIdx
+for ( i in 2:length(tip.cltr) )
+{
+    if ( tip.cltr[i] != tip.cltr[i-1] )
+    {
+        colIdx <- colIdx + 1
+        if ( colIdx==9 )
+        {
+            colIdx <- 1
+        }
+    }
+    tip.colors[i] <- colIdx
+    if ( colIdx==7 )
+    {
+        tip.colors[i] <- "brown"
+    }
+}
 
 (nLeaves <- length(tr1\$tip.label))
 
