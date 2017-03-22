@@ -1426,6 +1426,32 @@ print "$section";
 
 print "--- Running cluster_taxons.pl on condensed species tree\n";
 
+## Synching %spParent with $finalCondSppTreeFile leaves
+## right now spParent may have more species as the keys
+
+$cmd = "rm -f $treeLeavesFile; nw_labels -I $finalCondSppTreeFile > $treeLeavesFile";
+print "\tcmd=$cmd\n" if $dryRun || $debug;
+system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+
+@treeLeaves = readArray($treeLeavesFile);
+
+my @spParentKeys = keys %spParent;
+my @excessSpp = diff(\@spParentKeys, \@treeLeaves);
+if (@excessSpp)
+{
+  delete @spParent{@excessSpp};
+}
+
+@spParentKeys = keys %spParent;
+
+if ( @spParentKeys != @treeLeaves )
+{
+  warn "\n\n\tERROR: number of spParent species and $finalCondSppTreeFile leaves are not the same";
+  print "\tspParentKeys: " . @spParentKeys . "\n";
+  print "\ttreeLeaves: " . @treeLeaves . "\n";
+  exit;
+}
+
 my $spParentFile = $grPrefix . ".spParent";
 writeTbl(\%spParent, $spParentFile);
 
