@@ -47,7 +47,7 @@
 // Example
 //    cd ~/devel/packages/vaginal_species_oct18_2013
 
-//    buildModelTree vaginal_v2.tx vaginal_v2.fullTx vaginal_v2.fa vaginal_v2_dir
+//    buildModelTree -l Firmicutes_group_6_V3V4_final.spLineage -i Firmicutes_group_6_V3V4_final.fa -t Firmicutes_group_6_V3V4_final.tx -o Firmicutes_group_6_V3V4_MC_models_dir
 
 
 #define PATH_MAX 1000
@@ -247,9 +247,9 @@ int main(int argc, char **argv)
   string treeFile = string(outDir) + string("/model.tree");
   FILE *out = fOpen(treeFile.c_str(), "w");
   nt.writeTree(out);
+  #if 0
   fprintf(stderr,"\n\tModel tree written to %s\n\n", treeFile.c_str());
-
-  //exit(1);
+  #endif
 
   // ==================================================================
   printf("--- Loading ref tx file %s\n", txFile);
