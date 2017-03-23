@@ -183,7 +183,7 @@ if ( ! -d $grDir )
 my $section = qq~
 
 ##
-## species-level cleanup
+## Species-level cleanup
 ##
 
 ~;
@@ -1435,7 +1435,7 @@ system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 $section = qq~
 
 ##
-## genus-level cleanup
+## Genus-level cleanup
 ##
 
 ~;
@@ -2045,9 +2045,9 @@ if ( scalar(keys %faChildren) > 1 )
 
   $section = qq~
 
-  ##
-  ## order-level cleanup
-  ##
+##
+## Order-level cleanup
+##
 
   ~;
   print "$section";
@@ -2192,9 +2192,9 @@ if ( scalar(keys %faChildren) > 1 )
 
     $section = qq~
 
-    ##
-    ## class-level cleanup
-    ##
+##
+## Class-level cleanup
+##
 
     ~;
     print "$section";
@@ -2384,8 +2384,6 @@ for my $id ( keys %lineageTbl )
   $cl = "c_$cl";
   $ph = "p_$ph";
 
-  $spLineage{$sp} = "$subGe\t$ge\t$fa\t$or\t$cl\t$ph\td_Bacteria";
-
   $parent{$sp} = $subGe;
   $parent{$subGe} = $ge;
   $parent{$ge} = $fa;
@@ -2410,6 +2408,73 @@ for my $id ( keys %lineageTbl )
   push @{$clTbl{$cl}}, $id;
   push @{$phTbl{$ph}}, $id;
 }
+
+
+## If genus has only one subgenus, then the subgenus will have the same name as
+## the genus.
+my %nChildren;
+for my $ge (keys %geTbl)
+{
+  $nChildren{$ge} = keys %{$children{$ge}};
+}
+
+undef %spTbl;
+undef %geTbl;
+undef %subGeTbl;
+undef %faTbl;
+undef %orTbl;
+undef %clTbl;
+undef %phTbl;
+undef %children;
+undef %parent;
+undef %spLineage;
+
+for my $id ( keys %lineageTbl )
+{
+  my $lineage = $lineageTbl{$id};
+  my @f = split ";", $lineage;
+  my $sp = pop @f;
+  my $subGe = pop @f;
+  my $ge = pop @f;
+  my $fa = pop @f;
+  my $or = pop @f;
+  my $cl = pop @f;
+  my $ph = pop @f;
+
+  ##$sp = "s_$sp";
+  $sp .= "_OG" if ( exists $ogInd{$id} );
+  $subGe = "sg_$subGe";
+  $ge = "g_$ge";
+
+  if ( $nChildren{$ge}==1 )
+  {
+    $subGe = $ge;
+  }
+
+  $fa = "f_$fa";
+  $or = "o_$or";
+  $cl = "c_$cl";
+  $ph = "p_$ph";
+
+  $spLineage{$sp} = "$subGe\t$ge\t$fa\t$or\t$cl\t$ph\td_Bacteria";
+
+  $parent{$sp} = $subGe;
+  $parent{$subGe} = $ge;
+  $parent{$ge} = $fa;
+  $parent{$fa} = $or;
+  $parent{$or} = $cl;
+  $parent{$cl} = $ph;
+  $parent{$ph} = "d_Bacteria";
+
+  $children{"d_Bacteria"}{$ph}++;
+  $children{$ph}{$cl}++;
+  $children{$cl}{$or}++;
+  $children{$or}{$fa}++;
+  $children{$fa}{$ge}++;
+  $children{$ge}{$subGe}++;
+  $children{$subGe}{$sp}++;
+}
+
 
 
 if ($debug)
