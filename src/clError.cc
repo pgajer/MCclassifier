@@ -474,6 +474,7 @@ int main(int argc, char **argv)
   bfs.push(root);
   int numChildren;
   int sampleSize = inPar->randSampleSize;
+  int nodeCount = 1;
 
   #if 0
   fprintf(stderr, "Sample Size: %d\n", sampleSize);
@@ -489,7 +490,10 @@ int main(int argc, char **argv)
     if ( node != root )
     {
       if ( inPar->verbose )
-	fprintf(stderr, "\r--- Processing %s\n", node->label.c_str());
+      {
+	fprintf(stderr, "\r--- [%d] Processing %s\n", nodeCount, node->label.c_str());
+	nodeCount++;
+      }
 
       string outFile = string(inPar->outDir) + string("/") + node->label + string(".txt");
       //fprintf(stderr, "\toutFile: %s\n\n", outFile.c_str());
