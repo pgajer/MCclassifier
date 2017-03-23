@@ -2342,14 +2342,14 @@ if ( scalar(keys %faChildren) > 1 )
 } # end if ( scalar(keys %orChildren) > 1 )
 
 
-  $section = qq~
+#   $section = qq~
 
-##
-## Generating final lineage, spLineage, fasta and taxon files
-##
+# ##
+# ## Generating final lineage, spLineage, fasta and taxon files
+# ##
 
-~;
-  print $section;
+# ~;
+#   print $section;
 
 my $initNumSpecies  = scalar( keys %spTbl );
 my $initNumGenera   = scalar( keys %geTbl );
@@ -2390,6 +2390,8 @@ for my $id ( keys %lineageTbl )
   $cl = "c_$cl";
   $ph = "p_$ph";
 
+  $spLineage{$sp} = "$subGe\t$ge\t$fa\t$or\t$cl\t$ph\td_Bacteria";
+
   $parent{$sp} = $subGe;
   $parent{$subGe} = $ge;
   $parent{$ge} = $fa;
@@ -2413,64 +2415,6 @@ for my $id ( keys %lineageTbl )
   push @{$orTbl{$or}}, $id;
   push @{$clTbl{$cl}}, $id;
   push @{$phTbl{$ph}}, $id;
-}
-
-
-## If genus has only one subgenus, then the subgenus will have the same name as
-## the genus.
-my %nChildren;
-for my $ge (keys %geTbl)
-{
-  $nChildren{$ge} = keys %{$children{$ge}};
-}
-
-undef %children;
-undef %parent;
-undef %spLineage;
-
-for my $id ( keys %lineageTbl )
-{
-  my $lineage = $lineageTbl{$id};
-  my @f = split ";", $lineage;
-  my $sp = pop @f;
-  my $subGe = pop @f;
-  my $ge = pop @f;
-  my $fa = pop @f;
-  my $or = pop @f;
-  my $cl = pop @f;
-  my $ph = pop @f;
-
-  ##$sp = "s_$sp";
-  $sp .= "_OG" if ( exists $ogInd{$id} );
-  $subGe = "sg_$subGe";
-  $ge = "g_$ge";
-  $fa = "f_$fa";
-  $or = "o_$or";
-  $cl = "c_$cl";
-  $ph = "p_$ph";
-
-  $parent{$sp} = $subGe;
-  $parent{$subGe} = $ge;
-  $parent{$ge} = $fa;
-  $parent{$fa} = $or;
-  $parent{$or} = $cl;
-  $parent{$cl} = $ph;
-  $parent{$ph} = "d_Bacteria";
-
-  $children{"d_Bacteria"}{$ph}++;
-  $children{$ph}{$cl}++;
-  $children{$cl}{$or}++;
-  $children{$or}{$fa}++;
-  $children{$fa}{$ge}++;
-  $children{$ge}{$subGe}++;
-  $children{$subGe}{$sp}++;
-
-  if ( $nChildren{$ge}==1 )
-  {
-    $subGe = $ge;
-  }
-
-  $spLineage{$sp} = "$subGe\t$ge\t$fa\t$or\t$cl\t$ph\td_Bacteria";
 }
 
 if ($debug)
@@ -2604,7 +2548,7 @@ if ($buildModelData)
   # rm -rf Firmicutes_group_6_V3V4_MC_models_dir; buildModelTree -l Firmicutes_group_6_V3V4_final.spLineage -i Firmicutes_group_6_V3V4_final.fa -t Firmicutes_group_6_V3V4_final.tx -o Firmicutes_group_6_V3V4_MC_models_dir
   print "--- Building model tree and creating taxon's reference fasta files\n";
   my $mcDir = $grPrefix . "_MC_models_dir";
-  $cmd = "rm -rf $mcDir; buildModelTree -l $spLineageFile -i $faFile -t $txFile -o $mcDir";
+  $cmd = "rm -rf $mcDir; buildModelTree $quietStr -l $spLineageFile -i $faFile -t $txFile -o $mcDir";
   print "\tcmd=$cmd\n" if $dryRun || $debug;
   system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 
@@ -2634,12 +2578,10 @@ if ($buildModelData)
   #$ classify -r vaginal_319_806_v2_dir/refTx.tree -d vaginal_319_806_v2_MCdir -i vaginal_319_806_v2.fa -o mcDir_319_806_v2
   #$ cmp_tx.pl -i vaginal_319_806_v2.tx -j mcDir_319_806_v2_no_err_thld//MC.order7.results.txt -o mcDir_319_806_v2_no_err_thld/
   print "--- Comparing ref seq's taxonomy with the classification results\n";
-  $cmd = "cmp_tx.pl -i $txFile -j $mcDir/MC_order7_results.txt -o $mcDir";
+  $cmd = "cmp_tx.pl $quietStr -i $txFile -j $mcDir/MC_order7_results.txt -o $mcDir";
   print "\tcmd=$cmd\n" if $dryRun || $debug;
   system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
-
 }
-
 
 
 ## ---------------------------------------
