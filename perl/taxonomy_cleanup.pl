@@ -2342,8 +2342,14 @@ if ( scalar(keys %faChildren) > 1 )
 } # end if ( scalar(keys %orChildren) > 1 )
 
 
+  $section = qq~
 
-print "--- Generating final lineage files\n";
+##
+## Generating final lineage, spLineage, fasta and taxon files
+##
+
+~;
+  print $section;
 
 my $initNumSpecies  = scalar( keys %spTbl );
 my $initNumGenera   = scalar( keys %geTbl );
