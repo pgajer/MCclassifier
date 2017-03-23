@@ -37,6 +37,9 @@
 =item B<--output-file, -o>
   Output file with <taxon> => <cluster name> table.
 
+=item B<--max-txs, -m>
+  Maximum of the taxon components in the taxon names which is a concatenation of simple taxon names. Default = 3.
+
 =item B<--show-tree>
   Open the pdf file with the tree used to do clustering.
 
@@ -79,6 +82,8 @@ $OUTPUT_AUTOFLUSH = 1;
 ##                             OPTIONS
 ####################################################################
 
+my $maxTxs = 3;
+
 GetOptions(
   "tree-file|i=s"        => \my $treeFile,
   "perc-thld|p=f"        => \my $percThld,
@@ -87,6 +92,7 @@ GetOptions(
   "output-file|o=s"      => \my $outFile,
   "show-boot-vals"       => \my $showBoostrapVals,
   "show-tree"            => \my $showTree,
+  "max-txs|m=i"          => \$maxTxs,
   "quiet"                => \my $quiet,
   "igs"                  => \my $igs,
   "johanna"              => \my $johanna,
@@ -506,7 +512,16 @@ if ( $nPhyloParts > 1 )
     }
 
     my @par = sort { $locPars{$b} <=> $locPars{$a} } keys %locPars;
-    my $parStr = join "_", @par;
+    my $parStr;
+    if ( @par <= $maxTxs )
+    {
+      $parStr = join "_", @par;
+    }
+    else
+    {
+      $parStr = join "_", @par[0..($maxTxs-1)];
+      $parStr = $parStr . "_etal";
+    }
     $pars{$parStr}++;
     $clParent{$cl} = $parStr;
   }
