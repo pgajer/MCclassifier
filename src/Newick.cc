@@ -27,12 +27,15 @@ OR PERFORMANCE OF THIS SOFTWARE.
 #include <iostream>
 #include <queue>
 #include <deque>
+#include <regex>
+#include <string>
 
 #include "IOCUtilities.h"
 #include "IOCppUtilities.hh"
 #include "Newick.hh"
 
 using namespace std;
+
 
 #define DEBUG 0
 
@@ -125,9 +128,9 @@ NewickTree_t::~NewickTree_t()
 // pn    n    ch       pn   n
 void NewickTree_t::loadFullTxTree2(const char *file)
 {
-  #define DEBUG_LFTT 0
+  #define DEBUG_LFTT2 0
 
-  #if DEBUG_LFTT
+  #if DEBUG_LFTT2
   fprintf(stderr, "in NewickTree_t::loadFullTxTree()\n");
   #endif
 
@@ -143,7 +146,7 @@ void NewickTree_t::loadFullTxTree2(const char *file)
   int nRows, nCols;
   readCharTbl( file, &txTbl, &nRows, &nCols );
 
-  #if DEBUG_LFTT
+  #if DEBUG_LFTT2
   fprintf(stderr,"fullTxFile txTbl:\n");
   printCharTbl(txTbl, 10, nCols); // test
   #endif
@@ -164,7 +167,7 @@ void NewickTree_t::loadFullTxTree2(const char *file)
   map<string, set<string> > children;
   childrenMap( txTbl, nRows, nCols, children );
 
-  #if DEBUG_LFTT
+  #if DEBUG_LFTT2
   fprintf(stderr,"\nchildren tbl:\n");
   map<string, set<string> >::iterator it1;
   for ( it1 = children.begin(); it1 != children.end(); it1++ )
@@ -180,7 +183,7 @@ void NewickTree_t::loadFullTxTree2(const char *file)
   vector< set<string> > txRank;
   txRankTbl( txTbl, nRows, nCols, txRank );
 
-  #if DEBUG_LFTT
+  #if DEBUG_LFTT2
   fprintf(stderr,"\ntxRankTbl:\n");
   int n1 = txRank.size();
   for ( int i = 0; i < n1; i++ )
@@ -191,7 +194,7 @@ void NewickTree_t::loadFullTxTree2(const char *file)
   fprintf(stderr,"\n");
   #endif
 
-  #if DEBUG_LFTT
+  #if DEBUG_LFTT2
   fprintf(stderr,"Creating NewickNode_t pointers for all elements of txRank\n");
   fprintf(stderr,"and storing it in tx2node map\n");
   #endif
@@ -214,7 +217,7 @@ void NewickTree_t::loadFullTxTree2(const char *file)
     }
   }
 
-  #if DEBUG_LFTT
+  #if DEBUG_LFTT2
   fprintf(stderr,"Breath first search of the fullTx tree structure using children mapping\n");
   #endif
   queue<string> bfs;
@@ -244,7 +247,7 @@ void NewickTree_t::loadFullTxTree2(const char *file)
 
   // traverse the tree and remove nodes with only one child
 
-#if DEBUG_LFTT
+#if DEBUG_LFTT2
   fprintf(stderr, "\n\n\tTraversing the tree and removing nodes with only one child\n");
 #endif
 
@@ -259,7 +262,7 @@ void NewickTree_t::loadFullTxTree2(const char *file)
     node = bfs2.front();
     bfs2.pop();
 
-#if DEBUG_LFTT
+#if DEBUG_LFTT2
     fprintf(stderr, "\n\tProcessing %s\n", node->label.c_str());
 #endif
     while ( node->children_m.size() == 1 )
@@ -267,7 +270,7 @@ void NewickTree_t::loadFullTxTree2(const char *file)
 
       chNode = node->children_m[0];
 
-#if DEBUG_LFTT
+#if DEBUG_LFTT2
       fprintf(stderr, "\t\t%s has only one child %s\n", node->label.c_str(), chNode->label.c_str());
 #endif
 
@@ -275,7 +278,7 @@ void NewickTree_t::loadFullTxTree2(const char *file)
 
       if ( numChildren ) // chNode is not a leaf - make children of chNode the new children of node
       {
-#if DEBUG_LFTT
+#if DEBUG_LFTT2
 	fprintf(stderr, "\t\t%s is not a leaf: making children of %s the new children of %s\n", chNode->label.c_str(), chNode->label.c_str(), node->label.c_str());
 #endif
 
@@ -300,7 +303,7 @@ void NewickTree_t::loadFullTxTree2(const char *file)
 	{
 	  numChildren = pnode->children_m.size();
 
-#if DEBUG_LFTT
+#if DEBUG_LFTT2
 	  fprintf(stderr, "\t\t%s is a leaf\n\t\t%s's parent is %s with %d children\n",
 		  node->children_m[0]->label.c_str(), node->label.c_str(),
 		  pnode->label.c_str(), numChildren);
@@ -319,7 +322,7 @@ void NewickTree_t::loadFullTxTree2(const char *file)
 	    exit(1);
 	  }
 
-#if DEBUG_LFTT
+#if DEBUG_LFTT2
 	  fprintf(stderr, "\t\t%s is the %d-th child of %s\n",
 		  node->label.c_str(), i, pnode->label.c_str());
 
@@ -332,7 +335,7 @@ void NewickTree_t::loadFullTxTree2(const char *file)
 	  pnode->children_m[i] = node;
 	  node->parent_m = pnode;
 
-#if DEBUG_LFTT
+#if DEBUG_LFTT2
 	  fprintf(stderr, "\n\t\t%s children AFTER  change: ", pnode->label.c_str());
 	  for ( int j = 0; j < numChildren; j++)
 	    fprintf(stderr, "\t\t\t%s\n", pnode->children_m[j]->label.c_str());
@@ -459,7 +462,7 @@ void NewickTree_t::loadFullTxTree(const char *file)
   NewickNode_t *node = NULL;
 
   while ( !bfs.empty() )
-  {
+      {
     tx = bfs.front();
     bfs.pop();
     node = tx2node[tx];
@@ -505,6 +508,8 @@ void NewickTree_t::loadFullTxTree(const char *file)
 
       if ( pnode != NULL ) // node is not a root
       {
+	// identifying index of pnode->children_m vector corresponding to 'node'
+
 	numChildren = pnode->children_m.size();
 
         #if DEBUG_LFTT
@@ -512,7 +517,7 @@ void NewickTree_t::loadFullTxTree(const char *file)
 	      node->label.c_str(), node->children_m[0]->label.c_str(), node->label.c_str(),
 	      pnode->label.c_str(), numChildren);
         #endif
-	int i;
+	int i; // index of pnode->children_m corresponding to 'node'
 	for ( i = 0; i < numChildren; i++)
 	{
 	  if ( pnode->children_m[i] == node )
@@ -530,17 +535,32 @@ void NewickTree_t::loadFullTxTree(const char *file)
 	fprintf(stderr, "\t\t%s is the %d-th child of %s\n",
 		node->label.c_str(), i, pnode->label.c_str());
 
-	fprintf(stderr, "\n\t\t%s children BEFORE change: ", pnode->label.c_str());
+	fprintf(stderr, "\n\t\t%s children BEFORE change:\n", pnode->label.c_str());
 	for ( int j = 0; j < numChildren; j++)
 	  fprintf(stderr, "\t\t\t%s\n", pnode->children_m[j]->label.c_str());
+
+	fprintf(stderr, "\n\t\tNode's name BEFORE regex statement: %s\n", node->label.c_str());
         #endif
+
+	// node->children_m[0] is the unique child of node
+	// check if its name starts with sg_
+	// if it does, copy the name of node to node->children_m[0]
+	// and proceed as before
+
+	regex rgx("\\bsg_"); // find string that starts with sg_
+	smatch match;
+	if ( regex_search (node->children_m[0]->label, match, rgx) )
+	{
+	  node->children_m[0]->label = node->label;
+	}
 
 	node = node->children_m[0];
 	pnode->children_m[i] = node;
 	node->parent_m = pnode;
 
         #if DEBUG_LFTT
-	fprintf(stderr, "\n\t\t%s children AFTER  change: ", pnode->label.c_str());
+	fprintf(stderr, "\t\tAFTER removing 'node' the new node's name: %s\n", node->label.c_str());
+	fprintf(stderr, "\n\t\t%s children AFTER  change:\n", pnode->label.c_str());
 	for ( int j = 0; j < numChildren; j++)
 	  fprintf(stderr, "\t\t\t%s\n", pnode->children_m[j]->label.c_str());
         #endif
