@@ -2456,6 +2456,15 @@ if ($buildModelData)
   #   - taxon file (grPrefix_final.tx)
   #   - ungapped fasta file corresponding to sequences present in the taxon file
 
+  $section = qq~
+
+##
+## Building MC models
+##
+
+~;
+  print $section;
+
   print "--- Creating final taxonomy file\n";
   my $txFile = $grPrefix . "_final.tx";
   $cmd = "rm -f $txFile";
@@ -2532,7 +2541,6 @@ if ($buildModelData)
   }
 
   # rm -rf Firmicutes_group_6_V3V4_MC_models_dir; buildModelTree -l Firmicutes_group_6_V3V4_final.spLineage -i Firmicutes_group_6_V3V4_final.fa -t Firmicutes_group_6_V3V4_final.tx -o Firmicutes_group_6_V3V4_MC_models_dir
-
   print "--- Building model tree and creating taxon's reference fasta files\n";
   my $mcDir = $grPrefix . "_MC_models_dir";
   $cmd = "rm -rf $mcDir; buildModelTree -l $spLineageFile -i $faFile -t $txFile -o $mcDir";
@@ -2540,15 +2548,12 @@ if ($buildModelData)
   system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 
   # buildMC -t Firmicutes_group_6_V3V4_MC_models_dir/spp_paths.txt -k 8 -d Firmicutes_group_6_V3V4_MC_models_dir
-
   print "--- Building MC models\n";
   $cmd = "buildMC -t $mcDir/spp_paths.txt -k 8 -d $mcDir";
   print "\tcmd=$cmd\n" if $dryRun || $debug;
   system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 
-
   # clError -d Firmicutes_group_6_V3V4_MC_models_dir -o Firmicutes_group_6_V3V4_MC_models_clError_dir
-
   print "--- Generating random sequences from the MC models\n";
   my $errorDir = $grPrefix . "_MC_models_clError_dir";
   $cmd = "rm -rf $errorDir; clError -d $mcDir -o $errorDir";
@@ -2556,11 +2561,22 @@ if ($buildModelData)
   system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 
   # generate ncProbThlds.txt
-
-  # clError
+  print "--- Generating ncProbThlds.txt\n";
+  build_clError(abs_path($mcDir), abs_path($errorDir));
 
   # classify  -d Firmicutes_group_6_V3V4_MC_models_dir -i Firmicutes_group_6_V3V4_final.fa -o Firmicutes_group_6_V3V4_MC_models_dir
-  # classify  -d $mcDir -i $faFile -o $mcDir
+  print "--- Running classify on $faFile\n";
+  $cmd = "classify -d $mcDir -i $faFile -o $mcDir";
+  print "\tcmd=$cmd\n" if $dryRun || $debug;
+  system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+
+  #$ classify -r vaginal_319_806_v2_dir/refTx.tree -d vaginal_319_806_v2_MCdir -i vaginal_319_806_v2.fa -o mcDir_319_806_v2
+  #$ cmp_tx.pl -i vaginal_319_806_v2.tx -j mcDir_319_806_v2_no_err_thld//MC.order7.results.txt -o mcDir_319_806_v2_no_err_thld/
+  print "--- Comparing ref seq's taxonomy with the classification results\n";
+  $cmd = "cmp_tx.pl -i $txFile -j $mcDir/MC_order7_results.txt -o $mcDir";
+  print "\tcmd=$cmd\n" if $dryRun || $debug;
+  system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+
 }
 
 
@@ -2873,7 +2889,7 @@ dev.off()
   # execute an R-script
 sub runRscript{
 
-  my $Rscript = shift;
+  my ($Rscript, $noErrorCheck) = @_;
 
   my $outFile = "rTmp.R";
   open OUT, ">$outFile",  or die "cannot write to $outFile: $!\n";
@@ -2883,21 +2899,23 @@ sub runRscript{
   my $cmd = "R CMD BATCH $outFile";
   system($cmd) == 0 or die "system($cmd) failed:$?\n";
 
-  my $outR = $outFile . "out";
-  open IN, "$outR" or die "Cannot open $outR for reading: $OS_ERROR\n";
-  my $exitStatus = 1;
-
-  foreach my $line (<IN>)
+  if (!$noErrorCheck)
   {
-    if ( $line =~ /Error/ )
+    my $outR = $outFile . "out";
+    open IN, "$outR" or die "Cannot open $outR for reading: $OS_ERROR\n";
+    my $exitStatus = 1;
+    foreach my $line (<IN>)
     {
-      print "R script crashed at\n$line";
-      print "check $outR for details\n";
-      $exitStatus = 0;
-      exit;
+      if ( $line =~ /Error/ )
+      {
+	print "R script crashed at\n$line";
+	print "check $outR for details\n";
+	$exitStatus = 0;
+	exit;
+      }
     }
+    close IN;
   }
-  close IN;
 }
 
 sub get_seqIDs_from_fa
@@ -4096,6 +4114,161 @@ sub argmax
     $count++;
   }
   return $index;
+}
+
+sub build_clError
+{
+  my ($mcDir, $errorDir) = @_;
+
+  my $Rscript = qq~
+
+files <- list.files(path=\"$errorDir\", pattern=\"*.txt\", full.names=TRUE)
+length(files)
+
+files <- setdiff(files, c(\"spp_paths.txt\", \"modelIds.txt\"))
+length(files)
+
+(ii <- grep(\"error\", files))
+length(ii)
+if ( length(ii) )
+    files <- files[-ii]
+length(files)
+
+(i <- grep(\"ncProbThlds.txt\", files))
+length(i)
+if ( length(i) )
+files <- files[-i]
+length(files)
+
+thldTbl <- c()
+errTbl <- c()
+outDir <- \"$mcDir\"
+(figFile <- paste(outDir,\"/errFig.pdf\",sep=\"\"))
+pdf(figFile, width=11, height=11)
+op <- par(mar=c(4,4,4.5,0.5), mgp=c(2.25,0.6,0),tcl = -0.3)
+for ( file in files )
+{
+    print(file)
+
+    ## now, reading log posterior probabilities files is more complicated as for
+    ## higher taxons the number of these log posteriors is greater than 1000, but
+    ## for siblings its a 1000, so we have a 'table' with different number of
+    ## columns.
+
+    nFields <- count.fields(file, sep = \'\\t\')
+    maxNumFields <- max(nFields)
+
+    tbl <- read.table(file, sep=\"\\t\", col.names = paste0(\"V\",seq_len(maxNumFields)), fill = TRUE)
+    dim(tbl)
+    ids <- tbl[,1]
+    refID <- ids[1]
+    idx <- ids==refID
+    sum(idx)
+    x.ref <- as.numeric(as.matrix(tbl[idx,2:nFields[1]]))
+    x.sib <- as.numeric(as.matrix(tbl[!idx,2:ncol(tbl)]))
+
+    if ( length(x.ref)==0 )
+    {
+        stop(\"length(x.ref) is 0\")
+    }
+    else if ( length(x.sib)==0 )
+    {
+        stop(\"length(x.sib) is 0\")
+    }
+
+    id <- ids[1]
+
+    d.ref <- density(x.ref)
+    d.sib <- density(x.sib)
+
+    xmin.ref <- min(x.ref)
+    p0 <- min( c( (max(x.sib) + xmin.ref) / 2, xmin.ref ) )
+
+    d.ref.fun <- approxfun(d.ref\$x, d.ref\$y, yleft=0, yright=0)
+    d.sib.fun <- approxfun(d.sib\$x, d.sib\$y, yleft=0, yright=0)
+
+    ff <- function(x) d.ref.fun(x)  - d.sib.fun(x)
+
+    xmin <- min(c(d.ref\$x, d.sib\$x))
+    xmax <- max(c(d.ref\$x, d.sib\$x))
+    x <- seq(from=xmin, to=xmax, length=1000)
+    y <- ff(x)
+    r <- uniroot(ff, c(x[which.min(y)], x[which.max(y)]))
+    ##r <- uniroot(ff, c( xmin.ref, d.ref\$x[which.max(d.ref\$y)]))
+    p0 <- r\$root
+
+    plot(x,y,main=id, type='l')
+    abline(h=0, col='gray80'); abline(v=p0,col='gray80')
+    abline(v=x[which.min(y)], col='red')
+    abline(v=x[which.max(y)], col='red')
+
+    if ( ff(x[which.max(y)]) > ff(x[which.min(y)]) )
+    {
+        dx <- diff(d.sib\$x)[1]
+        idx <- d.sib\$x<0
+        F1.sib <- sum(d.sib\$y[idx])*dx - cumsum(d.sib\$y[idx])*dx
+        F1.sib.fun <- approxfun(d.sib\$x[idx], F1.sib, yleft=1, yright=0)
+        x <- seq(p0, 0, length=100)
+        tx <- cbind(x, F1.sib.fun(x))   # I don't think / F1.sib.fun(x[1])
+                                        # normalization is correct. I should be
+                                        # computing probabilities of hitting a
+                                        # given value or more
+    } else {
+      tx <- cbind(p0, 0)
+    }
+
+    thldTbl[ids[1]] <- p0
+
+    ## probability of an error = integral of d.sib from p0 to +inf
+    errTbl[ids[1]] <- 0
+    if ( p0 < max(d.sib\$x) )
+    {
+        e1 <- integrate(d.sib.fun, p0, max(d.sib\$x))[[1]]
+        e2 <- integrate(d.ref.fun, min(d.ref\$x), p0)[[1]]
+        errTbl[ids[1]] <- max(c(e1, e2))
+
+        plot(d.ref, xlim=c(min(x.sib),0), xlab=\"log10[ p(x|M) ]\", ylim=c(0, max(c(d.ref\$y, d.sib\$y))), las=1,
+             main=paste(ids[1], sprintf(\"\\nthld=%.2f err1=%.2f err2=%.2f\",p0, e1, e2)))
+        lines(d.sib, col=2)
+        if ( length(ids) > 5 )
+        {
+            legend(\"topleft\",legend=c(ids[1], \"Siblings\"), fill=c(1,2), inset=0.05, title=\"MC model (M)\", cex=1)
+        } else {
+            legend(\"topleft\",legend=ids, fill=c(1,rep(2,length(ids)-1)), inset=0.05, title=\"MC model (M)\", cex=0.7)
+        }
+        abline(v=p0, col='gray80')
+    } else {
+        plot(d.ref, xlim=c(min(x.sib),0), xlab=\"log10[ p(x|M) ]\", ylim=c(0, max(c(d.ref\$y, d.sib\$y))), las=1,
+             main=paste(ids[1], sprintf(\"\\nthld=%.2f\",p0))) # main=\"\")
+        lines(d.sib, col=2)
+        if ( length(ids) > 5 )
+        {
+            legend(\"topleft\",legend=c(ids[1], \"Siblings\"), fill=c(1,2), inset=0.05, title=\"MC model (M)\", cex=1)
+        } else {
+            legend(\"topleft\",legend=ids, fill=c(1,rep(2,length(ids)-1)), inset=0.05, title=\"MC model (M)\", cex=0.7)
+        }
+        abline(v=p0, col='gray80')
+    }
+
+    outfile <- paste(outDir,\"/\",ids[1],\"_error.txt\", sep=\"\")
+    write.table(tx, file=outfile, sep=\"\t\", row.names=F, col.names=F)
+}
+
+myHist(errTbl)
+myHist(log(errTbl))
+par(op)
+dev.off()
+
+thldTbl2 <- cbind(names(thldTbl),thldTbl)
+colnames(thldTbl2) <- c(\"Taxon\",\"Threshold\")
+dim(thldTbl2)
+
+(outFile <- paste(outDir,\"/ncProbThlds.txt\",sep=\"\"))
+write.table(thldTbl2,file=outFile, sep=\"\\t\",row.names=F, col.names=T, quote=F)
+
+  ~;
+
+  runRscript( $Rscript, "noErrorCheck" );
 }
 
 exit;
