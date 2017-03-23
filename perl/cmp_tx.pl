@@ -162,9 +162,18 @@ my $pMatch = sprintf("%.2f",100 * $match / $count);
 ##print "Percentage of matches: $pMatch%\n";
 print "Matches:\t\t " . commify($match) . " ($pMatch\%)\n" if !$quiet;
 
-my $pMismatch = sprintf("%.2f",100 * ($count - $match) / $count);
+my $mMatch = $count - $match;
+my $pMismatch = sprintf("%.2f",100 * $mMatch / $count);
 ##print "Percentage of mismatches: $pMismatch\n";
-print "Mismatches:\t\t " . commify($count - $match) . " ($pMismatch\%)\n" if !$quiet;
+print "Mismatches:\t\t " . commify($mMatch) . " ($pMismatch\%)\n" if !$quiet;
+
+my $outFile4 = "$outDir/accuracy.summary";
+# writing to this file
+# $match\t$pMatch\t$mMatch\t$pMismatch\n;
+open OUT, ">$outFile4" or die "Cannot open $outFile4 for writing: $OS_ERROR\n";
+print OUT "$match\t$pMatch\t$mMatch\t$pMismatch\n";
+close OUT;
+
 
 my $outFile2 = "$outDir/spp.summary";
 open OUT, ">$outFile2" or die "Cannot open $outFile2 for writing: $OS_ERROR\n";
@@ -201,7 +210,8 @@ for my $sp (sort @mismatchedSpp)
 }
 close OUT;
 
-print "\nOutput written to\n$outFile1\n$outFile2\n$outFile3\n\n" if !$quiet;
+print "\n\n\tOutput written to\n$outFile1\n$outFile2\n$outFile3\n$outFile4\n\n" if !$quiet;
+print "\tFormat of $outFile4 data: nMatch\tpercMatch\tnMismatch\tpercMismatch\n\n" if !$quiet;
 
 ####################################################################
 ##                               SUBS
