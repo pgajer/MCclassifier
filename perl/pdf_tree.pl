@@ -38,7 +38,7 @@
 
   cd ~/devel/MCextras/data/RDP/rdp_Bacteria_phylum_dir/Firmicutes_dir/Firmicutes_group_6_V3V4_dir/Firmicutes_group_6_V3V4_MC_models_dir
 
-  pdf_tree.pl -i model.tree -o model_tree.pdf
+  pdf_tree.pl --show-tree -i model.tree -o model_tree_upTx.pdf
 
 =cut
 
