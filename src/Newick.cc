@@ -68,10 +68,10 @@ NewickNode_t::NewickNode_t(NewickNode_t * parent)
 //--------------------------------------------- ~NewickNode_t() -----
 NewickNode_t::~NewickNode_t()
 {
-  for (unsigned int i = 0; i < children_m.size(); i++)
-  {
-    delete children_m[i];
-  }
+  // for (unsigned int i = 0; i < children_m.size(); i++)
+  // {
+  //   delete children_m[i];
+  // }
 }
 
 //--------------------------------------------- addChild -----
@@ -115,7 +115,7 @@ NewickTree_t::~NewickTree_t()
 
 
 //--------------------------------------------- loadFullTxTree -----
-void NewickTree_t::loadFullTxTree(const char *file) // file holds fullTx table
+void NewickTree_t::loadFullTxTree(char *file) // file holds fullTx table
 {
   #define DEBUG_LFTT 0
 
@@ -236,13 +236,14 @@ void NewickTree_t::loadFullTxTree(const char *file) // file holds fullTx table
   // traverse the tree and remove nodes with only one child
 
 #if DEBUG_LFTT
-  fprintf(stderr, "\n\n\tTraverse the tree and remove nodes with only one child\n");
+  fprintf(stderr, "\n\n\tTraversing the tree and removing nodes with only one child\n");
 #endif
 
   queue<NewickNode_t *> bfs2;
   bfs2.push(root_m);
   int numChildren;
   NewickNode_t *pnode;
+  NewickNode_t *chNode;
 
   while ( !bfs2.empty() )
   {
@@ -250,67 +251,91 @@ void NewickTree_t::loadFullTxTree(const char *file) // file holds fullTx table
     bfs2.pop();
 
 #if DEBUG_LFTT
-    fprintf(stderr, "\tProcessing %s\n", node->label.c_str());
+    fprintf(stderr, "\n\tProcessing %s\n", node->label.c_str());
 #endif
     while ( node->children_m.size() == 1 )
     {
-      // finding node in a children array of the parent node
-      pnode = node->parent_m;
 
-      if ( pnode != NULL )
+      chNode = node->children_m[0];
+
+#if DEBUG_LFTT
+      fprintf(stderr, "\t\t%s has only one child %s\n", node->label.c_str(), chNode->label.c_str());
+#endif
+
+      numChildren = chNode->children_m.size();
+
+      if ( numChildren ) // chNode is not a leaf - make children of chNode the new children of node
       {
-	numChildren = pnode->children_m.size();
+#if DEBUG_LFTT
+	fprintf(stderr, "\t\t%s is not a leaf: making children of %s the new children of %s\n", chNode->label.c_str(), chNode->label.c_str(), node->label.c_str());
+#endif
 
-        #if DEBUG_LFTT
-	fprintf(stderr, "\n\nNode %s has only one child %s; %s's parent is %s with %d children\n",
-	      node->label.c_str(), node->children_m[0]->label.c_str(), node->label.c_str(),
-	      pnode->label.c_str(), numChildren);
-        #endif
-	int i;
-	for ( i = 0; i < numChildren; i++)
+      // emptying node->children_m vector
+	node->children_m.erase(node->children_m.begin(), node->children_m.end());
+
+	for (int i = 0; i < numChildren; i++)
 	{
-	  if ( pnode->children_m[i] == node )
-	    break;
+	  (chNode->children_m[i])->parent_m = node;
+	  node->children_m.push_back(chNode->children_m[i]);
 	}
+      }
+      else
+      {
+	// chNode is a leaf - get rid of node making chNode a child of node's
+	// parent; and making chNode->parent = node->parent
 
-	if ( i == numChildren )
+	// finding node in a children array of the parent node
+	pnode = node->parent_m;
+
+	if ( pnode != NULL )
 	{
-	  fprintf(stderr, "ERROR in %s at line %d: node %s cannot be found in %s\n",
-		  __FILE__, __LINE__,(node->label).c_str(), (pnode->label).c_str());
+	  numChildren = pnode->children_m.size();
+
+#if DEBUG_LFTT
+	  fprintf(stderr, "\t\t%s is a leaf\n\t\t%s's parent is %s with %d children\n",
+		  node->children_m[0]->label.c_str(), node->label.c_str(),
+		  pnode->label.c_str(), numChildren);
+#endif
+	  int i;
+	  for ( i = 0; i < numChildren; i++)
+	  {
+	    if ( pnode->children_m[i] == node )
+	      break;
+	  }
+
+	  if ( i == numChildren )
+	  {
+	    fprintf(stderr, "ERROR in %s at line %d: node %s cannot be found in %s\n",
+		    __FILE__, __LINE__,(node->label).c_str(), (pnode->label).c_str());
+	    exit(1);
+	  }
+
+#if DEBUG_LFTT
+	  fprintf(stderr, "\t\t%s is the %d-th child of %s\n",
+		  node->label.c_str(), i, pnode->label.c_str());
+
+	  fprintf(stderr, "\t\t%s children BEFORE change: ", pnode->label.c_str());
+	  for ( int j = 0; j < numChildren; j++)
+	    fprintf(stderr, "\t\t\t%s\n", pnode->children_m[j]->label.c_str());
+#endif
+
+	  node = node->children_m[0];
+	  pnode->children_m[i] = node;
+	  node->parent_m = pnode;
+
+#if DEBUG_LFTT
+	  fprintf(stderr, "\n\t\t%s children AFTER  change: ", pnode->label.c_str());
+	  for ( int j = 0; j < numChildren; j++)
+	    fprintf(stderr, "\t\t\t%s\n", pnode->children_m[j]->label.c_str());
+	  //fprintf(stderr, "\n");
+#endif
+	}
+	else
+	{
+	  fprintf(stderr, "\n\n\tERROR in %s at line %d: node %s seem to be a leaf and has no parent\n",
+		  __FILE__, __LINE__,(chNode->label).c_str());
 	  exit(1);
 	}
-
-        #if DEBUG_LFTT
-	fprintf(stderr, "%s is the %d-th child of %s\n",
-		node->label.c_str(), i, pnode->label.c_str());
-
-	fprintf(stderr, "%s children BEFORE change: ", pnode->label.c_str());
-	for ( int j = 0; j < numChildren; j++)
-	  fprintf(stderr, "%s  ", pnode->children_m[j]->label.c_str());
-        #endif
-
-	node = node->children_m[0];
-	pnode->children_m[i] = node;
-	node->parent_m = pnode;
-
-        #if DEBUG_LFTT
-	fprintf(stderr, "\n%s children AFTER  change: ", pnode->label.c_str());
-	for ( int j = 0; j < numChildren; j++)
-	  fprintf(stderr, "%s  ", pnode->children_m[j]->label.c_str());
-        #endif
-      }
-      else if ( node == root_m )
-      {
-        #if DEBUG_LFTT
-	fprintf(stderr, "\t%s is the root and has only one child %s\n",
-		node->label.c_str(), node->children_m[0]->label.c_str());
-        #endif
-	root_m = node->children_m[0];
-	node = node->children_m[0];
-	node->parent_m = NULL;
-        #if DEBUG_LFTT
-	fprintf(stderr, "\tSetting %s to be the new root\n", node->label.c_str());
-        #endif
       }
     }
 
@@ -322,8 +347,10 @@ void NewickTree_t::loadFullTxTree(const char *file) // file holds fullTx table
 	bfs2.push(node->children_m[i]);
       }
     }
-  }
+
+  } // end of while ( !bfs2.empty() )
 }
+
 
 //--------------------------------------------- rmLeaf -----
 // remove leaf with label s
