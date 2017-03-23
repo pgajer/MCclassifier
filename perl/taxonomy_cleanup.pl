@@ -2049,7 +2049,7 @@ if ( scalar(keys %faChildren) > 1 )
 ## Order-level cleanup
 ##
 
-  ~;
+~;
   print "$section";
 
   print "--- Running cluster_taxons.pl on condensed family tree\n";
@@ -2196,7 +2196,7 @@ if ( scalar(keys %faChildren) > 1 )
 ## Class-level cleanup
 ##
 
-    ~;
+~;
     print "$section";
 
     print "--- Running cluster_taxons.pl on condensed order tree\n";
@@ -2418,13 +2418,6 @@ for my $ge (keys %geTbl)
   $nChildren{$ge} = keys %{$children{$ge}};
 }
 
-undef %spTbl;
-undef %geTbl;
-undef %subGeTbl;
-undef %faTbl;
-undef %orTbl;
-undef %clTbl;
-undef %phTbl;
 undef %children;
 undef %parent;
 undef %spLineage;
@@ -2445,18 +2438,10 @@ for my $id ( keys %lineageTbl )
   $sp .= "_OG" if ( exists $ogInd{$id} );
   $subGe = "sg_$subGe";
   $ge = "g_$ge";
-
-  if ( $nChildren{$ge}==1 )
-  {
-    $subGe = $ge;
-  }
-
   $fa = "f_$fa";
   $or = "o_$or";
   $cl = "c_$cl";
   $ph = "p_$ph";
-
-  $spLineage{$sp} = "$subGe\t$ge\t$fa\t$or\t$cl\t$ph\td_Bacteria";
 
   $parent{$sp} = $subGe;
   $parent{$subGe} = $ge;
@@ -2473,9 +2458,14 @@ for my $id ( keys %lineageTbl )
   $children{$fa}{$ge}++;
   $children{$ge}{$subGe}++;
   $children{$subGe}{$sp}++;
+
+  if ( $nChildren{$ge}==1 )
+  {
+    $subGe = $ge;
+  }
+
+  $spLineage{$sp} = "$subGe\t$ge\t$fa\t$or\t$cl\t$ph\td_Bacteria";
 }
-
-
 
 if ($debug)
 {
