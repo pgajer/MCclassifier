@@ -649,13 +649,23 @@ else
     print "    Putting all taxons in one cluster\n";
   }
 
-  my @pars = sort { $parentFreq{$b} <=> $parentFreq{$a} } keys %parentFreq;
-  my $tx = join "_", @pars;
+  my @par = sort { $parentFreq{$b} <=> $parentFreq{$a} } keys %parentFreq;
+
+  my $parStr;
+  if ( @par <= $maxTxs )
+  {
+    $parStr = join "_", @par;
+  }
+  else
+  {
+    $parStr = join "_", @par[0..($maxTxs-1)];
+    $parStr = $parStr . "_etal";
+  }
 
   open OUT, ">$outFile" or die "Cannot open $outFile for writing: $OS_ERROR\n";
   for ( keys %parent )
   {
-    print OUT "$_\t$tx\n";
+    print OUT "$_\t$parStr\n";
   }
   close OUT;
 }
