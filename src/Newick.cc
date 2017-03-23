@@ -234,6 +234,11 @@ void NewickTree_t::loadFullTxTree(const char *file) // file holds fullTx table
 
 
   // traverse the tree and remove nodes with only one child
+
+#if DEBUG_LFTT
+  fprintf(stderr, "\n\n\tTraverse the tree and remove nodes with only one child\n");
+#endif
+
   queue<NewickNode_t *> bfs2;
   bfs2.push(root_m);
   int numChildren;
@@ -244,52 +249,69 @@ void NewickTree_t::loadFullTxTree(const char *file) // file holds fullTx table
     node = bfs2.front();
     bfs2.pop();
 
+#if DEBUG_LFTT
+    fprintf(stderr, "\tProcessing %s\n", node->label.c_str());
+#endif
     while ( node->children_m.size() == 1 )
     {
       // finding node in a children array of the parent node
       pnode = node->parent_m;
-      if ( pnode != NULL )
-	numChildren = pnode->children_m.size();
-      else
-	break;
 
-      #if DEBUG_LFTT
-      fprintf(stderr, "\n\nNode %s has only one child %s; %s's parent is %s with %d children\n",
+      if ( pnode != NULL )
+      {
+	numChildren = pnode->children_m.size();
+
+        #if DEBUG_LFTT
+	fprintf(stderr, "\n\nNode %s has only one child %s; %s's parent is %s with %d children\n",
 	      node->label.c_str(), node->children_m[0]->label.c_str(), node->label.c_str(),
 	      pnode->label.c_str(), numChildren);
-      #endif
-      int i;
-      for ( i = 0; i < numChildren; i++)
-      {
-	if ( pnode->children_m[i] == node )
-	  break;
+        #endif
+	int i;
+	for ( i = 0; i < numChildren; i++)
+	{
+	  if ( pnode->children_m[i] == node )
+	    break;
+	}
+
+	if ( i == numChildren )
+	{
+	  fprintf(stderr, "ERROR in %s at line %d: node %s cannot be found in %s\n",
+		  __FILE__, __LINE__,(node->label).c_str(), (pnode->label).c_str());
+	  exit(1);
+	}
+
+        #if DEBUG_LFTT
+	fprintf(stderr, "%s is the %d-th child of %s\n",
+		node->label.c_str(), i, pnode->label.c_str());
+
+	fprintf(stderr, "%s children BEFORE change: ", pnode->label.c_str());
+	for ( int j = 0; j < numChildren; j++)
+	  fprintf(stderr, "%s  ", pnode->children_m[j]->label.c_str());
+        #endif
+
+	node = node->children_m[0];
+	pnode->children_m[i] = node;
+	node->parent_m = pnode;
+
+        #if DEBUG_LFTT
+	fprintf(stderr, "\n%s children AFTER  change: ", pnode->label.c_str());
+	for ( int j = 0; j < numChildren; j++)
+	  fprintf(stderr, "%s  ", pnode->children_m[j]->label.c_str());
+        #endif
       }
-
-      if ( i == numChildren )
+      else if ( node == root_m )
       {
-	fprintf(stderr, "ERROR in %s at line %d: node %s cannot be found in %s\n",
-		__FILE__, __LINE__,(node->label).c_str(), (pnode->label).c_str());
-	exit(1);
+        #if DEBUG_LFTT
+	fprintf(stderr, "\t%s is the root and has only one child %s\n",
+		node->label.c_str(), node->children_m[0]->label.c_str());
+        #endif
+	root_m = node->children_m[0];
+	node = node->children_m[0];
+	node->parent_m = NULL;
+        #if DEBUG_LFTT
+	fprintf(stderr, "\tSetting %s to be the new root\n", node->label.c_str());
+        #endif
       }
-
-      #if DEBUG_LFTT
-      fprintf(stderr, "%s is the %d-th child of %s\n",
-	      node->label.c_str(), i, pnode->label.c_str());
-
-      fprintf(stderr, "%s children BEFORE change: ", pnode->label.c_str());
-      for ( int j = 0; j < numChildren; j++)
-	fprintf(stderr, "%s  ", pnode->children_m[j]->label.c_str());
-      #endif
-
-      node = node->children_m[0];
-      pnode->children_m[i] = node;
-      node->parent_m = pnode;
-
-      #if DEBUG_LFTT
-      fprintf(stderr, "\n%s children AFTER  change: ", pnode->label.c_str());
-      for ( int j = 0; j < numChildren; j++)
-	fprintf(stderr, "%s  ", pnode->children_m[j]->label.c_str());
-      #endif
     }
 
     numChildren = node->children_m.size();
