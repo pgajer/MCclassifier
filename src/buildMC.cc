@@ -418,12 +418,15 @@ int main(int argc, char **argv)
     //cerr << "wordLen=" << wordLen << endl;
 
     if ( inPar->verbose )
+    {
+
       cerr << "\rk=" << wordLen << "\n";
 
-    if ( inPar->mcDir && !inPar->trgFiles.size() )
-      cerr << "\r--- Reading k-mer frequency tables from " << inPar->mcDir << " ... ";
-    else
-      cerr << "\r--- Generating k-mer frequency tables for k=1:" << wordLen << " ... ";
+      if ( inPar->mcDir && !inPar->trgFiles.size() )
+	cerr << "\r--- Reading k-mer frequency tables from " << inPar->mcDir << " ... ";
+      else
+	cerr << "\r--- Generating k-mer frequency tables for k=1:" << wordLen << " ... ";
+    }
 
     MarkovChains2_t probModel( wordLen-1,
 			       inPar->trgFiles,
