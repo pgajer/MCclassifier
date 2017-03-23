@@ -480,10 +480,9 @@ int main(int argc, char **argv)
     }
   }
 
-
   int depth = nt.getDepth();
-  cerr << "--- Depth of the reference tree: " << depth << endl;
-
+  if ( inPar->verbose )
+    cerr << "--- Depth of the reference tree: " << depth << endl;
 
   if ( inPar->kMerLens.size() == 0 )
   {
@@ -494,18 +493,20 @@ int main(int argc, char **argv)
       inPar->kMerLens.push_back(kMers[i]);
   }
 
-  cerr << "--- Number of Models: " << nModels << endl;
+  if ( inPar->verbose )
+    cerr << "--- Number of Models: " << nModels << endl;
 
   int wordLen = inPar->kMerLens[0];
 
   if ( inPar->verbose )
+  {
     cerr << "\rk=" << wordLen << "\n";
 
-  if ( inPar->mcDir && !inPar->trgFiles.size() )
-    cerr << "\r--- Reading conditional probabilities tables from " << inPar->mcDir << " ... ";
-  else
-    cerr << "\r--- Generating k-mer frequency tables for k=1:" << wordLen << " ... ";
-
+    if ( inPar->mcDir && !inPar->trgFiles.size() )
+      cerr << "\r--- Reading conditional probabilities tables from " << inPar->mcDir << " ... ";
+    else
+      cerr << "\r--- Generating k-mer frequency tables for k=1:" << wordLen << " ... ";
+  }
 
   MarkovChains2_t *probModel;
   probModel = new MarkovChains2_t( wordLen-1,
@@ -513,7 +514,8 @@ int main(int argc, char **argv)
 				   inPar->mcDir,
 				   inPar->maxNumAmbCodes,
 				   inPar->pseudoCountType );
-  cerr << "done" << endl;
+  if ( inPar->verbose )
+    cerr << "done" << endl;
 
   vector<char *> modelIds = probModel->modelIds();
   vector<string> modelStrIds;
@@ -605,8 +607,8 @@ int main(int argc, char **argv)
   map<string, vector<char *> > txFalseID;     // same as above but for other sequences
 
 
-  //cerr << "nRecs=" << nRecs << "\tq01=" << q01 << endl;
-  cerr << "--- Number of sequences in " << inPar->inFile << ": " << nRecs << endl;
+  if ( inPar->verbose )
+    cerr << "--- Number of sequences in " << inPar->inFile << ": " << nRecs << endl;
 
   //int rcseqCount = 0; // number of times rcseq had higher probabitity than seq
   //int seqCount = 0;   // number of times seq had higher probabitity than rcseq
@@ -627,7 +629,7 @@ int main(int argc, char **argv)
   int timeSec = 0;
   int perc;
 
-  #define SPPDEBUG 1
+  #define SPPDEBUG 0
   #if SPPDEBUG
   FILE *liout = fOpen("spp_pprob.csv", "w");
   #endif
@@ -688,9 +690,11 @@ int main(int argc, char **argv)
 	fprintf(debugout,"\t%s\n", node->children_m[i]->label.c_str()) ;
 #endif
 
+    #if 0
     double y[2];
     y[0] = 0;
     y[1] = 0;
+    #endif
 
     //score.clear();
     //int depthCount = 1;
@@ -716,6 +720,7 @@ int main(int argc, char **argv)
 	  x[i] = probModel->normLog10prob(seq, seqLen, (node->children_m[i])->model_idx );
 	}
 
+        #if 0
 	if ( (node->children_m[i])->label=="g_Lactobacillus" )
 	{
 	  y[0] = x[i];
@@ -726,7 +731,6 @@ int main(int argc, char **argv)
 	  y[1] = x[i];
 	}
 
-	#if 0
 	if ( (node->children_m[i])->label=="g_Lactobacillus" )
 	{
 	  //errTbl_t *errObj = modelErrTbl[ (node->children_m[i])->label ];
@@ -932,17 +936,21 @@ int main(int argc, char **argv)
   {
     timeSec = runTime;
   }
-  fprintf(stderr,"\r                                                                       \n");
-  fprintf(stderr,"    Elapsed time: %d:%02d                                              \n", timeMin, timeSec);
 
-  // fprintf(stderr,"\r--- Number of processed sequences: %d                                  \n", count);
-  // fprintf(stderr,"    Number of times rcseq had higher probabitity than seq: %d\n", rcseqCount);
-  // fprintf(stderr,"    Number of times rcseq had lower probabitity than seq: %d\n", seqCount);
-  //fprintf(stderr,"Output written to %s\n", outFile.c_str());
-  fprintf(stderr,"    Output written to %s\n", inPar->outDir);
+  if ( inPar->verbose )
+  {
+    fprintf(stderr,"\r                                                                       \n");
+    fprintf(stderr,"    Elapsed time: %d:%02d                                              \n", timeMin, timeSec);
 
-  fprintf(stderr,"\n    To create a sample x phylotype count table, run\n");
-  fprintf(stderr,"\n        count_tbl.pl -i %s -o %s/spp_count_tbl.txt\n\n", outFile.c_str(), inPar->outDir);
+    // fprintf(stderr,"\r--- Number of processed sequences: %d                                  \n", count);
+    // fprintf(stderr,"    Number of times rcseq had higher probabitity than seq: %d\n", rcseqCount);
+    // fprintf(stderr,"    Number of times rcseq had lower probabitity than seq: %d\n", seqCount);
+    //fprintf(stderr,"Output written to %s\n", outFile.c_str());
+    fprintf(stderr,"    Output written to %s\n", inPar->outDir);
+
+    fprintf(stderr,"\n    To create a sample x phylotype count table, run\n");
+    fprintf(stderr,"\n        count_tbl.pl -i %s -o %s/spp_count_tbl.txt\n\n", outFile.c_str(), inPar->outDir);
+  }
 
   #if DEBUGMAIN
   fprintf(stderr,"\n\nDEBUGING Output written to %s\n\n\n", debugFile.c_str());

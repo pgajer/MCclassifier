@@ -359,10 +359,9 @@ int main(int argc, char **argv)
   char *id, *seq;
   int seqLen;
 
-  cerr << endl << "--- nModels=" << nModels << endl;
+  if ( inPar->verbose )
+    cerr << endl << "--- nModels=" << nModels << endl;
   //<< "\tnWordSizes="  << nWordSizes << endl;
-
-
 
   // ==== generating random samples from MC models ====
   if ( inPar->randSampleSize && !( (inPar->mcDir || inPar->trgFiles.size()) && inPar->outDir ) )
@@ -384,24 +383,29 @@ int main(int argc, char **argv)
   {
     int wordLen = inPar->kMerLens[0];
 
-    if ( inPar->mcDir && !inPar->trgFiles.size() )
-      cerr << "\r--- Reading k-mer frequency tables from " << inPar->mcDir << " ... ";
-    else
-      cerr << "\r--- Generating k-mer frequency tables for k=1:" << wordLen << " ... ";
+    if ( inPar->verbose )
+    {
+      if ( inPar->mcDir && !inPar->trgFiles.size() )
+	cerr << "\r--- Reading k-mer frequency tables from " << inPar->mcDir << " ... ";
+      else
+	cerr << "\r--- Generating k-mer frequency tables for k=1:" << wordLen << " ... ";
+    }
 
     MarkovChains2_t probModel( wordLen-1,
 			       inPar->trgFiles,
 			       inPar->mcDir,
 			       inPar->maxNumAmbCodes,
 			       inPar->pseudoCountType);
-    cerr << "done" << endl;
+    if ( inPar->verbose )
+      cerr << "done" << endl;
 
     string faFile = string(inPar->outDir) + string("/") + string("rsample.fa");
     string txFile = string(inPar->outDir) + string("/") + string("rsample.tx");
 
     probModel.sample( faFile.c_str(), txFile.c_str(), inPar->randSampleSize );
 
-    cout << endl << "Random sequences for all MC models written to " << faFile << endl << endl;
+    if ( inPar->verbose )
+      cout << endl << "Random sequences for all MC models written to " << faFile << endl << endl;
 
     return EXIT_SUCCESS;
   }
@@ -447,7 +451,8 @@ int main(int argc, char **argv)
 
     if ( !inPar->inFile && inPar->mcDir )
     {
-      cout << "\nMarkov chain models written to " << inPar->mcDir << endl << endl;
+      if ( inPar->verbose )
+	cout << "\nMarkov chain models written to " << inPar->mcDir << endl << endl;
       return EXIT_SUCCESS;
     }
 
