@@ -72,7 +72,8 @@ void printUsage( const char *s )
        << "\t                                   for an order 0 model.\n"
        << "\t--print-nc-probs, -s - print to files <tx>_true_ncProbs.txt, <tx>_false_ncProbs.txt, where <tx> are all taxons present in reference data,\n"
        << "\t                       normalized conditional probabilities for tuning threshold values of taxon assignment\n"
-       << "\t-v                   - verbose mode\n\n"
+       << "\t-q|--quiet           - suppers pregress messages\n"
+       << "\t-v|--verbose         - verbose mode\n"
        << "\t-h|--help            - this message\n\n"
 
        << "\tConditional probabitity tables are store in\n"
@@ -118,11 +119,11 @@ typedef struct
 
 //================================================= inPar2_t ====
 //! holds input parameters
-class inPar2_t
+class inPar_t
 {
 public:
-  inPar2_t();
-  ~inPar2_t();
+  inPar_t();
+  ~inPar_t();
 
   char *outDir;             /// output directory for MC taxonomy files
   char *mcDir;              /// input directory for MC model files
@@ -144,6 +145,7 @@ public:
   int randSampleSize;       /// number of random sequences of each model (seq length = mean ref seq). If 0, no random samples will be generated.
   int pseudoCountType;      /// pseudo-count type; see MarkovChains2.hh for possible values
   bool verbose;
+  bool quiet;
   bool printNCprobs;        /// if true, the program prints to files normalized conditional probabilities for tuning threshold values of taxon assignment
   int dimProbs;             /// max dimension of probs
   bool revComp;             /// reverse-complement query sequences before processing
@@ -152,7 +154,7 @@ public:
 };
 
 //------------------------------------------------- constructor ----
-inPar2_t::inPar2_t()
+inPar_t::inPar_t()
 {
   outDir          = NULL;
   mcDir           = NULL;
@@ -170,11 +172,12 @@ inPar2_t::inPar2_t()
   dimProbs        = 0;
   printNCprobs    = false;
   verbose         = false;
+  quiet           = false;
   revComp         = false;
 }
 
 //------------------------------------------------- constructor ----
-inPar2_t::~inPar2_t()
+inPar_t::~inPar_t()
 {
   if ( outDir )
     free(outDir);
@@ -203,7 +206,7 @@ inPar2_t::~inPar2_t()
 }
 
 //------------------------------------------------------- print ----
-void inPar2_t::print()
+void inPar_t::print()
 {
   fprintf(stderr, "printCounts     %3d\n", printCounts);
   fprintf(stderr, "pseudoCountType %3d\n", pseudoCountType);
@@ -265,7 +268,7 @@ void inPar2_t::print()
 }
 
 //============================== local sub-routines =========================
-void parseArgs( int argc, char ** argv, inPar2_t *p );
+void parseArgs( int argc, char ** argv, inPar_t *p );
 bool dComp (double i, double j) { return (i>j); }
 
 //============================== main ======================================
@@ -278,7 +281,7 @@ int main(int argc, char **argv)
   gettimeofday(&tvStart, NULL);
 
   //-- setting up init parameters
-  inPar2_t *inPar = new inPar2_t();
+  inPar_t *inPar = new inPar_t();
 
   //-- parsing input parameters
   parseArgs(argc, argv, inPar);
@@ -636,7 +639,7 @@ int main(int argc, char **argv)
 
   while ( getNextFastaRecord( in, id, data, alloc, seq, seqLen) )
   {
-    if ( q01 && (count % q01) == 0 )
+    if ( inPar->verbose && q01 && (count % q01) == 0 )
     {
       perc = (int)( (100.0*count) / nRecs);
 
@@ -967,7 +970,7 @@ int main(int argc, char **argv)
 
 //----------------------------------------------------------- parseArgs ----
 //! parse command line arguments
-void parseArgs( int argc, char ** argv, inPar2_t *p )
+void parseArgs( int argc, char ** argv, inPar_t *p )
 {
   int c, errflg = 0;
   optarg = NULL;
@@ -975,19 +978,21 @@ void parseArgs( int argc, char ** argv, inPar2_t *p )
   static struct option longOptions[] = {
     {"print-counts"       ,no_argument, &p->printCounts,    1},
     //{"skip-err-thld"      ,no_argument, &p->skipErrThld,    1},
-    {"skip-err-thld"      ,no_argument,       0,          'x'},
-    {"max-num-amb-codes"  ,required_argument, 0,          'b'},
-    {"fullTx-file"        ,required_argument, 0,          'f'},
-    {"out-dir"            ,required_argument, 0,          'o'},
-    {"ref-tree"           ,required_argument, 0,          'r'},
-    {"pseudo-count-type"  ,required_argument, 0,          'p'},
-    {"print-nc-probs"     ,no_argument, 0,                's'},
-    {"rev-comp"           ,no_argument, 0,                'c'},
-    {"help"               ,no_argument, 0,                  0},
+    {"skip-err-thld"      ,no_argument,       0, 'x'},
+    {"max-num-amb-codes"  ,required_argument, 0, 'b'},
+    {"fullTx-file"        ,required_argument, 0, 'f'},
+    {"out-dir"            ,required_argument, 0, 'o'},
+    {"ref-tree"           ,required_argument, 0, 'r'},
+    {"pseudo-count-type"  ,required_argument, 0, 'p'},
+    {"print-nc-probs"     ,no_argument,       0, 's'},
+    {"rev-comp"           ,no_argument,       0, 'c'},
+    {"quiet"              ,no_argument,       0, 'q'},
+    {"verbose"            ,no_argument,       0, 'v'},
+    {"help"               ,no_argument,       0,   0},
     {0, 0, 0, 0}
   };
 
-  while ((c = getopt_long(argc, argv,"a:b:c:d:e:f:g:t:i:k:o:vp:r:hsy:x",longOptions, NULL)) != -1)
+  while ((c = getopt_long(argc, argv,"a:b:c:d:e:f:g:t:i:k:o:vpq:r:hsy:x",longOptions, NULL)) != -1)
     switch (c)
     {
       case 'a':
@@ -1076,6 +1081,10 @@ void parseArgs( int argc, char ** argv, inPar2_t *p )
 
       case 'v':
 	p->verbose = true;
+	break;
+
+      case 'q':
+	p->quiet = true;
 	break;
 
       case 's':

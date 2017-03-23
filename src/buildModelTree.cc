@@ -84,9 +84,10 @@ void printUsage( const char *s )
 	 << "\t-o <dir>         - output directory for MC taxonomy files\n"
 	 << "\t-i <faFile>      - input fasta file that will be used to construct reference fasta files for MC models\n"
 	 << "\t-l <lineageFile> - species lineage file\n"
-      	 << "\t-t <txFile>      - species taxon file\n"
-	 << "\t-v - verbose mode\n\n"
-	 << "\t-h|--help      - this message\n\n"
+	 << "\t-t <txFile>      - species taxon file\n"
+	 << "\t-q|--quiet       - suppers pregress messages\n"
+	 << "\t-v|--verbose     - verbose mode\n\n"
+	 << "\t-h|--help        - this message\n\n"
 
 	 << "\n\tExample\n"
 
@@ -120,6 +121,7 @@ public:
   char *faFile;             /// fasta file
   char *txFile;             /// species taxon file
   bool verbose;
+  bool quiet;
 
   void print();
 };
@@ -127,11 +129,12 @@ public:
 //------------------------------------------------- constructor ----
 inPar_t::inPar_t()
 {
-  outDir          = NULL;
-  lineageFile     = NULL;
-  faFile          = NULL;
-  txFile          = NULL;
-  verbose         = false;
+  outDir      = NULL;
+  lineageFile = NULL;
+  faFile      = NULL;
+  txFile      = NULL;
+  verbose     = false;
+  quiet       = false;
 }
 
 //------------------------------------------------- constructor ----
@@ -238,7 +241,8 @@ int main(int argc, char **argv)
   char *outDir      = inPar->outDir;
 
   // ==================================================================
-  printf("--- Generating model tree from %s\n",lineageFile);
+  if ( !inPar->quiet )
+    printf("--- Generating model tree from %s\n",lineageFile);
   NewickTree_t nt;
   nt.loadFullTxTree( lineageFile );
 
@@ -252,7 +256,8 @@ int main(int argc, char **argv)
   #endif
 
   // ==================================================================
-  printf("--- Loading ref tx file %s\n", txFile);
+  if ( !inPar->quiet )
+    printf("--- Loading ref tx file %s\n", txFile);
   char ***txTbl;
   int nRows, nCols;
   readCharTbl( txFile, &txTbl, &nRows, &nCols );
@@ -261,7 +266,8 @@ int main(int argc, char **argv)
   // printCharTbl(txTbl, 10, nCols); // test
 
   // ==================================================================
-  printf("--- Creating (tx => set of seqIDs) map\n");
+  if ( !inPar->quiet )
+    printf("--- Creating (tx => set of seqIDs) map\n");
   // typedef map<string, set<string> > strSet_t; // defined in IOCppUtilities.hh
   strSet_t tx2seqIDs;
   txTbl2txSet( txTbl, nRows, tx2seqIDs);
@@ -277,7 +283,8 @@ int main(int argc, char **argv)
 
 
   // ==================================================================
-  printf("--- Extending tx2seqIDs to internal nodes\n");
+  if ( !inPar->quiet )
+    printf("--- Extending tx2seqIDs to internal nodes\n");
   nt.txSet2txTree( tx2seqIDs );
 
   #if 0
@@ -310,12 +317,14 @@ int main(int argc, char **argv)
 
 
   // ==================================================================
-  printf("--- Creating <interna node> => <taxonomy> table inodeTx\n");
+  if ( !inPar->quiet )
+    printf("--- Creating <interna node> => <taxonomy> table inodeTx\n");
   typedef map<string, string> str2str_t;
   map<string, string> inodeTx;
   nt.inodeTx( lineageFile, inodeTx );
 
-  printf("--- Writing inodeTx to a file\n");
+  if ( !inPar->quiet )
+    printf("--- Writing inodeTx to a file\n");
   string inodeTxFile = string(outDir) + string("/inode.tx");
   out = fOpen(inodeTxFile.c_str(), "w");
   map<string, string>::iterator it1;
@@ -324,7 +333,8 @@ int main(int argc, char **argv)
   fclose(out);
 
   // ==================================================================
-  printf("--- Loading ref fasta file %s\n",faFile);
+  if ( !inPar->quiet )
+    printf("--- Loading ref fasta file %s\n",faFile);
   str2str_t seqTbl;
   readFasta( faFile, seqTbl);
 
@@ -336,11 +346,13 @@ int main(int argc, char **argv)
   #endif
 
   // ==================================================================
-  printf("--- Create fasta file for each species\n");
+  if ( !inPar->quiet )
+    printf("--- Create fasta file for each species\n");
   map<string, set<string> >::iterator it3;
   for ( it3 = tx2seqIDs.begin(); it3 != tx2seqIDs.end(); it3++ )
   {
-    printf("\r--- processing %s", (it3->first).c_str());
+    if ( !inPar->quiet )
+      printf("\r--- processing %s", (it3->first).c_str());
     string outFile = string(outDir) + string("/") + it3->first + string(".fa");
     FILE *out = fOpen(outFile.c_str(), "w");
 
@@ -353,7 +365,8 @@ int main(int argc, char **argv)
   }
 
   // ==================================================================
-  printf("\r--- Creating a file with absolute paths to just created fasta files\n");
+  if ( !inPar->quiet )
+    printf("\r--- Creating a file with absolute paths to just created fasta files\n");
   string pathsFile = string(outDir) + string("/spp_paths.txt");
   out = fOpen(pathsFile.c_str(), "w");
   for ( it3 = tx2seqIDs.begin(); it3 != tx2seqIDs.end(); it3++ )
@@ -365,7 +378,8 @@ int main(int argc, char **argv)
   }
   fclose(out);
 
-  printf("\r--- Output written to %s\n", outDir);
+  if ( !inPar->quiet )
+    printf("\r--- Output written to %s\n", outDir);
 
   return EXIT_SUCCESS;
 }
@@ -378,16 +392,17 @@ void parseArgs( int argc, char ** argv, inPar_t *p )
   optarg = NULL;
 
   static struct option longOptions[] = {
-    {"fasta-file"   ,required_argument, 0,          'i'},
-    {"taxon-file"   ,required_argument, 0,          't'},
-    {"lineage-file" ,required_argument, 0,          'l'},
-    {"out-dir"      ,required_argument, 0,          'o'},
-    {"help"         ,no_argument, 0,                  0},
-    {"verbose"      ,no_argument, 0,                  0},
+    {"fasta-file"   ,required_argument, 0, 'i'},
+    {"taxon-file"   ,required_argument, 0, 't'},
+    {"lineage-file" ,required_argument, 0, 'l'},
+    {"out-dir"      ,required_argument, 0, 'o'},
+    {"help"         ,no_argument,       0,   0},
+    {"quiet"        ,no_argument,       0, 'q'},
+    {"verbose"      ,no_argument,       0,   0},
     {0, 0, 0, 0}
   };
 
-  while ((c = getopt_long(argc, argv,"i:l:o:t:hv",longOptions, NULL)) != -1)
+  while ((c = getopt_long(argc, argv,"i:l:o:t:hvq",longOptions, NULL)) != -1)
     switch (c)
     {
       case 'o':
@@ -408,6 +423,10 @@ void parseArgs( int argc, char ** argv, inPar_t *p )
 
       case 'v':
 	p->verbose = true;
+	break;
+
+      case 'q':
+	p->quiet = true;
 	break;
 
       case 'h':
