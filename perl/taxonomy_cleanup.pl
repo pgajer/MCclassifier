@@ -2531,11 +2531,36 @@ if ($buildModelData)
     exit;
   }
 
+  # rm -rf Firmicutes_group_6_V3V4_MC_models_dir; buildModelTree -l Firmicutes_group_6_V3V4_final.spLineage -i Firmicutes_group_6_V3V4_final.fa -t Firmicutes_group_6_V3V4_final.tx -o Firmicutes_group_6_V3V4_MC_models_dir
+
   print "--- Building model tree and creating taxon's reference fasta files\n";
   my $mcDir = $grPrefix . "_MC_models_dir";
-  $cmd = "buildModelTree -l $spLineageFile -i $faFile -t $txFile -o $mcDir";
+  $cmd = "rm -rf $mcDir; buildModelTree -l $spLineageFile -i $faFile -t $txFile -o $mcDir";
   print "\tcmd=$cmd\n" if $dryRun || $debug;
   system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+
+  # buildMC -t Firmicutes_group_6_V3V4_MC_models_dir/spp_paths.txt -k 8 -d Firmicutes_group_6_V3V4_MC_models_dir
+
+  print "--- Building MC models\n";
+  $cmd = "buildMC -t $mcDir/spp_paths.txt -k 8 -d $mcDir";
+  print "\tcmd=$cmd\n" if $dryRun || $debug;
+  system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+
+
+  # clError -d Firmicutes_group_6_V3V4_MC_models_dir -o Firmicutes_group_6_V3V4_MC_models_clError_dir
+
+  print "--- Generating random sequences from the MC models\n";
+  my $errorDir = $grPrefix . "_MC_models_clError_dir";
+  $cmd = "rm -rf $errorDir; clError -d $mcDir -o $errorDir";
+  print "\tcmd=$cmd\n" if $dryRun || $debug;
+  system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+
+  # generate ncProbThlds.txt
+
+  # clError
+
+  # classify  -d Firmicutes_group_6_V3V4_MC_models_dir -i Firmicutes_group_6_V3V4_final.fa -o Firmicutes_group_6_V3V4_MC_models_dir
+  # classify  -d $mcDir -i $faFile -o $mcDir
 }
 
 
