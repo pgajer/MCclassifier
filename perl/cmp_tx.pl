@@ -72,6 +72,7 @@ GetOptions(
   "output-dir|o=s"   => \my $outDir,
   "dry-run"          => \my $dryRun,
   "quiet"            => \my $quiet,
+  "verbose|v"        => \my $verbose,
   "help|h!"          => \my $help,
   )
   or pod2usage(verbose => 0,exitstatus => 1);
@@ -156,16 +157,16 @@ close OUT;
 
 @mismatchedSpp = unique(\@mismatchedSpp);
 
-print "\nNumber of taxons:\t" . commify($count) . "\n"; #if !$quiet;
+print "\nNumber of taxons:\t" . commify($count) . "\n" if (!$quiet || $verbose);
 
 my $pMatch = sprintf("%.2f",100 * $match / $count);
 ##print "Percentage of matches: $pMatch%\n";
-print "Matches:\t\t" . commify($match) . " ($pMatch\%)\n"; #if !$quiet;
+print "Matches:\t\t" . commify($match) . " ($pMatch\%)\n" if (!$quiet || $verbose);
 
 my $mMatch = $count - $match;
 my $pMismatch = sprintf("%.2f",100 * $mMatch / $count);
 ##print "Percentage of mismatches: $pMismatch\n";
-print "Mismatches:\t\t" . commify($mMatch) . " ($pMismatch\%)\n"; #if !$quiet;
+print "Mismatches:\t\t" . commify($mMatch) . " ($pMismatch\%)\n" if (!$quiet || $verbose);
 
 my $outFile4 = "$outDir/accuracy.summary";
 # writing to this file

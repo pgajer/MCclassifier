@@ -164,12 +164,19 @@ if ($showAllTrees)
 ####################################################################
 ##                               MAIN
 ####################################################################
+
 my $debugStr = "";
 my $quietStr = "--quiet";
 if ($debug)
 {
   $debugStr = "--debug";
   $quietStr = "";
+}
+
+my $verboseStr = "";
+if ($verbose)
+{
+  $verboseStr = "--verbose";
 }
 
 my $grDir = $grPrefix . "_dir";
@@ -2578,7 +2585,7 @@ if ($buildModelData)
   #$ classify -r vaginal_319_806_v2_dir/refTx.tree -d vaginal_319_806_v2_MCdir -i vaginal_319_806_v2.fa -o mcDir_319_806_v2
   #$ cmp_tx.pl -i vaginal_319_806_v2.tx -j mcDir_319_806_v2_no_err_thld//MC.order7.results.txt -o mcDir_319_806_v2_no_err_thld/
   print "--- Comparing ref seq's taxonomy with the classification results\n";
-  $cmd = "cmp_tx.pl $quietStr -i $txFile -j $mcDir/MC_order7_results.txt -o $mcDir";
+  $cmd = "cmp_tx.pl --verbose $quietStr -i $txFile -j $mcDir/MC_order7_results.txt -o $mcDir";
   print "\tcmd=$cmd\n" if $dryRun || $debug;
   system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 }
