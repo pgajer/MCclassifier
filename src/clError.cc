@@ -282,8 +282,8 @@ int main(int argc, char **argv)
   //-- parsing input parameters
   parseArgs(argc, argv, inPar);
 
-  if ( inPar->verbose )
-    inPar->print();
+  // if ( inPar->verbose )
+  //   inPar->print();
 
   #if 0
   if ( !inPar->faDir )
