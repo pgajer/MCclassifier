@@ -76,7 +76,7 @@ OR PERFORMANCE OF THIS SOFTWARE.
 
   cd /Users/pgajer/projects/16S_rRNA_pipeline/vaginal_species_oct18_2013
 
-  clError -d vaginal_v2_MCdir -f vaginal_v2_dir -r vaginal_v2_dir/refTx.tree -o vaginal_v2_clError_dir
+  clError -d vaginal_v2_MCdir -f vaginal_v2_dir -r vaginal_v2_dir/model.tree -o vaginal_v2_clError_dir
 
 */
 
@@ -119,7 +119,7 @@ void printUsage( const char *s )
 
        << s << " -d vaginal_v2_MCdir -o vaginal_v2_clError_dir" << endl << "OR" << endl
 
-       << s << " -f vaginal_v2_dir -d vaginal_v2_MCdir -r vaginal_v2_dir/refTx.tree -o vaginal_v2_clError_dir" << endl << endl;
+       << s << " -f vaginal_v2_dir -d vaginal_v2_MCdir -r vaginal_v2_dir/model.tree -o vaginal_v2_clError_dir" << endl << endl;
 }
 
 
@@ -305,8 +305,8 @@ int main(int argc, char **argv)
   else
   {
     // lets see if we can find ref tree in mcDir
-    // refTx.tree
-    string trFile = string(inPar->mcDir) + "/refTx.tree";
+    // model.tree
+    string trFile = string(inPar->mcDir) + "/model.tree";
     STRDUP(inPar->treeFile, trFile.c_str());
 
     if ( !nt.loadTree(inPar->treeFile) )
@@ -522,12 +522,18 @@ int main(int argc, char **argv)
       pnode = node->parent_m;
       vector<NewickNode_t *> siblings;
       int n = pnode->children_m.size();
+      #if 0
       int nodeIdx = -1;
       for (int i = 0; i < n; i++)
 	if ( pnode->children_m[i] != node )
 	  siblings.push_back(pnode->children_m[i]);
 	else
 	  nodeIdx = i;
+      #endif
+
+      for (int i = 0; i < n; i++)
+	if ( pnode->children_m[i] != node )
+	  siblings.push_back(pnode->children_m[i]);
 
       #if 1
       //debug

@@ -47,6 +47,8 @@ void printUsage( const char *s )
 	 << "2. Building MC models only" << endl << endl
 	 << s << "-t <training file's paths file> -k <k-mer size> -d < MC models directory> [Options]" << endl << endl
 
+	 << s << "-k <k-mer size> -d < MC models directory> [Options]" << endl << endl
+
 	 << "3. Using prebuilt MC models" << endl << endl
 	 << s << "-d < MC models directory> -i <input fasta file> -o <output directory> [Options]" << endl << endl
 
@@ -86,10 +88,12 @@ void printUsage( const char *s )
 	 << "\n\tExample: \n"
 
 	 << "1. Building MC models on the fly" << endl << endl
-	 << s << " -t vaginal_319F_806R_nr_dir/spp_paths.txt -k 3 -i test.fa -o test_dir" << endl << endl
+	 << s << " -t vaginal_319F_806R_nr_dir/spp_paths.txt -k 8 -i test.fa -o test_dir" << endl << endl
 
 	 << "2. Building MC models only" << endl << endl
-	 << s <<" -t vaginal_319F_806R_nr_dir/spp_paths.txt -k 3 -d vaginal_319F_806R_nr_MCdir" << endl << endl
+	 << s <<" -t vaginal_319F_806R_nr_dir/spp_paths.txt -k 8 -d vaginal_319F_806R_nr_MCdir" << endl << endl
+
+      	 << s <<" -k 8 -d vaginal_319F_806R_nr_MCdir" << endl << endl
 
 	 << "3. Using prebuilt MC models" << endl << endl
 	 << s << " -d vaginal_319F_806R_nr_MCdir -i test.fa -o test_dir" << endl << endl
@@ -114,11 +118,11 @@ void printHelp( const char *s )
 
 //================================================= inPar2_t ====
 //! holds input parameters
-class inPar2_t
+class inPar_t
 {
 public:
-  inPar2_t();
-  ~inPar2_t();
+  inPar_t();
+  ~inPar_t();
 
   char *outDir;             /// output directory for MC taxonomy files
   char *mcDir;              /// input directory for MC model files
@@ -137,7 +141,7 @@ public:
 };
 
 //------------------------------------------------- constructor ----
-inPar2_t::inPar2_t()
+inPar_t::inPar_t()
 {
   outDir          = NULL;
   mcDir           = NULL;
@@ -151,7 +155,7 @@ inPar2_t::inPar2_t()
 }
 
 //------------------------------------------------- constructor ----
-inPar2_t::~inPar2_t()
+inPar_t::~inPar_t()
 {
   if ( outDir )
     free(outDir);
@@ -171,7 +175,7 @@ inPar2_t::~inPar2_t()
 }
 
 //------------------------------------------------------- print ----
-void inPar2_t::print()
+void inPar_t::print()
 {
   cerr << "printCounts=\t" << printCounts
        << "\npseudoCountType=\t" << pseudoCountType
@@ -217,13 +221,13 @@ void inPar2_t::print()
 
 
 //============================== local sub-routines =========================
-void parseArgs( int argc, char ** argv, inPar2_t *p );
+void parseArgs( int argc, char ** argv, inPar_t *p );
 
 //============================== main ======================================
 int main(int argc, char **argv)
 {
   //-- setting up init parameters
-  inPar2_t *inPar = new inPar2_t();
+  inPar_t *inPar = new inPar_t();
 
   //-- parsing input parameters
   parseArgs(argc, argv, inPar);
@@ -232,6 +236,25 @@ int main(int argc, char **argv)
   {
     readLines(inPar->trgFile, inPar->trgFiles); // path(s) from inPar->trgFile are loaded into inPar->trgFiles
     free( inPar->trgFile );
+  }
+  else if ( inPar->outDir )
+  {
+    string trgFile(inPar->outDir);
+    trgFile += string("/spp_paths.txt");
+    inPar->trgFile = strdup( trgFile.c_str() );
+
+    FILE * file = fopen(inPar->trgFile, "r");
+    if (!file)
+    {
+      //file doesn't exists or cannot be opened (es. you don't have access permission )
+      cerr << "\n\n\tFile with paths to training fasta files has not been supplied, so I tried " << trgFile << endl;
+      cerr << "\tBut it either doesn't exists or I don't have access permission to read it\n\n";
+      exit(1);
+    }
+    else
+    {
+      fclose(file);
+    }
   }
 
   if ( inPar->verbose )
@@ -537,7 +560,7 @@ int main(int argc, char **argv)
 
 //----------------------------------------------------------- parseArgs ----
 //! parse command line arguments
-void parseArgs( int argc, char ** argv, inPar2_t *p )
+void parseArgs( int argc, char ** argv, inPar_t *p )
 {
   int c, errflg = 0;
   optarg = NULL;

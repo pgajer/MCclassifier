@@ -88,8 +88,8 @@ void printUsage( const char *s )
 
        << "\n\tExample: \n"
 
-       << s << " -d vaginal_v2_MCdir -r vaginal_v2_dir/refTx.tree -f vaginal_v2.fullTx -i vaginal_v2.1.fa -o testDir" << endl << endl
-       << s << " -d vaginal_v2_MCdir -r vaginal_v2_dir/refTx.tree -i vaginal_v2.1.fa -o testDir" << endl << endl
+       << s << " -d vaginal_v2_MCdir -r vaginal_v2_dir/model.tree -f vaginal_v2.fullTx -i vaginal_v2.1.fa -o testDir" << endl << endl
+       << s << " -d vaginal_v2_MCdir -r vaginal_v2_dir/model.tree -i vaginal_v2.1.fa -o testDir" << endl << endl
        << s << " -e 2BVBACT-97 -t vaginal_v2_dir/spp_paths.txt -k 8 -r vaginal_sppCondensed_v2i.tree -o testDir" << endl << endl;
 }
 
@@ -468,8 +468,8 @@ int main(int argc, char **argv)
   else
   {
     // lets see if we can find ref tree in mcDir
-    // refTx.tree
-    string trFile = string(inPar->mcDir) + "/refTx.tree";
+    // model.tree
+    string trFile = string(inPar->mcDir) + "/model.tree";
     STRDUP(inPar->treeFile, trFile.c_str());
 
     if ( !nt.loadTree(inPar->treeFile) )
