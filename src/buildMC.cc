@@ -436,11 +436,10 @@ int main(int argc, char **argv)
 
     vector<char *> modelIds = probModel.modelIds();
 
-    cerr << "done" << endl;
-
-
     if ( inPar->verbose )
     {
+      cerr << "done" << endl;
+
       cout << "modelIds.size()=" << modelIds.size() << "\nmodelIds:\t";
       printVector(modelIds);
 
