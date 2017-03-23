@@ -335,7 +335,8 @@ int main(int argc, char **argv)
   //fprintf(stderr, "After loading tree\n");
 
   int depth = nt.getDepth();
-  cerr << "--- Depth of the tree: " << depth << endl;
+  if ( inPar->verbose )
+    cerr << "--- Depth of the tree: " << depth << endl;
 
   if ( inPar->outDir ) // create output directory
   {
@@ -405,24 +406,27 @@ int main(int argc, char **argv)
 
   if ( inPar->kMerLens.size() == 0 )
   {
-    int kMers[] = {3};
+    int kMers[] = {8};
     cerr << endl << "WARNING: Setting k-mer size to " << kMers[0] << endl;
     int n = sizeof(kMers) / sizeof(int);
     for ( int i = 0; i < n; ++i )
       inPar->kMerLens.push_back(kMers[i]);
   }
 
-  cerr << "--- nModels=" << nModels << endl;
+  if ( inPar->verbose )
+    cerr << "--- nModels=" << nModels << endl;
 
   int wordLen = inPar->kMerLens[0];
 
   if ( inPar->verbose )
+  {
     cerr << "\rk=" << wordLen << "\n";
 
-  if ( inPar->mcDir && !inPar->trgFiles.size() )
-    cerr << "\r--- Reading k-mer frequency tables from " << inPar->mcDir << " ... ";
-  else
-    cerr << "\r--- Generating k-mer frequency tables for k=1:" << wordLen << " ... ";
+    if ( inPar->mcDir && !inPar->trgFiles.size() )
+      cerr << "\r--- Reading k-mer frequency tables from " << inPar->mcDir << " ... ";
+    else
+      cerr << "\r--- Generating k-mer frequency tables for k=1:" << wordLen << " ... ";
+  }
 
   size_t alloc = 1024*1024;
   char *data, *seq;
@@ -437,7 +441,8 @@ int main(int argc, char **argv)
 				   inPar->mcDir,
 				   inPar->maxNumAmbCodes,
 				   inPar->pseudoCountType );
-  cerr << "done" << endl;
+  if ( inPar->verbose )
+    cerr << "done" << endl;
 
   //fprintf(stderr, "seq: %s\tseqLen=%d\n", seq, seqLen);
 
@@ -470,7 +475,9 @@ int main(int argc, char **argv)
   int numChildren;
   int sampleSize = inPar->randSampleSize;
 
+  #if 0
   fprintf(stderr, "Sample Size: %d\n", sampleSize);
+  #endif
 
   while ( !bfs.empty() )
   {
@@ -481,7 +488,8 @@ int main(int argc, char **argv)
 
     if ( node != root )
     {
-      fprintf(stderr, "\r--- Processing %s\n", node->label.c_str());
+      if ( inPar->verbose )
+	fprintf(stderr, "\r--- Processing %s\n", node->label.c_str());
 
       string outFile = string(inPar->outDir) + string("/") + node->label + string(".txt");
       //fprintf(stderr, "\toutFile: %s\n\n", outFile.c_str());
@@ -496,9 +504,11 @@ int main(int argc, char **argv)
 
       int nSpp = leaves.size();
       int nSeqsPerSpp = ceil( 1.0 * sampleSize / nSpp );
+      #if 0
       cerr << "--- nSpp=" << nSpp << endl;
       cerr << "--- nSeqsPerSpp=" << nSeqsPerSpp << endl;
       //exit(1);
+      #endif
 
       char **seqTbl;
 
@@ -535,7 +545,7 @@ int main(int argc, char **argv)
 	if ( pnode->children_m[i] != node )
 	  siblings.push_back(pnode->children_m[i]);
 
-      #if 1
+      #if 0
       //debug
       fprintf(stderr, "\tIdentifying siblings of %s\n", node->label.c_str());
       fprintf(stderr, "\tSiblings:\n");
@@ -631,7 +641,8 @@ int main(int argc, char **argv)
     }
   }
 
-  fprintf(stderr,"\r\nOutput written to %s\n", inPar->outDir);
+  if ( inPar->verbose )
+    fprintf(stderr,"\r\nOutput written to %s\n", inPar->outDir);
 
   delete probModel;
 
