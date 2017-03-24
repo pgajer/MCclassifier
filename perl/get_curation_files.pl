@@ -25,7 +25,7 @@
 
 =over
 
-=item B<--in-tx-file, -i>
+=item B<--unaligned-sequence-file, -i>
   Input fasta file.
 
 =item B<--outgroup-seqID-file, -g>
@@ -36,9 +36,6 @@
 
 =item B<--lineage-file, -l>
  Input lineage file. Deprecated.
-
-=item B<--source-lineage-file, -s>
-  The starting, source file containing lineage information for all sequences.
 
 =item B<--verbatim, -v>
   Prints content of some output files.
@@ -86,7 +83,6 @@ GetOptions(
   "output-dir|o=s"      => \my $outDir,
   "seq-file|i=s"        => \my $seqFile,
   "lineage-file|l=s"    => \my $lineageFile,
-  "source-lineage|s=s"	=> \my $sourceLineage,
   "igs"                 => \my $igs,
   "verbose|v"           => \my $verbose,
   "quiet"               => \my $quiet,
