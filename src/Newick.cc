@@ -491,7 +491,6 @@ void NewickTree_t::loadFullTxTree(const char *file)
   bfs2.push(root_m);
   int numChildren;
   NewickNode_t *pnode;
-  NewickNode_t *chNode;
 
   while ( !bfs2.empty() )
   {
@@ -542,7 +541,7 @@ void NewickTree_t::loadFullTxTree(const char *file)
 	fprintf(stderr, "\n\t\tNode's name BEFORE regex statement: %s\n", node->label.c_str());
         #endif
 
-	// node->children_m[0] is the unique child of node
+	// node->children_m[0] is the only child of node
 	// check if its name starts with sg_
 	// if it does, copy the name of node to node->children_m[0]
 	// and proceed as before
