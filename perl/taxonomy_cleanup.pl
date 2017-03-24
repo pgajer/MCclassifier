@@ -4173,7 +4173,7 @@ for ( file in files )
     nFields <- count.fields(file, sep = \'\\t\')
     maxNumFields <- max(nFields)
 
-    tbl <- read.table(file, sep=\"\\t\", col.names = paste0(\"V\",seq_len(maxNumFields)), fill = TRUE)
+    tbl <- read.table(file, sep=\"\\t\", col.names = paste0(\"V\",seq_len(maxNumFields)), fill = TRUE, stringsAsFactors=FALSE)
     dim(tbl)
     ids <- tbl[,1]
     refID <- ids[1]
