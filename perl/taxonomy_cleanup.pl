@@ -4132,6 +4132,11 @@ sub build_clError
 
   my $Rscript = qq~
 
+myHist <- function(x, main=\"\", br=100, ... )
+{
+    hist(x, br=br, col=2, las=1, main=main, ...)
+}
+
 files <- list.files(path=\"$errorDir\", pattern=\"*.txt\", full.names=TRUE)
 length(files)
 
