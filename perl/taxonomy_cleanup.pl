@@ -209,34 +209,33 @@ my $outgroupFile    = $grPrefix . "_outgroup.seqIDs";
 my $treeFile	    = $grPrefix . ".tree";
 my $txFile          = $grPrefix . ".tx";
 
-if ( ! -f $lineageFile )
+if ( ! -e $lineageFile )
 {
   warn "\n\n\tERROR: $lineageFile does not exist";
   print "\n\n";
   exit 1;
 }
-elsif ( ! -f $algnFile )
+elsif ( ! -e $algnFile )
 {
   warn "\n\n\tERROR: $algnFile does not exist";
   print "\n\n";
   exit 1;
 }
-elsif ( ! -f $trimmedAlgnFile )
+elsif ( ! -e $trimmedAlgnFile )
 {
   warn "WARNING: $trimmedAlgnFile does not exist. Creating a symbolic link to $algnFile.\n";
   my $ap = abs_path( $algnFile );
-  #print "ap: $ap\n"; exit 1;
-  my $cmd = "ln -s $ap $trimmedAlgnFile";
+  my $cmd = "rm -f $trimmedAlgnFile; ln -s $ap $trimmedAlgnFile";
   print "\tcmd=$cmd\n" if $dryRun || $debug;
   system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 }
-elsif ( ! -f $treeFile )
+elsif ( ! -e $treeFile )
 {
   warn "\n\n\tERROR: $treeFile does not exist";
   print "\n";
   exit 1;
 }
-elsif ( ! -f $outgroupFile )
+elsif ( ! -e $outgroupFile )
 {
   warn "\n\n\tERROR: $treeFile does not exist";
   print "\n\n";
@@ -250,7 +249,12 @@ my @ogSeqIDs = readArray($outgroupFile);
 my %ogInd = map{$_ =>1} @ogSeqIDs; # outgroup elements indicator table
 
 print "--- Testing if OG seq's form a monophylectic clade at the top or bottom of the input tree\n";
-test_OG($treeFile, \%ogInd);
+if ( test_OG($treeFile, \%ogInd) != 0 )
+{
+  warn "\n\n\tERROR: There is an issue with input tree outgroup seq's";
+  print "\n\n";
+  exit 1;
+} ;
 
 print "--- Extracting seq IDs from trimmed alignment fasta file\n";
 my @seqIDs = get_seqIDs_from_fa($trimmedAlgnFile);
@@ -364,7 +368,7 @@ my %spParent;
 my %geParent;
 my %faParent;
 my %orParent;
-#my %clParent;
+my %clParent;
 
 for my $id ( keys %lineageTbl )
 {
@@ -381,7 +385,7 @@ for my $id ( keys %lineageTbl )
   $geParent{$ge} = $fa;
   $faParent{$fa} = $or;
   $orParent{$or} = $cl;
-#  $clParent{$cl} = $ph;
+  $clParent{$cl} = $ph;
 
   $spLineage{$sp} = $lineage;
 
@@ -1816,6 +1820,75 @@ for my $ge (@newGenera)
 
   $orParent{$newOr} = $newCl;
   print "orParent{$newOr} = $newCl\n\n" if $debug;
+
+  $section = qq~
+
+##
+## === updating clParent ===
+##
+
+~;
+  print "$section" if $debug;
+
+  print "\nProcessing $newCl\n" if $debug;
+
+  my @clComponents = split "_", $newCl;
+  print "clComponents: @clComponents\n\n" if $debug;
+
+  if ( @clComponents == 1 && !exists $clParent{$clComponents[0]} )
+  {
+    warn "\n\n\tERRCL: $clComponents[0] not found in clParent";
+    print "\n\n";
+
+    print "clParent:\n";
+    printFclmatedTbl(\%clParent);
+    print "\n\n";
+
+    exit 1;
+  }
+  elsif ( @clComponents == 1 && exists $clParent{$clComponents[0]} )
+  {
+    # we are assuming that since $clComponents[0] was found in clParent higher taxon
+    # parents are also found in the cclresponding parent tables
+    print "clParent{$clComponents[0]}: $clParent{$clComponents[0]}\n\n" if $debug;
+    next;
+  }
+
+  my %locPha;
+  my $newPh;
+  my $ph = shift @clComponents;
+  if ( exists $clParent{$ph} )
+  {
+    $newPh = $clParent{$ph};
+    $locPha{$newPh}++;
+  }
+  else
+  {
+    warn "\n\n\tERROR: The first element, $ph, of $newPh not found in clParent";
+    print "\n\n";
+    exit 1;
+  }
+
+  print "Parents of the components of $newPh:\n\t$newPh\n" if $debug;
+
+  for my $ph (@clComponents)
+  {
+    if ( exists $clParent{$ph} && !exists $locPha{$clParent{$ph}} )
+    {
+      $newPh .= "_" . $clParent{$ph};
+      $locPha{$clParent{$ph}}++;
+      print "\t" . $clParent{$ph} . "\n" if $debug;
+    }
+    elsif ( !exists $clParent{$ph} )
+    {
+      warn "\n\n\tERROR: The element, $ph, of $newPh not found in clParent";
+      print "\n\n";
+      exit 1;
+    }
+  }
+
+  $clParent{$newCl} = $newPh;
+  print "clParent{$newCl} = $newPh\n\n" if $debug;
 }
 
 if ($debug)
@@ -1832,8 +1905,12 @@ if ($debug)
   printFormatedTbl(\%faParent);
   print "\n\n";
 
-  print "ofParent:\n";
+  print "orParent:\n";
   printFormatedTbl(\%orParent);
+  print "\n\n";
+
+  print "clParent:\n";
+  printFormatedTbl(\%clParent);
   print "\n\n";
 }
 
@@ -1864,8 +1941,9 @@ for my $id (keys %lineageTbl)
       my $newFa = $geParent{$newGe};
       my $newOr = $faParent{$newFa};
       my $newCl = $orParent{$newOr};
+      my $newPh = $clParent{$newCl};
 
-      my @t = ("Bacteria", $ph, $newCl, $newOr, $newFa, $newGe, $sp);
+      my @t = ("Bacteria", $newPh, $newCl, $newOr, $newFa, $newGe, $sp);
       my $l = join ";", @t;
 
       $lineageTbl{$id} = $l;
@@ -1883,8 +1961,17 @@ close OUT;
 print "--- Checking parent consistency of the lineage table\n";
 if ( check_parent_consistency(\%lineageTbl) )
 {
-  warn "";
-  print "\n\n";
+  my $tmpLineageFile = $grPrefix . "_tmp.lineage";
+  open OUT, ">$tmpLineageFile" or die "Cannot open $tmpLineageFile for writing: $OS_ERROR\n";
+  for my $id (keys %lineageTbl)
+  {
+    my $lineage = $lineageTbl{$id};
+    print OUT "$id\t$lineage\n";
+  }
+  close OUT;
+
+  warn "\t";
+  print "\ttmp lineage written to $tmpLineageFile\n\n";
   exit 1;
 }
 
@@ -2526,6 +2613,75 @@ for my $fa (@newFamilies)
 
   $orParent{$newOr} = $newCl;
   print "orParent{$newOr}: $newCl\n\n" if $debug;
+
+  $section = qq~
+
+##
+## === updating clParent ===
+##
+
+~;
+  print "$section" if $debug;
+
+  print "\nProcessing $newCl\n" if $debug;
+
+  my @clComponents = split "_", $newCl;
+  print "clComponents: @clComponents\n\n" if $debug;
+
+  if ( @clComponents == 1 && !exists $clParent{$clComponents[0]} )
+  {
+    warn "\n\n\tERRCL: $clComponents[0] not found in clParent";
+    print "\n\n";
+
+    print "clParent:\n";
+    printFclmatedTbl(\%clParent);
+    print "\n\n";
+
+    exit 1;
+  }
+  elsif ( @clComponents == 1 && exists $clParent{$clComponents[0]} )
+  {
+    # we are assuming that since $clComponents[0] was found in clParent higher taxon
+    # parents are also found in the cclresponding parent tables
+    print "clParent{$clComponents[0]}: $clParent{$clComponents[0]}\n\n" if $debug;
+    next;
+  }
+
+  my %locPha;
+  my $newPh;
+  my $ph = shift @clComponents;
+  if ( exists $clParent{$ph} )
+  {
+    $newPh = $clParent{$ph};
+    $locPha{$newPh}++;
+  }
+  else
+  {
+    warn "\n\n\tERROR: The first element, $ph, of $newPh not found in clParent";
+    print "\n\n";
+    exit 1;
+  }
+
+  print "Parents of the components of $newPh:\n\t$newPh\n" if $debug;
+
+  for my $ph (@clComponents)
+  {
+    if ( exists $clParent{$ph} && !exists $locPha{$clParent{$ph}} )
+    {
+      $newPh .= "_" . $clParent{$ph};
+      $locPha{$clParent{$ph}}++;
+      print "\t" . $clParent{$ph} . "\n" if $debug;
+    }
+    elsif ( !exists $clParent{$ph} )
+    {
+      warn "\n\n\tERROR: The element, $ph, of $newPh not found in clParent";
+      print "\n\n";
+      exit 1;
+    }
+  }
+
+  $clParent{$newCl} = $newPh;
+  print "clParent{$newCl} = $newPh\n\n" if $debug;
 }
 
 print "--- Updating lineage table at the family level\n";
@@ -2554,7 +2710,9 @@ for my $id (keys %lineageTbl)
 
       my $newOr = $faParent{$newFa};
       my $newCl = $orParent{$newOr};
-      my @t = ("Bacteria", $ph, $newCl, $newOr, $newFa, $ge, $sge, $sp);
+      my $newPh = $clParent{$newCl};
+
+      my @t = ("Bacteria", $newPh, $newCl, $newOr, $newFa, $ge, $sge, $sp);
       my $l = join ";", @t;
 
       # if ($debug)
@@ -2861,6 +3019,75 @@ if ( scalar(keys %faChildren) > 1 )
 
     $orParent{$origOr} = $newCl;
     print "orParent{$origOr}: $newCl\n\n" if $debug;
+
+    $section = qq~
+
+##
+## === updating clParent ===
+##
+
+~;
+    print "$section" if $debug;
+
+    print "\nProcessing $newCl\n" if $debug;
+
+    my @clComponents = split "_", $newCl;
+    print "clComponents: @clComponents\n\n" if $debug;
+
+    if ( @clComponents == 1 && !exists $clParent{$clComponents[0]} )
+    {
+      warn "\n\n\tERRCL: $clComponents[0] not found in clParent";
+      print "\n\n";
+
+      print "clParent:\n";
+      printFclmatedTbl(\%clParent);
+      print "\n\n";
+
+      exit 1;
+    }
+    elsif ( @clComponents == 1 && exists $clParent{$clComponents[0]} )
+    {
+      # we are assuming that since $clComponents[0] was found in clParent higher taxon
+      # parents are also found in the cclresponding parent tables
+      print "clParent{$clComponents[0]}: $clParent{$clComponents[0]}\n\n" if $debug;
+      next;
+    }
+
+    my %locPha;
+    my $newPh;
+    my $ph = shift @clComponents;
+    if ( exists $clParent{$ph} )
+    {
+      $newPh = $clParent{$ph};
+      $locPha{$newPh}++;
+    }
+    else
+    {
+      warn "\n\n\tERROR: The first element, $ph, of $newPh not found in clParent";
+      print "\n\n";
+      exit 1;
+    }
+
+    print "Parents of the components of $newPh:\n\t$newPh\n" if $debug;
+
+    for my $ph (@clComponents)
+    {
+      if ( exists $clParent{$ph} && !exists $locPha{$clParent{$ph}} )
+      {
+	$newPh .= "_" . $clParent{$ph};
+	$locPha{$clParent{$ph}}++;
+	print "\t" . $clParent{$ph} . "\n" if $debug;
+      }
+      elsif ( !exists $clParent{$ph} )
+      {
+	warn "\n\n\tERROR: The element, $ph, of $newPh not found in clParent";
+	print "\n\n";
+	exit 1;
+      }
+    }
+
+    $clParent{$newCl} = $newPh;
+    print "clParent{$newCl} = $newPh\n\n" if $debug;
   }
 
 
@@ -2895,8 +3122,9 @@ if ( scalar(keys %faChildren) > 1 )
 	my $ph = pop @f;
 
 	my $newCl = $orParent{$newOr};
+	my $newPh = $clParent{$newCl};
 
-	my @t = ("Bacteria", $ph, $newCl, $newOr, $fa, $ge, $sge, $sp);
+	my @t = ("Bacteria", $newPh, $newCl, $newOr, $fa, $ge, $sge, $sp);
 	my $l = join ";", @t;
 
 	# print "\n\nOrig lineageTbl{$id}: " . $lineageTbl{$id} . "\n";
@@ -3128,13 +3356,15 @@ if ( scalar(keys %faChildren) > 1 )
       {
 	my $cl = pop @f;
 	my $newCl = $orderClass{$or};
+	my $newPh = $clParent{$newCl};
+
 	print OUT "$id\t$newCl\n";
 
 	# $lineageTbl{$id} needs updating only when $newCl ne $cl
 	if ( $newCl ne $cl )
 	{
 	  my $ph = pop @f;
-	  my @t = ("Bacteria", $ph, $newCl, $or, $fa, $ge, $sge, $sp);
+	  my @t = ("Bacteria", $newPh, $newCl, $or, $fa, $ge, $sge, $sp);
 	  my $l = join ";", @t;
 	  $lineageTbl{$id} = $l;
 	}
@@ -4804,6 +5034,8 @@ sub test_OG
 
   my $debug_test_OG = 0;
 
+  my $ret = 0;
+
   print "\t--- Extracting leaves\n" if $debug_test_OG;
   my $treeLeavesFile = "$grPrefix" . "_sppSeqIDs.leaves";
   my $cmd = "rm -f $treeLeavesFile; nw_labels -I $treeFile > $treeLeavesFile";
@@ -4875,7 +5107,7 @@ sub test_OG
     warn "$grPrefix\n\n\tERROR: start and end arrays have different lengths!";
     print "length(start): " . @start . "\n";
     print "length(end): " . @end . "\n\n";
-    exit 1;
+    $ret = 1;
   }
 
   my @rangeSize;
@@ -4941,7 +5173,7 @@ sub test_OG
 
     # $imax = $minCladeSizeIdx;
     # print "\nUpdated imax: $imax\n";
-    exit 1;
+    $ret = 1;
   }
   elsif ( !( $start[0] == 0 || $end[0] == $#leaves) )
   {
@@ -4992,7 +5224,7 @@ sub test_OG
     print "\n\tNumber of leaves of the OG clade: " . @ogCladeLeaves . "\n";
     print   "\tNumber of OG sequences: " . @og . "\n\n";
 
-    exit 1;
+    $ret = 1;
   }
   else
   {
@@ -5027,11 +5259,13 @@ sub test_OG
 
       print "\n\tNumber of leaves of the OG clade: " . @ogCladeLeaves . "\n";
       print   "\tNumber of OG sequences: " . @og . "\n\n";
-      exit 1;
+      $ret = 1;
     }
   }
 
   print "\n\tOG seq's form a monophylectic clade at the top or bottom of the input tree\n\n" if $debug_test_OG;
+
+  return $ret;
 }
 
 # print array to stdout
