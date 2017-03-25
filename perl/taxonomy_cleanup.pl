@@ -115,7 +115,7 @@ GetOptions(
 if ($help)
 {
   pod2usage(verbose => 2,exitstatus => 0);
-  exit;
+  exit 1;
 }
 
 if ( !$grPrefix )
@@ -123,7 +123,7 @@ if ( !$grPrefix )
   warn "\n\n\tERROR: Missing input group name";
   print "\n\n";
   pod2usage(verbose => 2,exitstatus => 0);
-  exit;
+  exit 1;
 }
 
 my $mothur = "/Users/pgajer/bin/mothur";
@@ -165,6 +165,8 @@ if ($showAllTrees)
 ##                               MAIN
 ####################################################################
 
+my @suffixes;
+
 my $debugStr = "";
 my $quietStr = "--quiet";
 if ($debug)
@@ -183,8 +185,9 @@ my $grDir = $grPrefix . "_dir";
 
 if ( ! -d $grDir )
 {
-  warn "ERROR: $grDir does not exist";
-  exit;
+  warn "\n\n\tERROR: $grDir does not exist";
+  print "\n\n";
+  exit 1;
 }
 
 my $section = qq~
@@ -208,32 +211,36 @@ my $txFile          = $grPrefix . ".tx";
 
 if ( ! -f $lineageFile )
 {
-  warn "ERROR: $lineageFile does not exist\n";
-  exit;
+  warn "\n\n\tERROR: $lineageFile does not exist";
+  print "\n\n";
+  exit 1;
 }
 elsif ( ! -f $algnFile )
 {
-  warn "ERROR: $algnFile does not exist\n";
-  exit;
+  warn "\n\n\tERROR: $algnFile does not exist";
+  print "\n\n";
+  exit 1;
 }
 elsif ( ! -f $trimmedAlgnFile )
 {
   warn "WARNING: $trimmedAlgnFile does not exist. Creating a symbolic link to $algnFile.\n";
   my $ap = abs_path( $algnFile );
-  #print "ap: $ap\n"; exit;
+  #print "ap: $ap\n"; exit 1;
   my $cmd = "ln -s $ap $trimmedAlgnFile";
   print "\tcmd=$cmd\n" if $dryRun || $debug;
-  system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+  system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 }
 elsif ( ! -f $treeFile )
 {
-  warn "ERROR: $treeFile does not exist\n";
-  exit;
+  warn "\n\n\tERROR: $treeFile does not exist";
+  print "\n";
+  exit 1;
 }
 elsif ( ! -f $outgroupFile )
 {
-  warn "ERROR: $treeFile does not exist\n";
-  exit;
+  warn "\n\n\tERROR: $treeFile does not exist";
+  print "\n\n";
+  exit 1;
 }
 
 
@@ -249,7 +256,15 @@ print "--- Extracting seq IDs from trimmed alignment fasta file\n";
 my @seqIDs = get_seqIDs_from_fa($trimmedAlgnFile);
 
 print "--- Parsing lineage table\n";
-my %lineageTbl = read2colTbl($lineageFile);
+my %lineageTbl = readLineageTbl($lineageFile);
+
+print "--- Checking parent consistency of the lineage table\n";
+if ( check_parent_consistency(\%lineageTbl) )
+{
+  warn "";
+  print "\n\n";
+  exit 1;
+}
 
 ## testing if lineage and fa files has the same seq IDs
 print "--- Checking if seqIDs of $trimmedAlgnFile and $lineageFile are the same\n";
@@ -276,9 +291,9 @@ if ( scalar(@ogDiff) != 0 )
 
 if ( scalar(@ogSeqIDs) == 0 )
 {
-  warn "\n\tERROR: All outgroup seq's were lost";
+  warn "\n\n\tERROR: All outgroup seq's were lost";
   print "\n\n";
-  exit;
+  exit 1;
 }
 
 if ($debug)
@@ -292,7 +307,7 @@ print "--- Testing if $treeFile is consistent with $trimmedAlgnFile\n";
 my $treeLeavesFile = "$grPrefix" . "_tree.leaves";
 my $cmd = "nw_labels -I $treeFile > $treeLeavesFile";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
-system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 
 ## looking at the difference between leaf IDs and newTx keys
 my @treeLeaves = readArray($treeLeavesFile);
@@ -300,11 +315,11 @@ my @treeLeaves = readArray($treeLeavesFile);
 my @commTL = comm(\@treeLeaves, \@seqIDs);
 if (@commTL != @treeLeaves || @commTL != @seqIDs)
 {
-  warn "ERROR: seq IDs of $treeFile and $algnFile do not match";
-  print "Number of seq IDs of $treeFile: " . @treeLeaves . "\n";
-  print "Number of seq IDs of $trimmedAlgnFile: " . @seqIDs . "\n";
-  print "Number of common seq IDs elements: " . @commTL . "\n";
-  exit;
+  warn "\n\n\tERROR: seq IDs of $treeFile and $algnFile do not match";
+  print "\tNumber of seq IDs of $treeFile: " . @treeLeaves . "\n";
+  print "\tNumber of seq IDs of $trimmedAlgnFile: " . @seqIDs . "\n";
+  print "\tNumber of common seq IDs elements: " . @commTL . "\n\n";
+  exit 1;
 }
 
 if ($debug)
@@ -344,7 +359,12 @@ my %parent;
 
 my %spLineage; # species => lineage of the species (recorded as a string)
 my %geLineage; # genus   => lineage of the genus (skipping species)
+
 my %spParent;
+my %geParent;
+my %faParent;
+my %orParent;
+#my %clParent;
 
 for my $id ( keys %lineageTbl )
 {
@@ -358,6 +378,10 @@ for my $id ( keys %lineageTbl )
   my $ph = pop @f;
 
   $spParent{$sp} = $ge;
+  $geParent{$ge} = $fa;
+  $faParent{$fa} = $or;
+  $orParent{$or} = $cl;
+#  $clParent{$cl} = $ph;
 
   $spLineage{$sp} = $lineage;
 
@@ -550,7 +574,7 @@ else
   $cmd = "vicut $quietStr -t $treeFile -a $annFile -o $vicutDir";
 }
 print "\tcmd=$cmd\n" if $dryRun || $debug;
-system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 
 ## update_spp_tx.pl takes vicut clusters and updates taxonomy using majority vote.
 ## Moreover, if a species is present in more than 1 cluster, it changes
@@ -558,7 +582,7 @@ system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 print "--- Running update_spp_tx.pl\n";
 $cmd = "update_spp_tx.pl $quietStr $debugStr $useLongSppNamesStr -a $txFile -d $vicutDir";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
-system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 
 ## Rerunning vicut with updated taxons giving a chance sequences whose taxonomy
 ## changed to <genus>_sp to have their taxonomy updated to a proper species
@@ -667,12 +691,12 @@ if (@query2)
   $cmd = "vicut $quietStr -t $treeFile -a $annFile2 -q $queryFile2 -o $vicutDir";
   ##$cmd = "vicut $quietStr -t $treeFile -a $annFile -o $vicutDir";
   print "\tcmd=$cmd\n" if $dryRun || $debug;
-  system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+  system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 
   print "--- Running update_spp_tx.pl\n";
   $cmd = "update_spp_tx.pl $quietStr $debugStr $useLongSppNamesStr -a $updatedTxFile -d $vicutDir";
   print "\tcmd=$cmd\n" if $dryRun || $debug;
-  system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+  system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 
   $updatedTxFile = "$vicutDir/updated.tx";
   %newTx = readTbl($updatedTxFile);
@@ -723,13 +747,20 @@ for my $id (keys %lineageTbl)
 	  print "\tnewSp: $newSp\n";
 	  print "\tlineageTbl{$id}: " . $lineageTbl{$id} . "\n";
 	  print "\n\n";
-	  exit;
+	  exit 1;
 	}
       }
     }
   } # end of if ( exists $newTx{$id} )
 }
 
+print "--- Checking parent consistency of the lineage table\n";
+if ( check_parent_consistency(\%lineageTbl) )
+{
+  warn "";
+  print "\n\n";
+  exit 1;
+}
 
 if ( @extraOG>0 )
 {
@@ -745,18 +776,18 @@ if ( @extraOG>0 )
 
   $cmd = "mv $updatedTxFile $origNewTxFileNoTGTs";
   print "\tcmd=$cmd\n" if $dryRun || $debug;
-  system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+  system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 
   $cmd = "select_tx.pl $quietStr -e $extraOGfile -i $origNewTxFileNoTGTs -o $updatedTxFile";
   print "\tcmd=$cmd\n" if $dryRun || $debug;
-  system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+  system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 
   # pruning alignment
   print "--- Pruning extraOG seq's from $trimmedAlgnFile\n";
   my $prunedAlgnFile = $grPrefix . "_algn_trimmed_pruned.fa";
   $cmd = "select_seqs.pl $quietStr -e $extraOGfile -i $trimmedAlgnFile -o $prunedAlgnFile";
   print "\tcmd=$cmd\n" if $dryRun || $debug;
-  system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+  system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 
   $trimmedAlgnFile = $prunedAlgnFile;
 
@@ -765,7 +796,7 @@ if ( @extraOG>0 )
   my $prunedTreeFile = $grPrefix . "_pruned.tree";
   $cmd = "rm -f $prunedTreeFile; nw_prune $treeFile @extraOG > $prunedTreeFile";
   print "\tcmd=$cmd\n" if $dryRun || $debug;
-  system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+  system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 
   $treeFile = $prunedTreeFile;
 }
@@ -797,7 +828,7 @@ my $finalAlgnFile = $grPrefix . "_algn_trimmed_final.fa";
 my $ap = abs_path( $trimmedAlgnFile );
 $cmd = "rm -f $finalAlgnFile; ln -s $ap $finalAlgnFile";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
-system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 
 
 ## Removing outgroup sequences from the updated.tx file and the phylogenetic
@@ -818,18 +849,18 @@ writeArray(\@ogSeqIDs, $ogFile);
 
 $cmd = "mv $updatedTxFile $origNewTxFileNoTGTs";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
-system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 
 $cmd = "select_tx.pl $quietStr -e $ogFile -i $origNewTxFileNoTGTs -o $updatedTxFile";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
-system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 
 # pruning tree from OG seq's
 print "--- Pruning OG seq's from $treeFile\n";
 my $prunedTreeFile = $grPrefix . "_no_OG_seqs.tree";
 $cmd = "rm -f $prunedTreeFile; nw_prune $treeFile @ogSeqIDs > $prunedTreeFile";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
-system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 
 $treeFile = $prunedTreeFile;
 
@@ -842,7 +873,7 @@ $treeFile = $prunedTreeFile;
 ## extracting leave IDs
 $cmd = "rm -f $treeLeavesFile; nw_labels -I $treeFile > $treeLeavesFile";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
-system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 
 %newTx = readTbl($updatedTxFile);
 
@@ -859,7 +890,7 @@ if (@lostLeaves>0)
   print "--- Pruning lost seqIDs from the current phylo tree\n";
   $cmd = "rm -f $prunedTreeFile; nw_prune $treeFile @lostLeaves > $prunedTreeFile";
   print "\tcmd=$cmd\n" if $dryRun || $debug;
-  system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+  system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 
   $treeFile = $prunedTreeFile;
 }
@@ -900,7 +931,7 @@ for my $sp (keys %spFreqTbl)
   my $g = shift @f;
   my $s = shift @f;
 
-  if ($s eq "sp")
+  if ( defined $s && $s eq "sp" )
   {
     my @cls = keys %{$spFreqTbl{$sp}};
     for my $cl (@cls)
@@ -927,18 +958,18 @@ if ( @spSingletons )
 
   $cmd = "mv $updatedTxFile $origNewTxFileNoTGTs";
   print "\tcmd=$cmd\n" if $dryRun || $debug;
-  system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+  system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 
   $cmd = "select_tx.pl $quietStr -e $spSingletonsFile -i $origNewTxFileNoTGTs -o $updatedTxFile";
   print "\tcmd=$cmd\n" if $dryRun || $debug;
-  system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+  system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 
   # pruning alignment
   print "--- Pruning spSingletons seq's from $trimmedAlgnFile\n";
   my $prunedAlgnFile = $grPrefix . "_algn_trimmed_pruned2.fa";
   $cmd = "select_seqs.pl $quietStr -e $spSingletonsFile -i $trimmedAlgnFile -o $prunedAlgnFile";
   print "\tcmd=$cmd\n" if $dryRun || $debug;
-  system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+  system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 
   $trimmedAlgnFile = $prunedAlgnFile;
 
@@ -947,7 +978,7 @@ if ( @spSingletons )
   my $prunedTreeFile = $grPrefix . "_pruned.tree";
   $cmd = "rm -f $prunedTreeFile; nw_prune $treeFile @spSingletons > $prunedTreeFile";
   print "\tcmd=$cmd\n" if $dryRun || $debug;
-  system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+  system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 
   $treeFile = $prunedTreeFile;
 
@@ -995,12 +1026,12 @@ if ( @spSingletons )
     $cmd = "vicut $quietStr -t $treeFile -a $annFile3 -o $vicutDir";
   }
   print "\tcmd=$cmd\n" if $dryRun || $debug;
-  system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+  system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 
   print "--- Running update_spp_tx.pl\n";
   $cmd = "update_spp_tx.pl $quietStr $debugStr $useLongSppNamesStr -a $updatedTxFile -d $vicutDir";
   print "\tcmd=$cmd\n" if $dryRun || $debug;
-  system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+  system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 
   $updatedTxFile = "$vicutDir/updated.tx";
   %newTx = readTbl($updatedTxFile);
@@ -1035,13 +1066,33 @@ if ( @spSingletons )
 	    print "\tnewSp: $newSp\n";
 	    print "\tlineageTbl{$id}: " . $lineageTbl{$id} . "\n";
 	    print "\n\n";
-	    exit;
+	    exit 1;
 	  }
 	}
       }
     } # end of if ( exists $newTx{$id} )
   }
 
+}
+
+print "--- Checking parent consistency of the lineage table\n";
+if ( check_parent_consistency(\%lineageTbl) )
+{
+  warn "";
+  print "\n\n";
+  exit 1;
+}
+
+print "--- Extracting faLineage tbl for the family cleanup stage\n";
+my %faLineage;
+for my $id ( keys %lineageTbl )
+{
+  my $lineage = $lineageTbl{$id};
+  my @f = split ";", $lineage;
+  my $sp = pop @f;
+  my $ge = pop @f;
+  my $fa = pop @f;
+  $faLineage{$fa} = join ";", @f;
 }
 
 ## Checking the number of species, to make sure its > 1
@@ -1093,7 +1144,7 @@ if ( $nSpecies == 1 )
 
   print "\n\tUpdated lineage tables written to:\n\t\t$finalLineageFile\n\t\t$finalLineageFile2\n\n";
 
-  exit;
+  exit 1;
 }
 
 
@@ -1105,7 +1156,7 @@ print "--- Generating a tree with species names at leaves\n";
 my $sppTreeFile = "$grPrefix" . "_preGenotyping_spp.tree";
 $cmd = "rm -f $sppTreeFile; nw_rename $treeFile $updatedTxFile | nw_order -c n  - > $sppTreeFile";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
-system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 
 if (0)
 {
@@ -1113,25 +1164,25 @@ if (0)
   my $sppSeqIDsFile = "$grPrefix" . "_preGenotyping_spp.seqIDs";
   $cmd = "awk '{print \$1\"\\t\"\$2\"__\"\$1}' $updatedTxFile > $sppSeqIDsFile";
   print "\tcmd=$cmd\n" if $dryRun || $debug;
-  system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+  system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 
   my $sppSeqIdTreeFile = "$grPrefix" . "_preGenotyping_sppSeqIDs.tree";
   $cmd = "rm -f $sppSeqIdTreeFile; nw_rename $treeFile $sppSeqIDsFile | nw_order -c n  -  > $sppSeqIdTreeFile";
   print "\tcmd=$cmd\n" if $dryRun || $debug;
-  system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+  system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 }
 
 # print "--- Generating a condensed tree with species clades collapsed to a single node \n";
 # my $condSppTreeFile = "$grPrefix" . "_preGenotyping_spp_condensed.tree";
 # $cmd = "rm -f $condSppTreeFile; nw_condense2 $sppTreeFile > $condSppTreeFile";
 # print "\tcmd=$cmd\n" if $dryRun || $debug;
-# system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+# system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 
 # print "--- Extracting leaves of the species condensed tree\n";
 # my $csppTreeLeavesFile = "$grPrefix" . "_preGenotyping_spp_condensed_tree.leaves";
 # my $cmd = "nw_labels -I $condSppTreeFile > $csppTreeLeavesFile";
 # print "\tcmd=$cmd\n" if $dryRun || $debug;
-# system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+# system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 
 # my @csppTreeLeaves = readArray($csppTreeLeavesFile);
 # printArray(\@csppTreeLeaves, "\ncsppTreeLeaves\n") if $debug;
@@ -1190,12 +1241,12 @@ print "--- Generating a tree with species names sizes and cluster index at leave
 my $sppSizeCltrTreeFile = "$grPrefix" . "_preGenotyping_sppSizeCltr.tree";
 $cmd = "rm -f $sppSizeCltrTreeFile; nw_rename $treeFile $spSizeCltrFile | nw_order -c n  - > $sppSizeCltrTreeFile";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
-system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 
 my $condSppSizeCltrTreeFile = "$grPrefix" . "_preGenotyping_sppSizeCltr_condensed.tree";
 $cmd = "rm -f $condSppSizeCltrTreeFile; nw_condense $sppSizeCltrTreeFile > $condSppSizeCltrTreeFile";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
-system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 
 my $pdfTreeFile = abs_path( "$grPrefix" . "_preGenotyping_sppSizeCltr_condensed_tree.pdf" );
 my $condSppSizeCltrTreeFileAbsPath = abs_path( $condSppSizeCltrTreeFile );
@@ -1208,7 +1259,7 @@ if ( $showAllTrees && $OSNAME eq "darwin")
 {
   $cmd = "open $pdfTreeFile";
   print "\tcmd=$cmd\n" if $dryRun || $debug;
-  system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+  system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 }
 
 
@@ -1217,7 +1268,7 @@ print "--- Running genotype_spp.pl\n";
 ## forms a monophyletic clade on the reference tree
 $cmd = "genotype_spp.pl $debugStr -d $vicutDir";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
-system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 
 my $updatedTxFile2 = "$vicutDir/updated2.tx";
 %newTx = readTbl($updatedTxFile2);
@@ -1259,7 +1310,7 @@ for my $id (keys %lineageTbl)
     {
       warn "\n\n\tERROR: count not find a genus corresponding to $newSp";
       print "\n\n";
-      exit;
+      exit 1;
     }
 
     if ($newSp ne $sp)
@@ -1274,7 +1325,7 @@ for my $id (keys %lineageTbl)
 	print "\tnewSp: $newSp\n";
 	print "\tlineageTbl{$id}: " . $lineageTbl{$id} . "\n";
 	print "\n\n";
-	exit;
+	exit 1;
       }
     }
   } # end of if ( exists $newTx{$id} )
@@ -1284,12 +1335,20 @@ for my $id (keys %lineageTbl)
   }
 }
 
+print "--- Checking parent consistency of the lineage table\n";
+if ( check_parent_consistency(\%lineageTbl) )
+{
+  warn "";
+  print "\n\n";
+  exit 1;
+}
+
 print "--- Testing again consistency between the phylo tree and sequences after taxonomy cleanup\n";
 
 ## extracting leave IDs
 $cmd = "rm -f $treeLeavesFile; nw_labels -I $treeFile > $treeLeavesFile";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
-system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 
 ## looking at the difference between leaf IDs and newTx keys
 @treeLeaves = readArray($treeLeavesFile);
@@ -1304,7 +1363,7 @@ if (@lostLeaves>0)
   print "--- Pruning lost seqIDs from the current phylo tree\n";
   $cmd = "rm -f $prunedTreeFile; nw_prune $treeFile @lostLeaves > $prunedTreeFile";
   print "\tcmd=$cmd\n" if $dryRun || $debug;
-  system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+  system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 
   $treeFile = $prunedTreeFile;
 }
@@ -1314,7 +1373,7 @@ my $finalTreeFile = $grPrefix . "_final.tree";
 $ap = abs_path( $treeFile );
 $cmd = "rm -f $finalTreeFile; ln -s $ap $finalTreeFile";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
-system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 
 
 print "--- Testing consistency between lineageTbl and newTx keys\n";
@@ -1354,7 +1413,7 @@ if (@tlComm != @newTxKeys || @tlComm != @lineageTblKeys)
     print "\n\n";
   }
 
-  exit;
+  exit 1;
 }
 
 ## Generating some summary tables
@@ -1401,13 +1460,13 @@ map { $sppFreqFinal2{$_}++ } values %sppFreqFinal;
 # $ap = abs_path( $updatedTxFile2 );
 # $cmd = "rm -f $finalTxFile; ln -s $ap $finalTxFile";
 # print "\tcmd=$cmd\n" if $dryRun || $debug;
-# system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+# system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 
 ## comparison between old and new species assignments
 print "--- Comparing old and new species assignments\n";
 $cmd = "cmp_tx.pl $quietStr -i $txFile -j $updatedTxFile2 -o old_vs_new_spp_cmp";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
-system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 
 
 ##
@@ -1418,25 +1477,25 @@ print "--- Generating a tree with final species names at leaves\n";
 my $finalSppTreeFile = "$grPrefix" . "_final_spp.tree";
 $cmd = "rm -f $finalSppTreeFile; nw_rename $treeFile $updatedTxFile2 | nw_order -c n  - > $finalSppTreeFile";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
-system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 
 
 print "--- Generating tree with <final species name>_<seqID> labels at leaves\n";
 my $finalSppSeqIDsFile = "$grPrefix" . "_final_spp.seqIDs";
 $cmd = "awk '{print \$1\"\\t\"\$2\"__\"\$1}' $updatedTxFile2 > $finalSppSeqIDsFile";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
-system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 
 my $finalSppSeqIdTreeFile = "$grPrefix" . "_final_sppSeqIDs.tree";
 $cmd = "rm -f $finalSppSeqIdTreeFile; nw_rename $treeFile $finalSppSeqIDsFile | nw_order -c n  -  > $finalSppSeqIdTreeFile";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
-system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 
 print "--- Generating a condensed tree with final species clades collapsed to a single node \n";
 my $finalCondSppTreeFile = abs_path( $grPrefix . "_final_spp_condensed.tree" );
 $cmd = "rm -f $finalCondSppTreeFile; nw_condense $finalSppTreeFile > $finalCondSppTreeFile";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
-system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 
 
 $section = qq~
@@ -1466,7 +1525,7 @@ print "--- Running cluster_taxons.pl on condensed species tree\n";
 
 $cmd = "rm -f $treeLeavesFile; nw_labels -I $finalCondSppTreeFile > $treeLeavesFile";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
-system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 
 @treeLeaves = readArray($treeLeavesFile);
 
@@ -1502,7 +1561,7 @@ if ( @spParentKeys != @treeLeaves )
   print "\n\tHere is the list of tree leaves (species) that are missing in spParent table\n";
   printArray(\@excessLeaves);
 
-  exit;
+  exit 1;
 }
 
 
@@ -1516,16 +1575,272 @@ if ($debug)
 my $sppGenusFile = $grPrefix . "_spp.genusTx";
 $cmd = "cluster_taxons.pl $quietStr $igsStr $johannaStr $debugStr $showAllTreesStr -i $finalCondSppTreeFile -p 0.1 -f $spParentFile -t species -o $sppGenusFile";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
-system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 
 my %sppGenus = readTbl($sppGenusFile);
+
+
+print "--- Updating geParent, faParent etc tables\n";
+
+my @allGenera = values %sppGenus;
+my @newGenera = unique(\@allGenera);
+for my $ge (@newGenera)
+{
+  next if exists $geParent{$ge};
+
+  $section = qq~
+
+##
+## === updating geParent ===
+##
+
+~;
+  print "$section" if $debug;
+
+  # debug
+  print "\nProcessing $ge\n" if $debug;
+
+  my $origGe = $ge;
+
+  if ( $ge =~ /_(\d+)$/)
+  {
+    print "Detected numeric suffix $1 in $ge. Removing it for now\n" if $debug;
+    $ge =~ s/_\d+//;
+  }
+
+  if ( $ge =~ /_etal$/)
+  {
+    print "Detected etal genus: $ge. Removing it for now\n" if $debug;
+    $ge =~ s/_etal//;
+  }
+
+  my @geComponents = split "_", $ge;
+
+  if ( @geComponents == 1 && !exists $geParent{$ge} )
+  {
+    warn "\n\n\tERROR: $ge not found in geParent";
+    print "\n\n";
+
+    print "geParent:\n";
+    printFormatedTbl(\%geParent);
+    print "\n\n";
+
+    exit 1;
+  }
+  elsif ( @geComponents == 1 && exists $geParent{$ge} )
+  {
+    if ( !exists $geParent{$origGe} )
+    {
+      $geParent{$origGe} = $geParent{$ge};
+    }
+    print "geParent{$origGe}: $geParent{$origGe}\n" if $debug;
+    next;
+  }
+
+  my %locFas; # table to keep track of unique parents; if $ge has several
+	      # components, some of them will have the same parents and in the
+	      # name of $ge parent we don't want the same family repeated several
+	      # times.
+  my $newFa;  # $ge parent's name
+  my $g = shift @geComponents;
+  if ( exists $geParent{$g} )
+  {
+    $newFa = $geParent{$g};
+    $locFas{$newFa}++;
+  }
+  else
+  {
+    warn "\n\n\tERROR: The first element of $ge, $g, not found in geParent";
+    print "\n\n";
+    exit 1;
+  }
+
+  print "Parents of the components of $ge:\n" if $debug;
+  print "\t$newFa\n" if $debug;
+
+  for $g (@geComponents)
+  {
+    if ( exists $geParent{$g} && !exists $locFas{$geParent{$g}} )
+    {
+      $newFa .= "_" . $geParent{$g};
+      $locFas{$geParent{$g}}++;
+      print "\t" . $geParent{$g} . "\n" if $debug;
+
+    }
+    elsif ( !exists $geParent{$g} )
+    {
+      warn "\n\n\tERROR: The element, $g, of $ge not found in geParent";
+      print "\n\n";
+      exit 1;
+    }
+  }
+
+  $geParent{$origGe} = $newFa;
+  print "geParent{$origGe}: $newFa\n\n" if $debug;
+
+  $section = qq~
+
+##
+## === updating faParent ===
+##
+
+~;
+  print "$section" if $debug;
+
+  print "Processing $newFa\n" if $debug;
+
+  my @faComponents = split "_", $newFa;
+  print "\nfaComponents: @faComponents\n\n" if $debug;
+
+  if ( @faComponents == 1 && !exists $faParent{$faComponents[0]} )
+  {
+    warn "\n\n\tERROR: $faComponents[0] not found in faParent";
+    print "\n\n";
+
+    print "faParent:\n";
+    printFormatedTbl(\%faParent);
+    print "\n\n";
+
+    exit 1;
+  }
+  elsif ( @faComponents == 1 && exists $faParent{$faComponents[0]} )
+  {
+    # we are assuming that since $faComponents[0] was found in faParent higher taxon
+    # parents are also found in the corresponding parent tables
+    print "faParent{$faComponents[0]}: $faParent{$faComponents[0]}\n\n" if $debug;
+    next;
+  }
+
+  my %locOrs;
+  my $newOr;
+  my $f = shift @faComponents;
+  if ( exists $faParent{$f} )
+  {
+    $newOr = $faParent{$f};
+    $locOrs{$newOr}++;
+  }
+  else
+  {
+    warn "\n\n\tERROR: The first element, $f, of $newFa not found in faParent";
+    print "\n\n";
+    exit 1;
+  }
+
+  print "Parents of the components of $newFa:\n\t$newOr\n" if $debug;
+
+  for my $f (@faComponents)
+  {
+    if ( exists $faParent{$f} && !exists $locOrs{$faParent{$f}} )
+    {
+      $newOr .= "_" . $faParent{$f};
+      $locOrs{$faParent{$f}}++;
+      print "\t" . $faParent{$f} . "\n" if $debug;
+    }
+    elsif ( !exists $faParent{$f} )
+    {
+      warn "\n\n\tERROR: The element, $f, of $newFa not found in faParent";
+      print "\n\n";
+      exit 1;
+    }
+  }
+
+  $faParent{$newFa} = $newOr;
+  print "faParent{$newFa} = $newOr\n\n" if $debug;
+
+
+  $section = qq~
+
+##
+## === updating orParent ===
+##
+
+~;
+  print "$section" if $debug;
+
+  print "\nProcessing $newOr\n" if $debug;
+
+  my @orComponents = split "_", $newOr;
+  print "orComponents: @orComponents\n\n" if $debug;
+
+  if ( @orComponents == 1 && !exists $orParent{$orComponents[0]} )
+  {
+    warn "\n\n\tERROR: $orComponents[0] not found in orParent";
+    print "\n\n";
+
+    print "orParent:\n";
+    printFormatedTbl(\%orParent);
+    print "\n\n";
+
+    exit 1;
+  }
+  elsif ( @orComponents == 1 && exists $orParent{$orComponents[0]} )
+  {
+    # we are assuming that since $orComponents[0] was found in orParent higher taxon
+    # parents are also found in the corresponding parent tables
+    print "orParent{$orComponents[0]}: $orParent{$orComponents[0]}\n\n" if $debug;
+    next;
+  }
+
+  my %locCls;
+  my $newCl;
+  my $o = shift @orComponents;
+  if ( exists $orParent{$o} )
+  {
+    $newCl = $orParent{$o};
+    $locCls{$newCl}++;
+  }
+  else
+  {
+    warn "\n\n\tERROR: The first element, $o, of $newOr not found in orParent";
+    print "\n\n";
+    exit 1;
+  }
+
+  print "Parents of the components of $newOr:\n\t$newCl\n" if $debug;
+
+  for my $o (@orComponents)
+  {
+    if ( exists $orParent{$o} && !exists $locCls{$orParent{$o}} )
+    {
+      $newCl .= "_" . $orParent{$o};
+      $locCls{$orParent{$o}}++;
+      print "\t" . $orParent{$o} . "\n" if $debug;
+    }
+    elsif ( !exists $orParent{$o} )
+    {
+      warn "\n\n\tERROR: The element, $o, of $newOr not found in orParent";
+      print "\n\n";
+      exit 1;
+    }
+  }
+
+  $orParent{$newOr} = $newCl;
+  print "orParent{$newOr} = $newCl\n\n" if $debug;
+}
+
+if ($debug)
+{
+  print "\n\nspParent:\n";
+  printFormatedTbl(\%spParent);
+  print "\n\n";
+
+  print "\ngeParent:\n";
+  printFormatedTbl(\%geParent);
+  print "\n\n";
+
+  print "faParent:\n";
+  printFormatedTbl(\%faParent);
+  print "\n\n";
+
+  print "ofParent:\n";
+  printFormatedTbl(\%orParent);
+  print "\n\n";
+}
 
 print "--- Updating lineage table at the genus level\n";
 my $finalGenusTxFile = $grPrefix . "_final_genus.tx";
 open OUT, ">$finalGenusTxFile" or die "Cannot open $finalGenusTxFile for writing: $OS_ERROR\n";
-my %geParent;
-# my $outFile = "tmp.txt";
-# open TEMPOUT, ">$outFile" or die "Cannot open $outFile for writing: $OS_ERROR\n";
+my $gCounter = 1;
 for my $id (keys %lineageTbl)
 {
   my $lineage = $lineageTbl{$id};
@@ -1535,32 +1850,43 @@ for my $id (keys %lineageTbl)
   if ( exists $sppGenus{$sp} )
   {
     my $ge = pop @f;
-    my $newGenus = $sppGenus{$sp};
-    print OUT "$id\t$newGenus\n";
+    my $newGe = $sppGenus{$sp};
+    print OUT "$id\t$newGe\n";
 
-    if ( $newGenus ne $ge )
+    # $lineageTbl{$id} needs updating only when $newGe ne $ge
+    if ( $newGe ne $ge )
     {
-      my @t = (@f, $newGenus, $sp);
-      $lineageTbl{$id} = join ";", @t;
+      my $fa = pop @f;
+      my $or = pop @f;
+      my $cl = pop @f;
+      my $ph = pop @f;
 
-      # print TEMPOUT "\nge: $ge\tnewGe: $newGenus\n";
-      # print TEMPOUT "lineage BEFORE: $lineage\n";
-      # print TEMPOUT "lineage AFTER: " . $lineageTbl{$id} . "\n";
+      my $newFa = $geParent{$newGe};
+      my $newOr = $faParent{$newFa};
+      my $newCl = $orParent{$newOr};
+
+      my @t = ("Bacteria", $ph, $newCl, $newOr, $newFa, $newGe, $sp);
+      my $l = join ";", @t;
+
+      $lineageTbl{$id} = $l;
     }
-
-    my $fa = pop @f;
-    $geParent{$newGenus} = $fa;
   }
   else
   {
     warn "\n\n\tERROR: $id with sp: $sp not detected in sppGenus table";
     print "\n\n";
-    exit;
-    #delete $lineageTbl{$id};
+    exit 1;
   }
 }
 close OUT;
-#close TEMPOUT;
+
+print "--- Checking parent consistency of the lineage table\n";
+if ( check_parent_consistency(\%lineageTbl) )
+{
+  warn "";
+  print "\n\n";
+  exit 1;
+}
 
 my %geChildren;
 for my $sp (keys %sppGenus)
@@ -1582,13 +1908,13 @@ print "--- Generating a tree with final genus names at leaves\n";
 my $finalGenusTreeFile = "$grPrefix" . "_final_genus.tree";
 $cmd = "rm -f $finalGenusTreeFile; nw_rename $treeFile $finalGenusTxFile | nw_order -c n  - > $finalGenusTreeFile";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
-system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 
 print "--- Generating a condensed tree with final genera collapsed to a single node \n";
 my $finalCondGenusTreeFile = abs_path( "$grPrefix" . "_final_genus_condensed.tree" );
 $cmd = "rm -f $finalCondGenusTreeFile; nw_condense $finalGenusTreeFile > $finalCondGenusTreeFile";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
-system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 
 
 my $pdfCondGenusTreeFile = abs_path( "$grPrefix" . "_final_genus_condensed_tree.pdf" );
@@ -1598,7 +1924,7 @@ if ( $showAllTrees &&  $OSNAME eq "darwin")
 {
   $cmd = "open $pdfCondGenusTreeFile";
   print "\tcmd=$cmd\n" if $dryRun || $debug;
-  system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+  system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 }
 
 ## generating pdf figure of species condensed tree colored by genus
@@ -1633,62 +1959,68 @@ if ( !$doNotPopPDFs && $OSNAME eq "darwin")
 {
   $cmd = "open $pdfCsppWithGenusColorsTreeFile";
   print "\tcmd=$cmd\n" if $dryRun || $debug;
-  system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+  system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 }
 
 
 print "--- Splitting phylo-vicut-based genera if their sizes are above taxonSizeThld\n";
 
-my %subSppGenus = %sppGenus;
+my %sppSubGenus;
+my %subGeName;   # subGeName => name of the corresponding genus or genera a
+		 # sub-genus with the same name appears in more than one genus.
 my $detectedLargeGenus = 0;
 my @a = sort { scalar(keys %{$geChildren{$b}}) <=> scalar(keys %{$geChildren{$a}}) } keys %geChildren;
 for my $ge (@a)
 {
-  if ( scalar(keys %{$geChildren{$ge}}) > $taxonSizeThld ) # try to split this cluster into smaller pieces
+  my @spp = keys %{$geChildren{$ge}};
+
+  if ( @spp > $taxonSizeThld ) # try to split this cluster into smaller pieces
   {
     $detectedLargeGenus = 1;
     print "\n\tSplitting $ge\n" if $debug;
-    my @spp = keys %{$geChildren{$ge}};
     print "Species of $ge:\n" if $debug;
     printArray(\@spp) if $debug;
 
     my $geStr = $ge;
     if ( length($geStr) > $maxStrLen )
     {
+      warn "\n\n\tWARNING: $ge is too long. Its being truncated to $maxStrLen characters";
+      print "\n\n";
       $geStr = substr( $ge, 0, $maxStrLen);
     }
 
     # prune the final species condensed tree to contain the given genus only
     my $prunedTreeFile = $grPrefix . "_pruned_$geStr.tree";
-    print "--- Restricting $finalCondSppTreeFile to the species of $ge\n";
+    my $finalCondSppTreeBasename = basename($finalCondSppTreeFile, @suffixes);
+    print "--- Pruning $finalCondSppTreeBasename to the species of $ge\n";
     $cmd = "rm -f $prunedTreeFile; nw_clade $finalCondSppTreeFile @spp > $prunedTreeFile";
     print "\tcmd=$cmd\n" if $dryRun || $debug;
-    system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+    system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 
     # testing if the resulting tree has the same number of leaves as @spp array
     my $prunedTreeLeavesFile = $grPrefix . "_pruned_$geStr.leaves";
     $cmd = "rm -f $prunedTreeLeavesFile; nw_labels -I $prunedTreeFile > $prunedTreeLeavesFile";
     print "\tcmd=$cmd\n" if $dryRun || $debug;
-    system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+    system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 
     my @cladeLeaves = readArray($prunedTreeLeavesFile);
 
     my @commSpp = comm(\@cladeLeaves, \@spp);
     if (@commSpp != @cladeLeaves || @commSpp != @spp)
     {
-      warn "ERROR: leaves of $prunedTreeLeavesFile and genus $ge species do not match";
-      print "Number of leaves of $prunedTreeLeavesFile: " . @cladeLeaves . "\n";
-      print "Number of species in $ge: " . @spp . "\n";
-      print "Number of common species: " . @commSpp . "\n";
-      exit;
+      warn "\n\n\tERROR: leaves of $prunedTreeLeavesFile and genus $ge species do not match";
+      print "\tNumber of leaves of $prunedTreeLeavesFile: " . @cladeLeaves . "\n";
+      print "\tNumber of species in $ge: " . @spp . "\n";
+      print "\tNumber of common species: " . @commSpp . "\n";
+      exit 1;
     }
 
     # make this a rooted tree
     $cmd = "root_tree.pl -i $prunedTreeFile";
     print "\tcmd=$cmd\n" if $dryRun || $debug;
-    system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+    system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 
-    # Creating parent table
+    # Creating a parent table.
     # Assigning to each species its genus.
 
     print "\nCreating spParent2 table\n" if $debug;
@@ -1700,8 +2032,9 @@ for my $ge (@a)
       my ($g, $s) = split "_", $sp;
       if (!defined $g)
       {
-	print "Genus undef for $sp\n" if $debug;
-	exit;
+	warn "\n\n\tERROR: Genus undef for $sp";
+	print "\n\n";
+	exit 1;
       }
       else
       {
@@ -1716,44 +2049,25 @@ for my $ge (@a)
     $sppGenusFile = $grPrefix . "_$geStr" . "_spp.genusTx";
     $cmd = "cluster_taxons.pl $quietStr $igsStr $johannaStr $debugStr $showAllTreesStr -i $prunedTreeFile -p 0.1 -f $spParentFile -t species -o $sppGenusFile";
     print "\tcmd=$cmd\n" if $dryRun || $debug;
-    system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+    system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 
-    my %sppGenus2 = readTbl($sppGenusFile);
+    my %sppGenus2 = readTbl($sppGenusFile); # species => sub-genus name; where species is from @spp
 
-    ## If the genus has a numeric suffix, idx, we will have to change genus
-    ## assignment after splitting this genus to something like
-    ## <genus>_<idx>s<newIdx>.
+    @sppSubGenus{@spp} = @sppGenus2{@spp};
 
-    my $coreGenusName = $ge;
-    $coreGenusName =~ s/_(\d+)//;
-    # print "coreGenusName: $coreGenusName\n" if $debug;
-    # if ($1)
-    # {
-    #   print "Index suffix: $1\n" if $debug;
-    # }
-    # else
-    # {
-    #   print "Index suffix undef\n" if $debug;
-    # }
-
-    if ($1)
+    if ($debug)
     {
-      # Changing cluster IDs to <genus>_<idx>s<newIdx>
-      for my $sp (keys %sppGenus2)
-      {
-	my $g = $sppGenus2{$sp};
-	my @f = split "_", $g;
-	my $i = pop @f;
-	my $b = join "_", @f;
-	$sppGenus2{$sp} = $b . "_$1" . "s$i";
-      }
+      print "\n\n$ge sppGenus2:\n";
+      printFormatedTbl(\%sppGenus2);
+      print "\n\n";
     }
 
     my %geChildren2;
     for my $sp (keys %sppGenus2)
     {
-      my $ge = $sppGenus2{$sp};
-      $geChildren2{$ge}{$sp}++;
+      my $subge = $sppGenus2{$sp};
+      $geChildren2{$subge}{$sp}++;
+      $subGeName{$subge}{$ge}++;
     }
 
     if ($debug)
@@ -1764,59 +2078,89 @@ for my $ge (@a)
       printFormatedTableValuedTbl(\%geChildren2, \@a);
       print "\n\n"
     }
-
-    @subSppGenus{@spp} = @sppGenus2{@spp};
-
-    print "--- Updating lineage table at the sub-genus of $ge level\n" if $debug;
-    for my $id (keys %lineageTbl)
-    {
-      my $lineage = $lineageTbl{$id};
-      my @f = split ";", $lineage;
-      my $sp = pop @f;
-
-      if ( exists $sppGenus2{$sp} )
-      {
-	##my $ge = pop @f; # keeping genus
-	my $newSubGenus = $sppGenus2{$sp};
-	my @t = (@f, $newSubGenus, $sp);
-	$lineageTbl{$id} = join ";", @t;
-
-	my $ge = pop @f;
-	#$subgeParent{$newSubGenus} = $ge;
-      }
-    }
-
   }
   else
   {
-    my @spp = keys %{$geChildren{$ge}};
-    my %sppInd = map{$_ =>1} @spp;
+    my %sppGenus2 = map{$_ => $ge} @spp;
 
-    print "--- Updating lineage table at the sub-genus level for small genus $ge\n" if $debug;
-    for my $id (keys %lineageTbl)
+    for my $sp (keys %sppGenus2)
     {
-      my $lineage = $lineageTbl{$id};
-      my @f = split ";", $lineage;
-      my $sp = pop @f;
-
-      if ( exists $sppInd{$sp} )
-      {
-	my $ge = pop @f; # keeping genus
-	my @t = (@f, $ge, $ge, $sp);
-	$lineageTbl{$id} = join ";", @t;
-	#$subgeParent{$ge} = $ge;
-      }
+      my $subge = $sppGenus2{$sp};
+      $subGeName{$subge}{$ge}++;
     }
+
+    @sppSubGenus{@spp} = @sppGenus2{@spp};
   }
 
+  # Modifying sub-genus names if they appear in more than one genus.
+
+  for my $subge (keys %subGeName)
+  {
+    my $nGe = keys %{$subGeName{$subge}};
+    if ( $nGe > 1 )
+    {
+      my $idx = 1;
+      for my $ge ( sort { $subGeName{$subge}{$b} <=> $subGeName{$subge}{$a} } keys %{$subGeName{$subge}} )
+      {
+	my @spp = keys %{$geChildren{$ge}};
+
+	if ( $subge =~ /_\d+$/)
+	{
+	  for my $sp (@spp)
+	  {
+	    $sppSubGenus{$sp} = $subge . "v$idx";
+	  }
+	}
+	else
+	{
+	  for my $sp (@spp)
+	  {
+	    $sppSubGenus{$sp} = $subge . "_v$idx";
+	  }
+	}
+
+	$idx++;
+      } # end of   for my $ge ( sort { $subGeName{$subge}{$b} <=> $subGeName{$subge}{$a} } keys %{$subGeName{$subge}} )
+    } # end of   if ( $nGe > 1 )
+  } # end of   for my $subge (keys %subGeName)
+}
+
+print "--- Updating lineage table at the sub-genus level\n" if $debug;
+for my $id (keys %lineageTbl)
+{
+  my $lineage = $lineageTbl{$id};
+  my @f = split ";", $lineage;
+  my $sp = pop @f;
+
+  if ( exists $sppSubGenus{$sp} )
+  {
+    my @t = (@f, $sppSubGenus{$sp}, $sp);
+    $lineageTbl{$id} = join ";", @t;
+    #print "$id\t$sppSubGenus{$sp}\n";
+  }
+  else
+  {
+    warn "\n\n\tERROR: $sp not detected in sppSubGenus";
+    print "\nlineageTbl{$id}: $lineageTbl{$id}\n\n";
+    exit 1;
+  }
+}
+
+
+print "--- Checking parent consistency of the lineage table\n";
+if ( check_parent_consistency(\%lineageTbl) )
+{
+  warn "";
+  print "\n\n";
+  exit 1;
 }
 
 if ($detectedLargeGenus)
 {
   my %subgeChildren;
-  for my $sp (keys %subSppGenus)
+  for my $sp (keys %sppSubGenus)
   {
-    my $ge = $subSppGenus{$sp};
+    my $ge = $sppSubGenus{$sp};
     $subgeChildren{$ge}{$sp}++;
   }
 
@@ -1845,13 +2189,13 @@ if ($detectedLargeGenus)
   my $finalSubGenusTreeFile = "$grPrefix" . "_final_sub_genus.tree";
   $cmd = "rm -f $finalSubGenusTreeFile; nw_rename $treeFile $finalSubGenusTxFile | nw_order -c n  - > $finalSubGenusTreeFile";
   print "\tcmd=$cmd\n" if $dryRun || $debug;
-  system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+  system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 
   print "--- Generating a condensed tree with final genera collapsed to a single node \n";
   my $finalCondSubGenusTreeFile = abs_path( "$grPrefix" . "_final_sub_genus_condensed.tree" );
   $cmd = "rm -f $finalCondSubGenusTreeFile; nw_condense $finalSubGenusTreeFile > $finalCondSubGenusTreeFile";
   print "\tcmd=$cmd\n" if $dryRun || $debug;
-  system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+  system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 
   my $pdfCondSubGenusTreeFile = abs_path( "$grPrefix" . "_final_sub_genus_condensed_tree.pdf" );
   plot_tree_bw($finalCondSubGenusTreeFile, $pdfCondSubGenusTreeFile);
@@ -1860,14 +2204,14 @@ if ($detectedLargeGenus)
   {
     $cmd = "open $pdfCondSubGenusTreeFile";
     print "\tcmd=$cmd\n" if $dryRun || $debug;
-    system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+    system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
   }
 
 
   ## generating pdf figure of species condensed tree colored by sub-genus
 
   # Assigning to each sub-genus an index
-  my @subgenera = values %subSppGenus;
+  my @subgenera = values %sppSubGenus;
   @subgenera = unique(\@subgenera);
   my $subgeneraCount = 1;
   my %subgenusIdx = map{ $_ => $subgeneraCount++ } @subgenera;
@@ -1881,9 +2225,9 @@ if ($detectedLargeGenus)
 
   my $subgenusIdxFile = abs_path( "$grPrefix" . "_subgenus.idx" );
   open OUT, ">$subgenusIdxFile" or die "Cannot open $subgenusIdxFile for writing: $OS_ERROR\n";
-  for my $sp (keys %subSppGenus)
+  for my $sp (keys %sppSubGenus)
   {
-    print OUT "$sp\t" . $subgenusIdx{$subSppGenus{$sp}} . "\n";
+    print OUT "$sp\t" . $subgenusIdx{$sppSubGenus{$sp}} . "\n";
   }
   close OUT;
 
@@ -1896,19 +2240,19 @@ if ($detectedLargeGenus)
   {
     $cmd = "open $pdfCsppTreeFile";
     print "\tcmd=$cmd\n" if $dryRun || $debug;
-    system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+    system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
   }
 }
 else
 {
-  print "\n\n\tNo large genera detected\n\n";
+  print "\n\n\tNo large genera detected\n\n" if $debug;
 }
 
 
 $section = qq~
 
 ##
-## family-level cleanup
+## Family-level cleanup
 ##
 
 ~;
@@ -1926,10 +2270,89 @@ if ($debug)
   print "\n\n";
 }
 
+my $finalCondGenusTreeBasename = basename($finalCondGenusTreeFile, @suffixes);
+print "--- Testing if $finalCondGenusTreeBasename has the same number of elements as geParent table\n";
+
+print "--- Parsing $finalCondGenusTreeBasename tree leaves\n";
+$treeLeavesFile = "$grPrefix" . "_final_genus_condensed_tree.leaves";
+$cmd = "rm -f $treeLeavesFile; nw_labels -I $finalCondGenusTreeFile > $treeLeavesFile";
+print "\tcmd=$cmd\n" if $dryRun || $debug;
+system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
+
+my @geTreeLeaves = readArray($treeLeavesFile);
+my $nGeTreeLeaves = @geTreeLeaves;
+print "\n\tNumber of elemets of the leaves of the genus condensed tree: $nGeTreeLeaves\n" if $debug;
+
+my $nGeParent = keys %geParent;
+print "\tNumber of elemets of the genus parent table: $nGeParent\n\n" if $debug;
+
+if ( $nGeParent != $nGeTreeLeaves )
+{
+  warn "\n\n\tWARNING: genus condensed tree has $nGeTreeLeaves leaves and geParent has $nGeParent number of elements."  if $debug;
+  print "\n\tThese two numbers should be the same.\n\n"  if $debug;
+
+  my @ges = keys %geParent;
+
+  if ($debug)
+  {
+    if ( $nGeParent > $nGeTreeLeaves )
+    {
+      my @d = diff(\@ges, \@geTreeLeaves);
+      print "Here are geParent genera not in the tree:\n";
+      printArray(\@d);
+      print "\n";
+    }
+
+    if ( $nGeParent < $nGeTreeLeaves )
+    {
+      my @d = diff(\@geTreeLeaves, \@ges);
+      print "Here are leaves not present in geParent:\n";
+      printArray(\@d);
+      print "\n";
+    }
+  }
+
+  my @c = comm(\@ges, \@geTreeLeaves);
+  if ( $nGeParent>@c && $nGeTreeLeaves==@c )
+  {
+    print "geParent is a superset of geTreeLeaves. Restricting geParent to geTreeLeaves\n\n" if $debug;
+    my @d = diff(\@ges, \@geTreeLeaves);
+
+    delete @geParent{@d};
+    $nGeParent = keys %geParent;
+    writeTbl(\%geParent, $geParentFile);
+
+    if ($debug)
+    {
+      print "\ngeParent:\n";
+      printFormatedTbl(\%geParent);
+      print "\n\n";
+
+      $nGeParent = keys %geParent;
+      print "\n\tNow, the number of elemets of the genus parent table: $nGeParent\n";
+      print "\ttNumber of elemets of the leaves of the genus condensed tree: $nGeTreeLeaves\n\n";
+    }
+
+    if ($nGeParent != $nGeTreeLeaves )
+    {
+      warn "\n\n\tERROR: Still the number of leaves of $finalCondGenusTreeBasename, $nGeTreeLeaves\n is not equal to the number of genera, $nGeParent, in the geParent table";
+      print "\n\n";
+      exit 1;
+    }
+  }
+  else
+  {
+    warn "\n\n\tERROR: genus condensed tree has $nGeTreeLeaves leaves and geParent has $nGeParent number of elements.";
+    print "\n\tThese two numbers should be the same.\n";
+    print "\tAn attempt to rectify the situation did not work out\n\n";
+    exit 1;
+  }
+}
+
 my $genusFamilyFile = $grPrefix . "_genus.familyTx";
 $cmd = "cluster_taxons.pl $quietStr $igsStr $johannaStr $debugStr $showAllTreesStr -i $finalCondGenusTreeFile -p 0.1 -f $geParentFile -t genus -o $genusFamilyFile";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
-system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+system($cmd) == 0 or die "\n\n\tsystem($cmd) failed with exit value: $?" if !$dryRun;
 
 my %genusFamily = readTbl($genusFamilyFile);
 
@@ -1940,37 +2363,233 @@ if ($debug)
   print "\n\n";
 }
 
+print "--- Updating faParent etc tables\n";
+my @allFamilies = values %genusFamily;
+my @newFamilies = unique(\@allFamilies);
+for my $fa (@newFamilies)
+{
+  next if exists $faParent{$fa};
+
+  $section = qq~
+
+##
+## === updating faParent ===
+##
+
+~;
+  print "$section" if $debug;
+
+  # debug
+  print "\nProcessing $fa\n" if $debug;
+
+  my $origFa = $fa;
+
+  if ( $fa =~ /_(\d+)$/)
+  {
+    print "Detected numeric suffix $1 in $fa. Removing it for now\n" if $debug;
+    $fa =~ s/_\d+//;
+  }
+
+  if ( $fa =~ /_etal/)
+  {
+    print "Detected etal family: $fa. Removing it for now\n" if $debug;
+    $fa =~ s/_etal//;
+  }
+
+  my @faComponents = split "_", $fa;
+  print "\nfaComponents: @faComponents\n\n" if $debug;
+
+  if ( @faComponents == 1 && !exists $faParent{$fa} )
+  {
+    warn "\n\n\tERROR: $fa not found in faParent";
+    print "\n\n";
+
+    print "faParent:\n";
+    printFormatedTbl(\%faParent);
+    print "\n\n";
+
+    exit 1;
+  }
+  elsif ( @faComponents == 1 && exists $faParent{$fa} )
+  {
+    # we are assuming that since $fa was found in faParent higher taxon
+    # parents are also found in the corresponding parent tables
+
+    if ( !exists $faParent{$origFa} )
+    {
+      $faParent{$origFa} = $faParent{$fa};
+    }
+    print "faParent{$origFa}: $faParent{$origFa}\n\n" if $debug;
+    next;
+  }
+
+  my %locOrs;
+  my $newOr;
+  my $f = shift @faComponents;
+  if ( exists $faParent{$f} )
+  {
+    $newOr = $faParent{$f};
+    $locOrs{$newOr}++;
+  }
+  else
+  {
+    warn "\n\n\tERROR: The first element, $f, of $fa not found in faParent";
+    print "\n\n";
+    exit 1;
+  }
+
+  print "Parents of the components of $fa:\n\t$newOr\n" if $debug;
+
+  for my $f (@faComponents)
+  {
+    if ( exists $faParent{$f} && !exists $locOrs{$faParent{$f}} )
+    {
+      $newOr .= "_" . $faParent{$f};
+      $locOrs{$faParent{$f}}++;
+      print "\t" . $faParent{$f} . "\n" if $debug;
+    }
+    elsif ( !exists $faParent{$f} )
+    {
+      warn "\n\n\tERROR: The element, $f, of $fa not found in faParent";
+      print "\n\n";
+      exit 1;
+    }
+  }
+
+  $faParent{$origFa} = $newOr;
+  print "faParent{$origFa}: $newOr\n\n" if $debug;
+
+  $section = qq~
+
+##
+## === updating orParent ===
+##
+
+~;
+  print "$section" if $debug;
+
+  print "\nProcessing $newOr\n" if $debug;
+  my @orComponents = split "_", $newOr;
+  print "\norComponents: @orComponents\n" if $debug;
+
+  if ( @orComponents == 1 && !exists $orParent{$orComponents[0]} )
+  {
+    warn "\n\n\tERROR: $orComponents[0] not found in orParent";
+    print "\n\n";
+
+    print "orParent:\n";
+    printFormatedTbl(\%orParent);
+    print "\n\n";
+
+    exit 1;
+  }
+  elsif ( @orComponents == 1 && exists $orParent{$orComponents[0]} )
+  {
+    # we are assuming that since $orComponents[0] was found in orParent higher taxon
+    # parents are also found in the corresponding parent tables
+    print "orParent{$orComponents[0]}: $orParent{$orComponents[0]}\n\n" if $debug;
+    next;
+  }
+
+  my %locCls;
+  my $newCl;
+  my $o = shift @orComponents;
+  if ( exists $orParent{$o} )
+  {
+    $newCl = $orParent{$o};
+    $locCls{$newCl}++;
+  }
+  else
+  {
+    warn "\n\n\tERROR: The first element, $o, of $newOr not found in orParent";
+    print "\n\n";
+    exit 1;
+  }
+
+  print "Parents of the components of $newOr:\n\t$newOr\n" if $debug;
+
+  for my $o (@orComponents)
+  {
+    if ( exists $orParent{$o} && !exists $locCls{$orParent{$o}} )
+    {
+      $newCl .= "_" . $orParent{$o};
+      $locCls{$orParent{$o}}++;
+      print "\t" . $orParent{$o} . "\n" if $debug;
+    }
+    elsif ( !exists $orParent{$o} )
+    {
+      warn "\n\n\tERROR: The element, $o, of $fa not found in orParent";
+      print "\n\n";
+      exit 1;
+    }
+  }
+
+  $orParent{$newOr} = $newCl;
+  print "orParent{$newOr}: $newCl\n\n" if $debug;
+}
+
 print "--- Updating lineage table at the family level\n";
 my $finalFamilyTxFile = $grPrefix . "_final_family.tx";
 open OUT, ">$finalFamilyTxFile" or die "Cannot open $finalFamilyTxFile for writing: $OS_ERROR\n";
-my %faParent;
 for my $id (keys %lineageTbl)
 {
   my $lineage = $lineageTbl{$id};
-  my @f = split ";", $lineage;
-  my $sp = pop @f;
+  my @f   = split ";", $lineage;
+  my $sp  = pop @f;
   my $sge = pop @f;
-  my $ge = pop @f;
+  my $ge  = pop @f;
 
   if ( exists $genusFamily{$ge} )
   {
     my $fa = pop @f;
-    my $newFamily = $genusFamily{$ge};
-    print OUT "$id\t$newFamily\n";
-    my @t = (@f, $newFamily, $ge, $sge, $sp);
-    $lineageTbl{$id} = join ";", @t;
+    my $newFa = $genusFamily{$ge};
+    print OUT "$id\t$newFa\n";
 
-    my $or = pop @f;
-    $faParent{$newFamily} = $or;
+    # $lineageTbl{$id} needs updating only when $newFa ne $fa
+    if ( $newFa ne $fa )
+    {
+      my $or = pop @f;
+      my $cl = pop @f;
+      my $ph = pop @f;
+
+      my $newOr = $faParent{$newFa};
+      my $newCl = $orParent{$newOr};
+      my @t = ("Bacteria", $ph, $newCl, $newOr, $newFa, $ge, $sge, $sp);
+      my $l = join ";", @t;
+
+      # if ($debug)
+      # {
+      # 	print "\n\nOrig lineageTbl{$id}: " . $lineageTbl{$id} . "\n";
+      # 	print "New lineageTbl{$id}: $l\n";
+      # 	exit 1;
+      # }
+      $lineageTbl{$id} = $l;
+    }
   }
   else
   {
-    warn "\n\n\tERROR: $id with ge: $ge not detected in genusFamily table";
+    print "\n\ngenusFamily:\n";
+    printFormatedTbl(\%genusFamily);
+    print "\n";
+
+    printArray(\@geTreeLeaves, "\nCondensed geus tree leaves\n");
+
+    warn "\n\n\tERROR: $ge not detected in genusFamily table";
+    print "lineageTbl{$id}: $lineageTbl{$id}\n";
     print "\n\n";
-    exit;
+    exit 1;
+    #delete $lineageTbl{$id};
   }
 }
 close OUT;
+
+print "--- Checking parent consistency of the lineage table\n";
+if ( check_parent_consistency(\%lineageTbl) )
+{
+  warn "";
+  print "\n\n";
+  exit 1;
+}
 
 my %faChildren;
 for my $ge (keys %genusFamily)
@@ -1995,13 +2614,13 @@ if ( scalar(keys %faChildren) > 1 )
   my $finalFamilyTreeFile = "$grPrefix" . "_final_family.tree";
   $cmd = "rm -f $finalFamilyTreeFile; nw_rename $treeFile $finalFamilyTxFile | nw_order -c n  - > $finalFamilyTreeFile";
   print "\tcmd=$cmd\n" if $dryRun || $debug;
-  system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+  system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 
   print "--- Generating a condensed tree with final families collapsed to a single node \n";
   my $finalCondFamilyTreeFile = abs_path( "$grPrefix" . "_final_family_condensed.tree" );
   $cmd = "rm -f $finalCondFamilyTreeFile; nw_condense $finalFamilyTreeFile > $finalCondFamilyTreeFile";
   print "\tcmd=$cmd\n" if $dryRun || $debug;
-  system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+  system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 
   my $pdfCondFamilyTreeFile = abs_path( "$grPrefix" . "_final_family_condensed_tree.pdf" );
   plot_tree_bw($finalCondFamilyTreeFile, $pdfCondFamilyTreeFile);
@@ -2010,7 +2629,7 @@ if ( scalar(keys %faChildren) > 1 )
   {
     $cmd = "open $pdfCondFamilyTreeFile";
     print "\tcmd=$cmd\n" if $dryRun || $debug;
-    system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+    system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
   }
 
 
@@ -2047,7 +2666,7 @@ if ( scalar(keys %faChildren) > 1 )
   {
     $cmd = "open $pdfFamilyColorsCsppTreeFile";
     print "\tcmd=$cmd\n" if $dryRun || $debug;
-    system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+    system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
   }
 
   $section = qq~
@@ -2064,10 +2683,89 @@ if ( scalar(keys %faChildren) > 1 )
   my $faParentFile = $grPrefix . ".faParent";
   writeTbl(\%faParent, $faParentFile);
 
+  my $finalCondFamilyTreeBasename = basename($finalCondFamilyTreeFile, @suffixes);
+  print "--- Testing if $finalCondFamilyTreeBasename have the same number of elements as faParent table\n";
+
+  print "--- Parsing $finalCondFamilyTreeBasename tree leaves\n";
+  $treeLeavesFile = "$grPrefix" . "_final_family_condensed_tree.leaves";
+  $cmd = "rm -f $treeLeavesFile; nw_labels -I $finalCondFamilyTreeFile > $treeLeavesFile";
+  print "\tcmd=$cmd\n" if $dryRun || $debug;
+  system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
+
+  my @faTreeLeaves = readArray($treeLeavesFile);
+  my $nFaTreeLeaves = @faTreeLeaves;
+  print "\n\tNumber of elemets of the leaves of the family condensed tree: $nFaTreeLeaves\n" if $debug;
+
+  my $nFaParent = keys %faParent;
+  print "\tNumber of elemets of the family parent table: $nFaParent\n\n" if $debug;
+
+  if ( $nFaParent != $nFaTreeLeaves )
+  {
+    warn "\n\n\tWARNING: family condensed tree has $nFaTreeLeaves leaves and faParent has $nFaParent number of elements."  if $debug;
+    print "\n\tThese two numbers should be the same.\n\n"  if $debug;
+
+    my @fas = keys %faParent;
+
+    if ($debug)
+    {
+      if ( $nFaParent > $nFaTreeLeaves )
+      {
+	my @d = diff(\@fas, \@faTreeLeaves);
+	print "Here are faParent fanera not in the tree:\n";
+	printArray(\@d);
+	print "\n";
+      }
+
+      if ( $nFaParent < $nFaTreeLeaves )
+      {
+	my @d = diff(\@faTreeLeaves, \@fas);
+	print "Here are leaves not present in faParent:\n";
+	printArray(\@d);
+	print "\n";
+      }
+    }
+
+    my @c = comm(\@fas, \@faTreeLeaves);
+    if ( $nFaParent>@c && $nFaTreeLeaves==@c )
+    {
+      print "faParent is a superset of faTreeLeaves. Restricting faParent to faTreeLeaves\n\n" if $debug;
+      my @d = diff(\@fas, \@faTreeLeaves);
+
+      delete @faParent{@d};
+      $nFaParent = keys %faParent;
+      writeTbl(\%faParent, $faParentFile);
+
+      if ($debug)
+      {
+	print "\nfaParent:\n";
+	printFormatedTbl(\%faParent);
+	print "\n\n";
+
+	$nFaParent = keys %faParent;
+	print "\n\tNow, the number of elemets of the family parent table: $nFaParent\n";
+	print "\ttNumber of elemets of the leaves of the family condensed tree: $nFaTreeLeaves\n\n";
+      }
+
+      if ($nFaParent != $nFaTreeLeaves )
+      {
+	warn "\n\n\tERROR: Still the number of leaves of $finalCondFamilyTreeBasename, $nFaTreeLeaves\n is not equal to the number of families, $nFaParent, in the faParent table";
+	print "\n\n";
+	exit 1;
+      }
+    }
+    else
+    {
+      warn "\n\n\tERROR: family condensed tree has $nFaTreeLeaves leaves and faParent has $nFaParent number of elements.";
+      print "\n\tThese two numbers should be the same.\n";
+      print "\tAn attempt to rectify the situation did not work out\n\n";
+      exit 1;
+    }
+  }
+
   my $familyOrderFile = $grPrefix . "_family.orderTx";
   $cmd = "cluster_taxons.pl $quietStr $igsStr $johannaStr $debugStr $showAllTreesStr -i $finalCondFamilyTreeFile -p 0.1 -f $faParentFile -t family -o $familyOrderFile";
   print "\tcmd=$cmd\n" if $dryRun || $debug;
-  system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+  system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 
   my %familyOrder = readTbl($familyOrderFile);
 
@@ -2078,9 +2776,95 @@ if ( scalar(keys %faChildren) > 1 )
     print "\n\n";
   }
 
-  print "--- Updating lineage table at the order level\n";
-  my %orParent;
+  print "--- Updating orParent etc tables\n";
+  my @allOrders = values %familyOrder;
+  my @newOrders = unique(\@allOrders);
+  for my $or (@newOrders)
+  {
+    next if exists $orParent{$or};
 
+    print "\nProcessing $or\n" if $debug;
+
+    my $origOr = $or;
+
+    if ( $or =~ /_(\d+)$/)
+    {
+      print "Detected numeric suffix $1 in $or. Removing it for now\n" if $debug;
+      $or =~ s/_\d+//;
+    }
+
+    if ( $or =~ /_etal/)
+    {
+      print "Detected etal order: $or. Removing etal suffix\n" if $debug;
+      $or =~ s/_etal//;
+    }
+
+    my @orComponents = split "_", $or;
+    print "\norComponents: @orComponents\n" if $debug;
+
+    if ( @orComponents == 1 && !exists $orParent{$or} )
+    {
+      warn "\n\n\tERROR: $or not found in orParent";
+      print "\n\n";
+
+      print "orParent:\n";
+      printFormatedTbl(\%orParent);
+      print "\n\n";
+
+      exit 1;
+    }
+    elsif ( @orComponents == 1 && exists $orParent{$or} )
+    {
+      # we are assuming that since $or was found in orParent higher taxon
+      # parents are also found in the corresponding parent tables
+      if ( !exists $orParent{$origOr} )
+      {
+	$orParent{$origOr} = $orParent{$or};
+      }
+      print "orParent{$origOr}: $orParent{$origOr}\n\n" if $debug;
+      next;
+    }
+
+    my %locCls;
+    my $newCl;
+    my $o = shift @orComponents;
+    if ( exists $orParent{$o} )
+    {
+      $newCl = $orParent{$o};
+      $locCls{$newCl}++;
+    }
+    else
+    {
+      warn "\n\n\tERROR: The first element, $o, of $or not found in orParent";
+      print "\n\n";
+      exit 1;
+    }
+
+    print "Parents of the components of $or:\n" if $debug;
+    print "\t$newCl\n" if $debug;
+
+    for my $o (@orComponents)
+    {
+      if ( exists $orParent{$o} && !exists $locCls{$orParent{$o}} )
+      {
+	$newCl .= "_" . $orParent{$o};
+	$locCls{$orParent{$o}}++;
+	print "\t" . $orParent{$o} . "\n" if $debug;
+      }
+      elsif ( !exists $orParent{$o} )
+      {
+	warn "\n\n\tERROR: The element, $o, of $or not found in orParent";
+	print "\n\n";
+	exit 1;
+      }
+    }
+
+    $orParent{$origOr} = $newCl;
+    print "orParent{$origOr}: $newCl\n\n" if $debug;
+  }
+
+
+  print "--- Updating lineage table at the order level\n";
   # testing if the resulting clustering does not consists of singlentons
   # if it does, keep lineage as it is and stop the taxonomy update
   my $nFamilies = keys %faParent;
@@ -2088,37 +2872,55 @@ if ( scalar(keys %faChildren) > 1 )
   @orders = unique(\@orders);
 
   my $finalOrderTxFile = $grPrefix . "_final_order.tx";
-  if ( @orders < $nFamilies )
+  open OUT, ">$finalOrderTxFile" or die "Cannot open $finalOrderTxFile for writing: $OS_ERROR\n";
+  for my $id (keys %lineageTbl)
   {
-    open OUT, ">$finalOrderTxFile" or die "Cannot open $finalOrderTxFile for writing: $OS_ERROR\n";
-    for my $id (keys %lineageTbl)
+    my $lineage = $lineageTbl{$id};
+    my @f   = split ";", $lineage;
+    my $sp  = pop @f;
+    my $sge = pop @f;
+    my $ge  = pop @f;
+    my $fa  = pop @f;
+
+    if ( exists $familyOrder{$fa} )
     {
-      my $lineage = $lineageTbl{$id};
-      my @f = split ";", $lineage;
-      my $sp = pop @f;
-      my $sge = pop @f;
-      my $ge = pop @f;
-      my $fa = pop @f;
+      my $or = pop @f;
+      my $newOr = $familyOrder{$fa};
+      print OUT "$id\t$newOr\n";
 
-      if ( exists $familyOrder{$fa} )
+      # $lineageTbl{$id} needs updating only when $newOr ne $or
+      if ( $newOr ne $or )
       {
-	my $or = pop @f;
-	my $newOrder = $familyOrder{$fa};
-	print OUT "$id\t$newOrder\n";
-	my @t = (@f, $newOrder, $fa, $ge, $sge, $sp);
-	$lineageTbl{$id} = join ";", @t;
-
 	my $cl = pop @f;
-	$orParent{$newOrder} = $cl;
-      }
-      else
-      {
-	warn "\n\n\tERROR: $id with fa: $fa not detected in familyOrder table";
-	print "\n\n";
-	exit;
+	my $ph = pop @f;
+
+	my $newCl = $orParent{$newOr};
+
+	my @t = ("Bacteria", $ph, $newCl, $newOr, $fa, $ge, $sge, $sp);
+	my $l = join ";", @t;
+
+	# print "\n\nOrig lineageTbl{$id}: " . $lineageTbl{$id} . "\n";
+	# print "\n\nNew lineageTbl{$id}: $l\n";
+	# exit 1;
+
+	$lineageTbl{$id} = $l;
       }
     }
-    close OUT;
+    else
+    {
+      warn "\n\n\tERROR: $id with fa: $fa not detected in familyOrder table";
+      print "\n\n";
+      exit 1;
+    }
+  }
+  close OUT;
+
+  print "--- Checking parent consistency of the lineage table\n";
+  if ( check_parent_consistency(\%lineageTbl) )
+  {
+    warn "";
+    print "\n\n";
+    exit 1;
   }
 
   my %orChildren;
@@ -2137,20 +2939,19 @@ if ( scalar(keys %faChildren) > 1 )
     print "\n\n"
   }
 
-
   if ( (scalar(keys %orChildren) > 1) && (@orders < $nFamilies) )
   {
     print "--- Generating a tree with final order names at leaves\n";
     my $finalOrderTreeFile = "$grPrefix" . "_final_order.tree";
     $cmd = "rm -f $finalOrderTreeFile; nw_rename $treeFile $finalOrderTxFile | nw_order -c n  - > $finalOrderTreeFile";
     print "\tcmd=$cmd\n" if $dryRun || $debug;
-    system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+    system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 
     print "--- Generating a condensed tree with final families collapsed to a single node \n";
     my $finalCondOrderTreeFile = abs_path( "$grPrefix" . "_final_order_condensed.tree" );
     $cmd = "rm -f $finalCondOrderTreeFile; nw_condense $finalOrderTreeFile > $finalCondOrderTreeFile";
     print "\tcmd=$cmd\n" if $dryRun || $debug;
-    system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+    system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 
     my $pdfCondOrderTreeFile = abs_path( "$grPrefix" . "_final_order_condensed_tree.pdf" );
     plot_tree_bw($finalCondOrderTreeFile, $pdfCondOrderTreeFile);
@@ -2159,7 +2960,7 @@ if ( scalar(keys %faChildren) > 1 )
     {
       $cmd = "open $pdfCondOrderTreeFile";
       print "\tcmd=$cmd\n" if $dryRun || $debug;
-      system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+      system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
     }
 
 
@@ -2194,7 +2995,7 @@ if ( scalar(keys %faChildren) > 1 )
     {
       $cmd = "open $pdfOrderColorsCsppTreeFile";
       print "\tcmd=$cmd\n" if $dryRun || $debug;
-      system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+      system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
     }
 
     $section = qq~
@@ -2211,10 +3012,89 @@ if ( scalar(keys %faChildren) > 1 )
     my $orParentFile = $grPrefix . ".orParent";
     writeTbl(\%orParent, $orParentFile);
 
+    my $finalCondOrderTreeBasename = basename($finalCondOrderTreeFile, @suffixes);
+    print "--- Testing if $finalCondOrderTreeBasename have the same number of elements as orParent table\n";
+
+    print "--- Parsing $finalCondOrderTreeBasename tree leaves\n";
+    $treeLeavesFile = "$grPrefix" . "_final_order_condensed_tree.leaves";
+    $cmd = "rm -f $treeLeavesFile; nw_labels -I $finalCondOrderTreeFile > $treeLeavesFile";
+    print "\tcmd=$cmd\n" if $dryRun || $debug;
+    system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
+
+    my @orTreeLeaves = readArray($treeLeavesFile);
+    my $nOrTreeLeaves = @orTreeLeaves;
+    print "\n\tNumber of elemets of the leaves of the order condensed tree: $nOrTreeLeaves\n" if $debug;
+
+    my $nOrParent = keys %orParent;
+    print "\tNumber of elemets of the order parent table: $nOrParent\n\n" if $debug;
+
+    if ( $nOrParent != $nOrTreeLeaves )
+    {
+      warn "\n\n\tWARNING: order condensed tree has $nOrTreeLeaves leaves and orParent has $nOrParent number of elements."  if $debug;
+      print "\n\tThese two numbers should be the same.\n\n"  if $debug;
+
+      my @ors = keys %orParent;
+
+      if ($debug)
+      {
+	if ( $nOrParent > $nOrTreeLeaves )
+	{
+	  my @d = diff(\@ors, \@orTreeLeaves);
+	  print "Here are orParent ornera not in the tree:\n";
+	  printArray(\@d);
+	  print "\n";
+	}
+
+	if ( $nOrParent < $nOrTreeLeaves )
+	{
+	  my @d = diff(\@orTreeLeaves, \@ors);
+	  print "Here are leaves not present in orParent:\n";
+	  printArray(\@d);
+	  print "\n";
+	}
+      }
+
+      my @c = comm(\@ors, \@orTreeLeaves);
+      if ( $nOrParent>@c && $nOrTreeLeaves==@c )
+      {
+	print "orParent is a superset of orTreeLeaves. Restricting orParent to orTreeLeaves\n\n" if $debug;
+	my @d = diff(\@ors, \@orTreeLeaves);
+
+	delete @orParent{@d};
+	$nOrParent = keys %orParent;
+	writeTbl(\%orParent, $orParentFile);
+
+	if ($debug)
+	{
+	  print "\norParent:\n";
+	  printFormatedTbl(\%orParent);
+	  print "\n\n";
+
+	  $nOrParent = keys %orParent;
+	  print "\n\tNow, the number of elemets of the order parent table: $nOrParent\n";
+	  print "\ttNumber of elemets of the leaves of the order condensed tree: $nOrTreeLeaves\n\n";
+	}
+
+	if ($nOrParent != $nOrTreeLeaves )
+	{
+	  warn "\n\n\tERROR: Still the number of leaves of $finalCondOrderTreeBasename, $nOrTreeLeaves\n is not equal to the number of orders, $nOrParent, in the orParent table";
+	  print "\n\n";
+	  exit 1;
+	}
+      }
+      else
+      {
+	warn "\n\n\tERROR: order condensed tree has $nOrTreeLeaves leaves and orParent has $nOrParent number of elements.";
+	print "\n\tThese two numbers should be the same.\n";
+	print "\tAn attempt to rectify the situation did not work out\n\n";
+	exit 1;
+      }
+    }
+
     my $orderClassFile = $grPrefix . "_order.classTx";
     $cmd = "cluster_taxons.pl $quietStr $igsStr $johannaStr $debugStr $showAllTreesStr -i $finalCondOrderTreeFile -p 0.1 -f $orParentFile -t order -o $orderClassFile";
     print "\tcmd=$cmd\n" if $dryRun || $debug;
-    system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+    system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 
     my %orderClass = readTbl($orderClassFile);
 
@@ -2226,8 +3106,6 @@ if ( scalar(keys %faChildren) > 1 )
     }
 
     print "--- Updating lineage table at the class level\n";
-    my %clParent;
-
     # testing if the resulting clustering does not consists of singlentons
     # if it does, keep lineage as it is and stop the taxonomy update
     my $nOrders = keys %orParent;
@@ -2235,38 +3113,47 @@ if ( scalar(keys %faChildren) > 1 )
     @classes = unique(\@classes);
 
     my $finalClassTxFile = $grPrefix . "_final_class.tx";
-    if ( @classes < $nOrders )
+    open OUT, ">$finalClassTxFile" or die "Cannot open $finalClassTxFile for writing: $OS_ERROR\n";
+    for my $id (keys %lineageTbl)
     {
-      open OUT, ">$finalClassTxFile" or die "Cannot open $finalClassTxFile for writing: $OS_ERROR\n";
-      for my $id (keys %lineageTbl)
+      my $lineage = $lineageTbl{$id};
+      my @f   = split ";", $lineage;
+      my $sp  = pop @f;
+      my $sge = pop @f;
+      my $ge  = pop @f;
+      my $fa  = pop @f;
+      my $or  = pop @f;
+
+      if ( exists $orderClass{$or} )
       {
-	my $lineage = $lineageTbl{$id};
-	my @f = split ";", $lineage;
-	my $sp = pop @f;
-	my $sge = pop @f;
-	my $ge = pop @f;
-	my $fa = pop @f;
-	my $or = pop @f;
+	my $cl = pop @f;
+	my $newCl = $orderClass{$or};
+	print OUT "$id\t$newCl\n";
 
-	if ( exists $orderClass{$or} )
+	# $lineageTbl{$id} needs updating only when $newCl ne $cl
+	if ( $newCl ne $cl )
 	{
-	  my $cl = pop @f;
-	  my $newClass = $orderClass{$or};
-	  print OUT "$id\t$newClass\n";
-	  my @t = (@f, $newClass, $or, $fa, $ge, $sge, $sp);
-	  $lineageTbl{$id} = join ";", @t;
-
 	  my $ph = pop @f;
-	  $clParent{$newClass} = $ph;
-	}
-	else
-	{
-	  warn "\n\n\tERROR: $id with or: $or not detected in orderClass table";
-	  print "\n\n";
-	  exit;
+	  my @t = ("Bacteria", $ph, $newCl, $or, $fa, $ge, $sge, $sp);
+	  my $l = join ";", @t;
+	  $lineageTbl{$id} = $l;
 	}
       }
-      close OUT;
+      else
+      {
+	warn "\n\n\tERROR: $id with fa: $fa not detected in familyOrder table";
+	print "\n\n";
+	exit 1;
+      }
+    }
+    close OUT;
+
+    print "--- Checking parent consistency of the lineage table\n";
+    if ( check_parent_consistency(\%lineageTbl) )
+    {
+      warn "";
+      print "\n\n";
+      exit 1;
     }
 
     my %clChildren;
@@ -2292,13 +3179,13 @@ if ( scalar(keys %faChildren) > 1 )
       my $finalClassTreeFile = "$grPrefix" . "_final_class.tree";
       $cmd = "rm -f $finalClassTreeFile; nw_rename $treeFile $finalClassTxFile | nw_order -c n  - > $finalClassTreeFile";
       print "\tcmd=$cmd\n" if $dryRun || $debug;
-      system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+      system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 
       print "--- Generating a condensed tree with final families collapsed to a single node \n";
       my $finalCondClassTreeFile = abs_path( "$grPrefix" . "_final_class_condensed.tree" );
       $cmd = "rm -f $finalCondClassTreeFile; nw_condense $finalClassTreeFile > $finalCondClassTreeFile";
       print "\tcmd=$cmd\n" if $dryRun || $debug;
-      system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+      system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 
       my $pdfCondClassTreeFile = abs_path( "$grPrefix" . "_final_class_condensed_tree.pdf" );
       plot_tree_bw($finalCondClassTreeFile, $pdfCondClassTreeFile);
@@ -2307,7 +3194,7 @@ if ( scalar(keys %faChildren) > 1 )
       {
 	$cmd = "open $pdfCondClassTreeFile";
 	print "\tcmd=$cmd\n" if $dryRun || $debug;
-	system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+	system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
       }
 
 
@@ -2342,7 +3229,7 @@ if ( scalar(keys %faChildren) > 1 )
       {
 	$cmd = "open $pdfClassColorsCsppTreeFile";
 	print "\tcmd=$cmd\n" if $dryRun || $debug;
-	system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+	system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
       }
     }
   }
@@ -2351,12 +3238,20 @@ if ( scalar(keys %faChildren) > 1 )
 
 #   $section = qq~
 
-# ##
-# ## Generating final lineage, spLineage, fasta and taxon files
-# ##
+##
+## Generating final lineage, spLineage, fasta and taxon files
+##
 
 # ~;
 #   print $section;
+
+print "--- Checking for the last time parent consistency of the lineage table\n";
+if ( check_parent_consistency(\%lineageTbl) )
+{
+  warn "";
+  print "\n\n";
+  exit 1;
+}
 
 my $initNumSpecies  = scalar( keys %spTbl );
 my $initNumGenera   = scalar( keys %geTbl );
@@ -2431,6 +3326,7 @@ if ($debug)
 }
 printLineageToFile2($SRYOUT, "\n\n====== Taxonomy AFTER cleanup ======\n");
 
+
 my $finalLineageFile = $grPrefix . "_final.lineage";
 open OUT, ">$finalLineageFile" or die "Cannot open $finalLineageFile for writing: $OS_ERROR\n";
 for my $id (keys %newTx)
@@ -2481,7 +3377,7 @@ if ($buildModelData)
   my $txFile = $grPrefix . "_final.tx";
   $cmd = "rm -f $txFile";
   print "\tcmd=$cmd\n" if $dryRun || $debug;
-  system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+  system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 
   open OUT, ">$txFile" or die "Cannot open $txFile for writing: $OS_ERROR\n";
   for my $id (keys %newTx)
@@ -2503,12 +3399,12 @@ if ($buildModelData)
   my $tmpFile = $grPrefix . "_tmp.fa";
   $cmd = "rmGaps $quietStr -i $trimmedAlgnFile -o $tmpFile";
   print "\tcmd=$cmd\n" if $dryRun || $debug;
-  system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+  system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 
   my $faFile = $grPrefix . "_final.fa";
   $cmd = "select_seqs.pl $quietStr -s $txFile -i $tmpFile -o $faFile";
   print "\tcmd=$cmd\n" if $dryRun || $debug;
-  system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+  system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 
   # testing if faFile and txFile have the same seq IDs
   my @faSeqIDs  = get_seqIDs_from_fa($faFile);
@@ -2517,7 +3413,7 @@ if ($buildModelData)
   my @commIDs = comm(\@newTxKeys, \@faSeqIDs);
   if (@commIDs != @newTxKeys || @commIDs != @faSeqIDs)
   {
-    warn "\n\nERROR: seq IDs of new taxonomy table and the fasta file do not match";
+    warn "\n\n\tERROR: seq IDs of new taxonomy table and the fasta file do not match";
     print "\n\tNumber of elements in the new taxonomy table: " . @newTxKeys . "\n";
     print "\tNumber of elements in the fasta file: " . @faSeqIDs . "\n";
     print "\tNumber of common elements: " . @commIDs . "\n";
@@ -2549,7 +3445,7 @@ if ($buildModelData)
       print "\n\n";
     }
 
-    exit;
+    exit 1;
   }
 
   # rm -rf Firmicutes_group_6_V3V4_MC_models_dir; buildModelTree -l Firmicutes_group_6_V3V4_final.spLineage -i Firmicutes_group_6_V3V4_final.fa -t Firmicutes_group_6_V3V4_final.tx -o Firmicutes_group_6_V3V4_MC_models_dir
@@ -2557,20 +3453,51 @@ if ($buildModelData)
   my $mcDir = $grPrefix . "_MC_models_dir";
   $cmd = "rm -rf $mcDir; buildModelTree $quietStr -l $spLineageFile -i $faFile -t $txFile -o $mcDir";
   print "\tcmd=$cmd\n" if $dryRun || $debug;
-  system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+  system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
+
+  print "--- Checking consistency of the model tree\n";
+  # the leaves of the model tree have to form the same set of species as found in the newTx table
+
+  # extracting leaves of the model tree
+  my $modelTreeFile = $grPrefix . "_MC_models_dir/model.tree";
+  if ( ! -e $prunedTreeFile )
+  {
+    warn "\n\n\tERROR: model tree file $modelTreeFile not found";
+    print "\n\n";
+    exit 1;
+  }
+  my $modelTreeLeavesFile = $grPrefix . "_MC_models_dir/model_tree.leaves";
+  $cmd = "rm -f $modelTreeLeavesFile; nw_labels -I $modelTreeFile > $modelTreeLeavesFile";
+  print "\tcmd=$cmd\n" if $dryRun || $debug;
+  system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
+
+  my @mtLeaves = readArray($modelTreeLeavesFile);
+  my @txVals = values %newTx;
+  my @spp = unique(\@txVals);
+
+  my @commMT = comm(\@mtLeaves, \@spp);
+  if (@commMT != @mtLeaves || @commMT != @spp)
+  {
+    warn "\n\n\tERROR: leaves of $modelTreeFile and species found in the newTx table do not match";
+    print "\tNumber of leaves of $modelTreeFile: " . @mtLeaves . "\n";
+    print "\tNumber of species of the newTx table: " . @spp . "\n";
+    print "\tNumber of common species: " . @commMT . "\n";
+    exit 1;
+  }
+
 
   # buildMC -t Firmicutes_group_6_V3V4_MC_models_dir/spp_paths.txt -k 8 -d Firmicutes_group_6_V3V4_MC_models_dir
   print "--- Building MC models\n";
   $cmd = "buildMC -t $mcDir/spp_paths.txt -k 8 -d $mcDir";
   print "\tcmd=$cmd\n" if $dryRun || $debug;
-  system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+  system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 
   # clError -d Firmicutes_group_6_V3V4_MC_models_dir -o Firmicutes_group_6_V3V4_MC_models_clError_dir
   print "--- Generating random sequences from the MC models\n";
   my $errorDir = $grPrefix . "_MC_models_clError_dir";
   $cmd = "rm -rf $errorDir; clError -v -d $mcDir -o $errorDir";
   print "\tcmd=$cmd\n" if $dryRun || $debug;
-  system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+  system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 
   # generate ncProbThlds.txt
   print "--- Generating ncProbThlds.txt\n";
@@ -2580,14 +3507,14 @@ if ($buildModelData)
   print "--- Running classify on $faFile\n";
   $cmd = "classify -d $mcDir -i $faFile -o $mcDir";
   print "\tcmd=$cmd\n" if $dryRun || $debug;
-  system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+  system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 
   #$ classify -r vaginal_319_806_v2_dir/refTx.tree -d vaginal_319_806_v2_MCdir -i vaginal_319_806_v2.fa -o mcDir_319_806_v2
   #$ cmp_tx.pl -i vaginal_319_806_v2.tx -j mcDir_319_806_v2_no_err_thld//MC.order7.results.txt -o mcDir_319_806_v2_no_err_thld/
   print "--- Comparing ref seq's taxonomy with the classification results\n";
   $cmd = "cmp_tx.pl --verbose $quietStr -i $txFile -j $mcDir/MC_order7_results.txt -o $mcDir";
   print "\tcmd=$cmd\n" if $dryRun || $debug;
-  system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+  system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 }
 
 
@@ -2907,7 +3834,7 @@ sub runRscript{
   close OUT;
 
   my $cmd = "R CMD BATCH $outFile";
-  system($cmd) == 0 or die "system($cmd) failed:$?\n";
+  system($cmd) == 0 or die "system($cmd) failed with exit code: $?";
 
   if (!$noErrorCheck)
   {
@@ -2921,7 +3848,7 @@ sub runRscript{
 	print "R script crashed at\n$line";
 	print "check $outR for details\n";
 	$exitStatus = 0;
-	exit;
+	exit 1;
       }
     }
     close IN;
@@ -3070,7 +3997,7 @@ sub printLineageAfterSppToFile
   {
     if (!exists $gen{$id})
     {
-      warn "\nERROR: gen{$id} does not exist";
+      warn "\n\n\tERROR: gen{$id} does not exist";
       print "newTx{$id}: " . $newTx{$id} . "\n";
     }
     $newChildren{$gen{$id}}{$newTx{$id}}++;
@@ -3124,7 +4051,7 @@ sub printLineageAfterSpp
   {
     if (!exists $gen{$id})
     {
-      warn "\nERROR: gen{$id} does not exist";
+      warn "\n\n\tERROR: gen{$id} does not exist";
       print "newTx{$id}: " . $newTx{$id} . "\n";
     }
     $newChildren{$gen{$id}}{$newTx{$id}}++;
@@ -3158,8 +4085,9 @@ sub printLineageAfterSpp
 	    printF(4, $ge, scalar(@{$geTbl{$ge}}), $geKVL);
 	    if (!exists $newChildren{$ge})
 	    {
-	      warn "ERROR: newChildren{$ge} does not exist";
-	      exit;
+	      warn "\n\n\tERROR: newChildren{$ge} does not exist";
+	      print "\n\n";
+	      exit 1;
 	    }
 	    my @sps = keys %{$newChildren{$ge}};
 	    my $spKVL = getKeyValStrLengths(\%newSpTbl, \@sps);
@@ -3521,8 +4449,9 @@ sub readArray{
 
   if ( ! -f $file )
   {
-    print "\n\nERROR in readArray() at line " . __LINE__ . ": $file does not exist\n\n\n";
-    exit;
+    warn "\n\n\tERROR in readArray(): $file does not exist";
+    print "\n\n";
+    exit 1;
   }
 
   open IN, "$file" or die "Cannot open $file for reading: $OS_ERROR\n";
@@ -3558,8 +4487,9 @@ sub readTbl{
 
   if ( ! -f $file )
   {
-    print "\n\nERROR in readTbl() at line " . __LINE__ . ": $file does not exist\n\n\n";
-    exit;
+    warn "\n\n\tERROR in readTbl(): $file does not exist";
+    print "\n\n";
+    exit 1;
   }
 
   my %tbl;
@@ -3583,8 +4513,9 @@ sub readTxTbl{
 
   if ( ! -f $file )
   {
-    print "\n\nERROR in readTxTbl() at line " . __LINE__ . ": $file does not exist\n\n\n";
-    exit;
+    warn "\n\n\tERROR in readTxTbl(): $file does not exist";
+    print "\n\n";
+    exit 1;
   }
 
   my %tbl;
@@ -3650,8 +4581,9 @@ sub findSeqIDinFasta
   if ( ! -f $inFile )
   {
     ##print "\n\nERROR in findSeqIDinFasta() at line " . __LINE__ . ": $inFile and does not exist\n\n\n";
-    print "\n\nERROR in findSeqIDinFasta(): $inFile and does not exist\n\n\n";
-    exit;
+    warn "\n\n\tERROR in findSeqIDinFasta(): $inFile and does not exist";
+    print "\n\n";
+    exit 1;
   }
 
   my $found = 0;
@@ -3689,8 +4621,9 @@ sub readBigTbl{
 
   if ( ! -f $file )
   {
-    print "\n\nERROR in readBigTbl() at line " . __LINE__ . ": $file does not exist\n\n\n";
-    exit;
+    warn "\n\n\tERROR in readBigTbl(): $file does not exist";
+    print "\n\n";
+    exit 1;
   }
 
   my %tbl;
@@ -3720,16 +4653,16 @@ sub readBigTbl{
   return (\%tbl, \@rowIds, \@header);
 }
 
-# read two column table; create a table that assigns
-# elements of the first column to the second column
-sub read2colTbl{
+# read lineage table
+sub readLineageTbl{
 
   my $file = shift;
 
   if ( ! -f $file )
   {
-    warn "\n\nERROR in read2colTbl(): $file does not exist\n\n\n";
-    exit;
+    warn "\n\n\tERROR in readLineageTbl(): $file does not exist";
+    print "\n\n";
+    exit 1;
   }
 
   my %tbl;
@@ -3739,6 +4672,13 @@ sub read2colTbl{
     chomp;
     my ($id, $t) = split /\s+/,$_;
     $tbl{$id} = $t;
+    ## test for '/' characters
+    if ($t =~ /\//)
+    {
+      warn "\n\n\tERROR: Discovered '/' for id: $id\t$t";
+      print "\n\n";
+      exit 1;
+    }
   }
   close IN;
 
@@ -3868,7 +4808,7 @@ sub test_OG
   my $treeLeavesFile = "$grPrefix" . "_sppSeqIDs.leaves";
   my $cmd = "rm -f $treeLeavesFile; nw_labels -I $treeFile > $treeLeavesFile";
   print "\tcmd=$cmd\n" if $dryRun || $debug_test_OG;
-  system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+  system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 
   print "\t--- Reading leaves\n" if $debug_test_OG;
   my @leaves = readArray($treeLeavesFile);
@@ -3932,10 +4872,10 @@ sub test_OG
 
   if ( scalar(@start) != scalar(@end) )
   {
-    warn "$grPrefix\nERROR: start and end arrays have different lengths!";
+    warn "$grPrefix\n\n\tERROR: start and end arrays have different lengths!";
     print "length(start): " . @start . "\n";
-    print "length(end): " . @end . "\n";
-    exit;
+    print "length(end): " . @end . "\n\n";
+    exit 1;
   }
 
   my @rangeSize;
@@ -3979,13 +4919,13 @@ sub test_OG
 	my $ogCladeTreeFile = "$grPrefix" . "_clade.tree";
 	$cmd = "rm -f $ogCladeTreeFile; nw_clade $treeFile @og > $ogCladeTreeFile";
 	#print "\tcmd=$cmd\n" if $dryRun || $debug_test_OG;
-	system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+	system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 
 	#print "\t--- Extracting leaves of the OG clade\n";
 	my $ogCladeTreeLeavesFile = "$grPrefix" . "_clade.leaves";
 	$cmd = "rm -f $ogCladeTreeLeavesFile; nw_labels -I $ogCladeTreeFile > $ogCladeTreeLeavesFile";
 	#print "\tcmd=$cmd\n" if $dryRun || $debug_test_OG;
-	system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+	system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 
 	#print "\t--- Reading the leaves\n" if $debug_test_OG;
 	my @ogCladeLeaves = readArray($ogCladeTreeLeavesFile);
@@ -4001,11 +4941,11 @@ sub test_OG
 
     # $imax = $minCladeSizeIdx;
     # print "\nUpdated imax: $imax\n";
-    exit;
+    exit 1;
   }
   elsif ( !( $start[0] == 0 || $end[0] == $#leaves) )
   {
-    warn "$\n\n\tERROR: In the pruned tree outgroups sequences are not at the top or bottom of the tree!";
+    warn "\n\n\tERROR: In the pruned tree outgroups sequences are not at the top or bottom of the tree!";
 
     print "\n\nNumber of leaves: " . @leaves . "\n";
     print "\nstart\tend\tsize\n";
@@ -4028,13 +4968,13 @@ sub test_OG
     my $ogCladeTreeFile = "$grPrefix" . "_OG_clade.tree";
     $cmd = "rm -f $ogCladeTreeFile; nw_clade $treeFile @og > $ogCladeTreeFile";
     print "\tcmd=$cmd\n" if $dryRun || $debug_test_OG;
-    system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+    system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 
     #print "\t--- Extracting leaves of the OG clade\n";
     my $ogCladeTreeLeavesFile = "$grPrefix" . "_OG_clade.leaves";
     $cmd = "rm -f $ogCladeTreeLeavesFile; nw_labels -I $ogCladeTreeFile > $ogCladeTreeLeavesFile";
     print "\tcmd=$cmd\n" if $dryRun || $debug_test_OG;
-    system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+    system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 
     #print "\t--- Reading the leaves\n" if $debug_test_OG;
     my @ogCladeLeaves = readArray($ogCladeTreeLeavesFile);
@@ -4052,7 +4992,7 @@ sub test_OG
     print "\n\tNumber of leaves of the OG clade: " . @ogCladeLeaves . "\n";
     print   "\tNumber of OG sequences: " . @og . "\n\n";
 
-    exit;
+    exit 1;
   }
   else
   {
@@ -4060,13 +5000,13 @@ sub test_OG
     my $ogCladeTreeFile = "$grPrefix" . "_OG_clade.tree";
     $cmd = "rm -f $ogCladeTreeFile; nw_clade $treeFile @og > $ogCladeTreeFile";
     print "\tcmd=$cmd\n" if $dryRun || $debug_test_OG;
-    system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+    system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 
     #print "\t--- Extracting leaves of the OG clade\n";
     my $ogCladeTreeLeavesFile = "$grPrefix" . "_OG_clade.leaves";
     $cmd = "rm -f $ogCladeTreeLeavesFile; nw_labels -I $ogCladeTreeFile > $ogCladeTreeLeavesFile";
     print "\tcmd=$cmd\n" if $dryRun || $debug_test_OG;
-    system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+    system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 
     #print "\t--- Reading the leaves\n" if $debug_test_OG;
     my @ogCladeLeaves = readArray($ogCladeTreeLeavesFile);
@@ -4087,7 +5027,7 @@ sub test_OG
 
       print "\n\tNumber of leaves of the OG clade: " . @ogCladeLeaves . "\n";
       print   "\tNumber of OG sequences: " . @og . "\n\n";
-      exit;
+      exit 1;
     }
   }
 
@@ -4286,4 +5226,58 @@ write.table(thldTbl2,file=outFile, sep=\"\\t\",row.names=F, col.names=T, quote=F
   runRscript( $Rscript, "noErrorCheck" );
 }
 
-exit;
+## check if each node of the lineage structure has only one parent
+sub check_parent_consistency
+{
+  my $r = shift;
+  my %lineageTbl = %{$r};
+
+  my  %prt;
+  for my $id ( keys %lineageTbl )
+  {
+    my $lineage = $lineageTbl{$id};
+    my @f = split ";", $lineage;
+    my $sp = pop @f;
+    my $subGe = pop @f;
+    my $ge = pop @f;
+    my $fa = pop @f;
+    my $or = pop @f;
+    my $cl = pop @f;
+    my $ph = pop @f;
+
+    $subGe = "sg_$subGe";
+    $ge = "g_$ge";
+    $fa = "f_$fa";
+    $or = "o_$or";
+    $cl = "c_$cl";
+    $ph = "p_$ph";
+
+    $prt{$sp}{$subGe}++;
+    $prt{$subGe}{$ge}++;
+    $prt{$ge}{$fa}++;
+    $prt{$fa}{$or}++;
+    $prt{$or}{$cl}++;
+    $prt{$cl}{$ph}++;
+  }
+
+  my $ret = 0;
+  for my $tx (keys %prt)
+  {
+    my $nPrts = keys %{$prt{$tx}};
+    if ( $nPrts > 1 )
+    {
+      $ret = 1;
+      print "\n\n\tERROR: $tx has more than one parent";
+      print "\n\t$tx parents\n";
+      for (keys %{$prt{$tx}})
+      {
+	print "\t\t$_\n";
+      }
+      print "\n\n";
+    }
+  }
+
+  return $ret;
+}
+
+exit 0;
