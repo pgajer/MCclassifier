@@ -60,9 +60,9 @@
   or
 
   get_curation_files.pl -g rdp_Bacteria_phylum_OGs_dir/p_Verrucomicrobia_outgroup.seqID -i Verrucomicrobia_nr.fa
-  
-  or 
-  
+
+  or
+
   for f in *_nr.fa; do get_curation_files.pl -i $f -g ${f/_nr.fa}_outgroup.seqIDs -l ${f/.fa}.lineage --johanna; done
 
 =cut
@@ -101,20 +101,20 @@ GetOptions(
 if ($help)
 {
   pod2usage(verbose => 2,exitstatus => 0);
-  exit;
+  exit 1;
 }
 
 if ( !$ogSeqIDsFile )
 {
   print "\n\nERROR: Missing outgroup sequence ID file.\n\n\n";
   pod2usage(verbose => 2,exitstatus => 0);
-  exit;
+  exit 1;
 }
 elsif (!$seqFile)
 {
   print "\n\nERROR: Missing input sequence file.\n\n\n";
   pod2usage(verbose => 2,exitstatus => 0);
-  exit;
+  exit 1;
 }
 
 my $masterLineageFile = "rdp_Bacteria_fp_seqlen_amb_filtered_wBVAB_no_incertae_sedis.lineage";
@@ -143,7 +143,7 @@ local $ENV{LD_LIBRARY_PATH} = "/usr/local/packages/readline/lib:/usr/local/packa
 if ( ! -f $masterFaFile )
 {
   print "\n\nERROR: $masterFaFile and does not exist\n\n\n";
-  exit;
+  exit 1;
 }
 
 ####################################################################
@@ -406,7 +406,7 @@ sub read2colTbl{
   if ( ! -f $file )
   {
     warn "\n\nERROR in read2colTbl(): $file does not exist\n\n\n";
-    exit;
+    exit 1;
   }
 
   my %tbl;
@@ -429,7 +429,7 @@ sub readTbl{
   if ( ! -f $file )
   {
     print "\n\nERROR: $file does not exist\n\n\n";
-    exit;
+    exit 1;
   }
 
   my %tbl;
@@ -464,7 +464,7 @@ sub readArray{
   if ( ! -f $file )
   {
     print "\n\nERROR in readArray() at line " . __LINE__ . ": $file does not exist\n\n\n";
-    exit;
+    exit 1;
   }
 
   open IN, "$file" or die "Cannot open $file for reading: $OS_ERROR\n";
@@ -495,4 +495,4 @@ sub createCommandTxt{
     return $file;
 }
 
-exit;
+exit 0;
