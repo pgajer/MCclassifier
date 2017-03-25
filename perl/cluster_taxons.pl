@@ -107,7 +107,7 @@ GetOptions(
 if ($help)
 {
   pod2usage(verbose => 2,exitstatus => 0);
-  exit;
+  exit 1;
 }
 
 if (!$treeFile)
@@ -115,35 +115,35 @@ if (!$treeFile)
   warn "\n\n\tERROR: Missing tree file";
   print "\n\n";
   pod2usage(verbose => 2,exitstatus => 0);
-  exit;
+  exit 1;
 }
 elsif (!$percThld)
 {
   warn "\n\n\tERROR: Missing percentile threshold";
   print "\n\n";
   pod2usage(verbose => 2,exitstatus => 0);
-  exit;
+  exit 1;
 }
 elsif (!$taxon)
 {
   warn "\n\n\tERROR: Missing taxon threshold";
   print "\n\n";
   pod2usage(verbose => 2,exitstatus => 0);
-  exit;
+  exit 1;
 }
 elsif (!$parentFile)
 {
   warn "\n\n\tERROR: Missing taxonomic parent table file";
   print "\n\n";
   pod2usage(verbose => 2,exitstatus => 0);
-  exit;
+  exit 1;
 }
 elsif (!$outFile)
 {
   warn "\n\n\tERROR: Missing output file name";
   print "\n\n";
   pod2usage(verbose => 2,exitstatus => 0);
-  exit;
+  exit 1;
 }
 
 my $readNewickFile = "/Users/pgajer/.Rlocal/read.newick.R";
@@ -165,19 +165,19 @@ if ( ! -e $phyloPart )
 {
   warn "\n\n\tERROR: $phyloPart does not exist";
   print "\n\n";
-  exit;
+  exit 1;
 }
 elsif ( ! -e $treeFile )
 {
   warn "\n\n\tERROR: $treeFile does not exist";
   print "\n\n";
-  exit;
+  exit 1;
 }
 elsif ( ! -e $parentFile )
 {
   warn "\n\n\tERROR: $parentFile does not exist";
   print "\n\n";
-  exit;
+  exit 1;
 }
 
 my $debugStr = "";
@@ -207,7 +207,7 @@ if ( ! exists $inputTaxonsTbl{$taxon} )
 {
   warn "\n\n\tERROR: $taxon has to be one of the following strings: @inputTaxons";
   print "\n\n";
-  exit;
+  exit 1;
 }
 
 ####################################################################
@@ -223,10 +223,19 @@ if ($quiet)
 if ($debug)
 {
   $quietStr = "";
+  $quiet = 0;
 }
 
 print "--- Parsing parent table\n"  if !$quiet;
 my %parent = read2colTbl($parentFile);
+
+if ($debug)
+{
+  my $nPar = keys %parent;
+  print "\nNumber of elements in the parent table: $nPar\n";
+  print "\nParent table:\n";
+  printFormatedTbl(\%parent);
+}
 
 my %parentFreq; ## number of elements of parent clusters
 map { $parentFreq{$_}++ } values %parent;
@@ -238,7 +247,7 @@ my $nParents = keys %parentFreq;
 
 if ($debug)
 {
-  print "\n\nNumber of parents: $nParents\n";
+   print "\n\nNumber of parents: $nParents\n";
 
   print "\nParent table cluster sizes:\n";
   printFormatedTbl(\%parentFreq);
@@ -362,9 +371,12 @@ if ( $nPhyloParts > 1 )
 
     if ( $nParent != @treeLeaves )
     {
+      print "\n\nParent table:\n";
+      printFormatedTbl(\%parent);
+
       warn "\n\n\tERROR: $treeFile and $parentFile should have the same number of elements";
       print "\n\n";
-      exit;
+      exit 1;
     }
 
     # Checking if keys of parent and leaves of the tree are the same sets
@@ -376,7 +388,7 @@ if ( $nPhyloParts > 1 )
       print "Number of elements in $treeFile: " . @treeLeaves . "\n";
       print "Number of elements in $parentFile: $nParent\n";
       print "Number of common elements: " . @commElts . "\n\n";
-      exit;
+      exit 1;
     }
 
     if ( $debug )
@@ -404,8 +416,9 @@ if ( $nPhyloParts > 1 )
     print "--- Parsing vicut clustering file $cltrFile\n" if !$quiet;
     if ( ! -f $cltrFile )
     {
-      warn "\nERROR: $cltrFile does not exist";
-      exit;
+      warn "\n\n\tERROR: $cltrFile does not exist";
+      print "\n\n";
+      exit 1;
     }
 
     open IN, "$cltrFile" or die "Cannot open $cltrFile for reading: $OS_ERROR\n";
@@ -423,7 +436,7 @@ if ( $nPhyloParts > 1 )
   {
     warn "\n\n\tERROR: annotation sequences missing";
     print "\n\n";
-    exit;
+    exit 1;
     # # putting each leaf to its own cluster
     # my $count = 1;
     # %part2 = map { $_ => $count++ } keys %part;
@@ -454,7 +467,7 @@ if ( $nPhyloParts > 1 )
     print "--- Number of vicut clusters, $nVicutCltrs, is not greater than the number of phylo parts, $nPhyloParts\n" if !$quiet;
     print "    Using phyloParts partition\n" if !$quiet;
 
-    my $clCounter = 1;
+    my $clCounter = 1; ## assigning each element of the '0' cluster to its own cluster with cluster index $clCounter
     undef %part2;
     undef %cltr;
     for my $id (keys %part)
@@ -471,47 +484,111 @@ if ( $nPhyloParts > 1 )
       my $cl = $part2{$id};
       push @{$cltr{$cl}}, $id;
     }
+
+    if ($debug)
+    {
+      print "\nPhylo partition derived clusters:\n";
+      my @q = sort { @{$cltr{$b}} <=> @{$cltr{$a}} } keys %cltr;
+      for my $cl (@q)
+      {
+	print "Cluster $cl:\n";
+	for (@{$cltr{$cl}})
+	{
+	  print "\t$_\n";
+	}
+      }
+      print "\n\n";
+    }
+  }
+  else
+  {
+    if ($debug)
+    {
+      print "\nVicut updated phylo partition clusters:\n";
+      my @q = sort { @{$cltr{$b}} <=> @{$cltr{$a}} } keys %cltr;
+      for my $cl (@q)
+      {
+	print "Cluster $cl:\n";
+	for (@{$cltr{$cl}})
+	{
+	  print "\t$_\n";
+	}
+      }
+      print "\n\n";
+    }
   }
 
-  if ($debug)
-  {
-    print "\nVicut updated phylo partition clusters:\n";
-    my @q = sort { @{$cltr{$b}} <=> @{$cltr{$a}} } keys %cltr;
-    for my $cl (@q)
-    {
-      print "Cluster $cl:\n";
-      for (@{$cltr{$cl}})
-      {
-	print "\t$_\n";
-      }
-    }
-    print "\n\n";
-  }
 
   ## Each cluster will have the name sub_<parent>_<idx>
   ## if all taxons of the cluster have the same parent
   ## and
   ## sub_<perent_1>_<parent_2>_...<parent_n>_<idx>
   ## otherwise
+  ## Moreover if n>3 the cluster name will be truncated to the first 3 most
+  ## abundant parents a and given extension _etal
+
+  print "\nAltering cluster names\n" if $debug;
 
   my %pars;
-  my %clParent;
+  my %clNameTbl; # cl => assigned name based on parents of the elements of the cluster
+  #my %name2cl; # a table to test if an abbreviated parent name is not occuring more than once
   for my $cl (keys %cltr)
   {
-    #print "Cluster $cl:\n";
-    my %locPars;
-    for (@{$cltr{$cl}})
+    print "\nProcessing cluster $cl:\n" if $debug;
+    my %locPars; # table of parents of the given taxon
+
+    # If it is a clustering of species, check if the cluster contains properly
+    # named specie. If it does, use only properly named species to assign name to
+    # the cluster. If not, use _sp species parents.
+    my %isProper;
+    for my $tx (@{$cltr{$cl}})
     {
-      my $p = $parent{$_};
-      $p =~ s/_\d+//;
-      my @f = split "_", $p;
-      for (@f)
+      my ($g, $s) = split "_", $tx;
+      if ( defined $s && $s ne "sp" )
       {
-	$locPars{$_}++;
+	$isProper{$tx} = 1;
+      }
+    }
+
+    my $nProper = keys %isProper;
+    if ( $nProper > 0 )
+    {
+      for my $tx (@{$cltr{$cl}})
+      {
+	if ( exists $isProper{$tx} )
+	{
+	  my $p = $parent{$tx};
+	  print "$tx  =>  $p\n" if $debug;
+	  $p =~ s/_\d+//;
+	  print "new p: $p\n" if $debug;
+	  my @f = split "_", $p;
+	  for (@f)
+	  {
+	    $locPars{$_}++;
+	  }
+	}
+      }
+    }
+    else
+    {
+      for my $tx (@{$cltr{$cl}})
+      {
+	my $p = $parent{$tx};
+	print "$tx  =>  $p\n" if $debug;
+	$p =~ s/_\d+//;
+	print "new p: $p\n" if $debug;
+	my @f = split "_", $p;
+	for (@f)
+	{
+	  $locPars{$_}++;
+	}
       }
     }
 
     my @par = sort { $locPars{$b} <=> $locPars{$a} } keys %locPars;
+
+    print "keys locPars: @par\n" if $debug;
+
     my $parStr;
     if ( @par <= $maxTxs )
     {
@@ -521,88 +598,108 @@ if ( $nPhyloParts > 1 )
     {
       $parStr = join "_", @par[0..($maxTxs-1)];
       $parStr = $parStr . "_etal";
+      # $parentName{$parStr}++;
+      # $parStr = $parStr . "_" . $parentName{$parStr}.
     }
     $pars{$parStr}++;
-    $clParent{$cl} = $parStr;
+    $clNameTbl{$cl} = $parStr;
+    print "clNameTbl{$cl}: $parStr\n\n" if $debug;
+    #push @{$name2cl{$parStr}}, $cl;
   }
 
-  if (!$quiet)
+  if ($debug)
   {
-    print "\nDiscovered Cluster Parents\n";
+    print "\nFrequencies of parent derived cluster names\n";
     my @a = sort { $pars{$b} <=> $pars{$a} } keys %pars;
     for (@a)
     {
-      print "\t$_\n";
+      print "\t$_\t$pars{$_}\n";
+    }
+    print "\n";
+
+    print "\nCluster names:\n";
+    for my $cl (keys %cltr)
+    {
+      print "\n$cl: $clNameTbl{$cl}\n";
+      for my $tx (@{$cltr{$cl}})
+      {
+	print "\t$tx\n";
+      }
     }
     print "\n";
   }
 
-  print "--- Changing cluster names\n" if !$quiet;
+  print "--- Changing cluster names accounting for multiple clusters having the same name string\n" if !$quiet;
   my %cltr2;
-  my %txSubParent;
+  my %parStrSubParent;
   my %parentIdx;
-  my %txSubParentIdx; # this is for species_idx tree only
+  my %clIdx;
+  my %txCltrIdx; # this is for species_idx tree only
   my @q = sort { @{$cltr{$b}} <=> @{$cltr{$a}} } keys %cltr;
   my $count = 1;
   open OUT, ">$outFile" or die "Cannot open $outFile for writing: $OS_ERROR\n";
   for my $cl (@q)
   {
-    my $tx = $clParent{$cl};
-    $parentIdx{$tx}++;
-    if ( $pars{$tx}>1 )
+    my $parStr = $clNameTbl{$cl};
+    print "\nProcessing cluster $cl\n\tCurrent name: $parStr\n" if $debug;
+    $parentIdx{$parStr}++;
+    if ( $pars{$parStr}>1 )
     {
-      $tx = "$tx" . "_$parentIdx{$tx}";
+      $parStr = "$parStr" . "_$parentIdx{$parStr}";
     }
     else
     {
-      $tx = "$tx";
+      $parStr = "$parStr";
     }
-    $cltr2{$tx} = $cltr{$cl};
-    $parentIdx{$tx} = $count;
-    print "\tProcessing cluster $cl with new taxonomy $tx\n" if $debug;
+    $clNameTbl{$cl} = $parStr;
+    $cltr2{$parStr} = $cltr{$cl};
+    $clIdx{$parStr} = $count;
+    print "\tNew name: $parStr\n" if $debug;
     for (@{$cltr{$cl}})
     {
-      $txSubParent{$_} = $tx;
-      print OUT "$_\t$tx\n";
-      $txSubParentIdx{$_} = $count;
+      print "\t$_\n" if $debug;
+      $parStrSubParent{$_} = $parStr;
+      print OUT "$_\t$parStr\n";
+      $txCltrIdx{$_} = $count;
     }
     $count++;
   }
   close OUT;
 
+  ## testing if the number of clusters is the same as the number of new names
+  my $nCltrs = keys %clNameTbl;
+  my $nNames = keys %cltr2;
+  if ( $nCltrs != $nNames )
+  {
+    warn "\n\n\tERROR: Number of clusters, $nCltrs, and the number of new names, $nNames, are not the same";
+    print "\n\n";
+    exit 1;
+  }
+
   if ($debug)
   {
-    print "\nVicut updated phylo partition clusters with new names:\n";
+    print "\nClusters with new names and display-purpose indicies:\n";
     @q = sort { @{$cltr2{$b}} <=> @{$cltr2{$a}} } keys %cltr2;
     for my $cl (@q)
     {
-      print "Cluster $cl => $parentIdx{$cl} (" . @{$cltr2{$cl}} . "):\n";
+      print "Cluster $cl => $clIdx{$cl} (" . @{$cltr2{$cl}} . "):\n";
       for (@{$cltr2{$cl}})
       {
 	print "\t$_\n";
       }
     }
     print "\n\n";
-
-    print "\nVicut updated phylo partition cluster sizes:\n";
-    @q = sort { @{$cltr2{$b}} <=> @{$cltr2{$a}} } keys %cltr2;
-    for my $cl (@q)
-    {
-      print "Cluster $cl " . @{$cltr2{$cl}} . "\n";
-    }
-    print "\n\n";
   }
-
 
   print "--- Creating tree with taxon_cluster leaf names\n" if !$quiet;
   my $spClFile = "phyloPart_$taxon" . ".sppCl";
   my $spClFile2 = abs_path( "phyloPart_$taxon" . ".sppCl2" );
   open OUT, ">$spClFile" or die "Cannot open $spClFile for writing: $OS_ERROR\n";
   open OUT2, ">$spClFile2" or die "Cannot open $spClFile2 for writing: $OS_ERROR\n";
-  for (keys %txSubParentIdx)
+  for (keys %txCltrIdx)
   {
-    print OUT "$_\t$_" . "_cl_" . $txSubParentIdx{$_} . "\n";
-    print OUT2 "$_" . "_cl_" . $txSubParentIdx{$_} . "\t" . $txSubParentIdx{$_} . "\n";
+    print OUT "$_\t$_" . "_cl_" . $txCltrIdx{$_} . "\n";
+    print OUT2 "$_" . "_cl_" . $txCltrIdx{$_} . "\t" . $txCltrIdx{$_} . "\n";
   }
   close OUT;
   close OUT2;
@@ -613,7 +710,7 @@ if ( $nPhyloParts > 1 )
   print "\tcmd=$cmd\n" if $dryRun || $debug;
   system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 
-  my $nLeaves = scalar( keys %txSubParentIdx );
+  my $nLeaves = scalar( keys %txCltrIdx );
 
   ## calculating pdf file height
   ## the following formula is a linear model for the height
@@ -640,9 +737,6 @@ if ( $nPhyloParts > 1 )
 }
 else
 {
-  ## $nPhyloParts < $nParents
-  ## using parent table
-
   if (!$quiet)
   {
     print "--- Phylo partition generated only one cluster\n";
@@ -748,7 +842,7 @@ sub read_part_tbl
   {
     warn "\n\n\tERROR: $file does not exist";
     print "\n\n";
-    exit;
+    exit 1;
   }
 
   my %tbl;
@@ -803,7 +897,7 @@ sub readArray{
   if ( ! -f $file )
   {
     print "\n\nERROR in readArray() at line " . __LINE__ . ": $file does not exist\n\n\n";
-    exit;
+    exit 1;
   }
 
   open IN, "$file" or die "Cannot open $file for reading: $OS_ERROR\n";
@@ -830,7 +924,7 @@ sub readTbl{
   if ( ! -f $file )
   {
     print "\n\nERROR in readTbl() at line " . __LINE__ . ": $file does not exist\n\n\n";
-    exit;
+    exit 1;
   }
 
   my %tbl;
@@ -855,7 +949,7 @@ sub read2colTbl{
   if ( ! -f $file )
   {
     warn "\n\nERROR in read2colTbl(): $file does not exist\n\n\n";
-    exit;
+    exit 1;
   }
 
   my %tbl;
@@ -963,7 +1057,7 @@ sub runRscript
       print "R script crashed at\n$line";
       print "check $outR for details\n";
       $exitStatus = 0;
-      exit;
+      exit 1;
     }
   }
   close IN;
@@ -987,4 +1081,4 @@ sub comm{
   return @c;
 }
 
-exit;
+exit 0;
