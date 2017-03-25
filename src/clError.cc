@@ -414,11 +414,11 @@ int main(int argc, char **argv)
   }
 
   if ( inPar->verbose )
-    cerr << "--- nModels=" << nModels << endl;
+    cerr << "--- nModels: " << nModels << endl;
 
   int wordLen = inPar->kMerLens[0];
 
-  if ( inPar->verbose )
+  if ( 0 && inPar->verbose )
   {
     cerr << "\rk=" << wordLen << "\n";
 
@@ -441,7 +441,7 @@ int main(int argc, char **argv)
 				   inPar->mcDir,
 				   inPar->maxNumAmbCodes,
 				   inPar->pseudoCountType );
-  if ( inPar->verbose )
+  if ( 0 && inPar->verbose )
     cerr << "done" << endl;
 
   //fprintf(stderr, "seq: %s\tseqLen=%d\n", seq, seqLen);
