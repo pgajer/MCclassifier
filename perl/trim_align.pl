@@ -100,32 +100,32 @@ GetOptions(
 if ($help)
 {
   pod2usage(verbose => 2,exitstatus => 0);
-  exit;
+  exit 1;
 }
 
 if (!$inFile)
 {
   print "ERROR: Missing input file\n\n";
   pod2usage(verbose => 2,exitstatus => 0);
-  exit;
+  exit 1;
 }
 elsif (!$outFile)
 {
   print "ERROR: Missing output file\n\n";
   pod2usage(verbose => 2,exitstatus => 0);
-  exit;
+  exit 1;
 }
 # elsif (!$selRange)
 # {
 #   print "ERROR: Missing selection range\n\n";
 #   pod2usage(verbose => 2,exitstatus => 0);
-#   exit;
+#   exit 1;
 # }
 
 if ( ! -f $inFile )
 {
   print "\n\nERROR: $inFile does not exist\n\n\n";
-  exit;
+  exit 1;
 }
 
 ####################################################################
@@ -140,13 +140,13 @@ if ( $summaryFile )
   if ( ! $criteria )
   {
     print "\n\nERROR: $summaryFile present but criteria not defined.\n\n\n";
-    exit;
+    exit 1;
   }
 
   if ( $criteria < 0 || $criteria > 100 )
   {
     print "\n\nERROR: $criteria has to be an integer between 0 and 100.\n\n\n";
-    exit;
+    exit 1;
   }
 
   ($startPos, $endPos) = readSummaryFile($summaryFile);
@@ -206,7 +206,7 @@ sub readSummaryFile
   if ( ! -f $file )
   {
     print "\n\nERROR: $file does not exist\n\n\n";
-    exit;
+    exit 1;
   }
 
   my %startTbl;
@@ -219,7 +219,7 @@ sub readSummaryFile
     chomp;
     $nSeqs++;
     my ($id, $start, $end) = split /\s+/, $_;
-    ##print "line: $_\nid: $id  start: $start  end: $end\n"; exit;
+    ##print "line: $_\nid: $id  start: $start  end: $end\n"; exit 1;
     $startTbl{$start}++;
     $endTbl{$end}++;
   }
@@ -227,7 +227,7 @@ sub readSummaryFile
 
   # printTbl(\%startTbl, "startTbl");
   # printTbl(\%endTbl, "endTbl");
-  # exit;
+  # exit 1;
 
   #### ---------- start position -------------
   my @startPerc; # array of cummulative start position percentages, it ends when
@@ -325,4 +325,4 @@ sub printArray{
   print "\n";
 }
 
-exit;
+exit 0;

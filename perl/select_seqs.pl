@@ -102,26 +102,26 @@ GetOptions(
 if ($help)
 {
   pod2usage(verbose => 2,exitstatus => 0);
-  exit;
+  exit 1;
 }
 
 if (!$inFile)
 {
   print "\n\nERROR: Missing input file\n\n\n";
   pod2usage(verbose => 2,exitstatus => 0);
-  exit;
+  exit 1;
 }
 elsif (!$outFile)
 {
    print "\n\nERROR: Missing output file\n\n\n";
    pod2usage(verbose => 2,exitstatus => 0);
-   exit;
+   exit 1;
 }
 
 if ( ! -e $inFile )
 {
   print "\n\nERROR: $inFile does not exist\n\n\n";
-  exit;
+  exit 1;
 }
 
 if ( -l $inFile )
@@ -235,7 +235,7 @@ sub readArray
   {
     chomp;
     my ($id) = split /\s+/, $_;
-    #print "id: $id\n"; exit;
+    #print "id: $id\n"; exit 1;
     $rows{$id}=1;
   }
   close INPUT;
@@ -258,4 +258,4 @@ sub printKeys{
   map {$i++; print "$_\n" if $i < $n} keys %$rTbl;
 }
 
-exit;
+exit 0;

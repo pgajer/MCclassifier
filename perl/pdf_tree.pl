@@ -72,7 +72,7 @@ GetOptions(
 if ($help)
 {
   pod2usage(verbose => 2,exitstatus => 0);
-  exit;
+  exit 1;
 }
 
 if (!$treeFile)
@@ -80,21 +80,21 @@ if (!$treeFile)
   warn "\n\n\tERROR: Missing tree file";
   print "\n\n";
   pod2usage(verbose => 2,exitstatus => 0);
-  exit;
+  exit 1;
 }
 elsif (!$pdfFile)
 {
   warn "\n\n\tERROR: Missing output file";
   print "\n\n";
   pod2usage(verbose => 2,exitstatus => 0);
-  exit;
+  exit 1;
 }
 
 if ( ! -e $treeFile )
 {
   warn "\n\n\tERROR: $treeFile does not exist";
   print "\n\n";
-  exit;
+  exit 1;
 }
 
 if ( !defined $title )
@@ -235,11 +235,11 @@ sub runRscript{
 	print "R script crashed at\n$line";
 	print "check $outR for details\n";
 	$exitStatus = 0;
-	exit;
+	exit 1;
       }
     }
     close IN;
   }
 }
 
-exit;
+exit 0;

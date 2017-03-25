@@ -73,26 +73,26 @@ GetOptions(
 if ($help)
 {
   pod2usage(verbose => 2,exitstatus => 0);
-  exit;
+  exit 1;
 }
 
 if (!$txFile)
 {
   print "\n\nERROR: Missing taxonomy file\n\n\n";
   pod2usage(verbose => 2,exitstatus => 0);
-  exit;
+  exit 1;
 }
 elsif (!$vicutDir)
 {
   print "\n\nERROR: Missing vicut directory\n\n\n";
   pod2usage(verbose => 2,exitstatus => 0);
-  exit;
+  exit 1;
 }
 
 if ( ! -f $txFile )
 {
   print "\n\nERROR: $txFile does not exist\n\n\n";
-  exit;
+  exit 1;
 }
 
 my $newTxFile = "$vicutDir/minNodeCut.cltrs"; # was minNodeCut_NAge1_TXge1_querySeqs.taxonomy";
@@ -100,7 +100,7 @@ my $newTxFile = "$vicutDir/minNodeCut.cltrs"; # was minNodeCut_NAge1_TXge1_query
 if ( ! -f $newTxFile )
 {
   print "\n\nERROR: $newTxFile does not exist\n\n\n";
-  exit;
+  exit 1;
 }
 
 ####################################################################
@@ -117,7 +117,7 @@ my $cltrFile = "$vicutDir/minNodeCut.cltrs";
 if ( ! -f $cltrFile )
 {
   print "\n\nERROR: $cltrFile does not exist\n\n\n";
-  exit;
+  exit 1;
 }
 
 my ($rid2clTbl, $rclTbl, $rclFreqTbl, $rtxTbl)  = readCltrTbl($cltrFile);
@@ -155,7 +155,7 @@ for my $id ( keys %txTbl )
   {
     warn "\n\n\tERROR: Discovered NA species";
     print "\n\n";
-    exit;
+    exit 1;
   }
 }
 
@@ -322,7 +322,7 @@ for my $cl ( keys %clFreqTbl )
 	my @f = split "_", $sp;
 	my $g = shift @f;
 	my $s = shift @f;
-        if ( $s ne "sp" )
+        if ( defined $s && $s ne "sp" )
 	{
 	  $selSp[$count] = $sp;
 	  $count++;
@@ -459,7 +459,7 @@ sub writeTbl2{
     else
     {
       warn "\n\n\tERROR: $_ does not exist in the table to be printed to $outFile\n\n";
-      exit;
+      exit 1;
     }
   }
   close OUT;
@@ -548,4 +548,4 @@ sub printFormatedTbl{
   print "\n\n";
 }
 
-exit;
+exit 0;

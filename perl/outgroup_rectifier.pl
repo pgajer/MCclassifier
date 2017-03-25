@@ -109,14 +109,14 @@ GetOptions(
 if ($help)
 {
   pod2usage(verbose => 2,exitstatus => 0);
-  exit;
+  exit 1;
 }
 
 if (!$grPrefix)
 {
   print "\n\nERROR: Missing group prefix\n\n\n";
   pod2usage(verbose => 2,exitstatus => 0);
-  exit;
+  exit 1;
 }
 
 ####################################################################
@@ -154,7 +154,7 @@ if ( ! -d $grDir )
 {
   warn "ERROR: $grDir does not exist";
   touchFile( $errorFile );
-  exit;
+  exit 1;
 }
 
 my $faGrFile        = $grPrefix . ".fa";
@@ -180,14 +180,14 @@ if ( @ogSeqIDs == 1 )
 {
   print "\n\tNumber of outgroup seq's: " . @ogSeqIDs . "\n";
   print "\tNothing to be done\n\n";
-  exit;
+  exit 1;
 }
 elsif ( @ogSeqIDs == 0 )
 {
   warn "\n\n\tERROR: No outgroup sequences found";
   print "\n\n\n";
   touchFile( $errorFile );
-  exit;
+  exit 1;
 }
 
 my @allSeqIDs = keys %lineageTbl;
@@ -205,7 +205,7 @@ if ( ! -e $sppSeqIdTreeFile )
 {
   warn "ERROR: $sppSeqIdTreeFile does not exist";
   touchFile( $errorFile );
-  exit;
+  exit 1;
 }
 
 print "--- Extracting leaves\n" if !$quiet;
@@ -277,7 +277,7 @@ if ( scalar(@start) != scalar(@end) )
   print "length(start): " . @start . "\n";
   print "length(end): " . @end . "\n";
   touchFile( $errorFile );
-  exit;
+  exit 1;
 }
 
 my @rangeSize;
@@ -353,7 +353,7 @@ if ($reportOnly)
     print "\nUpdated imax: $imax\n";
   }
   print "\n";
-  exit;
+  exit 1;
 }
 
 ## if there is more than one cluster, eliminate all but the largest one
@@ -722,7 +722,7 @@ if (@rangeSize>1)
     print "length(start): " . @start . "\n";
     print "length(end):   " . @end . "\n";
     touchFile( $errorFile );
-    exit;
+    exit 1;
   }
 
   @rangeSize = ();
@@ -791,7 +791,7 @@ if (@rangeSize>1)
     print "\n\tNumber of leaves of the OG clade: " . @ogCladeLeaves . "\n";
     print   "\tNumber of OG sequences: " . @og . "\n\n";
 
-    exit;
+    exit 1;
   }
 
   if ( !( $start[0] == 0 || $end[0] == $#leaves) )
@@ -844,7 +844,7 @@ if (@rangeSize>1)
     print "\n\tNumber of leaves of the OG clade: " . @ogCladeLeaves . "\n";
     print   "\tNumber of OG sequences: " . @og . "\n\n";
 
-    exit;
+    exit 1;
   }
 }
 else
@@ -882,7 +882,7 @@ else
     print "length(start): " . @start . "\n";
     print "length(end): " . @end . "\n";
     touchFile( $errorFile );
-    exit;
+    exit 1;
   }
 
   @rangeSize = ();
@@ -945,7 +945,7 @@ else
     print "\n\tNumber of leaves of the OG clade: " . @ogCladeLeaves . "\n";
     print   "\tNumber of OG sequences: " . @og . "\n\n";
 
-    exit;
+    exit 1;
   }
 
 }
@@ -1056,7 +1056,7 @@ sub readArray{
   if ( ! -f $file && ! -l $file )
   {
      print "\n\nERROR in readArray() at line " . __LINE__ . ": $file does not exist\n\n\n";
-    exit;
+    exit 1;
   }
 
   open IN, "$file" or die "Cannot open $file for reading: $OS_ERROR\n";
@@ -1382,7 +1382,7 @@ sub read2colTbl{
   if ( ! -f $file )
   {
     warn "\n\nERROR in read2colTbl(): $file does not exist\n\n\n";
-    exit;
+    exit 1;
   }
 
   my %tbl;
@@ -1586,7 +1586,7 @@ sub get_OG_families
     print "cmin: $cmin\n";
     printArrayTbl(\%grTx, "grTbl");
     print "\n";
-    exit;
+    exit 1;
   }
 
   printArray(\@t, "t=grTx{cmin}") if $debug;
@@ -1636,7 +1636,7 @@ sub get_OG_families
 
     print "ch: @ch\n";
     print "d: @d\n";
-    exit;
+    exit 1;
   }
 
   return @d;
@@ -1739,4 +1739,5 @@ sub touchFile
   print "\tcmd=$cmd\n" if $dryRun || $debug;
   system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 }
-exit;
+
+exit 0;

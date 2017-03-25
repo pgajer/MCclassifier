@@ -81,20 +81,20 @@ GetOptions(
 if ($help)
 {
   pod2usage(verbose => 2,exitstatus => 0);
-  exit;
+  exit 1;
 }
 
 if (!$grPrefix)
 {
   print "\n\nERROR: Missing group prefix\n\n\n";
   pod2usage(verbose => 2,exitstatus => 0);
-  exit;
+  exit 1;
 }
 elsif (!$badOGfile)
 {
   print "\n\nERROR: Missing outgroup file\n\n\n";
   pod2usage(verbose => 2,exitstatus => 0);
-  exit;
+  exit 1;
 }
 
 ####################################################################
@@ -124,7 +124,7 @@ my $grDir = $grPrefix . "_dir";
 if ( ! -d $grDir )
 {
   warn "ERROR: $grDir does not exist";
-  exit;
+  exit 1;
 }
 
 $grPrefix = "$grDir/$grPrefix";
@@ -151,7 +151,7 @@ my $sppSeqIdTreeFile = $grPrefix . "_sppSeqIDs.tree";
 if ( ! -e $sppSeqIdTreeFile )
 {
   warn "ERROR: $sppSeqIdTreeFile does not exist";
-  exit;
+  exit 1;
 }
 
 print "--- Extracting leaves\n" if !$quiet;
@@ -465,7 +465,7 @@ if ( scalar(@start) != scalar(@end) )
   warn "ERROR: start and end arrays have different lengths!";
   print "length(start): " . @start . "\n";
   print "length(end): " . @end . "\n";
-  exit;
+  exit 1;
 }
 
 my @rangeSize = ();
@@ -496,7 +496,7 @@ if (@start > 1)
   }
   print "\n";
 
-  exit;
+  exit 1;
 }
 
 if ( !( $start[0] == 0 || $end[0] == $#leaves) )
@@ -510,7 +510,7 @@ if ( !( $start[0] == 0 || $end[0] == $#leaves) )
   }
   print "\n";
 
-  exit;
+  exit 1;
 }
 
 
@@ -595,7 +595,7 @@ sub readArray{
   if ( ! -f $file )
   {
     print "\n\nERROR in readArray() at line " . __LINE__ . ": $file does not exist\n\n\n";
-    exit;
+    exit 1;
   }
 
   open IN, "$file" or die "Cannot open $file for reading: $OS_ERROR\n";
@@ -921,7 +921,7 @@ sub read2colTbl{
   if ( ! -f $file )
   {
     warn "\n\nERROR in read2colTbl(): $file does not exist\n\n\n";
-    exit;
+    exit 1;
   }
 
   my %tbl;
@@ -1125,7 +1125,7 @@ sub get_OG_families
     print "cmin: $cmin\n";
     printArrayTbl(\%grTx, "grTbl");
     print "\n";
-    exit;
+    exit 1;
   }
 
   printArray(\@t, "t=grTx{cmin}") if $debug;
@@ -1175,7 +1175,7 @@ sub get_OG_families
 
     print "ch: @ch\n";
     print "d: @d\n";
-    exit;
+    exit 1;
   }
 
   return @d;
@@ -1270,4 +1270,4 @@ sub writeArray
   close OUT
 }
 
-exit;
+exit 0;

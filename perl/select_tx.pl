@@ -73,20 +73,20 @@ GetOptions(
 if ($help)
 {
   pod2usage(verbose => 2,exitstatus => 0);
-  exit;
+  exit 1;
 }
 
 if ( $help || !$inFile || !$outFile )
 {
   pod2usage( { -exitval => 0, -verbose => 2 } );
-  exit;
+  exit 1;
 }
 
 if ( !$selsFile && !$exclFile )
 {
   print "Either -s or -e option has to be used.\n";
   pod2usage( { -exitval => 0, -verbose => 2 } );
-  exit;
+  exit 1;
 }
 
 if ( -l $inFile )
@@ -148,7 +148,7 @@ elsif ( $exclFile )
 else
 {
   print "ERROR: no selection nor exclusion files\n\n";
-  exit;
+  exit 1;
 }
 
 print "Output written to $outFile\n" if !$quiet;
@@ -196,4 +196,4 @@ sub readTxTbl{
   return %tbl;
 }
 
-exit;
+exit 0;

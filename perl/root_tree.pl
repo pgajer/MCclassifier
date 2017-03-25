@@ -68,7 +68,7 @@ GetOptions(
 if ($help)
 {
   pod2usage(verbose => 2,exitstatus => 0);
-  exit;
+  exit 1;
 }
 
 if (!$inFile)
@@ -76,14 +76,14 @@ if (!$inFile)
   warn "\n\n\tERROR: Missing input file";
   print "\n\n";
   pod2usage(verbose => 2,exitstatus => 0);
-  exit;
+  exit 1;
 }
 
 if ( ! -e $inFile )
 {
   warn "\n\n\tERROR: $inFile does not exist";
   print "\n\n";
-  exit;
+  exit 1;
 }
 
 ####################################################################
@@ -100,4 +100,5 @@ my $outFile = $inFile;
 open OUT, ">$outFile" or die "Cannot open $outFile for writing: $OS_ERROR\n";
 print OUT $tree;
 close OUT;
-exit;
+
+exit 0;

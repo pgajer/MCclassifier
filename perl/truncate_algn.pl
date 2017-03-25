@@ -95,26 +95,26 @@ GetOptions(
 if ($help)
 {
   pod2usage(verbose => 2,exitstatus => 0);
-  exit;
+  exit 1;
 }
 
 if (!$grPrefix)
 {
   print "\n\nERROR: Missing group prefix\n\n\n";
   pod2usage(verbose => 2,exitstatus => 0);
-  exit;
+  exit 1;
 }
 elsif (!$varReg)
 {
   print "\n\nERROR: Missing variable region.\n\n\n";
   pod2usage(verbose => 2,exitstatus => 0);
-  exit;
+  exit 1;
 }
 elsif (!$minLen)
 {
   print "ERROR: Missing sequence min length threshold\n\n";
   pod2usage(verbose => 2,exitstatus => 0);
-  exit;
+  exit 1;
 }
 
 my $mothur   = "/Users/pgajer/bin/mothur";
@@ -149,7 +149,7 @@ my $grDir = $grPrefix . "_dir";
 if ( ! -d $grDir )
 {
   warn "ERROR: $grDir does not exist";
-  exit;
+  exit 1;
 }
 
 my $trDir = $grPrefix . "_" . $varReg . "_dir";
@@ -177,7 +177,7 @@ if ( -e $errorFile )
 if ( ! -e $algnFile )
 {
   warn "ERROR: $algnFile does not exist";
-  exit;
+  exit 1;
 }
 
 if ( -l $algnFile )
@@ -189,13 +189,13 @@ if ( -l $algnFile )
 if ( ! -e $ogSeqIDsFile )
 {
   warn "ERROR: $ogSeqIDsFile does not exist";
-  exit;
+  exit 1;
 }
 
 if ( ! -e $lineageFile )
 {
   warn "ERROR: $lineageFile does not exist";
-  exit;
+  exit 1;
 }
 
 my $trRefFile;
@@ -215,7 +215,7 @@ else
 {
   warn "\n\n\tERROR: Invalid variable region $varReg";
   print "\n\n";
-  exit;
+  exit 1;
 }
 
 # check existence
@@ -223,7 +223,7 @@ my $dbTrRefFileBasename = $dB . $trRefFileBasename;
 if ( ! -e $dbTrRefFileBasename )
 {
   warn "ERROR: $dbTrRefFileBasename cannot be found";
-  exit;
+  exit 1;
 }
 
 $trRefFile = "$trDir/" . $trRefFileBasename;
@@ -293,7 +293,7 @@ if ( scalar(@ogSeqIDs) == 0 )
 {
   warn "\n\tERROR: All outgroup seq's were lost";
   print "\n\n";
-  exit;
+  exit 1;
 }
 
 print "\n\tNumber of seq's present in the trimmed alignment and lineage files: " . @commSeqIDs . "\n";
@@ -464,7 +464,7 @@ if (@trOGs == 0)
 {
   warn "\n\n\tERROR: All outgroup sequences has been lost";
   print "\n\n\n";
-  exit;
+  exit 1;
 }
 
 printArrayByRow(\@trOGs, "OG seqIDs AFTER selection of non-redundant OG seq's") if $debug;
@@ -503,7 +503,7 @@ if ( $nOG != @trOGs )
 {
   warn "";
   print "\n\n";
-  exit;
+  exit 1;
 }
 
 my $trTxFile = $trPrefix . ".tx";
@@ -586,7 +586,7 @@ sub readArray{
   if ( ! -f $file && ! -l $file )
   {
      print "\n\nERROR in readArray() at line " . __LINE__ . ": $file does not exist\n\n\n";
-    exit;
+    exit 1;
   }
 
   open IN, "$file" or die "Cannot open $file for reading: $OS_ERROR";
@@ -631,7 +631,7 @@ sub readTbl{
   if ( ! -f $file )
   {
     print "\n\nERROR: $file does not exist\n\n\n";
-    exit;
+    exit 1;
   }
 
   my %tbl;
@@ -768,7 +768,7 @@ sub read2colTbl{
   if ( ! -f $file )
   {
     warn "\n\nERROR in read2colTbl(): $file does not exist\n\n\n";
-    exit;
+    exit 1;
   }
 
   my %tbl;
@@ -784,4 +784,4 @@ sub read2colTbl{
   return %tbl;
 }
 
-exit;
+exit 0;

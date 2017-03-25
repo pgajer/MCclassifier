@@ -59,7 +59,7 @@ GetOptions(
 if ($help || !$inFile || !$outFile)
 {
   pod2usage(verbose => 2,exitstatus => 0);
-  exit;
+  exit 1;
 }
 
 ####################################################################
@@ -119,4 +119,4 @@ close IN;
 
 print "\rOutput written to $outFile\n";
 
-exit;
+exit 0;

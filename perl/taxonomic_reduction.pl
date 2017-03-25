@@ -118,32 +118,32 @@ GetOptions(
 if ($help)
 {
   pod2usage(verbose => 2,exitstatus => 0);
-  exit;
+  exit 1;
 }
 
 if (!$faFile)
 {
   print "\n\nERROR: Missing fasta file\n\n\n";
   pod2usage(verbose => 2,exitstatus => 0);
-  exit;
+  exit 1;
 }
 elsif (!$maxSpSize)
 {
   print "\n\nERROR: Missing sample size\n\n\n";
   pod2usage(verbose => 2,exitstatus => 0);
-  exit;
+  exit 1;
 }
 elsif (!$outDir)
 {
   print "\n\nERROR: Missing output dir\n\n\n";
   pod2usage(verbose => 2,exitstatus => 0);
-  exit;
+  exit 1;
 }
 
 if ( ! -f $faFile )
 {
   print "\n\nERROR: $faFile does not exist\n\n\n";
-  exit;
+  exit 1;
 }
 
 my $mothur = "/Users/pgajer/bin/mothur";
@@ -674,7 +674,7 @@ for my $sp ( sort{ scalar(@{$spTbl{$a}}) <=> scalar(@{$spTbl{$b}}) } keys %spTbl
 	  $i++;
 	  if ($i>10)
 	  {
-	    exit;
+	    exit 1;
 	  }
 	}
       }
@@ -826,7 +826,7 @@ if ( keys %bigFa > 0 )
     if ( scalar(@{$faTbl{$fa}}) > $thld )
     {
       print "\nERROR: after applying 240 species size limit $fa is still too big with size: " . scalar(@{$faTbl{$fa}}) . "\n";
-      exit;
+      exit 1;
     }
     else
     {
@@ -868,7 +868,7 @@ if ( keys %bigFa > 0 )
   # print "\tSubsampled only species sizes written to $outDir/$ssOnlySppSizeFile\n";
   # print "\tParent table written to $outDir/$parentFile\n\n";
 
-  # exit;
+  # exit 1;
 }
 
 
@@ -1041,7 +1041,7 @@ for my $cl ( reverse @cls)
 	  else
 	  {
 	    print "ERROR: $fa exceeds $thld size: " . scalar(@{$faTbl{$fa}}) . "\n";
-	    exit;
+	    exit 1;
 	  }
 	}
       }
@@ -1141,7 +1141,7 @@ for my $idx ( sort {$a <=> $b} keys %groupTx)
   else
   {
     print "\nERROR: grTx{$cmin} does not exist\n";
-    exit;
+    exit 1;
   }
 
   if ($gp eq "d_Bacteria")
@@ -1170,7 +1170,7 @@ for my $idx ( sort {$a <=> $b} keys %groupTx)
     print "\nERROR: Difference between ch and t is zero\n";
     print "ch: @ch\n";
     print "sibs: @sibs\n";
-    exit;
+    exit 1;
   }
 
   my @seqIDs;
@@ -1475,7 +1475,7 @@ sub get_spp_of_fa
   else
   {
     print "ERROR in get_spp_of_fa(): Input taxon not a family\n";
-    exit;
+    exit 1;
   }
 
   return @spp;
@@ -1571,13 +1571,13 @@ sub get_rand_seqID_from_master_sp
   if ($c ne 's')
   {
     print "ERROR in get_rand_seqID_from_sp(): input taxon $sp is not a species\n";
-    exit;
+    exit 1;
   }
 
   if (!defined $masterSpTbl{$sp})
   {
     print "ERROR in get_rand_seqID_from_sp(): Could not find $sp in masterSpTbl\n";
-    exit;
+    exit 1;
   }
 
   my @s = @{$masterSpTbl{$sp}};
@@ -1605,7 +1605,7 @@ sub get_rand_seqID_from_sp
   if ($c ne 's')
   {
     print "ERROR in get_rand_seqID_from_sp(): input taxon $sp is not a species\n";
-    exit;
+    exit 1;
   }
 
   my $prop = $perc / 100.0;
@@ -1615,7 +1615,7 @@ sub get_rand_seqID_from_sp
   if (!defined $spTbl{$sp})
   {
     print "ERROR in get_rand_seqID_from_sp(): Could not find $sp in spTbl\n";
-    exit;
+    exit 1;
   }
   my @s = @{$spTbl{$sp}};
   my @len = @seqLen{@s};
@@ -2060,7 +2060,7 @@ sub readTbl{
   if ( ! -f $file )
   {
     print "\n\nERROR: $file does not exist\n\n\n";
-    exit;
+    exit 1;
   }
 
   my %idTbl;
@@ -2120,7 +2120,7 @@ sub readArray{
   if ( ! -f $file )
   {
     print "\n\nERROR in readArray() at line " . __LINE__ . ": $file does not exist\n\n\n";
-    exit;
+    exit 1;
   }
 
   open IN, "$file" or die "Cannot open $file for reading: $OS_ERROR\n";
@@ -2138,4 +2138,4 @@ sub readArray{
   return @rows;
 }
 
-exit;
+exit 0;

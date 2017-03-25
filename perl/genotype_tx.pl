@@ -123,14 +123,14 @@ GetOptions(
 if ($help)
 {
   pod2usage(verbose => 2,exitstatus => 0);
-  exit;
+  exit 1;
 }
 
 if (!$vicutDir)
 {
   print "\n\nERROR: Missing vicut directory\n\n\n";
   pod2usage(verbose => 2,exitstatus => 0);
-  exit;
+  exit 1;
 }
 
 
@@ -213,7 +213,7 @@ sub read2colTbl{
   if ( ! -f $file )
   {
     print "\n\nERROR: $file does not exist\n\n\n";
-    exit;
+    exit 1;
   }
 
   my %tbl;
@@ -229,4 +229,4 @@ sub read2colTbl{
   return %tbl;
 }
 
-exit;
+exit 0;

@@ -81,26 +81,26 @@ GetOptions(
 if ($help)
 {
   pod2usage(verbose => 2,exitstatus => 0);
-  exit;
+  exit 1;
 }
 
 if (!$inFile1)
 {
   print "ERROR: Missing input file 1\n\n";
   pod2usage(verbose => 2,exitstatus => 0);
-  exit;
+  exit 1;
 }
 elsif (!$inFile2)
 {
   print "ERROR: Missing input file 2\n\n";
   pod2usage(verbose => 2,exitstatus => 0);
-  exit;
+  exit 1;
 }
 elsif (!$outDir)
 {
   print "ERROR: Missing output directory\n\n";
   pod2usage(verbose => 2,exitstatus => 0);
-  exit;
+  exit 1;
 }
 
 ####################################################################
@@ -157,16 +157,16 @@ close OUT;
 
 @mismatchedSpp = unique(\@mismatchedSpp);
 
-print "\nNumber of taxons:\t" . commify($count) . "\n" if (!$quiet || $verbose);
+print "\nNumber of sequences:\t" . commify($count) . "\n" if (!$quiet || $verbose);
 
 my $pMatch = sprintf("%.2f",100 * $match / $count);
 ##print "Percentage of matches: $pMatch%\n";
-print "Matches:\t\t" . commify($match) . " ($pMatch\%)\n" if (!$quiet || $verbose);
+print "Number of Matches:\t" . commify($match) . " ($pMatch\%)\n" if (!$quiet || $verbose);
 
 my $mMatch = $count - $match;
 my $pMismatch = sprintf("%.2f",100 * $mMatch / $count);
 ##print "Percentage of mismatches: $pMismatch\n";
-print "Mismatches:\t\t" . commify($mMatch) . " ($pMismatch\%)\n" if (!$quiet || $verbose);
+print "Number of Mismatches:\t" . commify($mMatch) . " ($pMismatch\%)\n" if (!$quiet || $verbose);
 
 my $outFile4 = "$outDir/accuracy.summary";
 # writing to this file
@@ -281,4 +281,4 @@ sub commify {
    return $_;
 }
 
-exit;
+exit 0;

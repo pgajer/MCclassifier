@@ -91,7 +91,7 @@ GetOptions(
 if ($help)
 {
   pod2usage(verbose => 2,exitstatus => 0);
-  exit;
+  exit 1;
 }
 
 if (!$grPrefix)
@@ -99,21 +99,21 @@ if (!$grPrefix)
   warn "\n\n\tERROR: Missing input group name";
   print "\n\n";
   pod2usage(verbose => 2,exitstatus => 0);
-  exit;
+  exit 1;
 }
 elsif (!$percThld)
 {
   warn "\n\n\tERROR: Missing percentile threshold";
   print "\n\n";
   pod2usage(verbose => 2,exitstatus => 0);
-  exit;
+  exit 1;
 }
 elsif (!$taxon)
 {
   warn "\n\n\tERROR: Missing taxon threshold";
   print "\n\n";
   pod2usage(verbose => 2,exitstatus => 0);
-  exit;
+  exit 1;
 }
 
 my $readNewickFile = "/Users/pgajer/.Rlocal/read.newick.R";
@@ -135,7 +135,7 @@ if ( ! -e $phyloPart )
 {
   warn "\n\n\tERROR: $phyloPart does not exist";
   print "\n\n";
-  exit;
+  exit 1;
 }
 
 my $debugStr = "";
@@ -147,7 +147,7 @@ if ( ! -d $grDir )
 {
   warn "\n\n\tERROR: $grDir does not exist";
   print "\n\n";
-  exit;
+  exit 1;
 }
 
 $grPrefix = "$grDir/$grPrefix";
@@ -159,7 +159,7 @@ if ( !defined $treeFile )
   {
     warn "\n\n\tERROR: Tree file $treeFile does not exist";
     print "\n\n";
-    exit;
+    exit 1;
   }
 }
 
@@ -168,7 +168,7 @@ if ( ! -f $lineageFile )
 {
   warn "\n\n\tERROR: $lineageFile does not exist";
   print "\n\n";
-  exit;
+  exit 1;
 }
 
 my $newLineageFile = $grPrefix . "_final2.lineage";
@@ -283,7 +283,7 @@ print "--- Parsing vicut clustering file $cltrFile\n";
 if ( ! -f $cltrFile )
 {
   warn "\nERROR: $cltrFile does not exist";
-  exit;
+  exit 1;
 }
 
 my %part2;  # seqID => cltrID
@@ -734,7 +734,7 @@ sub read_part_tbl
   {
     warn "\n\n\tERROR: $file does not exist";
     print "\n\n";
-    exit;
+    exit 1;
   }
 
   my %tbl;
@@ -789,7 +789,7 @@ sub readArray{
   if ( ! -f $file )
   {
     print "\n\nERROR in readArray() at line " . __LINE__ . ": $file does not exist\n\n\n";
-    exit;
+    exit 1;
   }
 
   open IN, "$file" or die "Cannot open $file for reading: $OS_ERROR\n";
@@ -816,7 +816,7 @@ sub readTbl{
   if ( ! -f $file )
   {
     print "\n\nERROR in readTbl() at line " . __LINE__ . ": $file does not exist\n\n\n";
-    exit;
+    exit 1;
   }
 
   my %tbl;
@@ -841,7 +841,7 @@ sub read2colTbl{
   if ( ! -f $file )
   {
     warn "\n\nERROR in read2colTbl(): $file does not exist\n\n\n";
-    exit;
+    exit 1;
   }
 
   my %tbl;
@@ -914,10 +914,10 @@ sub runRscript{
       print "R script crashed at\n$line";
       print "check $outR for details\n";
       $exitStatus = 0;
-      exit;
+      exit 1;
     }
   }
   close IN;
 }
 
-exit;
+exit 0;

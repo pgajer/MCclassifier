@@ -89,20 +89,20 @@ GetOptions(
 if ($help)
 {
   pod2usage(verbose => 2,exitstatus => 0);
-  exit;
+  exit 1;
 }
 
 if (!$txFile)
 {
   print "ERROR: Missing input file\n\n";
   pod2usage(verbose => 2,exitstatus => 0);
-  exit;
+  exit 1;
 }
 elsif (!$outFile)
 {
   print "ERROR: Missing output file\n\n";
   pod2usage(verbose => 2,exitstatus => 0);
-  exit;
+  exit 1;
 }
 
 ####################################################################
@@ -413,7 +413,7 @@ sub read2colTbl{
     # {
     #   print "rec: $_\n";
     #   print "id: $id\ttx: $t\ttbl{$id}: " . $tbl{$id} . "\n";
-    #   exit;
+    #   exit 1;
     # }
     ## $vals{$t} = 0;
   }
@@ -467,4 +467,4 @@ sub printTbl{
 #   return $otu;
 # }
 
-exit;
+exit 0;
