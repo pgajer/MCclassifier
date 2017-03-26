@@ -2053,8 +2053,9 @@ if ( !$doNotPopPDFs && $OSNAME eq "darwin")
 print "--- Splitting phylo-vicut-based genera if their sizes are above taxonSizeThld\n";
 
 my %sppSubGenus;
-my %subGeName;   # subGeName => name of the corresponding genus or genera a
-		 # sub-genus with the same name appears in more than one genus.
+my %subGeName;       # subGeName{subGeName}{name of the corresponding genus} = count of species
+my %genusSubGenusTb; # genusSubGenusTb{genus}{subGenus} = count of species
+
 my $detectedLargeGenus = 0;
 my @a = sort { scalar(keys %{$geChildren{$b}}) <=> scalar(keys %{$geChildren{$a}}) } keys %geChildren;
 for my $ge (@a)
@@ -2155,6 +2156,7 @@ for my $ge (@a)
       my $subge = $sppGenus2{$sp};
       $geChildren2{$subge}{$sp}++;
       $subGeName{$subge}{$ge}++;
+      $genusSubGenusTb{$ge}{$subge}++;
     }
 
     if ($debug)
@@ -2174,42 +2176,73 @@ for my $ge (@a)
     {
       my $subge = $sppGenus2{$sp};
       $subGeName{$subge}{$ge}++;
+      $genusSubGenusTb{$ge}{$subge}++;
     }
 
     @sppSubGenus{@spp} = @sppGenus2{@spp};
   }
+}
 
-  # Modifying sub-genus names if they appear in more than one genus.
+if ($debug)
+{
+  print "\ngenus => sub-genus table BEFORE sub-genus renaming:\n";
+  printTableValuedTbl(\%genusSubGenusTb);
+  print "\n";
+}
 
-  for my $subge (keys %subGeName)
+# Modifying sub-genus names if they appear in more than one genus.
+my %genusSubGenusTb2; # after sub-genus name update version of genusSubGenusTb
+for my $subge (keys %subGeName)
+{
+  my $nGe = keys %{$subGeName{$subge}};
+  if ( $nGe > 1 )
   {
-    my $nGe = keys %{$subGeName{$subge}};
-    if ( $nGe > 1 )
+    if ($debug)
     {
-      my $idx = 1;
-      for my $ge ( sort { $subGeName{$subge}{$b} <=> $subGeName{$subge}{$a} } keys %{$subGeName{$subge}} )
+      print "\nProcessing $subge with nGen: $nGe\n";
+      print "Genera in which $subge is found:\n";
+      for (keys %{$subGeName{$subge}})
       {
-	my @spp = keys %{$geChildren{$ge}};
+	print "\t$_\n";
+      }
+      print "\n";
+    }
 
-	if ( $subge =~ /_\d+$/)
-	{
-	  for my $sp (@spp)
-	  {
-	    $sppSubGenus{$sp} = $subge . "v$idx";
-	  }
-	}
-	else
-	{
-	  for my $sp (@spp)
-	  {
-	    $sppSubGenus{$sp} = $subge . "_v$idx";
-	  }
-	}
+    my $idx = 1;
+    for my $ge ( sort { $subGeName{$subge}{$b} <=> $subGeName{$subge}{$a} } keys %{$subGeName{$subge}} )
+    {
+      my $newName;
+      if ( $subge =~ /_\d+$/)
+      {
+	$newName = $subge . "v$idx";
+      }
+      else
+      {
+	$newName = $subge . "_v$idx";
+      }
 
-	$idx++;
-      } # end of   for my $ge ( sort { $subGeName{$subge}{$b} <=> $subGeName{$subge}{$a} } keys %{$subGeName{$subge}} )
-    } # end of   if ( $nGe > 1 )
-  } # end of   for my $subge (keys %subGeName)
+      print "In $ge changed sub-genus name to $newName\n" if $debug;
+
+      my @spp = keys %{$geChildren{$ge}};
+      for my $sp (@spp)
+      {
+	if ( $sppSubGenus{$sp} eq $subge )
+	{
+	  $sppSubGenus{$sp} = $newName;
+	  $genusSubGenusTb2{$ge}{$newName}++;
+	}
+      }
+
+      $idx++;
+    } # end of   for my $ge ( sort { $subGeName{$subge}{$b} <=> $subGeName{$subge}{$a} } keys %{$subGeName{$subge}} )
+  } # end of   if ( $nGe > 1 )
+} # end of   for my $subge (keys %subGeName)
+
+if ($debug)
+{
+  print "\n\ngenus => sub-genus table AFTER sub-genus renaming:\n";
+  printTableValuedTbl(\%genusSubGenusTb2);
+  print "\n";
 }
 
 print "--- Updating lineage table at the sub-genus level\n" if $debug;
@@ -2244,6 +2277,8 @@ if ( check_parent_consistency(\%lineageTbl) )
 
 if ($detectedLargeGenus)
 {
+  print "\n\nDetected at least one large genus\n" if $debug;
+
   my %subgeChildren;
   for my $sp (keys %sppSubGenus)
   {
@@ -2254,7 +2289,7 @@ if ($detectedLargeGenus)
   if ($debug)
   {
     print "\n\nAFTER splitting of genera the number of phylo-partition-vicut based sub-genera: " . scalar(keys %subgeChildren) . "\n";
-    print "\nSpecies frequencies in the new phylo-partition-vicut based genera:\n";
+    print "\nSpecies frequencies in the new phylo-partition-vicut based sub-genera:\n";
     my @a = sort { scalar(keys %{$subgeChildren{$b}}) <=> scalar(keys %{$subgeChildren{$a}}) } keys %subgeChildren;
     printFormatedTableValuedTbl(\%subgeChildren, \@a);
     print "\n\n"
@@ -2334,7 +2369,6 @@ else
 {
   print "\n\n\tNo large genera detected\n\n" if $debug;
 }
-
 
 $section = qq~
 
@@ -3333,6 +3367,93 @@ if ( scalar(keys %faChildren) > 1 )
       print "\n\n";
     }
 
+
+    print "--- Updating clParent table\n";
+    my @allClasses = values %orderClass;
+    my @newClasses = unique(\@allClasses);
+    for my $cl (@newClasses)
+    {
+      next if exists $clParent{$cl};
+
+      print "\nProcessing $cl\n" if $debug;
+
+      my $origCl = $cl;
+
+      if ( $cl =~ /_(\d+)$/)
+      {
+	print "Detected numeric suffix $1 in $cl. Removing it for now\n" if $debug;
+	$cl =~ s/_\d+//;
+      }
+
+      if ( $cl =~ /_etal/)
+      {
+	print "Detected etal order: $cl. Removing etal suffix\n" if $debug;
+	$cl =~ s/_etal//;
+      }
+
+      my @clComponents = split "_", $cl;
+      print "\nclComponents: @clComponents\n" if $debug;
+
+      if ( @clComponents == 1 && !exists $clParent{$cl} )
+      {
+	warn "\n\n\tERROR: $cl not found in clParent";
+	print "\n\n";
+
+	print "clParent:\n";
+	printFormatedTbl(\%clParent);
+	print "\n\n";
+
+	exit 1;
+      }
+      elsif ( @clComponents == 1 && exists $clParent{$cl} )
+      {
+	# we are assuming that since $cl was found in clParent higher taxon
+	# parents are also found in the corresponding parent tables
+	if ( !exists $clParent{$origCl} )
+	{
+	  $clParent{$origCl} = $clParent{$cl};
+	}
+	print "clParent{$origCl}: $clParent{$origCl}\n\n" if $debug;
+	next;
+      }
+
+      my %locPha;
+      my $newPh;
+      my $ph = shift @clComponents;
+      if ( exists $clParent{$ph} )
+      {
+	$newPh = $clParent{$ph};
+	$locPha{$newPh}++;
+      }
+      else
+      {
+	warn "\n\n\tERROR: The first element, $ph, of $newPh not found in clParent";
+	print "\n\n";
+	exit 1;
+      }
+
+      print "Parents of the components of $newPh:\n\t$newPh\n" if $debug;
+
+      for my $ph (@clComponents)
+      {
+	if ( exists $clParent{$ph} && !exists $locPha{$clParent{$ph}} )
+	{
+	  $newPh .= "_" . $clParent{$ph};
+	  $locPha{$clParent{$ph}}++;
+	  print "\t" . $clParent{$ph} . "\n" if $debug;
+	}
+	elsif ( !exists $clParent{$ph} )
+	{
+	  warn "\n\n\tERROR: The element, $ph, of $newPh not found in clParent";
+	  print "\n\n";
+	  exit 1;
+	}
+      }
+
+      $clParent{$origCl} = $newPh;
+      print "clParent{$origCl} = $newPh\n\n" if $debug;
+    }
+
     print "--- Updating lineage table at the class level\n";
     # testing if the resulting clustering does not consists of singlentons
     # if it does, keep lineage as it is and stop the taxonomy update
@@ -3371,7 +3492,7 @@ if ( scalar(keys %faChildren) > 1 )
       }
       else
       {
-	warn "\n\n\tERROR: $id with fa: $fa not detected in familyOrder table";
+	warn "\n\n\tERROR: $id with or: $or not detected in orderClass table";
 	print "\n\n";
 	exit 1;
       }
@@ -4586,6 +4707,61 @@ sub printFormatedTableValuedTbl{
     }
     my $size = keys %{$rTbl->{$_}};
     print "$_$pad$size\n";
+  }
+  print "\n";
+}
+
+
+# print elements of a hash table whose values are reference to a hash table so
+sub printTableValuedTbl{
+
+  my ($rTbl, $rSub) = @_; # the second argument is a subarray of the keys of the table
+
+  my @args;
+  if ($rSub)
+  {
+    @args = @{$rSub};
+  }
+  else
+  {
+    @args = keys %{$rTbl};
+  }
+
+  for (@args)
+  {
+    print "$_\n";
+    for my $e ( keys %{$rTbl->{$_}} )
+    {
+      print "\t$e\n";
+    }
+  }
+  print "\n";
+}
+
+
+# print elements of a hash table whose values are reference to an array so
+# that indents of the value array elements are the same
+sub printFormatedArrayValuedTbl{
+
+  my ($rTbl, $rSub) = @_; # the second argument is a subarray of the keys of the table
+
+  my @args;
+  if ($rSub)
+  {
+    @args = @{$rSub};
+  }
+  else
+  {
+    @args = keys %{$rTbl};
+  }
+
+  for (@args)
+  {
+    print "$_\n";
+    for my $e (@{$rTbl->{$_}})
+    {
+      print "\t$e\n";
+    }
   }
   print "\n";
 }
