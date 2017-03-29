@@ -65,6 +65,7 @@ void readMatrix( const char *inputFile, double ***matrix, int *nrow, int *ncol, 
 
 /// read lines of the input file
 void readLines( const char *inFile, vector<char*> &lines );
+void readLines( const char *inFile, vector<string> &lines );
 void readLines( const char *inFile, char ***list, int *nRows, int header );
 //void readLines( inPar_t *p );
 

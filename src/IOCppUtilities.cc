@@ -639,6 +639,43 @@ void readLines( const char *inFile, vector<char*> &lines )
   free(buffer);
 }
 
+
+//  Reads the rows of the input file, inFile, into lines
+//  lines[i] is the i-th row of the input file (it is assumed there is no header)
+void readLines( const char *inFile, vector<string> &lines )
+{
+  lines.clear();
+  size_t bufferSize = fileSize(inFile);
+  int in            = open(inFile, O_RDONLY);
+
+  char *buffer;
+  MALLOC(buffer, char* , bufferSize * sizeof(char) );
+
+  char line[LINE_LEN]; // array for holding a line
+  int nread;           // number of bytes read into the buffer
+  char *data;
+
+  if ( (nread = read ( in, buffer, bufferSize-1 )) )
+  {
+    int lineLen   = 0;  // length of the line read from the buffer
+    int offset    = 0;  // file position offset
+    buffer[nread] = '\0';
+
+    while ( offset < nread )
+    {
+      lineLen = readLine( offset, buffer, bufferSize, line, LINE_LEN );
+      offset += lineLen;
+      line[lineLen] = '\0';
+
+      //STRDUP(data,line);
+      lines.push_back(string(line));
+    }
+  }
+
+  close(in);
+  free(buffer);
+}
+
 /*
   Reads the rows of the input file into a list
   list[i] is the i-th row of the input file (excluding header line)
