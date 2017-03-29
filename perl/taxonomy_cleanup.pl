@@ -828,9 +828,13 @@ close OUT;
 
 ## Creating symbolic link to the most recent trimmed alignment file for use with
 ## truncate_algn.pl
+## Symbolic links are not portable, so I am switching to 'mv'
 my $finalAlgnFile = $grPrefix . "_algn_trimmed_final.fa";
-my $ap = abs_path( $trimmedAlgnFile );
-$cmd = "rm -f $finalAlgnFile; ln -s $ap $finalAlgnFile";
+#my $ap = abs_path( $trimmedAlgnFile );
+#$cmd = "rm -f $finalAlgnFile; ln -s $ap $finalAlgnFile";
+
+print "--- Moving $trimmedAlgnFile to $finalAlgnFile\n";
+$cmd = "mv $trimmedAlgnFile $finalAlgnFile";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 
@@ -1372,10 +1376,10 @@ if (@lostLeaves>0)
   $treeFile = $prunedTreeFile;
 }
 
-print "--- Creating a symbolic link to the most recent version of the phylogenetic tree\n";
+print "--- Moving the most recent version of the phylogenetic tree to _final.tree file\n";
 my $finalTreeFile = $grPrefix . "_final.tree";
-$ap = abs_path( $treeFile );
-$cmd = "rm -f $finalTreeFile; ln -s $ap $finalTreeFile";
+#my $apTreeFile = abs_path( $treeFile );
+$cmd = "mv $treeFile $finalTreeFile";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 
