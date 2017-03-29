@@ -223,6 +223,7 @@ elsif ( ! -e $algnFile )
 }
 elsif ( ! -e $trimmedAlgnFile )
 {
+  ## THIS IS DANGEROUS. Should be accompanied by a check that $algnFile is indeed trimmed
   warn "WARNING: $trimmedAlgnFile does not exist. Creating a symbolic link to $algnFile.\n";
   my $ap = abs_path( $algnFile );
   my $cmd = "rm -f $trimmedAlgnFile; ln -s $ap $trimmedAlgnFile";
@@ -826,18 +827,6 @@ for my $id (keys %newTx)
 }
 close OUT;
 
-## Creating symbolic link to the most recent trimmed alignment file for use with
-## truncate_algn.pl
-## Symbolic links are not portable, so I am switching to 'mv'
-my $finalAlgnFile = $grPrefix . "_algn_trimmed_final.fa";
-#my $ap = abs_path( $trimmedAlgnFile );
-#$cmd = "rm -f $finalAlgnFile; ln -s $ap $finalAlgnFile";
-
-print "--- Moving $trimmedAlgnFile to $finalAlgnFile\n";
-$cmd = "mv $trimmedAlgnFile $finalAlgnFile";
-print "\tcmd=$cmd\n" if $dryRun || $debug;
-system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
-
 
 ## Removing outgroup sequences from the updated.tx file and the phylogenetic
 ## tree.
@@ -980,6 +969,18 @@ if ( @spSingletons )
   system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 
   $trimmedAlgnFile = $prunedAlgnFile;
+
+  ## Creating symbolic link to the most recent trimmed alignment file for use with
+  ## truncate_algn.pl
+  ## Symbolic links are not portable, so I am switching to 'mv'
+  my $finalAlgnFile = $grPrefix . "_algn_trimmed_final.fa";
+  #my $ap = abs_path( $trimmedAlgnFile );
+  #$cmd = "rm -f $finalAlgnFile; ln -s $ap $finalAlgnFile";
+
+  print "--- Copying $trimmedAlgnFile to $finalAlgnFile\n";
+  $cmd = "cp $trimmedAlgnFile $finalAlgnFile";
+  print "\tcmd=$cmd\n" if $dryRun || $debug;
+  system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 
   # pruning tree
   print "--- Pruning spSingletons seq's from $treeFile\n";
@@ -1376,10 +1377,9 @@ if (@lostLeaves>0)
   $treeFile = $prunedTreeFile;
 }
 
-print "--- Moving the most recent version of the phylogenetic tree to _final.tree file\n";
+print "--- Copying the most recent version of the phylogenetic tree to _final.tree file\n";
 my $finalTreeFile = $grPrefix . "_final.tree";
-#my $apTreeFile = abs_path( $treeFile );
-$cmd = "mv $treeFile $finalTreeFile";
+$cmd = "cp $treeFile $finalTreeFile";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 
