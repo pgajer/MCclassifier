@@ -66,14 +66,17 @@ $OUTPUT_AUTOFLUSH = 1;
 ##                             OPTIONS
 ####################################################################
 
+my $maxTree = 500;
+
 GetOptions(
-  "group-prefix|i=s"  => \my $grPrefix,
-  "verbatim|v"      => \my $verbatim,
-  "igs"             => \my $igs,
-  "johanna"         => \my $johanna,
-  "debug"           => \my $debug,
-  "dry-run"         => \my $dryRun,
-  "help|h!"         => \my $help,
+  "group-prefix|i=s" => \my $grPrefix,
+  "verbatim|v"       => \my $verbatim,
+  "max-tree"         => \$maxTree,
+  "igs"              => \my $igs,
+  "johanna"          => \my $johanna,
+  "debug"            => \my $debug,
+  "dry-run"          => \my $dryRun,
+  "help|h!"          => \my $help,
   )
   or pod2usage(verbose => 0,exitstatus => 1);
 
@@ -128,7 +131,7 @@ my $mcDir        = $grPrefix . "_MC_models_dir";
 my $errorDir     = $grPrefix . "_MC_models_clError_dir";
 my $lineageFile  = $grPrefix . "_final.lineage";
 my $csppTreeFile = $grPrefix . "_final_spp_condensed.tree"; # abs_path( $grPrefix . "_final_spp_condensed.tree" );
-my $treeFile     = $grPrefix . ".tree";
+my $treeFile     = $grPrefix . "_final.tree";
 
 
 # Use cmp_tx.pl output to identify mismatches
@@ -236,12 +239,14 @@ if ( !setequal(\@mmSpps, \@mmFiles) )
 
 # looping over mmSpps and generating one figure per species
 
-my @pdfFiles;
+#my @pdfFiles;
 for my $sp (@mmSpps)
 {
-  print "\nProcessing $sp\n";
+  print "\nProcessing $sp\n\n";
 
-  print "--- Writing mm seq IDs to a file\n";
+  print "$mmRec{$sp}";
+
+  print "--- Writing mm seq IDs to a file\n" if $debug;
   my @mmIDs = @{$mmSeqIDs{$sp}};
   my $mmIDsFile = "$mcDir/$sp" . "_mm" . ".seqIDs";
   writeArray(\@mmIDs, $mmIDsFile);
@@ -249,7 +254,7 @@ for my $sp (@mmSpps)
   printArray(\@mmIDs, "mm seqIDs:");
   print "\n";
 
-  print "--- Selecting from $sp fasta file only mm seq's\n";
+  print "--- Selecting from $sp fasta file only mm seq's\n" if $debug;
   my $spFaFile = "$mcDir/$sp" . ".fa";
   my $spMMfaFile = "$mcDir/$sp" . "_mm" . ".fa";
   my $cmd = "select_seqs.pl --quiet -s $mmIDsFile -i $spFaFile -o $spMMfaFile";
@@ -257,14 +262,14 @@ for my $sp (@mmSpps)
   system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 
 
-  print "--- Extracting log posterior probabilities of the mismatched sequences\n";
-  print "    coming from their species' corresponding MC model\n";
+  print "--- Extracting log posterior probabilities of the mismatched sequences\n" if $debug;
+  print "    coming from their species' corresponding MC model\n" if $debug;
   my $spPPfile = "$mcDir/$sp" . "_mm" . ".postProbs";
   $cmd = "pp_wr_selected_models -d $mcDir -i $spMMfaFile -s $sp -o $spPPfile";
   print "\tcmd=$cmd\n" if $dryRun || $debug;
   system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 
-  print "--- Generating pp plot\n";
+  print "--- Generating pp plot\n" if $debug;
   my $rFile = "$mcDir/$sp" . "_mm_pp.R";
   my $pdfFile = "$mcDir/$sp" . "_mm_pp.pdf";
   plot_pp_density($sp, $spPPfile, $rFile, $mmRec{$sp}, $pdfFile);
@@ -276,7 +281,7 @@ for my $sp (@mmSpps)
     system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
   }
 
-  push @pdfFiles, $pdfFile;
+  #push @pdfFiles, $pdfFile;
 
   # Building $sp and its mm taxon's clade's tree
   my @ids;
@@ -309,13 +314,13 @@ for my $sp (@mmSpps)
   #if (@c != @leaves || @c != @ids)
   {
    # warn "\n\n\tERROR: leaves of $modelTreeFile and species found in the newTx table do not match";
-    print "\n\n\tNumber of leaves of the clade tree: " . @leaves . "\n";
+    print "\n\tNumber of leaves of the clade tree: " . @leaves . "\n";
     print "\tNumber of sequences of mm taxons: " . @ids . "\n";
     print "\tNumber of sequences: " . @c . "\n\n";
   }
 
 
-  print "--- Generating tree with <species name>_<seqID> labels at leaves\n";
+  print "--- Generating tree with <species name>_<seqID> labels at leaves\n" if $debug;
 
   my %mmIDsTbl = map { $_ => 1 } @mmIDs;
   my %spIDsTbl = map { $_ => 1 } @{$txSeqIDs{$sp}};
@@ -357,33 +362,45 @@ for my $sp (@mmSpps)
   my $colorSppSeqIDsFile = "$mcDir/$sp" . "_mm_clade_spp_seqIDs.color";
   writeTbl(\%colorTbl, $colorSppSeqIDsFile);
 
-  print "--- Generating mm clade tree plot\n";
+  print "--- Generating mm clade tree plot\n" if $debug;
   my $rTreeFile = "$mcDir/$sp" . "_mm_tree.R";
   my $pdfTreeFile = "$mcDir/$sp" . "_mm_tree.pdf";
   plot_mm_clade_tree($sp, $sppSeqIdTreeFile, $colorSppSeqIDsFile, $rTreeFile, $pdfTreeFile);
 
-  if ( 0 && $showPDFs &&  $OSNAME eq "darwin")
+  if ($showPDFs &&  $OSNAME eq "darwin")
   {
-    $cmd = "open $pdfTreeFile";
+    if ( @leaves < $maxTree )
+    {
+      $cmd = "open $pdfTreeFile";
+      print "\tcmd=$cmd\n" if $dryRun || $debug;
+      system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
+    }
+    else
+    {
+      print "\n\n\tWARNING: the three has more than $maxTree leaves and its plot is at\n";
+      print "$pdfTreeFile\n\n";
+    }
+
+    $cmd = "open $pdfFile";
     print "\tcmd=$cmd\n" if $dryRun || $debug;
     system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
   }
 
-  push @pdfFiles, $pdfTreeFile;
+  #push @pdfFiles, $pdfTreeFile;
   #print "rFile: $rFile\n";
 }
 
-my $pdfFile = "$mcDir/mm.pdf";
-my $cmd = "PDFconcat -o $pdfFile @pdfFiles";
-print "\tcmd=$cmd\n" if $dryRun || $debug;
-system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
+# my $pdfFile = "$mcDir/mm.pdf";
+# my $cmd = "PDFconcat -o $pdfFile @pdfFiles";
+# print "\tcmd=$cmd\n" if $dryRun || $debug;
+# system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 
-if ( $showPDFs &&  $OSNAME eq "darwin")
-{
-  $cmd = "open $pdfFile";
-  print "\tcmd=$cmd\n" if $dryRun || $debug;
-  system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
-}
+# if ( $showPDFs &&  $OSNAME eq "darwin")
+# {
+#   $cmd = "open $pdfFile";
+#   print "\tcmd=$cmd\n" if $dryRun || $debug;
+#   system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
+# }
 
 ####################################################################
 ##                               SUBS
@@ -706,8 +723,8 @@ if ( length(ids) > 5 ){
 }
 abline(v=p0, col='gray80')
 points(mmPPs[,1], rep(0, nrow(mmPPs)), pch=20, col=2)
-rug(x.sib)
-rug(x.ref, col=2)
+rug(x.sib, col=2)
+rug(x.ref, col)
 dev.off()
 ~;
 
