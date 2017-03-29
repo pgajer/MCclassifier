@@ -948,7 +948,8 @@ sub read2colTbl{
 
   if ( ! -f $file )
   {
-    warn "\n\nERROR in read2colTbl(): $file does not exist\n\n\n";
+    warn "\n\nERROR in read2colTbl(): $file does not existd";
+    print "\n\n";
     exit 1;
   }
 
