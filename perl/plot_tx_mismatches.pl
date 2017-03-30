@@ -98,6 +98,7 @@ if (!$grPrefix)
 # [/usr/local/bin]$ sudo ln -s "/System/Library/Automator/Combine PDF Pages.action/Contents/Resources/join.py" PDFconcat
 
 my $readNewickFile = "/Users/pgajer/.Rlocal/read.newick.R";
+my $phyloEdgeLenRData = "/Users/pgajer/devel/MCextras/data/phylo_edge_len.RData";
 
 if ( defined $igs )
 {
@@ -107,6 +108,7 @@ if ( defined $igs )
 if ( defined $johanna )
 {
   $readNewickFile = "/Users/jholm/MCclassifier/perl/read.newick.R";
+  $phyloEdgeLenRData = "/Users/jholm/MCclassifier/data/phylo_edge_len.RData";
 }
 
 ####################################################################
@@ -269,17 +271,17 @@ for my $sp (@mmSpps)
   print "\tcmd=$cmd\n" if $dryRun || $debug;
   system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 
-  print "--- Generating pp plot\n" if $debug;
-  my $rFile = "$mcDir/$sp" . "_mm_pp.R";
-  my $pdfFile = "$mcDir/$sp" . "_mm_pp.pdf";
-  plot_pp_density($sp, $spPPfile, $rFile, $mmRec{$sp}, $pdfFile);
+  #print "--- Generating pp plot\n" if $debug;
+  #my $rFile = "$mcDir/$sp" . "_mm_pp.R";
+  # my $pdfFile = "$mcDir/$sp" . "_mm_pp.pdf";
+  # plot_pp_density($sp, $spPPfile, $rFile, $mmRec{$sp}, $pdfFile);
 
-  if ( 0 && $showPDFs &&  $OSNAME eq "darwin")
-  {
-    $cmd = "open $pdfFile";
-    print "\tcmd=$cmd\n" if $dryRun || $debug;
-    system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
-  }
+  # if ( 0 && $showPDFs &&  $OSNAME eq "darwin")
+  # {
+  #   $cmd = "open $pdfFile";
+  #   print "\tcmd=$cmd\n" if $dryRun || $debug;
+  #   system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
+  # }
 
   #push @pdfFiles, $pdfFile;
 
@@ -367,7 +369,30 @@ for my $sp (@mmSpps)
   my $pdfTreeFile = "$mcDir/$sp" . "_mm_tree.pdf";
   plot_mm_clade_tree($sp, $sppSeqIdTreeFile, $colorSppSeqIDsFile, $rTreeFile, $pdfTreeFile);
 
-  if ($showPDFs &&  $OSNAME eq "darwin")
+  print "--- Generating pp density and edge length hist plots\n" if $debug;
+  my $pdfFile = "$mcDir/$sp" . "_mm_pp_edge_len.pdf";
+  my $rFile = "$mcDir/$sp" . "_mm_pp_edge_len.R";
+  my $pvalFile = "$mcDir/$sp" . "_mm_edge_len.pvals";
+  # plot_pp_density($sp, $spPPfile, $rFile, $mmRec{$sp}, $pdfFile);
+
+  my $title = $mmRec{$sp};
+  plot_pp_and_edge_len($sp, $spPPfile, $sppSeqIdTreeFile, $colorSppSeqIDsFile, $rFile, $title, $pdfFile, $pvalFile);
+
+  #print "\n\npvalFile: $pvalFile\n\n";
+
+  my %pvalsTbl = readPvalsTbl($pvalFile);
+
+  print "\nTable of edge length p-values:\n";
+  printTbl(\%pvalsTbl);
+  print "\n";
+
+  my $pvalThld = 0.05;
+  my @outliers = grep { $pvalsTbl{$_} < $pvalThld } keys %pvalsTbl;
+
+  printArray(\@outliers, "\nEdge Length Outliers:");
+  print "\n";
+
+    if ($showPDFs &&  $OSNAME eq "darwin")
   {
     if ( @leaves < $maxTree )
     {
@@ -413,7 +438,7 @@ sub readCmbTxTbl
 
   if ( ! -f $file )
   {
-    warn "\n\n\tERROR in readTbl(): $file does not exist";
+    warn "\n\n\tERROR in readCmbTxTbl(): $file does not exist";
     print "\n\n";
     exit 1;
   }
@@ -438,6 +463,32 @@ sub readCmbTxTbl
   close IN;
 
   return (\%refTbl, \%clTbl);
+}
+
+# Parse p-values file
+sub readPvalsTbl
+{
+  my $file = shift;
+
+  if ( ! -f $file )
+  {
+    warn "\n\n\tERROR in readPvalsTbl(): $file does not exist";
+    print "\n\n";
+    exit 1;
+  }
+
+  my %tbl;
+  open IN, "$file" or die "Cannot open $file for reading: $OS_ERROR";
+  my $header = <IN>;
+  foreach (<IN>)
+  {
+    chomp;
+    my ($id, $val) = split /\s+/,$_;
+    $tbl{$id} = $val;
+  }
+  close IN;
+
+  return %tbl;
 }
 
 # print elements of a hash table
@@ -731,7 +782,185 @@ dev.off()
   runRscript( $Rscript, $rFile, "noErrorCheck" );
 }
 
-  # execute an R-script
+## plot pp density and histogram of edge lengths. Read edge length p-values and
+## identify outliers among mm seq's
+sub plot_pp_and_edge_len
+{
+  my ($sp, $spPPfile, $treeFile, $colorFile, $rFile, $title, $pdfFile, $pvalFile) = @_;
+
+  my $errorFile = "$errorDir/$sp" . ".txt";
+
+  my $Rscript = qq~
+
+## Reading log posterior probabilities files is more complicated as for
+## higher taxons the number of these log posteriors is greater than 1000, but
+## for siblings its a 1000, so we have a 'table' with different number of
+## columns.
+
+file <- \"$errorFile\"
+nFields <- count.fields(file, sep = \'\\t\')
+maxNumFields <- max(nFields)
+
+tbl <- read.table(file, sep=\"\\t\", col.names = paste0(\"V\",seq_len(maxNumFields)), fill = TRUE, stringsAsFactors=FALSE)
+dim(tbl)
+ids <- tbl[,1]
+refID <- ids[1]
+idx <- ids==refID
+sum(idx)
+x.ref <- as.numeric(as.matrix(tbl[idx,2:nFields[1]]))
+x.sib <- as.numeric(as.matrix(tbl[!idx,2:ncol(tbl)]))
+
+if ( length(x.ref)==0 ){
+   stop(\"length(x.ref) is 0\")
+} else if ( length(x.sib)==0 ) {
+   stop(\"length(x.sib) is 0\")
+}
+
+id <- ids[1]
+
+d.ref <- density(x.ref)
+d.sib <- density(x.sib)
+
+xmin.ref <- min(x.ref)
+p0 <- min( c( (max(x.sib) + xmin.ref) / 2, xmin.ref ) )
+
+d.ref.fun <- approxfun(d.ref\$x, d.ref\$y, yleft=0, yright=0)
+d.sib.fun <- approxfun(d.sib\$x, d.sib\$y, yleft=0, yright=0)
+
+ff <- function(x) d.ref.fun(x)  - d.sib.fun(x)
+
+xmin <- min(c(d.ref\$x, d.sib\$x))
+xmax <- max(c(d.ref\$x, d.sib\$x))
+x <- seq(from=xmin, to=xmax, length=1000)
+y <- ff(x)
+r <- uniroot(ff, c(x[which.min(y)], x[which.max(y)]))
+p0 <- r\$root
+
+## probability of a FP error = integral of d.sib from p0 to +inf
+fpError <- 0
+if ( p0 < max(d.sib\$x) ) {
+  fpError <- integrate(d.sib.fun, p0, max(d.sib\$x))[[1]]
+  fnError <- integrate(d.ref.fun, min(d.ref\$x), p0)[[1]]
+} else {
+  fpError <- 0
+  fnError <- 0
+}
+
+# read mismatched seq's posterior probabilities for the $sp model
+mmPPs <- read.table(\"$spPPfile\", header=F, row.names=1)
+
+
+## edge length data
+load(\"$phyloEdgeLenRData\") # edgeLen, d.edgeLen, d.edgeLen.pval
+source(\"$readNewickFile\")
+require(phytools)
+library(ade4)
+
+clTbl <- read.table(\"$colorFile\", header=F)
+str(clTbl)
+
+cltr <- clTbl[,2]
+names(cltr) <- clTbl[,1]
+
+source(\"$readNewickFile\")
+require(phytools)
+
+tr1 <- read.newick(file=\"$treeFile\")
+tr1 <- collapse.singles(tr1)
+
+tip.colors <- cltr[tr1\$tip.label]
+
+n <- length(tr1\$tip.label)
+ee <- setNames(tr1\$edge.length[sapply(1:n,function(x,y)   which(y==x),y=tr1\$edge[,2])],tr1\$tip.label)
+
+## extracting seq IDs
+idx <- tip.colors==2
+mm.ee <- ee[idx]
+(mm.ids <- gsub(\"^\\\\w+_\",\"\", names(mm.ee)))
+
+o <- order(mm.ee)
+mm.x <- mm.ee[o]
+mm.ids <- mm.ids[o]
+
+sig.level <- 0.05
+mm.pval <- c()
+for ( i in 1:length(mm.x) )
+{
+    mm.pval[i] <- d.edgeLen.pval(mm.x[i])
+}
+mm.pval
+
+
+write.table(cbind(mm.ids, mm.pval), file=\"$pvalFile\", quote=F, sep=\"\\t\", row.names=F)
+
+for ( i in 1:length(mm.x) )
+{
+    if ( mm.pval[i] < sig.level ) {
+        mm.ids[i] <- paste(mm.ids[i], \" *\", sep=\"\")
+    }
+}
+mm.ids
+
+ymax <- max(c(d.ref\$y, d.sib\$y))
+mm.ymin <- 0.01*ymax
+mm.y <- seq(0.8*ymax, 0.2*ymax, length=length(mm.ids))
+
+mm.pp <- mmPPs[,1]
+o <- order(mm.pp)
+mm.pp <- mm.pp[o]
+
+pdf(\"$pdfFile\", width=9, height=9)
+
+op <- par(mfrow=c(2,1), mar=c(3.5, 4, 6, 1), mgp=c(2,0.3,0),tcl = -0.3)
+plot(d.ref, xlim=c(min(x.sib),0), xlab=\"log10[ p(x|M) ]\", ylim=c(0, ymax), las=1, main="", axes=F)
+axis(1)
+axis(2, las=1)
+title(paste(\"$title\", sprintf(\"thld=%.2f    fpError=%.2f    fnError=%.2f\",p0, fpError, fnError)), cex=0.6)
+lines(d.sib, col=2)
+if ( length(ids) > 5 ){
+ legend(\"topleft\",legend=c(ids[1], \"Siblings\"), fill=c(1,2), inset=0.05, title=\"MC model (M)\", cex=1)
+} else {
+ legend(\"topleft\",legend=ids, fill=c(1,rep(2,length(ids)-1)), inset=0.05, title=\"MC model (M)\", cex=0.7)
+}
+abline(v=p0, col='blue', lwd=2)
+points(mmPPs[,1], rep(0, nrow(mmPPs)), pch=20, col=1)
+## adding mm seq IDs at y values between 0.2 and 0.8 of ymax
+for ( i in 1:length(mm.pp) )
+{
+    segments(mm.pp[i], mm.ymin, mm.pp[i], mm.y[i], col='grey80')
+    text(mm.pp[i], mm.y[i], labels=mm.ids[i], adj=c(0.5, -0.5), cex=0.8)
+}
+rug(x.sib, col=2)
+rug(x.ref, col)
+
+par(mar=c(4, 4, 0, 1))
+rr <- range(ee)
+r <- myHist(edgeLen, xlim=c(rr[1], 1.1*rr[2]), br=1000, freq=F, xlab=\"Edge Length\")
+
+ymax <- max(r\$density)
+ymin <- 0.015 * ymax
+mm.y <- seq(0.8*ymax, 0.2*ymax, length=length(mm.ids))
+mm.ymin <- 0.01*ymax
+
+hist(ee, add=T, col=3, br=100, freq=F)
+points(mm.ee, rep(-ymin, length(mm.ee)), pch=19)
+## adding mm seq IDs at y values between 0.2 and 0.8 of ymax
+for ( i in 1:length(mm.ee) )
+{
+    segments(mm.x[i], mm.ymin, mm.x[i], mm.y[i], col='grey80')
+    text(mm.x[i], mm.y[i], labels=mm.ids[i], adj=c(0.5, -0.5), cex=0.8)
+}
+##d.edgeLen <- density(edgeLen, bw=0.001, n=500000)
+lines(d.edgeLen, lwd=2)
+legend(\"topright\", legend=c(\"All Seq's\", \"$sp\"), fill=c(2,3), inset=0.05)
+par(op)
+dev.off()
+~;
+
+  runRscript( $Rscript, $rFile, "noErrorCheck" );
+}
+
+# execute an R-script
 sub runRscript{
 
   my ($Rscript, $inFile, $noErrorCheck) = @_;
