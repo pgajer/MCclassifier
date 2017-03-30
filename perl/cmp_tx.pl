@@ -157,16 +157,16 @@ close OUT;
 
 @mismatchedSpp = unique(\@mismatchedSpp);
 
-print "\nNumber of sequences:\t" . commify($count) . "\n" if (!$quiet || $verbose);
+print "\n\tNumber of sequences:\t" . commify($count) . "\n" if (!$quiet || $verbose);
 
 my $pMatch = sprintf("%.2f",100 * $match / $count);
 ##print "Percentage of matches: $pMatch%\n";
-print "Number of Matches:\t" . commify($match) . " ($pMatch\%)\n" if (!$quiet || $verbose);
+print "\tNumber of Matches:\t" . commify($match) . " ($pMatch\%)\n" if (!$quiet || $verbose);
 
 my $mMatch = $count - $match;
 my $pMismatch = sprintf("%.2f",100 * $mMatch / $count);
 ##print "Percentage of mismatches: $pMismatch\n";
-print "Number of Mismatches:\t" . commify($mMatch) . " ($pMismatch\%)\n" if (!$quiet || $verbose);
+print "\tNumber of Mismatches:\t" . commify($mMatch) . " ($pMismatch\%)\n\n" if (!$quiet || $verbose);
 
 my $outFile4 = "$outDir/accuracy.summary";
 # writing to this file
