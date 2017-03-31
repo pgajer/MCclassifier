@@ -5507,8 +5507,11 @@ length(files)
 
 thldTbl <- c()
 errTbl <- c()
+fpError <- c()
+fnError <- c()
+
 outDir <- \"$mcDir\"
-(figFile <- paste(outDir,\"/errFig.pdf\",sep=\"\"))
+(figFile <- paste(outDir,\"/error_thld_figs.pdf\",sep=\"\"))
 pdf(figFile, width=11, height=11)
 op <- par(mar=c(4,4,4.5,0.5), mgp=c(2.25,0.6,0),tcl = -0.3)
 for ( file in files )
@@ -5523,25 +5526,28 @@ for ( file in files )
     nFields <- count.fields(file, sep = \'\\t\')
     maxNumFields <- max(nFields)
 
-    tbl <- read.table(file, sep=\"\\t\", col.names = paste0(\"V\",seq_len(maxNumFields)), fill = TRUE, stringsAsFactors=FALSE)
+    tbl <- read.table(file, sep=\"\\t\", col.names = paste0(\"V\",seq_len(maxNumFields)), fill = TRUE, stringsAsFactors=FALSE, row.names=1)
     dim(tbl)
-    ids <- tbl[,1]
+    ids <- rownames(tbl)
     refID <- ids[1]
-    idx <- ids==refID
-    sum(idx)
-    x.ref <- as.numeric(as.matrix(tbl[idx,2:nFields[1]]))
-    x.sib <- as.numeric(as.matrix(tbl[!idx,2:ncol(tbl)]))
 
-    if ( length(x.ref)==0 )
+    nFields <- nFields - 1 # the first column is row name
+
+    i <- which(ids==refID)
+    x.ref <- as.numeric(as.matrix(tbl[i,1:nFields[1]]))
+
+    ii <- setdiff(seq(ids), i)
+    x.sib <- c()
+    for ( i in ii )
     {
-        stop(\"length(x.ref) is 0\")
+        x.sib <- c(x.sib, as.numeric(as.matrix( tbl[i,1:nFields[i]] )))
     }
-    else if ( length(x.sib)==0 )
-    {
+
+    if ( length(x.ref)==0 ) {
+        stop(\"length(x.ref) is 0\")
+    } else if ( length(x.sib)==0 ) {
         stop(\"length(x.sib) is 0\")
     }
-
-    id <- ids[1]
 
     d.ref <- density(x.ref)
     d.sib <- density(x.sib)
@@ -5562,7 +5568,7 @@ for ( file in files )
     ##r <- uniroot(ff, c( xmin.ref, d.ref\$x[which.max(d.ref\$y)]))
     p0 <- r\$root
 
-    plot(x,y,main=id, type='l')
+    plot(x,y,main=refID, type='l')
     abline(h=0, col='gray80'); abline(v=p0,col='gray80')
     abline(v=x[which.min(y)], col='red')
     abline(v=x[which.max(y)], col='red')
@@ -5582,45 +5588,31 @@ for ( file in files )
       tx <- cbind(p0, 0)
     }
 
-    thldTbl[ids[1]] <- p0
+    thldTbl[refID] <- p0
 
-    ## probability of an error = integral of d.sib from p0 to +inf
-    errTbl[ids[1]] <- 0
-    if ( p0 < max(d.sib\$x) )
-    {
-        e1 <- integrate(d.sib.fun, p0, max(d.sib\$x))[[1]]
-        e2 <- integrate(d.ref.fun, min(d.ref\$x), p0)[[1]]
-        errTbl[ids[1]] <- max(c(e1, e2))
-
-        plot(d.ref, xlim=c(min(x.sib),0), xlab=\"log10[ p(x|M) ]\", ylim=c(0, max(c(d.ref\$y, d.sib\$y))), las=1,
-             main=paste(ids[1], sprintf(\"\\nthld=%.2f err1=%.2f err2=%.2f\",p0, e1, e2)))
-        lines(d.sib, col=2)
-        if ( length(ids) > 5 )
-        {
-            legend(\"topleft\",legend=c(ids[1], \"Siblings\"), fill=c(1,2), inset=0.05, title=\"MC model (M)\", cex=1)
-        } else {
-            legend(\"topleft\",legend=ids, fill=c(1,rep(2,length(ids)-1)), inset=0.05, title=\"MC model (M)\", cex=0.7)
-        }
-        abline(v=p0, col='gray80')
-    } else {
-        plot(d.ref, xlim=c(min(x.sib),0), xlab=\"log10[ p(x|M) ]\", ylim=c(0, max(c(d.ref\$y, d.sib\$y))), las=1,
-             main=paste(ids[1], sprintf(\"\\nthld=%.2f\",p0))) # main=\"\")
-        lines(d.sib, col=2)
-        if ( length(ids) > 5 )
-        {
-            legend(\"topleft\",legend=c(ids[1], \"Siblings\"), fill=c(1,2), inset=0.05, title=\"MC model (M)\", cex=1)
-        } else {
-            legend(\"topleft\",legend=ids, fill=c(1,rep(2,length(ids)-1)), inset=0.05, title=\"MC model (M)\", cex=0.7)
-        }
-        abline(v=p0, col='gray80')
+    ## probability of a FP error = integral of d.sib from p0 to +inf
+    fpError[refID] <- 0
+    fnError[refID] <- 0
+    if ( p0 < max(d.sib\$x) ) {
+      fpError[refID] <- integrate(d.sib.fun, p0, max(d.sib\$x))[[1]]
+      fnError[refID] <- integrate(d.ref.fun, min(d.ref\$x), p0)[[1]]
     }
 
-    outfile <- paste(outDir,\"/\",ids[1],\"_error.txt\", sep=\"\")
+    errTbl[refID] <- fpError[refID] + fnError[refID]
+
+    plot(d.ref, xlim=c(min(x.sib),0), xlab=\"log10[ p(x|M) ]\", ylim=c(0, max(c(d.ref\$y, d.sib\$y))), las=1,
+             main=paste(refID, sprintf(\"\\nthld=%.2f  fpError=%.2f  fnError=%.2f\",p0, fpError[refID], fnError[refID])))
+    lines(d.sib, col=2)
+    if ( length(ids) > 5 ) {
+      legend(\"topleft\",legend=c(refID, \"Siblings\"), fill=c(1,2), inset=0.05, title=\"MC model (M)\", cex=1)
+    } else {
+      legend(\"topleft\",legend=ids, fill=c(1,rep(2,length(ids)-1)), inset=0.05, title=\"MC model (M)\", cex=0.7)
+    }
+    abline(v=p0, col='gray80')
+
+    outfile <- paste(outDir,\"/\",refID,\"_error.txt\", sep=\"\")
     write.table(tx, file=outfile, sep=\"\t\", row.names=F, col.names=F)
 }
-
-myHist(errTbl)
-myHist(log(errTbl))
 par(op)
 dev.off()
 
@@ -5630,6 +5622,23 @@ dim(thldTbl2)
 
 (outFile <- paste(outDir,\"/ncProbThlds.txt\",sep=\"\"))
 write.table(thldTbl2,file=outFile, sep=\"\\t\",row.names=F, col.names=T, quote=F)
+
+(outFile <- paste(outDir,\"/errorTbl.txt\",sep=\"\"))
+write.table(cbind(errTbl),file=outFile, sep=\"\\t\",row.names=F, col.names=T, quote=F)
+
+(outFile <- paste(outDir,\"/fpErrorTbl.txt\",sep=\"\"))
+write.table(cbind(fpError),file=outFile, sep=\"\\t\",row.names=F, col.names=T, quote=F)
+
+(outFile <- paste(outDir,\"/fnErrorTbl.txt\",sep=\"\"))
+write.table(cbind(fnError),file=outFile, sep=\"\\t\",row.names=F, col.names=T, quote=F)
+
+(figFile <- paste(outDir,\"/error_tbl_hists.pdf\",sep=\"\"))
+pdf(figFile, width=11, height=11)
+op <- par(mar=c(4,4,4.5,0.5), mgp=c(2.25,0.6,0),tcl = -0.3)
+myHist(errTbl)
+myHist(log(errTbl))
+par(op)
+dev.off()
 
   ~;
 
