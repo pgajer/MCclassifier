@@ -2406,6 +2406,8 @@ bool NewickTree_t::hasSelSpp(NewickNode_t *_node,
 // of the subtree rooted at 'node'.
 void NewickTree_t::leafLabels(NewickNode_t *_node, vector<string> &leaves)
 {
+  leaves.clear();
+
   queue<NewickNode_t *> bfs;
   bfs.push(_node);
   NewickNode_t *node;
