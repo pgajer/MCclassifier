@@ -475,10 +475,17 @@ int main(int argc, char **argv)
   int numChildren;
   int sampleSize = inPar->randSampleSize;
   int nodeCount = 1;
+  char **seqTbl;
 
   #if 0
   fprintf(stderr, "Sample Size: %d\n", sampleSize);
   #endif
+
+  string faFile = string(inPar->outDir) + string("/rsample.fa");
+  FILE *faOut = fOpen( faFile.c_str(), "w");
+
+  string txFile = string(inPar->outDir) + string("/rsample.tx");
+  FILE *txOut = fOpen( txFile.c_str(), "w");
 
   while ( !bfs.empty() )
   {
@@ -499,6 +506,9 @@ int main(int argc, char **argv)
       //fprintf(stderr, "\toutFile: %s\n\n", outFile.c_str());
       FILE *out = fOpen(outFile.c_str(), "w");
 
+      // string faFile = string(inPar->outDir) + string("/") + node->label + string(".fa");
+      // FILE *faOut = fOpen( faFile.c_str(), "w");
+
       // generate random sequences of 'node' model and write their log10 prob's to a file
       // debug
       // fprintf(stderr, "Generating sampleSize random sequences from model s->model_idx\n");
@@ -514,23 +524,25 @@ int main(int argc, char **argv)
       //exit(1);
       #endif
 
-      char **seqTbl;
-
+      fprintf(out,"%s",node->label.c_str());
+      int faSeqCounter = 1;
       for ( int k = 0; k < nSpp; ++k )
       {
 	sppnode = leaves[k];
 	//probModel->sample( &seqTbl, refSeqs, node->model_idx, sampleSize, seqLen ); // generate sampleSize random sequences from model s->model_idx
 	probModel->sample( &seqTbl, sppnode->model_idx, nSeqsPerSpp, seqLen ); // generate sampleSize random sequences from model s->model_idx
-
-	fprintf(out,"%s",node->label.c_str());
 	for ( int s = 0; s < nSeqsPerSpp; ++s )
+	{
 	  fprintf(out,"\t%f", probModel->normLog10prob(seqTbl[s], seqLen, sppnode->model_idx ));
-	fprintf(out,"\n");
-
-	for ( int j = 0; j < nSeqsPerSpp; ++j )
-	  free(seqTbl[j]);
+	  fprintf(faOut,">%s_%d\n", node->label.c_str(), faSeqCounter);
+	  fprintf(faOut,"%s\n", seqTbl[s]);
+	  fprintf(txOut,"%s_%d\t%s\n", node->label.c_str(), faSeqCounter, node->label.c_str() );
+	  faSeqCounter++;
+	  free(seqTbl[s]);
+	}
 	free(seqTbl);
       }
+      fprintf(out,"\n");
 
       // identify siblings of node
       pnode = node->parent_m;
@@ -605,7 +617,41 @@ int main(int argc, char **argv)
 	#endif
 
 	//probModel->sample( &seqTbl, refSeqs, sibnode->model_idx, sampleSize, seqLen ); // generate sampleSize random sequences from model s->model_idxw
-	probModel->sample( &seqTbl, sibnode->model_idx, sampleSize, seqLen ); // generate sampleSize random sequences from model s->model_idx
+
+	// This is sampling from the sibling node itself; but if we sample for
+	// ref node from species of the node, I don't see why wouldn't we want to
+	// do the same for each sibling
+
+	//probModel->sample( &seqTbl, sibnode->model_idx, sampleSize, seqLen ); // generate sampleSize random sequences from model s->model_idx
+
+	//
+	// doing the same what we do for node - sampling from species(leaves) of the sibling node
+	//
+	leaves.clear();
+	nt.leafLabels( sibnode, leaves);
+
+	nSpp = leaves.size();
+	nSeqsPerSpp = ceil( 1.0 * sampleSize / nSpp );
+#if 0
+	cerr << "--- nSpp=" << nSpp << endl;
+	cerr << "--- nSeqsPerSpp=" << nSeqsPerSpp << endl;
+	//exit(1);
+#endif
+
+	fprintf(out,"%s",sibnode->label.c_str());
+	for ( int k = 0; k < nSpp; ++k )
+	{
+	  sppnode = leaves[k];
+	  probModel->sample( &seqTbl, sppnode->model_idx, nSeqsPerSpp, seqLen ); // generate sampleSize random sequences from model s->model_idx
+	  for ( int s = 0; s < nSeqsPerSpp; ++s )
+	  {
+	    fprintf(out,"\t%f", probModel->normLog10prob(seqTbl[s], seqLen, node->model_idx ));
+	    free(seqTbl[s]);
+	  }
+	  free(seqTbl);
+	}
+	fprintf(out,"\n");
+
 
 	#if 0
 	int iw = 0; // number of times   p(x|M) = max_{j=0...n} p(x|M_j) where M is the model associated with node and x is a random sequence of M_i.
@@ -622,6 +668,10 @@ int main(int argc, char **argv)
 	//w[i] = (double)iw / sampleSize;
 	#endif
 
+	#if 0
+	// this is a fragment that was used with
+	//probModel->sample( &seqTbl, sibnode->model_idx, sampleSize, seqLen ); // generate sampleSize random sequences from model s->model_idx
+
 	// write to file log10 prob's of random sequences of s model
 	fprintf(out,"%s",sibnode->label.c_str());
 	for ( int s = 0; s < sampleSize; ++s )
@@ -631,7 +681,8 @@ int main(int argc, char **argv)
 	for ( int j = 0; j < sampleSize; ++j )
 	  free(seqTbl[j]);
 	free(seqTbl);
-      }
+	#endif
+      } // end of for (int i = 0; i < n; i++) // for each sibling s
 
       fclose(out);
     }
@@ -643,7 +694,9 @@ int main(int argc, char **argv)
 	bfs.push(node->children_m[i]);
       }
     }
-  }
+  } // end of while ( !bfs.empty() ) loop
+
+  fclose(faOut);
 
   if ( inPar->verbose )
     fprintf(stderr,"\r\nOutput written to %s\n", inPar->outDir);
