@@ -749,12 +749,10 @@ p0 <- r\$root
 
 ## probability of a FP error = integral of d.sib from p0 to +inf
 fpError <- 0
+fnError <- 0
 if ( p0 < max(d.sib\$x) ) {
   fpError <- integrate(d.sib.fun, p0, max(d.sib\$x))[[1]]
   fnError <- integrate(d.ref.fun, min(d.ref\$x), p0)[[1]]
-} else {
-  fpError <- 0
-  fnError <- 0
 }
 
 # read mismatched seq's posterior probabilities for the $sp model
