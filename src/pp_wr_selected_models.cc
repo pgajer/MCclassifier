@@ -115,6 +115,7 @@ public:
   bool printNCprobs;        /// if true, the program prints to files normalized conditional probabilities for tuning threshold values of taxon assignment
   int dimProbs;             /// max dimension of probs
   bool revComp;             /// reverse-complement query sequences before processing
+  int debug;
 
   void print();
 };
@@ -138,6 +139,7 @@ inPar_t::inPar_t()
   verbose         = false;
   quiet           = false;
   revComp         = false;
+  debug           = 0;
 }
 
 //------------------------------------------------- constructor ----
@@ -353,13 +355,7 @@ int main(int argc, char **argv)
 	    errObj->x[j] = errTbl[j][0];
 
 	  errObj->xmax = errTbl[nrow-1][0];
-
 	  modelErrTbl[ modelIds[i] ] = errObj;
-
-	  // fprintf(stderr, "%s: \n", modelIds[i]);
-	  // printDblTbl(errTbl, nrow, ncol);
-	  // fprintf(stderr, "\nthld=%f\n", errObj->thld);
-	  // exit(1);
 	}
       }
 
@@ -666,7 +662,8 @@ void parseArgs( int argc, char ** argv, inPar_t *p )
     {"rev-comp"           ,no_argument,       0, 'c'},
     {"quiet"              ,no_argument,       0, 'q'},
     {"verbose"            ,no_argument,       0, 'v'},
-    {"help"               ,no_argument,       0,   0},
+    {"help"               ,no_argument,       0, 'h'},
+    {"debug"              ,no_argument, &p->debug, 0},
     {0, 0, 0, 0}
   };
 
