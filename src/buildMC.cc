@@ -135,6 +135,7 @@ public:
   int maxNumAmbCodes;       /// maximal acceptable number of ambiguity codes for a sequence; above this number log10probIUPAC() returns 1;
   int randSampleSize;       /// number of random sequences of each model (seq length = mean ref seq). If 0, no random samples will be generated.
   int pseudoCountType;      /// pseudo-count type; see MarkovChains2.hh for possible values
+  int randSeqLength;        /// length of random sequnces
   bool verbose;
 
   void print();
@@ -150,6 +151,7 @@ inPar_t::inPar_t()
   printCounts     = 0;
   maxNumAmbCodes  = 5;
   randSampleSize  = 0;
+  randSeqLength   = -1;
   pseudoCountType = recPdoCount;
   verbose         = false;
 }
@@ -402,7 +404,7 @@ int main(int argc, char **argv)
     string faFile = string(inPar->outDir) + string("/") + string("rsample.fa");
     string txFile = string(inPar->outDir) + string("/") + string("rsample.tx");
 
-    probModel.sample( faFile.c_str(), txFile.c_str(), inPar->randSampleSize );
+    probModel.sample( faFile.c_str(), txFile.c_str(), inPar->randSampleSize, inPar->randSeqLength );
 
     if ( inPar->verbose )
       cout << endl << "Random sequences for all MC models written to " << faFile << endl << endl;
@@ -578,11 +580,12 @@ void parseArgs( int argc, char ** argv, inPar_t *p )
     {"out-dir"            ,required_argument, 0,          'o'},
     {"random-sample-size" ,required_argument, 0,          'r'},
     {"pseudo-count-type"  ,required_argument, 0,          'p'},
+    {"random-seq-length"  ,required_argument, 0,          'l'},
     {"help"               ,no_argument, 0,                  0},
     {0, 0, 0, 0}
   };
 
-  while ((c = getopt_long(argc, argv,"b:d:t:i:k:o:vp:r:h",longOptions, NULL)) != -1)
+  while ((c = getopt_long(argc, argv,"b:d:t:i:k:l:o:vp:r:h",longOptions, NULL)) != -1)
     switch (c)
     {
       case 'b':
@@ -591,6 +594,10 @@ void parseArgs( int argc, char ** argv, inPar_t *p )
 
       case 'r':
 	p->randSampleSize = atoi(optarg);
+	break;
+
+      case 'l':
+	p->randSeqLength = atoi(optarg);
 	break;
 
       case 'p':
