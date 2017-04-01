@@ -61,6 +61,7 @@ void printUsage( const char *s )
 	 << "\t-t <trgFile> - file containing paths to training fasta files\n"
 	 << "\t-k <K>       - K is the k-mer size\n"
 	 << "\t--random-sample-size, -r <n> - number of random sequences to be generated for each MC model\n"
+      	 << "\t--random-seq-length, -l <n>  - length of each random sequence\n"
 	 << "\t--pseudo-count-type, -p <f>  - f=0 for add 1 to all k-mer counts zero-offset\n"
 	 << "\t                               f=1 for add 1/4^k to k-mer counts zero-offset\n"
 	 << "\t                               f=2 the pseudocounts for a order k+1 model be alpha*probabilities from\n"
@@ -135,7 +136,7 @@ public:
   int maxNumAmbCodes;       /// maximal acceptable number of ambiguity codes for a sequence; above this number log10probIUPAC() returns 1;
   int randSampleSize;       /// number of random sequences of each model (seq length = mean ref seq). If 0, no random samples will be generated.
   int pseudoCountType;      /// pseudo-count type; see MarkovChains2.hh for possible values
-  int randSeqLength;        /// length of random sequnces
+  int randSeqLength;        /// length of each random sequnce
   bool verbose;
 
   void print();
@@ -218,6 +219,12 @@ void inPar_t::print()
   for ( int i = 0; i < n; ++i )
     cerr << "\t" << kMerLens[i];
   cerr << endl;
+
+  cerr << "randSeqLength=\t\t";
+  if ( randSeqLength > 0 )
+    cerr << randSeqLength << endl;
+  else
+    cerr << "MISSING" << endl;
 }
 
 
