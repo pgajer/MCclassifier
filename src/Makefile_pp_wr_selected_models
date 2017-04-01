@@ -1,6 +1,6 @@
 
 #############################################################################
-# Makefile for building clError
+# Makefile for building pp_wr_selected_models
 #############################################################################
 
 # Copyright (C) 2016 Pawel Gajer pgajer@gmail.com and Jacques Ravel jravel@som.umaryland.edu
