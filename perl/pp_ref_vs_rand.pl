@@ -147,7 +147,7 @@ my $cmd = "pp_wr_selected_models -d $mcDir -i $refFaFile -s $selModel -o $refPPs
 print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 
-print "--- Generating random sequences from the Lactobacillus_plantarum model\n";
+print "--- Generating random sequences from the $selModel model\n";
 $cmd = "buildMC --random-seq-length $randSeqLen --random-sample-size $nRand -t $mcDir/spp_paths.txt -k 8 -d $mcDir -o $randDir";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
@@ -157,9 +157,6 @@ system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 
 my $bigRandFaFile = $randDir . "/rsample.fa";
 my $bigRandTxFile = $randDir . "/rsample.tx";
-
-# $ pushd Firmicutes_group_6_V3V4_rand
-# $ grep Lactobacillus_plantarum rsample.tx > Lactobacillus_plantarum_model_rand.seqIDs
 
 print "--- Selecting seq IDs of $selModel\n";
 my $randSeqIDs = $randDir . "/$selModel" . "_model_rand.seqIDs";
