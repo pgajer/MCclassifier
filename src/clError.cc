@@ -21,19 +21,7 @@ OR PERFORMANCE OF THIS SOFTWARE.
 */
 
 /*
-  ToDo's
 
-  modify input parameters making
-
-  -f <ref_dir>
-
-  optional only for the case when sampling is done using ref seq's
-  (Currently not used).
-
-*/
-
-
-/*
   Estimating error probabilities of p(x|M), where x is a query sequence and M is
   an MC model of one of the nodes of the reference tree.
 
@@ -107,19 +95,20 @@ void printUsage( const char *s )
        << endl
        << " Using prebuilt MC models this program generates data necessary to compute probability of classification error" << endl
        << endl
-       << s << " -d < MC models directory> -r <ref tree> -o <output directory> [Options]" << endl
+       << s << " -d < MC models directory> -r <ref tree> -o <output directory> -l <seq length> [Options]" << endl
        << endl
        << "\tOptions:\n"
        << "\t-d <dir>       - directory containing MC model files\n"
        << "\t-r <ref tree>  - reference tree with node labels corresponding to the names of the model files\n"
        << "\t-f <fasta dir> - directory with reference fasta files\n"
        << "\t-o <dir>       - output directory containg mixture data for each node of the reference tree\n"
+       << "\t--random-seq-length, -l <n>  - length of each random sequence\n"
 
        << "\n\tExample: \n"
 
        << s << " -d vaginal_v2_MCdir -o vaginal_v2_clError_dir" << endl << "OR" << endl
 
-       << s << " -f vaginal_v2_dir -d vaginal_v2_MCdir -r vaginal_v2_dir/model.tree -o vaginal_v2_clError_dir" << endl << endl;
+       << s << " -l 429 -f vaginal_v2_dir -d vaginal_v2_MCdir -r vaginal_v2_dir/model.tree -o vaginal_v2_clError_dir" << endl << endl;
 }
 
 
@@ -153,6 +142,7 @@ public:
   int maxNumAmbCodes;       /// maximal acceptable number of ambiguity codes for a sequence; above this number log10probIUPAC() returns 1;
   int randSampleSize;       /// number of random sequences of each model (seq length = mean ref seq). If 0, no random samples will be generated.
   int pseudoCountType;      /// pseudo-count type; see MarkovChains2.hh for possible values
+  int randSeqLength;        /// length of each random sequnce
   bool verbose;
 
   void print();
@@ -173,6 +163,7 @@ inPar2_t::inPar2_t()
   maxNumAmbCodes  = 5;
   randSampleSize  = 1000;
   pseudoCountType = recPdoCount;
+  randSeqLength   = -1;
   verbose         = false;
 }
 
@@ -248,6 +239,12 @@ void inPar2_t::print()
   else
     cerr << "MISSING" << endl;
 
+  cerr << "randSeqLength=\t\t";
+  if ( randSeqLength > 0 )
+    cerr << randSeqLength << endl;
+  else
+    cerr << "MISSING" << endl;
+
   cerr << "treeFile=\t\t";
   if ( treeFile )
     cerr << treeFile << endl;
@@ -274,8 +271,6 @@ bool dComp (double i, double j) { return (i>j); }
 //============================== main ======================================
 int main(int argc, char **argv)
 {
-  int seqLen = 1460; // length of random sequences
-
   //-- setting up init parameters
   inPar2_t *inPar = new inPar2_t();
 
@@ -444,8 +439,6 @@ int main(int argc, char **argv)
   if ( 0 && inPar->verbose )
     cerr << "done" << endl;
 
-  //fprintf(stderr, "seq: %s\tseqLen=%d\n", seq, seqLen);
-
   vector<char *> modelIds = probModel->modelIds();
   vector<string> modelStrIds;
   probModel->modelIds( modelStrIds );
@@ -530,10 +523,10 @@ int main(int argc, char **argv)
       {
 	sppnode = leaves[k];
 	//probModel->sample( &seqTbl, refSeqs, node->model_idx, sampleSize, seqLen ); // generate sampleSize random sequences from model s->model_idx
-	probModel->sample( &seqTbl, sppnode->model_idx, nSeqsPerSpp, seqLen ); // generate sampleSize random sequences from model s->model_idx
+	probModel->sample( &seqTbl, sppnode->model_idx, nSeqsPerSpp, inPar->randSeqLength ); // generate sampleSize random sequences from model s->model_idx
 	for ( int s = 0; s < nSeqsPerSpp; ++s )
 	{
-	  fprintf(out,"\t%f", probModel->normLog10prob(seqTbl[s], seqLen, node->model_idx ));
+	  fprintf(out,"\t%f", probModel->normLog10prob(seqTbl[s], inPar->randSeqLength, node->model_idx ));
 	  fprintf(faOut,">%s_%d\n", node->label.c_str(), faSeqCounter);
 	  fprintf(faOut,"%s\n", seqTbl[s]);
 	  fprintf(txOut,"%s_%d\t%s\n", node->label.c_str(), faSeqCounter, node->label.c_str() );
@@ -642,10 +635,10 @@ int main(int argc, char **argv)
 	for ( int k = 0; k < nSpp; ++k )
 	{
 	  sppnode = leaves[k];
-	  probModel->sample( &seqTbl, sppnode->model_idx, nSeqsPerSpp, seqLen ); // generate sampleSize random sequences from model s->model_idx
+	  probModel->sample( &seqTbl, sppnode->model_idx, nSeqsPerSpp, inPar->randSeqLength ); // generate sampleSize random sequences from model s->model_idx
 	  for ( int s = 0; s < nSeqsPerSpp; ++s )
 	  {
-	    fprintf(out,"\t%f", probModel->normLog10prob(seqTbl[s], seqLen, node->model_idx ));
+	    fprintf(out,"\t%f", probModel->normLog10prob(seqTbl[s], inPar->randSeqLength, node->model_idx ));
 	    free(seqTbl[s]);
 	  }
 	  free(seqTbl);
@@ -660,7 +653,7 @@ int main(int argc, char **argv)
 	  int m = pnode->children_m.size();
 	  double x[m];
 	  for ( int j = 0; j < m; j++ )
-	    x[j] = probModel->normLog10prob(seqTbl[s], seqLen, (pnode->children_m[j])->model_idx );
+	    x[j] = probModel->normLog10prob(seqTbl[s], inPar->randSeqLength, (pnode->children_m[j])->model_idx );
 
 	  if ( nodeIdx == which_max( x, m ) )
 	    iw++;
@@ -670,12 +663,12 @@ int main(int argc, char **argv)
 
 	#if 0
 	// this is a fragment that was used with
-	//probModel->sample( &seqTbl, sibnode->model_idx, sampleSize, seqLen ); // generate sampleSize random sequences from model s->model_idx
+	//probModel->sample( &seqTbl, sibnode->model_idx, sampleSize, inPar->randSeqLength ); // generate sampleSize random sequences from model s->model_idx
 
 	// write to file log10 prob's of random sequences of s model
 	fprintf(out,"%s",sibnode->label.c_str());
 	for ( int s = 0; s < sampleSize; ++s )
-	  fprintf(out,"\t%f", probModel->normLog10prob(seqTbl[s], seqLen, node->model_idx ));
+	  fprintf(out,"\t%f", probModel->normLog10prob(seqTbl[s], inPar->randSeqLength, node->model_idx ));
 	fprintf(out,"\n");
 
 	for ( int j = 0; j < sampleSize; ++j )
@@ -723,16 +716,21 @@ void parseArgs( int argc, char ** argv, inPar2_t *p )
     {"out-dir"            ,required_argument, 0,          'o'},
     {"ref-tree"           ,required_argument, 0,          'r'},
     {"pseudo-count-type"  ,required_argument, 0,          'p'},
+    {"random-seq-length"  ,required_argument, 0,          'l'},
     {"sample-size"        ,required_argument, 0,          's'},
     {"help"               ,no_argument, 0,                  0},
     {0, 0, 0, 0}
   };
 
-  while ((c = getopt_long(argc, argv,"b:d:e:f:t:i:k:o:vp:r:s:h",longOptions, NULL)) != -1)
+  while ((c = getopt_long(argc, argv,"b:d:e:f:t:i:k:l:o:vp:r:s:h",longOptions, NULL)) != -1)
     switch (c)
     {
       case 'b':
 	p->maxNumAmbCodes = atoi(optarg);
+	break;
+
+      case 'l':
+	p->randSeqLength = atoi(optarg);
 	break;
 
       case 's':
