@@ -697,6 +697,7 @@ int main(int argc, char **argv)
   } // end of while ( !bfs.empty() ) loop
 
   fclose(faOut);
+  fclose(txOut);
 
   if ( inPar->verbose )
     fprintf(stderr,"\r\nOutput written to %s\n", inPar->outDir);
