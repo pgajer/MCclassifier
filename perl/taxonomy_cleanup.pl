@@ -5553,7 +5553,7 @@ for ( file in files )
     d.sib <- density(x.sib)
 
     xmin.ref <- min(x.ref)
-    p0 <- min( c( (max(x.sib) + xmin.ref) / 2, xmin.ref ) )
+    xmax.sib <- min(x.sib)
 
     d.ref.fun <- approxfun(d.ref\$x, d.ref\$y, yleft=0, yright=0)
     d.sib.fun <- approxfun(d.sib\$x, d.sib\$y, yleft=0, yright=0)
@@ -5586,6 +5586,12 @@ for ( file in files )
                                         # given value or more
     } else {
       tx <- cbind(p0, 0)
+    }
+
+    if ( xmax.sib < xmin.ref )
+    {
+      ##p0 <- min( c( (xmax.sib + xmin.ref) / 2, xmin.ref ) )
+      p0 <- min( c( (xmax.sib + xmin.ref) / 2, xmax.sib ) )
     }
 
     thldTbl[refID] <- p0
