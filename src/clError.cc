@@ -118,13 +118,13 @@ void printHelp( const char *s )
     printUsage(s);
 }
 
-//================================================= inPar2_t ====
+//================================================= inPar_t ====
 //! holds input parameters
-class inPar2_t
+class inPar_t
 {
 public:
-  inPar2_t();
-  ~inPar2_t();
+  inPar_t();
+  ~inPar_t();
 
   char *outDir;             /// output directory for MC taxonomy files
   char *mcDir;              /// input directory for MC model files
@@ -144,12 +144,13 @@ public:
   int pseudoCountType;      /// pseudo-count type; see MarkovChains2.hh for possible values
   int randSeqLength;        /// length of each random sequnce
   bool verbose;
+  int debug;                /// turns on some debugging messages
 
   void print();
 };
 
 //------------------------------------------------- constructor ----
-inPar2_t::inPar2_t()
+inPar_t::inPar_t()
 {
   outDir          = NULL;
   mcDir           = NULL;
@@ -164,11 +165,13 @@ inPar2_t::inPar2_t()
   randSampleSize  = 1000;
   pseudoCountType = recPdoCount;
   randSeqLength   = -1;
+  debug           = false;
   verbose         = false;
+  debug           = 0;
 }
 
 //------------------------------------------------- constructor ----
-inPar2_t::~inPar2_t()
+inPar_t::~inPar_t()
 {
   if ( outDir )
     free(outDir);
@@ -197,7 +200,7 @@ inPar2_t::~inPar2_t()
 }
 
 //------------------------------------------------------- print ----
-void inPar2_t::print()
+void inPar_t::print()
 {
   cerr << "printCounts=\t" << printCounts
        << "\npseudoCountType=\t" << pseudoCountType
@@ -265,35 +268,27 @@ void inPar2_t::print()
 }
 
 //============================== local sub-routines =========================
-void parseArgs( int argc, char ** argv, inPar2_t *p );
+void parseArgs( int argc, char ** argv, inPar_t *p );
 bool dComp (double i, double j) { return (i>j); }
 
 //============================== main ======================================
 int main(int argc, char **argv)
 {
   //-- setting up init parameters
-  inPar2_t *inPar = new inPar2_t();
+  inPar_t *inPar = new inPar_t();
 
   //-- parsing input parameters
   parseArgs(argc, argv, inPar);
 
-  // if ( inPar->verbose )
-  //   inPar->print();
-
-  #if 0
-  if ( !inPar->faDir )
-  {
-    fprintf(stderr, "ERROR in %s at line %d: faDir not defined\n", __FILE__, __LINE__);
-    exit(1);
-  }
-  #endif
+  if ( inPar->debug )
+     inPar->print();
 
   NewickTree_t nt;
   if ( inPar->treeFile ) // load ref tree
   {
     if ( !nt.loadTree(inPar->treeFile) )
     {
-      fprintf(stderr,"Could not load Newick tree from %s\n", inPar->treeFile);
+      fprintf(stderr,"\n\n\tERROR: Could not load Newick tree from %s\n\n", inPar->treeFile);
       exit(EXIT_FAILURE);
     }
   }
@@ -306,10 +301,17 @@ int main(int argc, char **argv)
 
     if ( !nt.loadTree(inPar->treeFile) )
     {
-      cout << endl << "ERROR in "<< __FILE__ << " at line " << __LINE__ << ": reference tree Newick format file is missing. Please specify it with the -r flag." << endl;
+      fprintf(stderr,"\n\n\tERROR: Could not load Newick tree from %s\n\n", inPar->treeFile);
       printHelp(argv[0]);
       exit(1);
     }
+  }
+
+  if ( inPar->randSeqLength < 0 )
+  {
+    fprintf(stderr, "\n\ntERROR in %s at line %d: Random sequence length is missing. Please specify it with the -l flag.\n\n", __FILE__, __LINE__);
+    printHelp(argv[0]);
+    exit(1);
   }
 
   // if ( inPar->treeFile ) // load ref tree
@@ -704,7 +706,7 @@ int main(int argc, char **argv)
 
 //----------------------------------------------------------- parseArgs ----
 //! parse command line arguments
-void parseArgs( int argc, char ** argv, inPar2_t *p )
+void parseArgs( int argc, char ** argv, inPar_t *p )
 {
   int c, errflg = 0;
   optarg = NULL;
@@ -718,7 +720,8 @@ void parseArgs( int argc, char ** argv, inPar2_t *p )
     {"pseudo-count-type"  ,required_argument, 0,          'p'},
     {"random-seq-length"  ,required_argument, 0,          'l'},
     {"sample-size"        ,required_argument, 0,          's'},
-    {"help"               ,no_argument, 0,                  0},
+    {"help"               ,no_argument,       0,          'h'},
+    {"debug"              ,no_argument, &p->debug,          0},
     {0, 0, 0, 0}
   };
 
