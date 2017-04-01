@@ -747,6 +747,11 @@ y <- ff(x)
 r <- uniroot(ff, c(x[which.min(y)], x[which.max(y)]))
 p0 <- r\$root
 
+if ( xmax.sib < xmin.ref )
+{
+  p0 <- min( c( (xmax.sib + xmin.ref) / 2, xmax.sib ) )
+}
+
 ## probability of a FP error = integral of d.sib from p0 to +inf
 fpError <- 0
 fnError <- 0
