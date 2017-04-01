@@ -3846,7 +3846,7 @@ if ($buildModelData)
   # clError -d Firmicutes_group_6_V3V4_MC_models_dir -o Firmicutes_group_6_V3V4_MC_models_clError_dir
   print "--- Generating random sequences from the MC models\n";
   my $errorDir = $grPrefix . "_MC_models_clError_dir";
-  $cmd = "rm -rf $errorDir; clError -v -d $mcDir -o $errorDir";
+  $cmd = "rm -rf $errorDir; clError -v --random-seq-length 429 -d $mcDir -o $errorDir";
   print "\tcmd=$cmd\n" if $dryRun || $debug;
   system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 
