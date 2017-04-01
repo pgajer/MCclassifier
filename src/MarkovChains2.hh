@@ -133,7 +133,7 @@ public:
   inline void printCounts();
   inline int order();
 
-  void sample( const char *faFile, const char *txFile, int sampleSize, int seqLen=534 ); /// random samples from MC models
+  void sample( const char *faFile, const char *txFile, int sampleSize, int seqLen ); /// random samples from MC models
   void sample( char ***_seqTbl, int modelIdx, int sampleSize, int seqLen=534 );
   void sampleMF( char **seqTbl, int modelIdx, int sampleSize, int seqLen );
   void sample( char ***_seqTbl, map<string, string> &refSeqs, int modelIdx, int sampleSize, int seqLen );
