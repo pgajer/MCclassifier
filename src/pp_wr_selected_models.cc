@@ -579,23 +579,21 @@ int main(int argc, char **argv)
     }
 
     fprintf(out,"%s", id) ;
-
-    for ( int j = 0; j < nSelModels; j++ )
+    //for ( int j = 0; j < nSelModels; j++ )  {
+    int i = 0;
+    for (it = selModelIdx.begin(); it != selModelIdx.end(); ++it, ++i)
     {
-      int i = 0;
-      for (it = selModelIdx.begin(); it != selModelIdx.end(); ++it, ++i)
+      if ( inPar->revComp )
       {
-	if ( inPar->revComp )
-	{
-	  x[i] = probModel->normLog10prob(rcseq, seqLen, it->second );
-	}
-	else
-	{
-	  x[i] = probModel->normLog10prob(seq, seqLen, it->second );
-	}
-	fprintf(out,"\t%f", x[i]) ;
+	x[i] = probModel->normLog10prob(rcseq, seqLen, it->second );
       }
+      else
+      {
+	x[i] = probModel->normLog10prob(seq, seqLen, it->second );
+      }
+      fprintf(out,"\t%f", x[i]) ;
     }
+    //}
     fprintf(out,"\n");
 
   } // end of   while ( getNextFastaRecord( in, id, data, alloc, seq, seqLen) )
