@@ -44,7 +44,7 @@
 
 =head1 EXAMPLE
 
-  curate_MC_models.pl -i Firmicutes_group_6_V3V4 -n 100
+  curate_MC_models.pl -i Firmicutes_group_6_V3V4 -n 100 -l 429
 
 =cut
 
@@ -63,6 +63,7 @@ $OUTPUT_AUTOFLUSH = 1;
 GetOptions(
   "group-prefix|i=s"  => \my $grPrefix,
   "num-rand-seqs|n=i" => \my $nRand,
+  "rand-seqs-len|l=i" => \my $randSeqLen,
   "igs"               => \my $igs,
   "johanna"           => \my $johanna,
   "verbose|v"         => \my $verbose,
@@ -118,19 +119,19 @@ my $outDir = $grPrefix . "_MC_rand_seqs_dir";
 
 my $cmd = "rm -f $outDir";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
-#system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
+system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 
 my $bbDir = $outDir; # bare bone out dir name (no time stamp)
 $outDir =  $outDir . "_$timeStamp";
 
 print "--- Generating random sequences of MC models\n";
-$cmd = "buildMC --random-sample-size $nRand -t $mcDir/spp_paths.txt -k 8 -d $mcDir -o $outDir";
+$cmd = "buildMC --random-seq-length $randSeqLen --random-sample-size $nRand -t $mcDir/spp_paths.txt -k 8 -d $mcDir -o $outDir";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
-#system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
+system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 
 $cmd = "ln -s $outDir $bbDir";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
-#system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
+system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 
 if ($verbose)
 {
