@@ -80,7 +80,7 @@ MarkovChains2_t::MarkovChains2_t(int order,
   for ( int k = 1; k <= maxWordLen; ++k )
     getAllKmers(k, wordStrgs_m[k-1]);
 
-  MALLOC(cProb_m, double*, nAllWords_m * sizeof(double));
+  //MALLOC(cProb_m, double*, nAllWords_m * sizeof(double)); // pp_ref_sib_wr_ref_models(15223,0x7fff7f0b4300) malloc: *** mach_vm_map(size=18446744072073781248) failed (error code=3)
   #if 0
   cerr << "in MarkovChains2_t::MarkovChains2_t() order_m=" << order_m
        << "\tmaxWordLen=" << maxWordLen
@@ -152,6 +152,7 @@ MarkovChains2_t::MarkovChains2_t(int order,
   {
     createModelIds();
     createMooreMachine();
+    MALLOC(cProb_m, double*, nAllWords_m * sizeof(double));
     initIUPACambCodeHashVals();
 
     for ( int i = 0; i < maxWordLen; ++i )
