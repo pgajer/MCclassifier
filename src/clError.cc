@@ -533,7 +533,7 @@ int main(int argc, char **argv)
 	probModel->sample( &seqTbl, sppnode->model_idx, nSeqsPerSpp, seqLen ); // generate sampleSize random sequences from model s->model_idx
 	for ( int s = 0; s < nSeqsPerSpp; ++s )
 	{
-	  fprintf(out,"\t%f", probModel->normLog10prob(seqTbl[s], seqLen, sppnode->model_idx ));
+	  fprintf(out,"\t%f", probModel->normLog10prob(seqTbl[s], seqLen, node->model_idx ));
 	  fprintf(faOut,">%s_%d\n", node->label.c_str(), faSeqCounter);
 	  fprintf(faOut,"%s\n", seqTbl[s]);
 	  fprintf(txOut,"%s_%d\t%s\n", node->label.c_str(), faSeqCounter, node->label.c_str() );
