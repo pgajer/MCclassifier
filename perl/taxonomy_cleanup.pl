@@ -47,6 +47,9 @@
     - taxon file (grPrefix_final.tx)
     - ungapped fasta file corresponding to sequences present in the taxon file
 
+=item B<--rm-ref-outliers>
+  Removing sequences identified as outliers in ref_sib_pp_models.R
+
 =item B<--verbose, -v>
   Prints content of some output files.
 
@@ -102,6 +105,7 @@ GetOptions(
   "show-all-trees"      => \my $showAllTrees,
   "do-not-pop-pdfs"     => \my $doNotPopPDFs,
   "build-model-data"    => \my $buildModelData,
+  "rm-ref-outliers"     => \my $refRefOutliers,
   "igs"                 => \my $igs,
   "johanna"             => \my $johanna,
   "verbose|v"           => \my $verbose,
@@ -333,6 +337,53 @@ if ($debug)
   print     "\tNumber of common seq IDs elements: " . @commTL . "\n\n";
 }
 
+
+if ( $refRefOutliers )
+{
+  print "--- Removing sequences identified as outliers in ref_sib_pp_models.R\n";
+
+  my $bFile = "bad_seqIDs.pp";
+  my @badIDs = readArray($bFile);
+
+  print "--- Pruning outlier ref seq's from lineageTbl\n";
+
+  ## first check if all elements of @badIDs are in @lineageTbl
+  my @c = comm(\@badIDs, \@lSeqIDs);
+  if (@c !=  @badIDs)
+  {
+    warn "\n\n\tERROR: some elements in $bFile are no present in the lineage table";
+    print "\tNumber of seq IDs in $bFile: " . @badIDs . "\n";
+    print "\tNumber of common seq IDs elements: " . @c . "\n";
+    print "\tElements in $bFile but not in the lineage table:\n";
+    for (diff(\@badIDs, \@lSeqIDs))
+    {
+      print "\t\t$_\n";
+    }
+    print "\n\n";
+    exit 1;
+  }
+
+  delete @lineageTbl{@badIDs};
+
+  # pruning alignment
+  print "--- Pruning outlier ref seq's from $trimmedAlgnFile\n";
+  my $prunedAlgnFile = $grPrefix . "_algn_trimmed_pruned0.fa";
+  $cmd = "select_seqs.pl $quietStr -e $bFile -i $trimmedAlgnFile -o $prunedAlgnFile";
+  print "\tcmd=$cmd\n" if $dryRun || $debug;
+  system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
+
+  $trimmedAlgnFile = $prunedAlgnFile;
+
+  # pruning tree
+  print "--- Pruning outlier ref seq's from $treeFile\n";
+  my $prunedTreeFile = $grPrefix . "_pruned0.tree";
+  $cmd = "rm -f $prunedTreeFile; nw_prune $treeFile @badIDs > $prunedTreeFile";
+  print "\tcmd=$cmd\n" if $dryRun || $debug;
+  system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
+
+  $treeFile = $prunedTreeFile;
+
+}
 
 ## Keeping outgroup sequences pollutes taxonomy cleanup process while running
 ## vicut on higher taxonomic ranks. Sometimes it leads to higher taxonomic ranks
@@ -3850,9 +3901,19 @@ if ($buildModelData)
   print "\tcmd=$cmd\n" if $dryRun || $debug;
   system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 
+  # pp_ref_sib_wr_ref_models -v -d Firmicutes_group_6_V3V4_MC_models_dir -o Firmicutes_group_6_V3V4_ref_sib_pps_dir
+  print "--- Compute posterior probabilities for the reference and sibling models\n";
+  my $refSibDir = $grPrefix . "_ref_sib_pps_dir";
+  $cmd = "pp_ref_sib_wr_ref_models -v -d $mcDir -o $refSibDir";
+  print "\tcmd=$cmd\n" if $dryRun || $debug;
+  system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
+
   # generate ncProbThlds.txt
   print "--- Generating ncProbThlds.txt\n";
-  build_clError(abs_path($mcDir), abs_path($errorDir));
+  build_clError(abs_path($mcDir), abs_path($errorDir), abs_path($refSibDir));
+
+  my $figFile = $mcDir . "/error_thld_figs.pdf";
+  print "\n\tError threshold diagnostic plots written to $figFile\n\n";
 
   # classify  -d Firmicutes_group_6_V3V4_MC_models_dir -i Firmicutes_group_6_V3V4_final.fa -o Firmicutes_group_6_V3V4_MC_models_dir
   print "--- Running classify on $faFile\n";
@@ -5478,7 +5539,7 @@ sub argmax
 
 sub build_clError
 {
-  my ($mcDir, $errorDir) = @_;
+  my ($mcDir, $errorDir, $refSibDir) = @_;
 
   my $Rscript = qq~
 
@@ -5486,6 +5547,28 @@ myHist <- function(x, main=\"\", br=100, ... )
 {
     hist(x, br=br, col=2, las=1, main=main, ...)
 }
+
+## integrate d from x0 to x1
+myIntegral <- function(d, x0, x1){
+    dx <- d\$x[2]-d\$x[1]
+    i0 <- which.min(abs(d\$x - x0))
+    i1 <- which.min(abs(d\$x - x1))
+    sum(d\$y[i0:i1]) * dx
+}
+
+file <- paste(\"$refSibDir\",\"/ref.postProbs\",sep=\"\")
+ref.nFields <- count.fields(file, sep = \"\\t\")
+ref.maxNumFields <- max(ref.nFields)
+ref.pp <- read.table(file, sep=\"\\t\", col.names = paste0("V",seq_len(ref.maxNumFields)), fill = TRUE, stringsAsFactors=FALSE, row.names=1, header=F)
+ref.nFields <- ref.nFields - 1
+names(ref.nFields) <- rownames(ref.pp)
+
+file <- paste(\"$refSibDir\",\"/sib.postProbs\",sep=\"\")
+sib.nFields <- count.fields(file, sep = \"\\t\")
+sib.maxNumFields <- max(sib.nFields)
+sib.pp <- read.table(file, sep=\"\\t\", col.names = paste0("V",seq_len(sib.maxNumFields)), fill = TRUE, stringsAsFactors=FALSE, row.names=1, header=F)
+sib.nFields <- sib.nFields - 1
+names(sib.nFields) <- rownames(sib.pp)
 
 files <- list.files(path=\"$errorDir\", pattern=\"*.txt\", full.names=TRUE)
 length(files)
@@ -5553,7 +5636,7 @@ for ( file in files )
     d.sib <- density(x.sib)
 
     xmin.ref <- min(x.ref)
-    xmax.sib <- min(x.sib)
+    xmax.sib <- max(x.sib)
 
     d.ref.fun <- approxfun(d.ref\$x, d.ref\$y, yleft=0, yright=0)
     d.sib.fun <- approxfun(d.sib\$x, d.sib\$y, yleft=0, yright=0)
@@ -5568,10 +5651,10 @@ for ( file in files )
     ##r <- uniroot(ff, c( xmin.ref, d.ref\$x[which.max(d.ref\$y)]))
     p0 <- r\$root
 
-    plot(x,y,main=refID, type='l')
-    abline(h=0, col='gray80'); abline(v=p0,col='gray80')
-    abline(v=x[which.min(y)], col='red')
-    abline(v=x[which.max(y)], col='red')
+    # plot(x,y,main=refID, type='l')
+    # abline(h=0, col='gray80'); abline(v=p0,col='gray80')
+    # abline(v=x[which.min(y)], col='red')
+    # abline(v=x[which.max(y)], col='red')
 
     if ( ff(x[which.max(y)]) > ff(x[which.min(y)]) )
     {
@@ -5600,14 +5683,14 @@ for ( file in files )
     fpError[refID] <- 0
     fnError[refID] <- 0
     if ( p0 < max(d.sib\$x) ) {
-      fpError[refID] <- integrate(d.sib.fun, p0, max(d.sib\$x))[[1]]
-      fnError[refID] <- integrate(d.ref.fun, min(d.ref\$x), p0)[[1]]
+      fpError[refID] <- myIntegral(d.sib, p0, max(d.sib\$x)) # integrate(d.sib.fun, lower=p0, upper=max(d.sib\$x))[[1]]
+      fnError[refID] <- myIntegral(d.ref, min(d.ref\$x), p0) # integrate(d.ref.fun, lower=min(d.ref\$x), upper=p0, subdivisions=2000)[[1]]
     }
 
     errTbl[refID] <- fpError[refID] + fnError[refID]
 
     plot(d.ref, xlim=c(min(x.sib),0), xlab=\"log10[ p(x|M) ]\", ylim=c(0, max(c(d.ref\$y, d.sib\$y))), las=1,
-             main=paste(refID, sprintf(\"\\nthld=%.2f  fpError=%.2f  fnError=%.2f\",p0, fpError[refID], fnError[refID])))
+             main=paste(refID, " (n.ref=", ref.nFields[refID][[1]], ")", sprintf(\"\\nthld=%.2f  fpError=%.2f  fnError=%.2f\",p0, fpError[refID], fnError[refID])))
     lines(d.sib, col=2)
     if ( length(ids) > 5 ) {
       legend(\"topleft\",legend=c(refID, \"Siblings\"), fill=c(1,2), inset=0.05, title=\"MC model (M)\", cex=1)
@@ -5615,6 +5698,8 @@ for ( file in files )
       legend(\"topleft\",legend=ids, fill=c(1,rep(2,length(ids)-1)), inset=0.05, title=\"MC model (M)\", cex=0.7)
     }
     abline(v=p0, col='gray80')
+    hist(as.numeric((ref.pp[refID, 1:ref.nFields[refID]])), add=T, col=1, br=100)
+    hist(as.numeric((sib.pp[refID, 1:sib.nFields[refID]])), add=T, col=2, br=100)
 
     outfile <- paste(outDir,\"/\",refID,\"_error.txt\", sep=\"\")
     write.table(tx, file=outfile, sep=\"\t\", row.names=F, col.names=F)
