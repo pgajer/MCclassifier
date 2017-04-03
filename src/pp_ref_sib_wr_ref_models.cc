@@ -1,6 +1,6 @@
 /*
-  Generating posterior probabilities of reference and sibling sequences with
-  respect to the reference model, where reference runs through all models.
+  Generating log10 posterior probabilities of reference and sibling sequences
+  with respect to the reference model, where reference runs through all models.
 
 
 Copyright (C) 2017 Pawel Gajer pgajer@gmail.com and Jacques Ravel jravel@som.umaryland.edu
@@ -49,10 +49,10 @@ void printUsage( const char *s )
 
        << "USAGE " << endl
        << endl
-       << "  Generating posterior probabilities of reference and sibling sequences with" << endl
-       << "  respect to the reference model, where reference runs through all models." << endl
+       << "  Generating log10 posterior probabilities of reference and sibling sequences with\n"
+       << "  respect to the reference model, where reference runs through all models.\n"
        << endl
-       << s << " -d < MC models directory> -o <output directory> [Options]" << endl
+       << s << " -d < MC models directory> -o <output directory> [Options]\n"
        << endl
        << "\tOptions:\n"
        << "\t-d <dir>       - directory containing MC model files and reference sequences fasta files\n"
@@ -68,6 +68,17 @@ void printUsage( const char *s )
 void printHelp( const char *s )
 {
     printUsage(s);
+
+    cout << endl
+	 << "  Files generated:\n"
+	 << "  - ref.postProbs. File format: taxonName\t log10pp's ....\n"
+	 << "  - sib.postProbs. File format: refTaxonName\t log10pp's ....\n"
+      	 << "  - sib2.postProbs. File format: refTaxonName\tsibTaxonName\t log10pp's for only the specified sibling\n"
+	 << "  - taxon.postProbs. File format: seqID log10pp (in each row)\n"
+	 << "  - refTaxon__sibTaxon.postProbs. File format: seqID log10pp (in each row,\n"
+	 << "    where log10pp are log10 posterior probabilities of sibling ref seq's w/r to the ref model/taxon)\n"
+	 << "    This file is created only when the max of the sibling log pp's is above logPPthld=-0.3\n"
+	 << endl << endl;
 }
 
 //================================================= inPar_t ====
@@ -217,6 +228,9 @@ bool dComp (double i, double j) { return (i>j); }
 //============================== main ======================================
 int main(int argc, char **argv)
 {
+  // setting log10 pp thld to -0.3
+  double logPPthld = -0.3;
+
   //-- setting up init parameters
   inPar_t *inPar = new inPar_t();
 
@@ -369,6 +383,9 @@ int main(int argc, char **argv)
   string sibFile = string(inPar->outDir) + string("/sib.postProbs");
   FILE *sibOut = fOpen( sibFile.c_str(), "w");
 
+  string sib2File = string(inPar->outDir) + string("/sib2.postProbs");
+  FILE *sib2Out = fOpen( sib2File.c_str(), "w");
+
   // traverse the reference tree using breath first search
   NewickNode_t *node;
   NewickNode_t *sibnode;
@@ -377,6 +394,7 @@ int main(int argc, char **argv)
   int nodeCount = 1;
   map<string, string>::iterator itr;
   map<string, string> seqRecs; // fasta file sequence records
+  double pp;
 
   queue<NewickNode_t *> bfs;
   NewickNode_t *root = nt.root();
@@ -401,10 +419,18 @@ int main(int argc, char **argv)
       seqRecs.clear();
       readFasta( faFile.c_str(), seqRecs);
 
+      string refPPfile = string(inPar->outDir) + string("/") + node->label + string(".postProbs");
+      FILE *refPPout = fOpen( refPPfile.c_str(), "w");
+
       fprintf(refOut,"%s",node->label.c_str());
       for ( itr = seqRecs.begin(); itr != seqRecs.end(); ++itr )
-	fprintf(refOut,"\t%f", probModel->normLog10prob(itr->second.c_str(), (int)itr->second.size(), node->model_idx ));
+      {
+	pp = probModel->normLog10prob(itr->second.c_str(), (int)itr->second.size(), node->model_idx );
+	fprintf(refOut,"\t%f", pp);
+	fprintf(refPPout,"%s\t%f\n", itr->first.c_str(), pp);
+      }
       fprintf(refOut,"\n");
+      fclose(refPPout);
 
       // identify siblings of node
       pnode = node->parent_m;
@@ -432,8 +458,30 @@ int main(int argc, char **argv)
 	seqRecs.clear();
 	readFasta( faFile.c_str(), seqRecs);
 
+	double maxPP = -100.0;
+	fprintf(sib2Out,"%s\t%s", node->label.c_str(), sibnode->label.c_str());
 	for ( itr = seqRecs.begin(); itr != seqRecs.end(); ++itr )
-	  fprintf(sibOut,"\t%f", probModel->normLog10prob(itr->second.c_str(), (int)itr->second.size(), node->model_idx ));
+	{
+	  pp = probModel->normLog10prob(itr->second.c_str(), (int)itr->second.size(), node->model_idx );
+	  fprintf(sibOut,"\t%f", pp);
+	  fprintf(sib2Out,"\t%f", pp);
+	  if ( pp > maxPP )
+	    pp = maxPP;
+	}
+	fprintf(sib2Out,"\n");
+
+	if ( maxPP > logPPthld ) // is the max( log10 pp ) > logPPthld=-0.3
+	{
+	  string sFile = string(inPar->outDir) + string("/") + node->label + string("__") + sibnode->label + string(".postProbs");
+	  FILE *sOut = fOpen( sFile.c_str(), "w");
+	  for ( itr = seqRecs.begin(); itr != seqRecs.end(); ++itr )
+	  {
+	    pp = probModel->normLog10prob(itr->second.c_str(), (int)itr->second.size(), node->model_idx );
+	    fprintf(sOut,"%s\t%f\n", itr->first.c_str(), pp);
+	  }
+	  fclose(sOut);
+	}
+
       } // end of for (int i = 0; i < n; i++) // for each sibling s
       fprintf(sibOut,"\n");
     }
@@ -449,6 +497,7 @@ int main(int argc, char **argv)
 
   fclose(refOut);
   fclose(sibOut);
+  fclose(sib2Out);
 
   if ( inPar->verbose )
     fprintf(stderr,"\r\n\n\tOutput written to %s\n\n", inPar->outDir);
