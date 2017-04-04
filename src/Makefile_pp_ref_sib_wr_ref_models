@@ -27,9 +27,9 @@
 
 CC            = gcc #/opt/local/bin/gcc-mp-4.7 #gcc-4.0
 CXX           = g++ #/opt/local/bin/g++-mp-4.7 #g++-4.0
-FLAGS         = -g -std=gnu++11 # -O2 # -g -O2
+FLAGS         = -g # -O2 # -g -O2
 CFLAGS        = $(FLAGS) -Wall -D__SIM_SSE3 -O2 -D_GNU_SOURCE -dynamic -msse3 -fomit-frame-pointer -funroll-loops # -D_USE_PTHREADS
-CXXFLAGS      = $(FLAGS) -Wall -D__SIM_SSE3 -O2 -D_GNU_SOURCE -dynamic -msse3 -fomit-frame-pointer -funroll-loops # -D_USE_PTHREADS
+CXXFLAGS      = $(FLAGS) -std=gnu++11 -Wall -D__SIM_SSE3 -O2 -D_GNU_SOURCE -dynamic -msse3 -fomit-frame-pointer -funroll-loops # -D_USE_PTHREADS
 INCPATH       = -Isrc
 LINK          = g++
 LIBS          = -lm # -L../../lib -lkmerstats

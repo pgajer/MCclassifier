@@ -1,9 +1,9 @@
 
 CC            = gcc
 CXX           = g++
-FLAGS         = -g -std=gnu++11 # -O2 -O0
+FLAGS         = -g # -O2 -O0
 CFLAGS        = $(FLAGS) -Wall
-CXXFLAGS      = $(FLAGS) -Wall
+CXXFLAGS      = $(FLAGS) -Wall -std=gnu++11
 INCPATH       = -I../src
 LINK          = g++
 LIBS          = # -lm # -L../../lib -lkmerstats
