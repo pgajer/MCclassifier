@@ -77,7 +77,7 @@ void printHelp( const char *s )
 	 << "  - taxon.postProbs. File format: seqID log10pp (in each row)\n"
 	 << "  - refTaxon__sibTaxon.postProbs. File format: seqID log10pp (in each row,\n"
 	 << "    where log10pp are log10 posterior probabilities of sibling ref seq's w/r to the ref model/taxon)\n"
-	 << "    This file is created only when the max of the sibling log pp's is above logPPthld=-0.3\n"
+	 << "    This file is created only when the max( sib.pp) > min( ref.pp)\n"
 	 << endl << endl;
 }
 
@@ -229,7 +229,7 @@ bool dComp (double i, double j) { return (i>j); }
 int main(int argc, char **argv)
 {
   // setting log10 pp thld to -0.3
-  double logPPthld = -0.3;
+  // double logPPthld = -0.3;
 
   //-- setting up init parameters
   inPar_t *inPar = new inPar_t();
@@ -422,12 +422,15 @@ int main(int argc, char **argv)
       string refPPfile = string(inPar->outDir) + string("/") + node->label + string(".postProbs");
       FILE *refPPout = fOpen( refPPfile.c_str(), "w");
 
+      double minRefPP = 0;
       fprintf(refOut,"%s",node->label.c_str());
       for ( itr = seqRecs.begin(); itr != seqRecs.end(); ++itr )
       {
 	pp = probModel->normLog10prob(itr->second.c_str(), (int)itr->second.size(), node->model_idx );
 	fprintf(refOut,"\t%f", pp);
 	fprintf(refPPout,"%s\t%f\n", itr->first.c_str(), pp);
+	if ( pp < minRefPP )
+	  minRefPP = pp;
       }
       fprintf(refOut,"\n");
       fclose(refPPout);
@@ -458,19 +461,19 @@ int main(int argc, char **argv)
 	seqRecs.clear();
 	readFasta( faFile.c_str(), seqRecs);
 
-	double maxPP = -100.0;
+	double maxSibPP = -100.0;
 	fprintf(sib2Out,"%s\t%s", node->label.c_str(), sibnode->label.c_str());
 	for ( itr = seqRecs.begin(); itr != seqRecs.end(); ++itr )
 	{
 	  pp = probModel->normLog10prob(itr->second.c_str(), (int)itr->second.size(), node->model_idx );
 	  fprintf(sibOut,"\t%f", pp);
 	  fprintf(sib2Out,"\t%f", pp);
-	  if ( pp > maxPP )
-	    maxPP = pp;
+	  if ( pp > maxSibPP )
+	    maxSibPP = pp;
 	}
 	fprintf(sib2Out,"\n");
 
-	if ( maxPP > logPPthld ) // is the max( log10 pp ) > logPPthld=-0.3
+	if ( maxSibPP > minRefPP ) // is the max( log10 sib.pp ) > min( log10 ref.pp )
 	{
 	  string sFile = string(inPar->outDir) + string("/") + node->label + string("__") + sibnode->label + string(".postProbs");
 	  FILE *sOut = fOpen( sFile.c_str(), "w");
