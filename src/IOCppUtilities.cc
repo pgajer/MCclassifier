@@ -264,7 +264,7 @@ bool getNextFastaRecord( FILE *fp, char *&id, char *&seq, int &seqLen)
 }
 
 
-//----------------------------------------------- readFasta ----------
+//----------------------------------------------- readfasta ----------
 void readFasta( const char *file, map<string,string> &seqTbl)
 /*
   for each record of a fasta file with sequence ID, id, and sequence, seq, create
@@ -653,7 +653,7 @@ void readLines( const char *inFile, vector<string> &lines )
 
   char line[LINE_LEN]; // array for holding a line
   int nread;           // number of bytes read into the buffer
-  char *data;
+  //char *data;
 
   if ( (nread = read ( in, buffer, bufferSize-1 )) )
   {
