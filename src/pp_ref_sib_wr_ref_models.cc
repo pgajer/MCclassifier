@@ -466,7 +466,7 @@ int main(int argc, char **argv)
 	  fprintf(sibOut,"\t%f", pp);
 	  fprintf(sib2Out,"\t%f", pp);
 	  if ( pp > maxPP )
-	    pp = maxPP;
+	    maxPP = pp;
 	}
 	fprintf(sib2Out,"\n");
 
