@@ -105,7 +105,7 @@ GetOptions(
   "show-all-trees"      => \my $showAllTrees,
   "do-not-pop-pdfs"     => \my $doNotPopPDFs,
   "build-model-data"    => \my $buildModelData,
-  "rm-ref-outliers"     => \my $refRefOutliers,
+  "rm-ref-outliers"     => \my $rmRefOutliers,
   "igs"                 => \my $igs,
   "johanna"             => \my $johanna,
   "verbose|v"           => \my $verbose,
@@ -337,12 +337,11 @@ if ($debug)
   print     "\tNumber of common seq IDs elements: " . @commTL . "\n\n";
 }
 
-
-if ( $refRefOutliers )
+my $bFile = "bad_seqIDs.pp";
+if ( $rmRefOutliers && -e $bFile )
 {
   print "--- Removing sequences identified as outliers in ref_sib_pp_models.R\n";
 
-  my $bFile = "bad_seqIDs.pp";
   my @badIDs = readArray($bFile);
 
   print "--- Pruning outlier ref seq's from lineageTbl\n";
