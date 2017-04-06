@@ -228,8 +228,7 @@ bool dComp (double i, double j) { return (i>j); }
 //============================== main ======================================
 int main(int argc, char **argv)
 {
-  // setting log10 pp thld to -0.3
-  // double logPPthld = -0.3;
+  #define DEBUG 1
 
   //-- setting up init parameters
   inPar_t *inPar = new inPar_t();
@@ -400,6 +399,9 @@ int main(int argc, char **argv)
   NewickNode_t *root = nt.root();
   bfs.push(root);
 
+  if ( inPar->verbose )
+    fprintf(stderr, "\n\n");
+
   while ( !bfs.empty() )
   {
     node = bfs.front();
@@ -411,7 +413,7 @@ int main(int argc, char **argv)
     {
       if ( inPar->verbose )
       {
-	fprintf(stderr, "\r--- [%d] Processing %s\n", nodeCount, node->label.c_str());
+	fprintf(stderr, "--- [%d] Processing %s", nodeCount, node->label.c_str());
 	nodeCount++;
       }
 
@@ -434,6 +436,9 @@ int main(int argc, char **argv)
       }
       fprintf(refOut,"\n");
       fclose(refPPout);
+
+      if ( inPar->verbose )
+	fprintf(stderr, "   minLogPP:  %.5f\n", minRefPP);
 
       // identify siblings of node
       pnode = node->parent_m;
@@ -472,6 +477,9 @@ int main(int argc, char **argv)
 	    maxSibPP = pp;
 	}
 	fprintf(sib2Out,"\n");
+
+	if ( inPar->verbose )
+	  fprintf(stderr, "\t%s maxLogPP: %.5f\n", sibnode->label.c_str(), maxSibPP);
 
 	if ( maxSibPP > minRefPP ) // is the max( log10 sib.pp ) > min( log10 ref.pp )
 	{
