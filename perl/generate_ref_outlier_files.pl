@@ -124,10 +124,16 @@ close IN;
 
 if ($debug)
 {
+  print "init bTbl:\n";
+  printArrayValuedTblCounts(\%bTbl);
+  print "\n";
+
   print "bTbl:\n";
   printArrayValuedTbl(\%bTbl);
   print "\n\n";
 }
+
+
 
 # $ grep -c S00 /Users/pgajer/devel/MCextras/data/ref_outliers_list.txt
 # 826
@@ -143,6 +149,64 @@ if (0)
   print "n: $n\n\n";
 }
 
+## Reading outlier sequences from another file generated in merging_MC_models.R
+## here max.sib for species with max.sib > min.ref has been identified for deletion
+
+$rFile = "/Users/pgajer/devel/MCextras/data/ref_outliers_list2.txt";
+if ( ! -e $rFile )
+{
+  warn "\n\n\tERROR: $rFile does not exist";
+  print "\n\n";
+  exit 1;
+}
+
+open IN, "$rFile" or die "Cannot open $rFile for reading: $OS_ERROR\n";
+foreach (<IN>)
+{
+  next if /^#/;
+  next if /^\s+$/;
+
+  chomp;
+
+  if (/^S00/)
+  {
+    my ($id, $pp) = split /\s+/, $_;
+    push @ids, $id;
+  }
+  else
+  {
+    my $prefix = $_;
+    #print "line: $_\n";
+    $prefix =~ s/_dir\/bad_seqIDs\.pp//;
+    #print "prefix: $prefix\n";
+    my $dir;
+    if (exists $pTbl{$prefix})
+    {
+      $dir = $pTbl{$prefix};
+      my $key = $mainDir . $dir . "/$_";
+      push @{$bTbl{$key}}, @ids;
+      @ids = ();
+    }
+    else
+    {
+      warn "\n\n\tpTbl{$prefix} does not exit";
+      print "\n\n";
+      exit 1;
+    }
+  }
+}
+close IN;
+
+if ($debug)
+{
+  print "after update bTbl:\n";
+  printArrayValuedTblCounts(\%bTbl);
+  print "\n";
+
+  print "bTbl:\n";
+  printArrayValuedTbl(\%bTbl);
+  print "\n\n";
+}
 
 
 for my $file (keys %bTbl)
@@ -177,8 +241,19 @@ sub printArrayValuedTbl{
   print "\n";
 }
 
+sub printArrayValuedTblCounts{
 
-sub printArrayValuedTbl{
+  my $rTbl = shift;
+
+  for (sort keys %{$rTbl})
+  {
+    print "$_\t" . @{$rTbl->{$_}} . "\n";
+  }
+  print "\n";
+}
+
+
+sub writeArrayValuedTbl{
 
   my ($rTbl, $outFile) = @_;
 
