@@ -30,6 +30,7 @@ OR PERFORMANCE OF THIS SOFTWARE.
 #include <string>
 #include <vector>
 #include <queue>
+//#include <regex>
 
 #include "CUtilities.h"
 #include "IOCUtilities.h"
@@ -77,7 +78,8 @@ void printHelp( const char *s )
 	 << "  - taxon.postProbs. File format: seqID log10pp (in each row)\n"
 	 << "  - refTaxon__sibTaxon.postProbs. File format: seqID log10pp (in each row,\n"
 	 << "    where log10pp are log10 posterior probabilities of sibling ref seq's w/r to the ref model/taxon)\n"
-	 << "    This file is created only when the max( sib.pp) > min( ref.pp)\n"
+      //<< "    This file is created only when the max( sib.pp) > min( ref.pp)\n"
+	 << "    This file is created for all sibling species of the reference taxon\n"
 	 << endl << endl;
 }
 
@@ -228,8 +230,6 @@ bool dComp (double i, double j) { return (i>j); }
 //============================== main ======================================
 int main(int argc, char **argv)
 {
-  #define DEBUG 1
-
   //-- setting up init parameters
   inPar_t *inPar = new inPar_t();
 
@@ -268,7 +268,9 @@ int main(int argc, char **argv)
 
   if ( inPar->outDir ) // create output directory
   {
-    string cmd("mkdir -p ");
+    string cmd("rm -rf ");
+    cmd += string(inPar->outDir);
+    cmd += string("; mkdir ");
     cmd += string(inPar->outDir);
     system(cmd.c_str());
   }
@@ -480,6 +482,12 @@ int main(int argc, char **argv)
 
 	if ( inPar->verbose )
 	  fprintf(stderr, "\t%s maxLogPP: %.5f\n", sibnode->label.c_str(), maxSibPP);
+
+	// smatch match;
+	// regex rgx("\\bsg_"); // find string that starts with sg_
+	// bool sbMatch = regex_search (sibnode->label, match, rgx);
+	// rgx("\\b\\w_"); // find string that starts with <a letter>_
+	// bool wMatch = regex_search (sibnode->label, match, rgx);
 
 	if ( maxSibPP > minRefPP ) // is the max( log10 sib.pp ) > min( log10 ref.pp )
 	{
