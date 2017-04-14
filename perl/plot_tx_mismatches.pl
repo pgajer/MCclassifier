@@ -889,7 +889,7 @@ sig.level <- 0.05
 mm.pval <- c()
 for ( i in 1:length(mm.x) )
 {
-    mm.pval[i] <- d.edgeLen.pval(mm.x[i])
+    mm.pval[i] <- pEdgeLenFast(mm.x[i])
 }
 mm.pval
 
