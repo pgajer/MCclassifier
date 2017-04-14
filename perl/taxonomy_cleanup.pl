@@ -3898,7 +3898,7 @@ if ($buildModelData)
   my $errorDir = $grPrefix . "_MC_models_clError_dir";
   $cmd = "rm -rf $errorDir; clError -v --random-seq-length 429 -d $mcDir -o $errorDir";
   print "\tcmd=$cmd\n" if $dryRun || $debug;
-  system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
+  #system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 
   # pp_ref_sib_wr_ref_models -v -d Firmicutes_group_6_V3V4_MC_models_dir -o Firmicutes_group_6_V3V4_ref_sib_pps_dir
   print "--- Compute posterior probabilities for the reference and sibling models\n";
