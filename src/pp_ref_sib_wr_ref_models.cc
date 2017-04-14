@@ -513,7 +513,7 @@ int main(int argc, char **argv)
 	  seqRecs.clear();
 	  readFasta( faFile.c_str(), seqRecs);
 
-	  string sFile = string(inPar->outDir) + string("/") + node->label + string("__") + maxSibName + string(".postProbs");
+	  string sFile = string(inPar->outDir) + string("/") + node->label + string("__") + sibnode->label + string(".postProbs");
 	  FILE *sOut = fOpen( sFile.c_str(), "w");
 	  for ( itr = seqRecs.begin(); itr != seqRecs.end(); ++itr )
 	  {
