@@ -395,7 +395,10 @@ int main(int argc, char **argv)
   int nodeCount = 1;
   map<string, string>::iterator itr;
   map<string, string> seqRecs; // fasta file sequence records
-  double pp;
+  double lpp;
+
+  double maxSibLogPP = -100.0;
+  string maxSibName;
 
   queue<NewickNode_t *> bfs;
   NewickNode_t *root = nt.root();
@@ -426,21 +429,21 @@ int main(int argc, char **argv)
       string refPPfile = string(inPar->outDir) + string("/") + node->label + string(".postProbs");
       FILE *refPPout = fOpen( refPPfile.c_str(), "w");
 
-      double minRefPP = 0;
+      double minRefLogPP = 0;
       fprintf(refOut,"%s",node->label.c_str());
       for ( itr = seqRecs.begin(); itr != seqRecs.end(); ++itr )
       {
-	pp = probModel->normLog10prob(itr->second.c_str(), (int)itr->second.size(), node->model_idx );
-	fprintf(refOut,"\t%f", pp);
-	fprintf(refPPout,"%s\t%f\n", itr->first.c_str(), pp);
-	if ( pp < minRefPP )
-	  minRefPP = pp;
+	lpp = probModel->normLog10prob(itr->second.c_str(), (int)itr->second.size(), node->model_idx );
+	fprintf(refOut,"\t%f", lpp);
+	fprintf(refPPout,"%s\t%f\n", itr->first.c_str(), lpp);
+	if ( lpp < minRefLogPP )
+	  minRefLogPP = lpp;
       }
       fprintf(refOut,"\n");
       fclose(refPPout);
 
       if ( inPar->verbose )
-	fprintf(stderr, "   minLogPP:  %.5f\n", minRefPP);
+	fprintf(stderr, "   minPP:  %.5f\n", pow(10, minRefLogPP));
 
       // identify siblings of node
       pnode = node->parent_m;
@@ -460,6 +463,7 @@ int main(int argc, char **argv)
       #endif
 
       fprintf(sibOut,"%s", node->label.c_str());
+      maxSibLogPP = -100.0;
       for (int i = 0; i < (int)siblings.size(); i++) // for each sibling s
       {
 	sibnode = siblings[i];
@@ -468,20 +472,22 @@ int main(int argc, char **argv)
 	seqRecs.clear();
 	readFasta( faFile.c_str(), seqRecs);
 
-	double maxSibPP = -100.0;
 	fprintf(sib2Out,"%s\t%s", node->label.c_str(), sibnode->label.c_str());
 	for ( itr = seqRecs.begin(); itr != seqRecs.end(); ++itr )
 	{
-	  pp = probModel->normLog10prob(itr->second.c_str(), (int)itr->second.size(), node->model_idx );
-	  fprintf(sibOut,"\t%f", pp);
-	  fprintf(sib2Out,"\t%f", pp);
-	  if ( pp > maxSibPP )
-	    maxSibPP = pp;
+	  lpp = probModel->normLog10prob(itr->second.c_str(), (int)itr->second.size(), node->model_idx );
+	  fprintf(sibOut,"\t%f", lpp);
+	  fprintf(sib2Out,"\t%f", lpp);
+	  if ( lpp > maxSibLogPP )
+	  {
+	    maxSibLogPP = lpp;
+	    maxSibName = sibnode->label;
+	  }
 	}
 	fprintf(sib2Out,"\n");
 
 	if ( inPar->verbose )
-	  fprintf(stderr, "\t%s maxLogPP: %.5f\n", sibnode->label.c_str(), maxSibPP);
+	  fprintf(stderr, "\t%s maxPP: %.5f\n", sibnode->label.c_str(), pow(10, maxSibLogPP));
 
 	// smatch match;
 	// regex rgx("\\bsg_"); // find string that starts with sg_
@@ -489,20 +495,48 @@ int main(int argc, char **argv)
 	// rgx("\\b\\w_"); // find string that starts with <a letter>_
 	// bool wMatch = regex_search (sibnode->label, match, rgx);
 
-	if ( maxSibPP > minRefPP ) // is the max( log10 sib.pp ) > min( log10 ref.pp )
+
+      } // end of for (int i = 0; i < n; i++) // for each sibling s
+      fprintf(sibOut,"\n");
+
+      if ( maxSibLogPP > minRefLogPP ) // is the max( log10 sib.pp ) > min( log10 ref.pp )
+      {
+	if ( inPar->verbose )
+	  fprintf(stderr, "\nmaxSibLogPP > minRefLogPP: sib: %s maxSibPP: %.5f\n\n", maxSibName.c_str(), pow(10, maxSibLogPP));
+
+	// producing refTaxon__sibTaxon.postProbs for all siblings of the reference taxon
+	for (int i = 0; i < (int)siblings.size(); i++)
 	{
-	  string sFile = string(inPar->outDir) + string("/") + node->label + string("__") + sibnode->label + string(".postProbs");
+	  sibnode = siblings[i];
+
+	  faFile = string(inPar->mcDir) + string("/") + sibnode->label + string(".fa");
+	  seqRecs.clear();
+	  readFasta( faFile.c_str(), seqRecs);
+
+	  string sFile = string(inPar->outDir) + string("/") + node->label + string("__") + maxSibName + string(".postProbs");
 	  FILE *sOut = fOpen( sFile.c_str(), "w");
 	  for ( itr = seqRecs.begin(); itr != seqRecs.end(); ++itr )
 	  {
-	    pp = probModel->normLog10prob(itr->second.c_str(), (int)itr->second.size(), node->model_idx );
-	    fprintf(sOut,"%s\t%f\n", itr->first.c_str(), pp);
+	    lpp = probModel->normLog10prob(itr->second.c_str(), (int)itr->second.size(), node->model_idx );
+	    fprintf(sOut,"%s\t%f\n", itr->first.c_str(), lpp);
 	  }
 	  fclose(sOut);
 	}
 
-      } // end of for (int i = 0; i < n; i++) // for each sibling s
-      fprintf(sibOut,"\n");
+	#if 0
+	faFile = string(inPar->mcDir) + string("/") + maxSibName + string(".fa");
+	seqRecs.clear();
+	readFasta( faFile.c_str(), seqRecs);
+	string sFile = string(inPar->outDir) + string("/") + node->label + string("__") + maxSibName + string(".postProbs");
+	FILE *sOut = fOpen( sFile.c_str(), "w");
+	for ( itr = seqRecs.begin(); itr != seqRecs.end(); ++itr )
+	{
+	  lpp = probModel->normLog10prob(itr->second.c_str(), (int)itr->second.size(), node->model_idx );
+	  fprintf(sOut,"%s\t%f\n", itr->first.c_str(), lpp);
+	}
+	fclose(sOut);
+	#endif
+      }
     }
 
     if ( numChildren )
