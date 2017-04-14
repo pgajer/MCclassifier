@@ -34,7 +34,7 @@
 
 =head1 EXAMPLE
 
-  generate_ref_outlier_files.pl
+  generate_ref_outlier_files.pl --debug
 
 =cut
 
@@ -128,9 +128,9 @@ if ($debug)
   printArrayValuedTblCounts(\%bTbl);
   print "\n";
 
-  print "bTbl:\n";
-  printArrayValuedTbl(\%bTbl);
-  print "\n\n";
+  # print "bTbl:\n";
+  # printArrayValuedTbl(\%bTbl);
+  # print "\n\n";
 }
 
 
@@ -199,13 +199,132 @@ close IN;
 
 if ($debug)
 {
-  print "after update bTbl:\n";
+  print "\n\nAfter update 1 bTbl:\n";
   printArrayValuedTblCounts(\%bTbl);
   print "\n";
 
-  print "bTbl:\n";
-  printArrayValuedTbl(\%bTbl);
+  # print "bTbl:\n";
+  # printArrayValuedTbl(\%bTbl);
+  # print "\n\n";
+}
+
+
+## ref_outliers_list3.txt was generated in modeling_ref_pp_p2.R
+
+$rFile = "/Users/pgajer/devel/MCextras/data/ref_outliers_list3.txt";
+if ( ! -e $rFile )
+{
+  warn "\n\n\tERROR: $rFile does not exist";
   print "\n\n";
+  exit 1;
+}
+
+open IN, "$rFile" or die "Cannot open $rFile for reading: $OS_ERROR\n";
+foreach (<IN>)
+{
+  next if /^#/;
+  next if /^\s+$/;
+
+  chomp;
+
+  if (/^S00/)
+  {
+    my ($id, $pp) = split /\s+/, $_;
+    push @ids, $id;
+  }
+  else
+  {
+    my $prefix = $_;
+    #print "line: $_\n";
+    $prefix =~ s/_dir\/bad_seqIDs\.pp//;
+    #print "prefix: $prefix\n";
+    my $dir;
+    if (exists $pTbl{$prefix})
+    {
+      $dir = $pTbl{$prefix};
+      my $key = $mainDir . $dir . "/$_";
+      push @{$bTbl{$key}}, @ids;
+      @ids = ();
+    }
+    else
+    {
+      warn "\n\n\tpTbl{$prefix} does not exit";
+      print "\n\n";
+      exit 1;
+    }
+  }
+}
+close IN;
+
+
+if ($debug)
+{
+  print "\n\nAfter update 2 bTbl:\n";
+  printArrayValuedTblCounts(\%bTbl);
+  print "\n";
+
+  # print "bTbl:\n";
+  # printArrayValuedTbl(\%bTbl);
+  # print "\n\n";
+}
+
+
+## ref_outliers_list4.txt was generated in modeling_ref_pp_p2.R
+
+$rFile = "/Users/pgajer/devel/MCextras/data/ref_outliers_list4.txt";
+if ( ! -e $rFile )
+{
+  warn "\n\n\tERROR: $rFile does not exist";
+  print "\n\n";
+  exit 1;
+}
+
+open IN, "$rFile" or die "Cannot open $rFile for reading: $OS_ERROR\n";
+foreach (<IN>)
+{
+  next if /^#/;
+  next if /^\s+$/;
+
+  chomp;
+
+  if (/^S00/)
+  {
+    my ($id, $pp) = split /\s+/, $_;
+    push @ids, $id;
+  }
+  else
+  {
+    my $prefix = $_;
+    #print "line: $_\n";
+    $prefix =~ s/_dir\/bad_seqIDs\.pp//;
+    #print "prefix: $prefix\n";
+    my $dir;
+    if (exists $pTbl{$prefix})
+    {
+      $dir = $pTbl{$prefix};
+      my $key = $mainDir . $dir . "/$_";
+      push @{$bTbl{$key}}, @ids;
+      @ids = ();
+    }
+    else
+    {
+      warn "\n\n\tpTbl{$prefix} does not exit";
+      print "\n\n";
+      exit 1;
+    }
+  }
+}
+close IN;
+
+if ($debug)
+{
+  print "\n\nAfter update 3 bTbl:\n";
+  printArrayValuedTblCounts(\%bTbl);
+  print "\n";
+
+  # print "bTbl:\n";
+  # printArrayValuedTbl(\%bTbl);
+  # print "\n\n";
 }
 
 
