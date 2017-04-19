@@ -446,19 +446,43 @@ int main(int argc, char **argv)
 	int i = 0;
 	sibnode = siblings[i];
 	lpp = probModel->normLog10prob(itr->second.c_str(), (int)itr->second.size(), sibnode->model_idx );
-	double secondHighLogPP = lpp;
+	double secondHighestLogPP = lpp;
+	int secondHighestIdx = i;
 
 	for (i = 1; i < nSiblings; i++)
 	{
 	  sibnode = siblings[i];
 	  lpp = probModel->normLog10prob(itr->second.c_str(), (int)itr->second.size(), sibnode->model_idx );
-	  if ( lpp > secondHighLogPP )
+	  if ( lpp > secondHighestLogPP )
 	  {
-	    secondHighLogPP = lpp;
+	    secondHighestLogPP = lpp;
+	    secondHighestIdx = i;
 	  }
 	}
 
-	fprintf(outFH,"\t%.3f\t%.3f", pow(10, maxLogPP), pow(10, secondHighLogPP));
+	if ( secondHighestLogPP > maxLogPP )
+	{
+	  maxLogPP = secondHighestLogPP;
+
+	  lpp = probModel->normLog10prob(itr->second.c_str(), (int)itr->second.size(), node->model_idx );
+	  secondHighestLogPP = lpp;
+
+	  for (i = 0; i < nSiblings; i++)
+	  {
+	    if ( i != secondHighestIdx )
+	    {
+	      sibnode = siblings[i];
+	      lpp = probModel->normLog10prob(itr->second.c_str(), (int)itr->second.size(), sibnode->model_idx );
+	      if ( lpp > secondHighestLogPP )
+	      {
+		secondHighestLogPP = lpp;
+		secondHighestIdx = i;
+	      }
+	    }
+	  }
+	}
+
+	fprintf(outFH,"\t%.3f\t%.3f", pow(10, maxLogPP), pow(10, secondHighestLogPP));
       }
       fprintf(outFH,"\n");
     } // if ( node != root )
