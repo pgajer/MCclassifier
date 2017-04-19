@@ -511,7 +511,14 @@ int main(int argc, char **argv)
 	    }
 
 	    if ( j==nSiblings )
+	    {
+	      string sFile = string(inPar->outDir) + string("/") + node->label + string("__") + sibnode->label + string(".fp");
+	      FILE *sOut = fOpen( sFile.c_str(), "a");
+	      lpp = probModel->normLog10prob(itr->second.c_str(), (int)itr->second.size(), siblings[i]->model_idx );
+	      fprintf(sOut,"%s\t%.6f\t%.3f\n", itr->first.c_str(), lpp, maxLogPP);
+	      fclose(sOut);
 	      nFP[i]++;
+	    }
 	  } // end of if ( lpp > maxLogPP )
 	} // end of for ( itr ...
       }
