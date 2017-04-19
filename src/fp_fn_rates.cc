@@ -326,7 +326,6 @@ int main(int argc, char **argv)
     }
     else if ( !inPar->kMerLens.size() )
     {
-      //inPar->kMerLens.clear();
       inPar->kMerLens.push_back(k);
     }
   }
@@ -386,12 +385,6 @@ int main(int argc, char **argv)
 
   string fpfnFile = string(inPar->outDir) + string("/all_taxons_fp_fn.rates");
   FILE *fpfnOut = fOpen( fpfnFile.c_str(), "w");
-
-  // string sibFile = string(inPar->outDir) + string("/sib.postProbs");
-  // FILE *sibOut = fOpen( sibFile.c_str(), "w");
-
-  // string sib2File = string(inPar->outDir) + string("/sib2.postProbs");
-  // FILE *sib2Out = fOpen( sib2File.c_str(), "w");
 
   // traverse the reference tree using breath first search
   NewickNode_t *node;
@@ -543,12 +536,6 @@ int main(int argc, char **argv)
 		nFP[i],
 		nSibs[i]);
       }
-
-      // if ( inPar->verbose )
-      // 	  fprintf(stderr, "\t%s maxPP: %.5f\n", sibnode->label.c_str(), pow(10, maxSibLogPP));
-      // if ( inPar->verbose )
-      // 	fprintf(stderr, "   minPP:  %.5f\n", pow(10, minRefLogPP));
-
     } // if ( node != root )
 
     if ( numChildren )
