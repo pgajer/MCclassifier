@@ -492,7 +492,7 @@ int main(int argc, char **argv)
 
 	for ( itr = seqRecs.begin(); itr != seqRecs.end(); ++itr )
 	{
-	  lpp = probModel->normLog10prob(itr->second.c_str(), (int)itr->second.size(), sibnode->model_idx );
+	  lpp = probModel->normLog10prob(itr->second.c_str(), (int)itr->second.size(), siblings[i]->model_idx );
 	  double maxLogPP = lpp;
 
 	  lpp = probModel->normLog10prob(itr->second.c_str(), (int)itr->second.size(), node->model_idx );
@@ -504,19 +504,14 @@ int main(int argc, char **argv)
 	    {
 	      if ( i != j )
 	      {
-		sibnode = siblings[j];
-		lpp = probModel->normLog10prob(itr->second.c_str(), (int)itr->second.size(), sibnode->model_idx );
+		lpp = probModel->normLog10prob(itr->second.c_str(), (int)itr->second.size(), siblings[j]->model_idx );
 		if ( lpp > maxLogPP )
-		{
 		  break; // some other sibling has even higher log pp than the node, so this sequence is not going to be FP for the node
-		}
 	      }
 	    }
 
 	    if ( j==nSiblings )
-	    {
 	      nFP[i]++;
-	    }
 	  } // end of if ( lpp > maxLogPP )
 	} // end of for ( itr ...
       }
@@ -525,10 +520,9 @@ int main(int argc, char **argv)
       {
 	double pFN = (double)nFN[i] / (double)nRef;
 	double pFP = (double)nFP[i] / (double)nSibs[i];
-	sibnode = siblings[i];
 	fprintf(fpfnOut,"%s\t%s\t%.3f\t%d\t%d\t%.3f\t%d\t%d\n",
 		node->label.c_str(),
-		sibnode->label.c_str(),
+		siblings[i]->label.c_str(),
 		pFN,
 		nFN[i],
 		nRef,
