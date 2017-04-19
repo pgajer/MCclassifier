@@ -441,31 +441,32 @@ int main(int argc, char **argv)
       for ( itr = seqRecs.begin(); itr != seqRecs.end(); ++itr )
       {
 	lpp = probModel->normLog10prob(itr->second.c_str(), (int)itr->second.size(), node->model_idx );
-	double maxLogPP = lpp;
+	double refLogPP = lpp;
 
 	int i = 0;
 	sibnode = siblings[i];
 	lpp = probModel->normLog10prob(itr->second.c_str(), (int)itr->second.size(), sibnode->model_idx );
-	double secondHighestLogPP = lpp;
-	int secondHighestIdx = i;
+	double sibMaxLogPP = lpp;
+	//int secondHighestIdx = i;
 
 	for (i = 1; i < nSiblings; i++)
 	{
 	  sibnode = siblings[i];
 	  lpp = probModel->normLog10prob(itr->second.c_str(), (int)itr->second.size(), sibnode->model_idx );
-	  if ( lpp > secondHighestLogPP )
+	  if ( lpp > sibMaxLogPP )
 	  {
-	    secondHighestLogPP = lpp;
-	    secondHighestIdx = i;
+	    sibMaxLogPP = lpp;
+	    //secondHighestIdx = i;
 	  }
 	}
 
-	if ( secondHighestLogPP > maxLogPP )
+	#if 0
+	if ( sibMaxLogPP > refLogPP ) // if we were to care about the max pp and the second largest pp
 	{
-	  maxLogPP = secondHighestLogPP;
+	  refLogPP = sibMaxLogPP;
 
 	  lpp = probModel->normLog10prob(itr->second.c_str(), (int)itr->second.size(), node->model_idx );
-	  secondHighestLogPP = lpp;
+	  sibMaxLogPP = lpp;
 
 	  for (i = 0; i < nSiblings; i++)
 	  {
@@ -473,16 +474,17 @@ int main(int argc, char **argv)
 	    {
 	      sibnode = siblings[i];
 	      lpp = probModel->normLog10prob(itr->second.c_str(), (int)itr->second.size(), sibnode->model_idx );
-	      if ( lpp > secondHighestLogPP )
+	      if ( lpp > sibMaxLogPP )
 	      {
-		secondHighestLogPP = lpp;
+		sibMaxLogPP = lpp;
 		secondHighestIdx = i;
 	      }
 	    }
 	  }
 	}
+	#endif
 
-	fprintf(outFH,"\t%.3f\t%.3f", pow(10, maxLogPP), pow(10, secondHighestLogPP));
+	fprintf(outFH,"\t%.3f\t%.3f", pow(10, refLogPP), pow(10, sibMaxLogPP));
       }
       fprintf(outFH,"\n");
     } // if ( node != root )
