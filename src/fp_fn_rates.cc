@@ -66,7 +66,7 @@ void printUsage( const char *s )
        << "  sib_j model was the winner and nFP_j is the number of sib_j's reference sequences\n"
        << "  for which the taxon model was the winner.\n"
        << endl
-       << s << " -d < MC models directory> -o <output directory> [Options]\n"
+       << "  " << s << " -d < MC models directory> -o <output directory> [Options]\n"
        << endl
        << "\tOptions:\n"
        << "\t-d <dir>       - directory containing MC model files and reference sequences fasta files\n"
@@ -74,7 +74,7 @@ void printUsage( const char *s )
 
        << "\n\tExample: \n"
 
-       << s << " -v -d Firmicutes_group_5_V3V4_MC_models_dir -o Firmicutes_group_5_V3V4_fp_fn_rates_dir" << endl << endl;
+       << "\t" << s << " -v -d Firmicutes_group_5_V3V4_MC_models_dir -o Firmicutes_group_5_V3V4_fp_fn_rates_dir" << endl << endl;
 }
 
 
@@ -85,14 +85,7 @@ void printHelp( const char *s )
 
     cout << endl
 	 << "  File generated:\n"
-	 << "  - all_taxons_fp_fn.rates. File format: taxonName\tfp\tfn\n"
-	 // << "  - sib.postProbs. File format: refTaxonName\t log10pp's ....\n"
-      	 // << "  - sib2.postProbs. File format: refTaxonName\tsibTaxonName\t log10pp's for only the specified sibling\n"
-	 // << "  - taxon.postProbs. File format: seqID log10pp (in each row)\n"
-	 // << "  - refTaxon__sibTaxon.postProbs. File format: seqID log10pp (in each row,\n"
-	 // << "    where log10pp are log10 posterior probabilities of sibling ref seq's w/r to the ref model/taxon)\n"
-         // << "    This file is created only when the max( sib.pp) > min( ref.pp)\n"
-	 // << "    This file is created for all sibling species of the reference taxon\n"
+	 << "  - all_taxons_fp_fn.rates. File format: tx\tsib\tpFN\tnFN\tnRef\tpFP\tnFP\tnSibs\n"
 	 << endl << endl;
 }
 
@@ -428,7 +421,7 @@ int main(int argc, char **argv)
     {
       if ( inPar->verbose )
       {
-	fprintf(stderr, "--- [%d] Processing %s", nodeCount, node->label.c_str());
+	fprintf(stderr, "--- [%d] Processing %s\n", nodeCount, node->label.c_str());
 	nodeCount++;
       }
 
