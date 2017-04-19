@@ -23,6 +23,9 @@
 =item B<--output-file, -o>
   Output file.
 
+=item B<--quiet>
+  Do not print progress messages.
+
 =item B<-h|--help>
   Print help message and exit successfully.
 
@@ -31,7 +34,7 @@
 
 =head1 EXAMPLE
 
-  extract_seq_IDs.pl -i test.fa -o test.seqIDs
+  extract_seq_IDs.pl --quiet -i test.fa -o test.seqIDs
 
 =cut
 
@@ -51,6 +54,7 @@ $OUTPUT_AUTOFLUSH = 1;
 GetOptions(
   "input-file|i=s"  => \my $inFile,
   "output-file|o=s" => \my $outFile,
+  "quiet"           => \my $quiet,
   "help|h!"         => \my $help,
   )
   or pod2usage(verbose => 0,exitstatus => 1);
@@ -82,7 +86,7 @@ my $junkFirstOne = <IN>;
 my $count = 0;
 while (<IN>)
 {
-  if ($count % 500 == 0)
+  if ( !$quiet && ($count % 500 == 0) )
   {
     $endRun = time();
     $runTime = $endRun - $startRun;
@@ -117,6 +121,6 @@ while (<IN>)
 close OUT;
 close IN;
 
-print "\rOutput written to $outFile\n";
+print "\rOutput written to $outFile\n" if !$quiet;
 
 exit 0;
