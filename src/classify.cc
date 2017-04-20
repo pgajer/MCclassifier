@@ -47,18 +47,18 @@ void printUsage( const char *s )
        << endl
        << " Using prebuilt MC models to classify sequences of an input fasta file" << endl
        << endl
-       << s << " -d < MC models directory> -r <ref tree> -i <input fasta file> -o <output directory> [Options]" << endl
+       << s << " -d < MC models directory> -i <input fasta file> -o <output directory> [Options]" << endl
        << endl
        << "\tOptions:\n"
-       << "\t-d <dir>      - directory containing MC model files\n"
-       << "\t-o <dir>      - output directory for MC taxonomy files\n"
-       << "\t-i <inFile>   - input fasta file with sequences for which -log10(prob(seq | model_i)) are to be computed\n"
-       << "\t-r <ref tree> - reference tree with node labels corresponding to the names of the model files\n"
-       << "\t-t <trgFile>  - file containing paths to training fasta files\n"
-       << "\t-f <fullTx>   - fullTx file. Its optional parameter for printing classification output in a long format like in RDP classifier\n"
-       << "\t-g <faDir>    - directory with reference fasta files\n"
-       << "\t-e <seqID>    - sequence ID of a sequence from the training fasta files that is to be excluded\n"
-       << "                  from model building and needs to be used for cross validation\n"
+       << "\t-d <dir>        - directory containing MC model files\n"
+       << "\t-o <dir>        - output directory for MC taxonomy files\n"
+       << "\t-i <inFile>     - input fasta file with sequences for which -log10(prob(seq | model_i)) are to be computed\n"
+       << "\t-r <model tree> - model tree with node labels corresponding to the names of the model files\n"
+       << "\t-t <trgFile>    - file containing paths to training fasta files\n"
+       << "\t-f <fullTx>     - fullTx file. Its optional parameter for printing classification output in a long format like in RDP classifier\n"
+       << "\t-g <faDir>      - directory with reference fasta files\n"
+       << "\t-e <seqID>      - sequence ID of a sequence from the training fasta files that is to be excluded\n"
+       << "                    from model building and needs to be used for cross validation\n"
        << "\t--rev-comp, -c          - reverse complement query sequences before computing classification posterior probabilities\n"
        << "\t--skip-err-thld         - classify all sequences to the species level\n"
        << "\t--max-num-amb-codes <n> - maximal acceptable number of ambiguity codes for a sequence\n"
@@ -89,7 +89,7 @@ void printUsage( const char *s )
 
        << "\n\tExample: \n"
 
-       << s << " -d vaginal_v2_MCdir -r vaginal_v2_dir/model.tree -f vaginal_v2.fullTx -i vaginal_v2.1.fa -o testDir" << endl << endl
+       << s << " -d vaginal_v2_MCdir -f vaginal_v2.fullTx -i vaginal_v2.1.fa -o testDir" << endl << endl
        << s << " -d vaginal_v2_MCdir -r vaginal_v2_dir/model.tree -i vaginal_v2.1.fa -o testDir" << endl << endl
        << s << " -e 2BVBACT-97 -t vaginal_v2_dir/spp_paths.txt -k 8 -r vaginal_sppCondensed_v2i.tree -o testDir" << endl << endl;
 }
@@ -345,20 +345,13 @@ int main(int argc, char **argv)
   }
 
 
-  map<string, errTbl_t *> modelErrTbl;
+  //map<string, errTbl_t *> modelErrTbl;
   map<string, double> thldTbl;
   if ( inPar->mcDir ) // extracting number of models and k-mer size
   {
     string inFile(inPar->mcDir);
     inFile += "/modelIds.txt";
     FILE *in = fopen(inFile.c_str(), "r");
-    // if ( !in )
-    // {
-    //   cerr << "Cannot read model ids in " << __FILE__ << " at line " << __LINE__ << endl;
-    //   exit(1);
-    // }
-    // fclose(in);
-
     if ( in )
     {
       vector<char *> modelIds;
@@ -368,7 +361,7 @@ int main(int argc, char **argv)
       if ( !inPar->skipErrThld )
       {
 	// reading ncProbThlds.txt file
-	string file = string(inPar->mcDir) + string("/ncProbThlds.txt");
+	string file = string(inPar->mcDir) + string("/error_thlds.txt");
 	double **thlds;
 	int nrow, ncol;
 	char **rowNames;
@@ -376,7 +369,6 @@ int main(int argc, char **argv)
 	readTable( file.c_str(), &thlds, &nrow, &ncol, &rowNames, &colNames );
 	for ( int i = 0; i < nrow; i++ )
 	  thldTbl[string(rowNames[i])] = thlds[i][0];
-
 #if 0
 	map<string, double>::iterator it;
 	cerr << "thldTbl" << endl;
@@ -385,45 +377,7 @@ int main(int argc, char **argv)
 	cerr << endl;
 	exit(1);
 #endif
-
-	// reading _error.txt files
-	for ( int i = 0; i < nModels; ++i )
-	{
-	  string file = string(inPar->mcDir) + string("/") + string(modelIds[i]) + string("_error.txt");
-	  double **errTbl;
-	  int nrow, ncol;
-	  int header = 0;
-	  readMatrix( file.c_str(), &errTbl, &nrow, &ncol, header );
-
-	  errTbl_t *errObj = new errTbl_t;
-	  errObj->errTbl = errTbl;
-	  errObj->nrow = nrow;
-
-	  if ( ncol != 2 )
-	  {
-	    fprintf(stderr, "ERROR in %s at line %d: errTbl should have two columns and ncol=%d", __FILE__, __LINE__, ncol);
-	    fprintf(stderr, "%s: \n", modelIds[i]);
-	    printDblTbl(errTbl, nrow, ncol);
-	    exit(1);
-	  }
-
-	  errObj->thld = errTbl[0][0];
-
-	  MALLOC(errObj->x, double*, nrow * sizeof(double));
-	  for ( int j = 0; j < nrow; ++j )
-	    errObj->x[j] = errTbl[j][0];
-
-	  errObj->xmax = errTbl[nrow-1][0];
-
-	  modelErrTbl[ modelIds[i] ] = errObj;
-
-	  // fprintf(stderr, "%s: \n", modelIds[i]);
-	  // printDblTbl(errTbl, nrow, ncol);
-	  // fprintf(stderr, "\nthld=%f\n", errObj->thld);
-	  // exit(1);
-	}
       }
-
 
       for ( int i = 0; i < nModels; ++i )
 	free(modelIds[i]);
@@ -470,8 +424,7 @@ int main(int argc, char **argv)
   }
   else
   {
-    // lets see if we can find ref tree in mcDir
-    // model.tree
+    // Lets see if we can find a model tree in mcDir
     string trFile = string(inPar->mcDir) + "/model.tree";
     STRDUP(inPar->treeFile, trFile.c_str());
 
@@ -485,7 +438,7 @@ int main(int argc, char **argv)
 
   int depth = nt.getDepth();
   if ( inPar->verbose )
-    cerr << "--- Depth of the reference tree: " << depth << endl;
+    cerr << "--- Depth of the model tree: " << depth << endl;
 
   if ( inPar->kMerLens.size() == 0 )
   {
@@ -524,17 +477,6 @@ int main(int argc, char **argv)
   vector<string> modelStrIds;
   probModel->modelIds( modelStrIds );
 
-  #if 0
-  map<string, errTbl_t *>::iterator itr = modelErrTbl.begin();
-  for ( ; itr != modelErrTbl.end(); ++itr )
-  {
-    errTbl_t *errObj = itr->second;
-    fprintf(stderr, "\n\n%s\tthld=%f\n", itr->first.c_str(), errObj->thld);
-    printDblTbl(errObj->errTbl, errObj->nrow, errObj->ncol);
-  }
-  exit(1);
-  #endif
-
   nt.modelIdx( modelStrIds );
 
   char str[10];
@@ -554,11 +496,11 @@ int main(int argc, char **argv)
 
   // double *aLogOdds;
   // MALLOC(aLogOdds, double*, depth * sizeof(double));
+  //int depthCount;
 
   vector<string> path; // decision path tranced from the root to the final node for each query sequence
   char *id;
   int count = 0;
-  //int depthCount;
   string currentLabel;
   double x[nModels]; // stores conditional probabilities p(x | M) for children of each node. the root node has 3 children
 
@@ -570,11 +512,6 @@ int main(int argc, char **argv)
 
   if ( nRecs > 1000 )
     q01 = int(0.01 * nRecs);
-
-  pair<string, double> tx2score;
-  // vector< pair<string, double> > score; // quality score table taxonomy => score, where
-  //                                       // the score is a measure of uncertainty about
-  //                                       // classification of a given sequence to 'taxonomy'
 
   int seqLen;
   size_t alloc = 1024*1024;
@@ -666,14 +603,15 @@ int main(int argc, char **argv)
       rcseq[seqLen] = '\0';
     }
 
-    // traverse the reference tree at each node making a choice of a model
-    // and checking log odds of the best model, M, against 'not-M' model
-
+    //
+    // Traverse the model tree and at each node select a model with the highest
+    // posterior probability of the sequence coming from the model, given the
+    // posterior probability is above the error threshold of the model.
+    //
     NewickNode_t *node = nt.root();
     int numChildren = node->children_m.size();
     //path.clear();
     //path.push_back( node->label );
-    double err = 0;
     int breakLoop = 0;
 
 
@@ -693,13 +631,6 @@ int main(int argc, char **argv)
 	fprintf(debugout,"\t%s\n", node->children_m[i]->label.c_str()) ;
 #endif
 
-    #if 0
-    double y[2];
-    y[0] = 0;
-    y[1] = 0;
-    #endif
-
-    //score.clear();
     //int depthCount = 1;
     while ( numChildren && !breakLoop )
     {
@@ -707,13 +638,6 @@ int main(int argc, char **argv)
       // NOTE: after a few iterations only seq or rcseq should be processed !!!
       for ( int i = 0; i < numChildren; i++ )
       {
-	#if 0
-	double x1 = probModel->normLog10prob(seq, seqLen, (node->children_m[i])->model_idx );
-	double x2 = probModel->normLog10prob(rcseq, seqLen, (node->children_m[i])->model_idx );
-	x[i] = ( x1 > x2 ) ? x1 : x2;
-	if ( x2 > x1 ) rcseqCount++; else seqCount++;
-	#endif
-
 	if ( inPar->revComp )
 	{
 	  x[i] = probModel->normLog10prob(rcseq, seqLen, (node->children_m[i])->model_idx );
@@ -722,31 +646,6 @@ int main(int argc, char **argv)
 	{
 	  x[i] = probModel->normLog10prob(seq, seqLen, (node->children_m[i])->model_idx );
 	}
-
-        #if 0
-	if ( (node->children_m[i])->label=="g_Lactobacillus" )
-	{
-	  y[0] = x[i];
-	}
-
-	if ( (node->children_m[i])->label=="g_Pediococcus" )
-	{
-	  y[1] = x[i];
-	}
-
-	if ( (node->children_m[i])->label=="g_Lactobacillus" )
-	{
-	  //errTbl_t *errObj = modelErrTbl[ (node->children_m[i])->label ];
-	  //fprintf(liout,"---- Evaluating MC model of %s\tLogPostProb: %f\terrThld: %f\n", (node->children_m[i])->label.c_str(), x[i], errObj->thld);
-	  fprintf(liout,"%s,%f\n", id, x[i]);
-	}
-	#endif
-
-	#if DEBUGMAIN1
-	errTbl_t *errObj = modelErrTbl[ (node->children_m[i])->label ];
-	fprintf(debugout,"---- Evaluating MC model of %s\tLogPostProb: %f\terrThld: %f\n", (node->children_m[i])->label.c_str(), x[i], errObj->thld);
-	//fprintf(debugout,"---- Evaluating MC model of %s\tclErr: %f\tOrientation used: %s\n", (node->children_m[i])->label.c_str(), x[i], ( x1 > x2 ) ? "seq" : "rcSeq") ;
-	#endif
       }
 
       int imax = which_max( x, numChildren );
@@ -782,22 +681,35 @@ int main(int argc, char **argv)
 
       if ( !inPar->skipErrThld )
       {
-	errTbl_t *errObj = modelErrTbl[ node->label ];
+	if ( x[imax] < thldTbl[ node->label ] )
+	{
+	  #if 0
+	  fprintf(stderr,"\n---- Processing %s\n",id) ;
+	  fprintf(stderr,"maxModel: %s\tlpp: %.4f\tthld: %.4f\t",
+		  node->label.c_str(), x[imax], thldTbl[ node->label ]);
 
-	if ( x[imax] > errObj->thld )
-	{
-	  if ( x[imax] > errObj->xmax )
+	  map<string, string>::iterator itr;
+	  map<string, string> seqRecs; // fasta file sequence records
+
+	  string faFile = string(inPar->mcDir) + string("/") + node->label + string(".fa");
+	  seqRecs.clear();
+	  readFasta( faFile.c_str(), seqRecs);
+	  int nRefSeqs = seqRecs.size();
+
+	  vector<double> lpp(nRefSeqs);
+	  double minLpp = 1.0;
+	  int i = 0;
+	  for ( itr = seqRecs.begin(); itr != seqRecs.end(); ++itr )
 	  {
-	    err = 0;
+	    lpp[i] = probModel->normLog10prob(itr->second.c_str(), (int)itr->second.size(), node->model_idx );
+	    if ( lpp[i] < minLpp )
+	      minLpp = lpp[i];
+	    i++;
 	  }
-	  else
-	  {
-	    int ierr = bsearchDbl( errObj->x, errObj->nrow, x[imax] );
-	    err = errObj->errTbl[ierr][1];
-	  }
-	}
-	else
-	{
+
+	  fprintf(stderr,"min lpp: %.4f\n", minLpp);
+	  #endif
+
 	  node = node->parent_m;
 	  breakLoop = 1;
 
@@ -806,25 +718,15 @@ int main(int argc, char **argv)
 	}
 
         #if DEBUGMAIN1
-	fprintf(debugout,"xmax: %s\tLogPostProb=%f\tthld=%f\txmax=%f\terr=%f\n",
-		node->label.c_str(), x[imax], errObj->thld, errObj->xmax, err);
+	fprintf(debugout,"maxModel: %s\tlpp: %.4f\tthld: %.4f\n",
+		node->label.c_str(), x[imax], thldTbl[ node->label ]);
         #endif
-
-
-	//score.push_back( tx2score );
       }
 
-      // tx2score.first = node->label;
-      // tx2score.second = err;
-
-      //currentLabel = node->label;
-      //path.push_back( node->label );
       numChildren = node->children_m.size();
     }
 
-    fprintf(out,"%s\t%s\t%.4f\n", id, node->label.c_str(), err);
-    //fprintf(out,"%s\t%s\n", id, node->label.c_str());
-    //fprintf(out,"%s\t%s\t%.2f\n", id, tx2score.first.c_str(), tx2score.second);
+    fprintf(out,"%s\t%s\n", id, node->label.c_str());
 
     #if SPPDEBUG
     if ( node->label=="f_Lactobacillaceae" )
