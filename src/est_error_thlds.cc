@@ -308,6 +308,7 @@ int main(int argc, char **argv)
 
   string outFile = string(inPar->mcDir) + string("/error_thlds.txt");
   FILE *outFH = fOpen( outFile.c_str(), "w");
+  fprintf(outFH,"Taxon\tThreshold\n");
 
   // traverse the reference tree using breath first search
   NewickNode_t *node;
