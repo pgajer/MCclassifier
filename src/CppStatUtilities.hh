@@ -26,6 +26,7 @@ OR PERFORMANCE OF THIS SOFTWARE.
 #include <stdio.h>
 #include <vector>
 #include <stdlib.h>
+#include <algorithm>    // std::sort
 #include "CStatUtilities.h"
 
 using namespace std;
@@ -76,6 +77,7 @@ void madInPlace( double * a, int n, double * res, double & median, double & mad,
 double median( double *a, double *w, int start, int end );
 double median( double *a, int start, int end );
 double median( double *a, int dataLen );
+double median(vector<double> v);
 
 double * percentiles( const double * data, int dataLen, const double * prob, int probLen, int perSize );
 

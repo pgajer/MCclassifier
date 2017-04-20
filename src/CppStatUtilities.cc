@@ -336,7 +336,6 @@ double median( double * data, int dataLen )
   return median( data, 0, dataLen-1 );
 }
 
-
 //---------------------------------------------------------- percentiles ----
 //! computes percentiles of array data of length dataLen
 //! the precentiles are given by an array prob (its values have to be between 0 and 1)
