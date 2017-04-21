@@ -444,60 +444,77 @@ foreach my $i (0..($nFolds-1))
   ## percentage of correctly classified seq's from common species
   my $pCorrectClCommSpp = 100.0 * $nCorrectClCommSpp / $nTestIDsCommSpp;
 
-  print "\r[$i] Test size: $nTestIDs                                                                                                      \n";
-  print "[$i] No. test seqIDs from spp present in test and train sets: $nTestIDsCommSpp\n";
-  print "[$i] Percentage correctly classified test seq's from common species: " . sprintf("%.2f", $pCorrectClCommSpp) . "\n";
+  ## Identifying species present in test but not training. Novel species from the point of view of the training dataset
+  my @novelSpp = diff(\@uqTestSpp, \@uqTrainSpp);
+  my $pNovelSppClErrors = "NA";
+  my $nNovelSppClErrors = "NA";
+  my $nNovelSppTestIDs  = "NA";
+  if (@novelSpp > 0)
+  {
+    my %novelSppTbl = map { $_ => 1 } @novelSpp;
+
+    ## seq IDs in the test set from the novel species
+    my @novelSppTestIDs = grep { exists $novelSppTbl{$testTx{$_}} } keys %testTx;
+    $nNovelSppTestIDs = @novelSppTestIDs;
+
+    ## number of misclassified novel species. A novel species is misclassified if
+    ## it is classified to any species. We know that no species classification
+    ## cannot be correct b/c these species are not present in the training dataset.
+    $nNovelSppClErrors = 0;
+    for (@novelSppTestIDs)
+    {
+      if ( $clTx{$_} !~ /^sg_/ && $clTx{$_} !~ /^\w_/ )
+      {
+	$nNovelSppClErrors++;
+      }
+    }
+
+    ## percentage of correctly classified seq's from common species
+    $pNovelSppClErrors = 100.0 * $nNovelSppClErrors / $nNovelSppTestIDs;
+  }
+
+  print "\r[$i] No. known spp: " . @commSpp . "                                                                                                 \n";
+  print "[$i] No. novel spp: " . @novelSpp . "\n";
+  print "[$i] No. test seq's: $nTestIDs                                                                                                      \n";
+  print "[$i] Number seq's from known species:                          $nTestIDsCommSpp\n";
+  print "[$i] Number correctly classified seq's from known species:     $nCorrectClCommSpp\n";
+  print "[$i] Percentage correctly classified seq's from known species: " . sprintf("%.2f%%", $pCorrectClCommSpp) . "\n";
 
   print ROUT "$i\t$nTestIDs\t". sprintf("%.2f", $pCorrectClCommSpp) . "\t$nCorrectClCommSpp\t$nTestIDsCommSpp\t";
 
-  ## Identifying species present in test but not training. Novel species from the point of view of the training dataset
-  my @novelSpp = diff(\@uqTestSpp, \@uqTrainSpp);
-  my %novelSppTbl = map { $_ => 1 } @novelSpp;
-
-  ## seq IDs in the test set from the novel species
-  my @novelSppTestIDs = grep { exists $novelSppTbl{$testTx{$_}} } keys %testTx;
-  my $nNovelSppTestIDs = @novelSppTestIDs;
-
-  ## number of misclassified novel species. A novel species is misclassified if
-  ## it is classified to any species. We know that no species classification
-  ## cannot be correct b/c these species are not present in the training dataset.
-  my $nNovelSppClErrors = 0;
-  for (@novelSppTestIDs)
+  if (@novelSpp > 0)
   {
-    if ( $clTx{$_} !~ /^sg_/ && $clTx{$_} !~ /^\w_/ )
-    {
-      $nNovelSppClErrors++;
-    }
-  }
-
-  ## percentage of correctly classified seq's from common species
-  my $pNovelSppClErrors = 100.0 * $nNovelSppClErrors / $nNovelSppTestIDs;
-
-  print "[$i] No. misclassified novel species: $nNovelSppClErrors\n";
-  print "[$i] Percentage misclassified novel species: " . sprintf("%.2f", $pNovelSppClErrors) . "\n";
-
-  print ROUT sprintf("%.2f", $pNovelSppClErrors) . "\t$nNovelSppClErrors\t$nNovelSppTestIDs\n";
-
-  $endRun = time();
-  $runTime = $endRun - $startRun;
-  if ( $runTime > 60 )
-  {
-    $timeMin = int($runTime / 60);
-    $timeSec = sprintf("%02d", $runTime % 60);
-    $timeStr = "$timeMin:$timeSec";
+    print "[$i] Number seq's from novel species:                          $nNovelSppTestIDs\n";
+    print "[$i] Number misclassified novel species:                       $nNovelSppClErrors\n";
+    print "[$i] Percentage misclassified novel species:                   " . sprintf("%.2f%%", $pNovelSppClErrors) . "\n";
+    print ROUT sprintf("%.2f", $pNovelSppClErrors) . "\t$nNovelSppClErrors\t$nNovelSppTestIDs\n";
   }
   else
   {
-    $runTime = sprintf("%02d", $runTime);
-    $timeStr = "$timeMin:$runTime";
+    print ROUT "NA\tNA\t0\n";
   }
+  print "\n";
 
-  $startRun = time();
-  print "[$i] Completed in $timeStr\n\n";
 }
 close ROUT;
 
-print "\n\n\tReport writtent to $grDir/$cvReportFile\n\n";
+$endRun = time();
+$runTime = $endRun - $startRun;
+if ( $runTime > 60 )
+{
+  $timeMin = int($runTime / 60);
+  $timeSec = sprintf("%02d", $runTime % 60);
+  $timeStr = "$timeMin:$timeSec";
+}
+else
+{
+  $runTime = sprintf("%02d", $runTime);
+  $timeStr = "$timeMin:$runTime";
+}
+
+$startRun = time();
+print "\n\tCompleted in $timeStr\n\n";
+print "\tReport writtent to $grDir/$cvReportFile\n\n";
 
 ####################################################################
 ##                               SUBS
