@@ -23,6 +23,17 @@
 =item B<--num-folds, -n>
   Number of folds. That is the number of parts into which the data is split.
 
+=item B<--offset-coef, -o>
+  offset = log10(offsetCoef) is the amount of log10 posterior probability below the
+  min(pp) that the error threshold is set.  Default value of offset coef: 0.99.
+
+=item B<--tx-size-thld, -t>
+  Size of taxon (number of its ref seq's) below which error threshold is computed
+  differently than for the taxons of size at or above the threshold.
+
+=item B<--skip-err-thld>
+  Apply --skip-err-thld to the classifier
+
 =item B<--verbatim, -v>
   Prints content of some output files.
 
@@ -40,7 +51,7 @@
 
 =head1 EXAMPLE
 
-  pecan_cv.pl --offset-coef 0.9 -n 10 -i Firmicutes_group_6_V3V4
+  pecan_cv.pl --skip-err-thld --offset-coef 0.9 -n 10 -i Firmicutes_group_6_V3V4
 
 =cut
 
@@ -65,10 +76,11 @@ GetOptions(
   "num-folds|n=i"    => \my $nFolds,
   "offset-coef|o=f"  => \$offsetCoef,
   "tx-size-thld|t=i" => \$txSizeThld,
-  "verbose|v"       => \my $verbose,
-  "debug"           => \my $debug,
-  "dry-run"         => \my $dryRun,
-  "help|h!"         => \my $help,
+  "skip-err-thld"    => \my $skipErrThld,
+  "verbose|v"        => \my $verbose,
+  "debug"            => \my $debug,
+  "dry-run"          => \my $dryRun,
+  "help|h!"          => \my $help,
   )
   or pod2usage(verbose => 0,exitstatus => 1);
 
@@ -117,6 +129,12 @@ my $verboseStr = "";
 if ($verbose)
 {
   $verboseStr = "--verbose";
+}
+
+my $skipErrThldStr = "";
+if ($skipErrThld)
+{
+  $skipErrThldStr = "--skip-err-thld";
 }
 
 my $grDir = $grPrefix . "_dir";
@@ -356,7 +374,7 @@ foreach my $i (0..($nFolds-1))
   system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 
   print "\r[$i] Running classify on test fasta file                               ";
-  $cmd = "classify -d $mcDir -i $testFaFile -o $cvDir";
+  $cmd = "classify $skipErrThldStr -d $mcDir -i $testFaFile -o $cvDir";
   print "\tcmd=$cmd\n" if $dryRun || $debug;
   system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 
