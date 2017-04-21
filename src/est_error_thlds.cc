@@ -49,12 +49,14 @@ void printUsage( const char *s )
 
        << "USAGE " << endl
        << endl
-       << "  Estimated error thresholds.\n"
+       << "  Estimating error thresholds.\n"
        << endl
        << "  " << s << " -d < MC models directory> [Options]\n"
        << endl
        << "\tOptions:\n"
-       << "\t-d <dir>       - directory containing MC model files and reference sequences fasta files\n"
+       << "\t-d <dir>           - directory containing MC model files and reference sequences fasta files\n"
+       << "\t--offset-coef <x>  - offset = log10(x). Currently x=0.99\n"
+       << "\t--tx-size-thld <x> - currently 10\n"
 
        << "\n\tExample: \n"
 
@@ -93,6 +95,8 @@ public:
   int pseudoCountType;      /// pseudo-count type; see MarkovChains2.hh for possible values
   bool verbose;
   int debug;
+  double offsetCoef;
+  int txSizeThld;
 
   void print();
 };
@@ -110,6 +114,8 @@ inPar_t::inPar_t()
   pseudoCountType = recPdoCount;
   verbose         = false;
   debug           = 0;
+  offsetCoef      = 0.99;
+  txSizeThld      = 10;
 }
 
 //------------------------------------------------- constructor ----
@@ -325,8 +331,8 @@ int main(int argc, char **argv)
   double lpp05_lm_slope = 1.7616856635393693952807;
   double lpp05_lm_yintt = -0.0040643504058342633245;
 
-  int txSizeThld        = 10; // taxons with less than this thld seq's are threated differently
-  double offset         = log10(0.99); // for tx's with at least txSizeThld
+  int txSizeThld = inPar->txSizeThld; // taxons with less than this thld seq's are threated differently
+  double offset  = log10(inPar->offsetCoef); // for tx's with at least txSizeThld
 				       // elements, the error thld is set to
 				       // 0.99*min(pp), which corresponds to
 				       // offset + min(lpp) in the log10 scale
@@ -415,20 +421,29 @@ void parseArgs( int argc, char ** argv, inPar_t *p )
   static struct option longOptions[] = {
     {"print-counts"       ,no_argument, &p->printCounts,    1},
     {"max-num-amb-codes"  ,required_argument, 0,          'b'},
+    {"offset-coef"        ,required_argument, 0,          'c'},
+    {"tx-size-thld"       ,required_argument, 0,          's'},
     {"fasta-dir"          ,required_argument, 0,          'f'},
     {"ref-tree"           ,required_argument, 0,          'r'},
     {"pseudo-count-type"  ,required_argument, 0,          'p'},
-    {"sample-size"        ,required_argument, 0,          's'},
     {"help"               ,no_argument,       0,            0},
     {"debug"              ,no_argument, &p->debug,          0},
     {0, 0, 0, 0}
   };
 
-  while ((c = getopt_long(argc, argv,"b:d:e:f:t:i:k:vp:r:s:h",longOptions, NULL)) != -1)
+  while ((c = getopt_long(argc, argv,"b:c:d:e:f:i:k:vp:r:s:t:h",longOptions, NULL)) != -1)
     switch (c)
     {
       case 'b':
 	p->maxNumAmbCodes = atoi(optarg);
+	break;
+
+      case 'c':
+	p->offsetCoef = atof(optarg);
+	break;
+
+      case 's':
+	p->txSizeThld = atoi(optarg);
 	break;
 
       case 'r':
