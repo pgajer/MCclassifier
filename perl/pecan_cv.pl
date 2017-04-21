@@ -236,7 +236,9 @@ print ROUT "itr\tsize\tpTPcommSpp\tnTPcommSpp\tnIDsCommSpp\tpFPnovelSpp\tnFPnove
 
 print "\r                                                                                              ";
 
+##
 ## cross-validation loop
+##
 foreach my $i (0..($nFolds-1))
 {
   print "\r[$i] Creating cross-validation directory";
@@ -473,20 +475,20 @@ foreach my $i (0..($nFolds-1))
     $pNovelSppClErrors = 100.0 * $nNovelSppClErrors / $nNovelSppTestIDs;
   }
 
-  print "\r[$i] No. known spp: " . @commSpp . "                                                                                                 \n";
-  print "[$i] No. novel spp: " . @novelSpp . "\n";
-  print "[$i] No. test seq's: $nTestIDs                                                                                                      \n";
-  print "[$i] Number seq's from known species:                          $nTestIDsCommSpp\n";
-  print "[$i] Number correctly classified seq's from known species:     $nCorrectClCommSpp\n";
-  print "[$i] Percentage correctly classified seq's from known species: " . sprintf("%.2f%%", $pCorrectClCommSpp) . "\n";
+  print "\r[$i] No. known spp:                                       " . @commSpp . "                                       \n";
+  print "[$i] No. novel spp:                                       " . @novelSpp . "\n";
+  print "[$i] No. test seq's:                                      $nTestIDs       \n";
+  print "[$i] No. seq's from known species:                        $nTestIDsCommSpp\n";
+  print "[$i] No. correctly classified seq's from known species:   $nCorrectClCommSpp\n";
+  print "[$i] Perc. correctly classified seq's from known species: " . sprintf("%.2f%%", $pCorrectClCommSpp) . "\n";
 
   print ROUT "$i\t$nTestIDs\t". sprintf("%.2f", $pCorrectClCommSpp) . "\t$nCorrectClCommSpp\t$nTestIDsCommSpp\t";
 
   if (@novelSpp > 0)
   {
-    print "[$i] Number seq's from novel species:                          $nNovelSppTestIDs\n";
-    print "[$i] Number misclassified novel species:                       $nNovelSppClErrors\n";
-    print "[$i] Percentage misclassified novel species:                   " . sprintf("%.2f%%", $pNovelSppClErrors) . "\n";
+    print "[$i] No. seq's from novel species:                        $nNovelSppTestIDs\n";
+    print "[$i] No. misclassified novel species:                     $nNovelSppClErrors\n";
+    print "[$i] Perc. misclassified novel species:                   " . sprintf("%.2f%%", $pNovelSppClErrors) . "\n";
     print ROUT sprintf("%.2f", $pNovelSppClErrors) . "\t$nNovelSppClErrors\t$nNovelSppTestIDs\n";
   }
   else
