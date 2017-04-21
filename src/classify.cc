@@ -911,7 +911,7 @@ void parseArgs( int argc, char ** argv, inPar_t *p )
 
       case 'x':
 	p->skipErrThld = 1;
-	cerr << "Setting p->skipErrThld to " << p->skipErrThld << endl;
+	//cerr << "Setting p->skipErrThld to " << p->skipErrThld << endl;
 	break;
 
       case 'y':
