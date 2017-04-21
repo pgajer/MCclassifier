@@ -185,6 +185,12 @@ if ( -l $treeFile )
 
 print "\n";
 
+print "\r--- Creating cross-validation reports directory";
+my $cvReportsDir = "cv_reports_dir";
+my $cmd = "mkdir -p $cvReportsDir";
+print "\tcmd=$cmd\n" if $dryRun || $debug; # || $debug;
+system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+
 print "\r--- Extracting seq IDs from trimmed alignment fasta file              ";
 my @seqIDs = get_seqIDs_from_fa($faFile);
 
@@ -208,7 +214,7 @@ if (@commSeqIDs != @seqIDs || @commSeqIDs != @lSeqIDs)
 print "\r--- Testing if treeFile is consistent with faFile                      ";
 ## extracting leaves' IDs
 my $treeLeavesFile = "$grPrefix" . "_tree.leaves";
-my $cmd = "rm -f $treeLeavesFile; nw_labels -I $treeFile > $treeLeavesFile";
+$cmd = "rm -f $treeLeavesFile; nw_labels -I $treeFile > $treeLeavesFile";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 
@@ -248,11 +254,16 @@ if ($debug)
   print "Seq's in part 1: @{$parts[0]}\n\n";
 }
 
-my $cvReportFile = "cv_report.txt";
-open ROUT, ">$cvReportFile" or die "Cannot open $cvReportFile for writing: $OS_ERROR";
-print ROUT "itr\tsize\tpTPcommSpp\tnTPcommSpp\tnIDsCommSpp\tpFPnovelSpp\tnFPnovelSpp\tnIDsNovelSpp\n";
+my $cvReportFile = "$cvReportsDir/cv_report.txt";
+if ($skipErrThld)
+{
+  $cvReportFile = "$cvReportsDir/cv_with_skip_error_thld_report.txt";
+}
 
-print "\r                                                                                              ";
+open ROUT, ">$cvReportFile" or die "Cannot open $cvReportFile for writing: $OS_ERROR";
+print ROUT "phGr\titr\ttestSize\tnKnownSpp\tnNovelSpp\tpTPcommSpp\tnTPcommSpp\tnIDsCommSpp\tpFPnovelSpp\tnFPnovelSpp\tnIDsNovelSpp\n";
+
+print "\r                                                                                                                     ";
 
 ##
 ## cross-validation loop
@@ -444,28 +455,31 @@ foreach my $i (0..($nFolds-1))
   my @testSpp  = values %testTx;
   my @uqTestSpp = unique(\@testSpp);
 
-  my @commSpp = comm(\@uqTrainSpp, \@uqTestSpp);
-  my %commSppTbl = map { $_ => 1 } @commSpp;
+  my @knownSpp = comm(\@uqTrainSpp, \@uqTestSpp);
+  my $nKnownSpp = @knownSpp;
+  my %knownSppTbl = map { $_ => 1 } @knownSpp;
 
-  ## seq IDs in the test set from the common species
-  my @testIDsCommSpp = grep { exists $commSppTbl{$testTx{$_}} } keys %testTx;
-  my $nTestIDsCommSpp = @testIDsCommSpp;
+  ## seq IDs in the test set from the known species
+  my @testIDsKnownSpp = grep { exists $knownSppTbl{$testTx{$_}} } keys %testTx;
+  my $nTestIDsKnownSpp = @testIDsKnownSpp;
 
-  ## number of @testIDsCommSpp with correct classification
-  my $nCorrectClCommSpp = 0;
-  for (@testIDsCommSpp)
+  ## number of @testIDsKnownSpp with correct classification
+  my $nCorrectClKnownSpp = 0;
+  for (@testIDsKnownSpp)
   {
     if ( $testTx{$_} eq $clTx{$_} )
     {
-      $nCorrectClCommSpp++;
+      $nCorrectClKnownSpp++;
     }
   }
 
-  ## percentage of correctly classified seq's from common species
-  my $pCorrectClCommSpp = 100.0 * $nCorrectClCommSpp / $nTestIDsCommSpp;
+  ## percentage of correctly classified seq's from known species
+  ##my $pCorrectClKnownSpp = 100.0 * $nCorrectClKnownSpp / $nTestIDsKnownSpp;
+  my $pCorrectClKnownSpp = 100.0 * $nCorrectClKnownSpp / $nTestIDs;
 
   ## Identifying species present in test but not training. Novel species from the point of view of the training dataset
   my @novelSpp = diff(\@uqTestSpp, \@uqTrainSpp);
+  my $nNovelSpp = @novelSpp;
   my $pNovelSppClErrors = "NA";
   my $nNovelSppClErrors = "NA";
   my $nNovelSppTestIDs  = "NA";
@@ -489,18 +503,19 @@ foreach my $i (0..($nFolds-1))
       }
     }
 
-    ## percentage of correctly classified seq's from common species
-    $pNovelSppClErrors = 100.0 * $nNovelSppClErrors / $nNovelSppTestIDs;
+    ## percentage of correctly classified seq's of known species
+    ##$pNovelSppClErrors = 100.0 * $nNovelSppClErrors / $nNovelSppTestIDs;
+    $pNovelSppClErrors = 100.0 * $nNovelSppClErrors / $nTestIDs;
   }
 
-  print "\r[$i] No. known spp:                                       " . @commSpp . "                                       \n";
-  print "[$i] No. novel spp:                                       " . @novelSpp . "\n";
+  print "\r[$i] No. known spp:                                       $nKnownSpp                                       \n";
+  print "[$i] No. novel spp:                                       $nNovelSpp\n";
   print "[$i] No. test seq's:                                      $nTestIDs       \n";
-  print "[$i] No. seq's from known species:                        $nTestIDsCommSpp\n";
-  print "[$i] No. correctly classified seq's from known species:   $nCorrectClCommSpp\n";
-  print "[$i] Perc. correctly classified seq's from known species: " . sprintf("%.2f%%", $pCorrectClCommSpp) . "\n";
+  print "[$i] No. seq's from known species:                        $nTestIDsKnownSpp\n";
+  print "[$i] No. correctly classified seq's from known species:   $nCorrectClKnownSpp\n";
+  print "[$i] Perc. correctly classified seq's from known species: " . sprintf("%.2f%%", $pCorrectClKnownSpp) . "\n";
 
-  print ROUT "$i\t$nTestIDs\t". sprintf("%.2f", $pCorrectClCommSpp) . "\t$nCorrectClCommSpp\t$nTestIDsCommSpp\t";
+  print ROUT "$grPrefix\t$i\t$nTestIDs\t$nKnownSpp\t$nNovelSpp\t". sprintf("%.2f", $pCorrectClKnownSpp) . "\t$nCorrectClKnownSpp\t$nTestIDsKnownSpp\t";
 
   if (@novelSpp > 0)
   {
