@@ -34,6 +34,10 @@
 =item B<--skip-err-thld>
   Apply --skip-err-thld to the classifier
 
+=item B<--cv-sp-size-thld, -s>
+  Cross-validation species size threshold. Only species of that size or higher
+  will have their ref seq's partitioned. Default value: 100.
+
 =item B<--verbatim, -v>
   Prints content of some output files.
 
@@ -53,6 +57,10 @@
 
   pecan_cv.pl --skip-err-thld --offset-coef 0.9 -n 10 -i Firmicutes_group_6_V3V4
 
+  pecan_cv.pl --cv-sp-size-thld 100 --debug -n 10 -i Firmicutes_group_5_V3V4
+
+  pecan_cv.pl --skip-err-thld --cv-sp-size-thld 50 -i Firmicutes_group_6_V3V4
+
 =cut
 
 use strict;
@@ -61,6 +69,7 @@ use Pod::Usage;
 use English qw( -no_match_vars );
 use Getopt::Long qw(:config no_ignore_case no_auto_abbrev pass_through);
 use List::MoreUtils qw( part );
+use List::Util qw( sum );
 
 $OUTPUT_AUTOFLUSH = 1;
 
@@ -68,19 +77,22 @@ $OUTPUT_AUTOFLUSH = 1;
 ##                             OPTIONS
 ####################################################################
 
-my $offsetCoef = 0.99;
-my $txSizeThld = 10;
+my $nFolds       = 10;
+my $offsetCoef   = 0.99;
+my $txSizeThld   = 10;
+my $cvSpSizeThld = 100;
 
 GetOptions(
-  "input-group|i=s"  => \my $grPrefix,
-  "num-folds|n=i"    => \my $nFolds,
-  "offset-coef|o=f"  => \$offsetCoef,
-  "tx-size-thld|t=i" => \$txSizeThld,
-  "skip-err-thld"    => \my $skipErrThld,
-  "verbose|v"        => \my $verbose,
-  "debug"            => \my $debug,
-  "dry-run"          => \my $dryRun,
-  "help|h!"          => \my $help,
+  "input-group|i=s"     => \my $grPrefix,
+  "num-folds|n=i"       => \$nFolds,
+  "offset-coef|o=f"     => \$offsetCoef,
+  "tx-size-thld|t=i"    => \$txSizeThld,
+  "cv-sp-size-thld|s=i" => \$cvSpSizeThld,
+  "skip-err-thld"       => \my $skipErrThld,
+  "verbose|v"           => \my $verbose,
+  "debug"               => \my $debug,
+  "dry-run"             => \my $dryRun,
+  "help|h!"             => \my $help,
   )
   or pod2usage(verbose => 0,exitstatus => 1);
 
@@ -98,13 +110,10 @@ if ( !$grPrefix )
   pod2usage(verbose => 2,exitstatus => 0);
   exit 1;
 }
-elsif ( !$nFolds )
-{
-  warn "\n\n\tERROR: Missing number of folds parameter";
-  print "\n\n";
-  pod2usage(verbose => 2,exitstatus => 0);
-  exit 1;
-}
+# elsif ( !$nFolds )
+# {
+#   print "\n\n\t10-fold CV\n\n";
+# }
 
 ####################################################################
 ##                               MAIN
@@ -194,6 +203,11 @@ system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 print "\r--- Extracting seq IDs from trimmed alignment fasta file              ";
 my @seqIDs = get_seqIDs_from_fa($faFile);
 
+if ($debug)
+{
+  print "\nNo. of seq's in the phylo group: " . @seqIDs . "\n";
+}
+
 print "\r--- Parsing lineage table                                             ";
 my %lineageTbl = readLineageTbl($lineageFile);
 
@@ -231,33 +245,12 @@ if (@commTL != @treeLeaves || @commTL != @seqIDs)
   exit 1;
 }
 
-##
-## perform split of @seqIDs into nCV part
-##
 
-## permut @seqIDs
-##my $nSeqs = @seqIDs;
-##my @a = 1..$nSeqs;
-fisher_yates_shuffle(\@seqIDs);
-
-my $i = 0;
-my @parts = part { $i++ % $nFolds } @seqIDs;
-
-if ($debug)
-{
-  print "no parts: " . @parts . "\n";
-  for my $p (@parts)
-  {
-    print "Part size: " . @{$p} . "\n";
-  }
-  print "\n";
-  print "Seq's in part 1: @{$parts[0]}\n\n";
-}
-
-my $cvReportFile = "$cvReportsDir/cv_report.txt";
+my $offsetStr = sprintf("o%d", int(100*$offsetCoef));
+my $cvReportFile = "$cvReportsDir/accuracy_report_$nFolds" . "FCV_$offsetStr" . ".txt";
 if ($skipErrThld)
 {
-  $cvReportFile = "$cvReportsDir/cv_with_skip_error_thld_report.txt";
+  $cvReportFile = "$cvReportsDir/accuracy_report_$nFolds" . "FCV_minSpSize$cvSpSizeThld" . "_skip_error_thld.txt";
 }
 
 open ROUT, ">$cvReportFile" or die "Cannot open $cvReportFile for writing: $OS_ERROR";
@@ -265,9 +258,79 @@ print ROUT "phGr\titr\ttestSize\tnKnownSpp\tnNovelSpp\tpTPcommSpp\tnTPcommSpp\tn
 
 print "\r                                                                                                                     ";
 
+
+##
+## Performing stratified (per species) partition of seq IDs
+##
+
+my %tx = readTbl($txFile);
+my %spTbl;
+for (keys %tx)
+{
+  push @{$spTbl{$tx{$_}}}, $_;
+}
+
+my @base;  # This is array of seq IDs of species with less than
+           # $cvSpSizeThld. They will always be in the training set.
+my @parts; # Array with nFolds elements, each a ref to an array with seq IDs of
+           # one of the nFolds parts
+my $nBigSpp = 0; # number of species with at least $cvSpSizeThld elements
+my %bigSpp;      # $bigSpp{$sp} = size($sp)
+for my $sp (keys %spTbl)
+{
+  if ( @{$spTbl{$sp}} >= $cvSpSizeThld )
+  {
+    my @a = @{$spTbl{$sp}};
+    $bigSpp{$sp} = @a;
+    $nBigSpp++;
+    fisher_yates_shuffle(\@a);
+
+    my $i = 0;
+    my @spParts = part { $i++ % $nFolds } @a;
+
+    for my $i (0..($nFolds-1))
+    {
+      push @{$parts[$i]}, @{$spParts[$i]};
+    }
+  }
+  else
+  {
+    push @base, @{$spTbl{$sp}};
+  }
+}
+
+if (1)
+{
+  my $nSpp = keys %spTbl;
+  print "\n\nNo. all spp:                    $nSpp\n";
+  print     "No. spp with at least $cvSpSizeThld seq's: $nBigSpp\n\n";
+
+  my @spp = sort {$bigSpp{$b} <=> $bigSpp{$a}} keys %bigSpp;
+  printFormatedTbl(\%bigSpp, \@spp);
+  my $sum = 0;
+  for (keys %bigSpp)
+  {
+    $sum += $bigSpp{$_};
+  }
+
+  print "Total number of seq's:      " . ($sum + @base) . "\n";
+  print "No. of seq's in big species: $sum\n";
+
+  print "\nNo. parts: " . @parts . "\n";
+  for my $p (@parts)
+  {
+    print "Part size: " . @{$p} . "\n";
+  }
+  print "\n";
+  # print "Seq's in part 1: @{$parts[0]}\n\n";
+  # print "size(base): " . @base . "\n";
+  # exit 0;
+}
+
 ##
 ## cross-validation loop
 ##
+my @pCorrectClKnownSpp;
 foreach my $i (0..($nFolds-1))
 {
   print "\r[$i] Creating cross-validation directory";
@@ -436,12 +499,24 @@ foreach my $i (0..($nFolds-1))
       }
       print "\n\n";
     }
-
     exit 1;
   }
 
-  my $combTxFile = "$cvDir/comb.tx";
-  open OUT, ">$combTxFile" or die "Cannot open $combTxFile for writing: $OS_ERROR";
+  my $combTxFile = "$cvReportsDir/comb_$nFolds" . "FCV_$offsetStr" . ".tx";
+  if ($skipErrThld)
+  {
+    $combTxFile = "$cvReportsDir/comb_$nFolds" . "FCV_minSpSize$cvSpSizeThld" . "_skip_error_thld.tx";
+  }
+
+  if ($i==0)
+  {
+    open OUT, ">$combTxFile" or die "Cannot open $combTxFile for writing: $OS_ERROR";
+  }
+  else
+  {
+    open OUT, ">>$combTxFile" or die "Cannot open $combTxFile for appending: $OS_ERROR";
+  }
+
   for (@c)
   {
     print OUT "$_\t" . $testTx{$_} . "\t" . $clTx{$_} . "\n";
@@ -475,7 +550,7 @@ foreach my $i (0..($nFolds-1))
 
   ## percentage of correctly classified seq's from known species
   ##my $pCorrectClKnownSpp = 100.0 * $nCorrectClKnownSpp / $nTestIDsKnownSpp;
-  my $pCorrectClKnownSpp = 100.0 * $nCorrectClKnownSpp / $nTestIDs;
+  $pCorrectClKnownSpp[$i] = 100.0 * $nCorrectClKnownSpp / $nTestIDs;
 
   ## Identifying species present in test but not training. Novel species from the point of view of the training dataset
   my @novelSpp = diff(\@uqTestSpp, \@uqTrainSpp);
@@ -508,14 +583,16 @@ foreach my $i (0..($nFolds-1))
     $pNovelSppClErrors = 100.0 * $nNovelSppClErrors / $nTestIDs;
   }
 
+  ## $cmd = "cmp_tx.pl -i $testTxFile -j $clTxFile -o $cvReportFile";
+
   print "\r[$i] No. known spp:                                       $nKnownSpp                                       \n";
   print "[$i] No. novel spp:                                       $nNovelSpp\n";
   print "[$i] No. test seq's:                                      $nTestIDs       \n";
   print "[$i] No. seq's from known species:                        $nTestIDsKnownSpp\n";
   print "[$i] No. correctly classified seq's from known species:   $nCorrectClKnownSpp\n";
-  print "[$i] Perc. correctly classified seq's from known species: " . sprintf("%.2f%%", $pCorrectClKnownSpp) . "\n";
+  print "[$i] Perc. correctly classified seq's from known species: " . sprintf("%.2f%%", $pCorrectClKnownSpp[$i]) . "\n";
 
-  print ROUT "$grPrefix\t$i\t$nTestIDs\t$nKnownSpp\t$nNovelSpp\t". sprintf("%.2f", $pCorrectClKnownSpp) . "\t$nCorrectClKnownSpp\t$nTestIDsKnownSpp\t";
+  print ROUT "$grPrefix\t$i\t$nTestIDs\t$nKnownSpp\t$nNovelSpp\t". sprintf("%.2f", $pCorrectClKnownSpp[$i]) . "\t$nCorrectClKnownSpp\t$nTestIDsKnownSpp\t";
 
   if (@novelSpp > 0)
   {
@@ -532,6 +609,10 @@ foreach my $i (0..($nFolds-1))
 
 }
 close ROUT;
+
+
+my $meanPercCorrectClKnownSpp = sum(@pCorrectClKnownSpp)/@pCorrectClKnownSpp;
+print "\nMean Perc. correctly classified seq's from known species: " . sprintf("%.2f%%", $meanPercCorrectClKnownSpp) . "\n";
 
 $endRun = time();
 $runTime = $endRun - $startRun;
@@ -744,6 +825,44 @@ sub unique{
   my @out = grep(!$saw{$_}++, @{$a});
 
   return @out;
+}
+
+# print elements of a hash table
+sub printTbl{
+
+  my $rTbl = shift;
+  map {print "$_\t" . $rTbl->{$_} . "\n"} keys %$rTbl;
+}
+
+# print elements of a hash table so that arguments are aligned
+sub printFormatedTbl{
+
+  my ($rTbl, $rSub) = @_; # the second argument is a subarray of the keys of the table
+
+  my @args;
+  if ($rSub)
+  {
+    @args = @{$rSub};
+  }
+  else
+  {
+    @args = keys %{$rTbl};
+  }
+
+  my $maxStrLen = 0;
+  map { $maxStrLen = length($_) if( length($_) > $maxStrLen )} @args;
+
+  for (@args)
+  {
+    my $n = $maxStrLen - length($_);
+    my $pad = ": ";
+    for (my $i=0; $i<$n; $i++)
+    {
+      $pad .= " ";
+    }
+    print "$_$pad" . $rTbl->{$_} . "\n";
+  }
+  print "\n";
 }
 
 exit 0;
