@@ -30,7 +30,6 @@
 #include <string>
 #include <vector>
 #include <queue>
-//#include <regex>
 
 #include "CUtilities.h"
 #include "IOCUtilities.h"
@@ -56,8 +55,7 @@ void printUsage( const char *s )
        << "  For each taxon there are two types of error measures. The overall FP and FN\n"
        << "  rates. These are based on the classification performance of the taxon model in\n"
        << "  comparison to all its siblings. And individual sibling's FP and FN rates based on\n"
-       << "  the comparison of the taxon models classification in comparison to the given\n"
-       << "  siblings' model.\n"
+       << "  the comparison of the posterior probabilities of the taxon and its given sibling's models.\n"
        << endl
        << "  The output is a file with 8 columns: taxon name, sibling name, say sib_j, pFN_j,\n"
        << "  nFN_j, nRef, pFP_j, nFP_j, nSib_j, where pFN and pFP are FN and FP rates and nFN,\n"
