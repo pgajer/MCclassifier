@@ -50,17 +50,17 @@ void printUsage( const char *s )
        << s << " -d < MC models directory> -i <input fasta file> -o <output directory> [Options]" << endl
        << endl
        << "\tOptions:\n"
-       << "\t-d <dir>        - directory containing MC model files\n"
-       << "\t-o <dir>        - output directory for MC taxonomy files\n"
+       << "\t-d <mcDir>      - directory containing MC model files\n"
+       << "\t-o <outDir>     - output directory for MC taxonomy files\n"
        << "\t-i <inFile>     - input fasta file with sequences for which -log10(prob(seq | model_i)) are to be computed\n"
        << "\t-r <model tree> - model tree with node labels corresponding to the names of the model files\n"
        << "\t-t <trgFile>    - file containing paths to training fasta files\n"
        << "\t-f <fullTx>     - fullTx file. Its optional parameter for printing classification output in a long format like in RDP classifier\n"
        << "\t-g <faDir>      - directory with reference fasta files\n"
-       << "\t-e <seqID>      - sequence ID of a sequence from the training fasta files that is to be excluded\n"
-       << "                    from model building and needs to be used for cross validation\n"
        << "\t--rev-comp, -c          - reverse complement query sequences before computing classification posterior probabilities\n"
        << "\t--skip-err-thld         - classify all sequences to the species level\n"
+       << "\t--pp-embedding          - for each internal node report pp's of all children on the given sequence.\n"
+       << "                            Each internal node's table is written to a file <node name>_lpps.txt (log posterior probabilities)\n"
        << "\t--max-num-amb-codes <n> - maximal acceptable number of ambiguity codes for a sequence\n"
        << "\t                          above this number sequence's log10prob() is not computed and\n"
        << "\t                          the sequence's id it appended to <genus>_more_than_<n>_amb_codes_reads.txt file.\n"
@@ -101,7 +101,7 @@ void printHelp( const char *s )
     cout << endl
 	 << "Given a directory of MC model files, reference tree and a fasta file of query sequences,\n"
 	 << "classify each sequence of the fasta file to a taxonomic rank corresponding to model\n"
-	 << "with the highest probability given that the | log( p(x | M_L) / p(x | M_R) | > thld \n\n";
+	 << "with the highest probability given that the | log( p(x | M_L) / p(x | M_R) | > thld (obsolete) \n\n";
 
     printUsage(s);
 }
@@ -133,8 +133,6 @@ public:
   char *fullTxFile;         /// fullTx file for printing classification ouput in a long format as in RDP classifier's fixrank
   char *inFile;             /// input file with path(s) to fasta file(s) containing sequences
                             /// for which -log10(prob(seq | model_i)) are to be computed
-  char *seqID;              /// sequence ID of a sequence from the training fasta files that is to be excluded
-                            /// from model building and needs to be used for cross validation
   char *treeFile;           /// reference tree file
   double thld;              /// threshold for | log( p(x | M_L) / p(x | M_R) | of the competing models
   vector<char *> trgFiles;  /// list of paths to fasta training files
@@ -162,7 +160,6 @@ inPar_t::inPar_t()
   fullTxFile      = NULL;
   inFile          = NULL;
   treeFile        = NULL;
-  seqID           = NULL;
   thld            = 0.0;
   printCounts     = 0;
   skipErrThld     = 0;
@@ -193,9 +190,6 @@ inPar_t::~inPar_t()
 
   if ( fullTxFile )
     free(fullTxFile);
-
-  if ( seqID )
-    free(seqID);
 
   if ( treeFile )
     free(treeFile);
@@ -237,12 +231,6 @@ void inPar_t::print()
   cerr << "fullTxFile=\t\t";
   if ( fullTxFile )
     cerr << fullTxFile << endl;
-  else
-    cerr << "MISSING" << endl;
-
-  cerr << "seqID=\t\t";
-  if ( seqID )
-    cerr << seqID << endl;
   else
     cerr << "MISSING" << endl;
 
@@ -295,7 +283,7 @@ int main(int argc, char **argv)
     free( inPar->trgFile );
   }
 
-  if ( !inPar->inFile && !inPar->seqID )
+  if ( !inPar->inFile )
   {
     cout << endl << "ERROR in "<< __FILE__ << " at line " << __LINE__ << ": Input fasta file is missing. Please specify it with the -i flag." << endl;
     printHelp(argv[0]);
@@ -679,7 +667,7 @@ int main(int argc, char **argv)
 
       node = node->children_m[imax];
 
-      if ( !inPar->skipErrThld )
+      if ( !inPar->skipErrThld && node->children_m.size()==0 )
       {
 	if ( x[imax] < thldTbl[ node->label ] )
 	{
@@ -894,7 +882,7 @@ void parseArgs( int argc, char ** argv, inPar_t *p )
     {0, 0, 0, 0}
   };
 
-  while ((c = getopt_long(argc, argv,"a:b:c:d:e:f:g:t:i:k:o:vpq:r:hsy:x",longOptions, NULL)) != -1)
+  while ((c = getopt_long(argc, argv,"a:b:c:d:f:g:hi:k:o:p:q:r:st:vy:x",longOptions, NULL)) != -1)
     switch (c)
     {
       case 'a':
@@ -909,21 +897,33 @@ void parseArgs( int argc, char ** argv, inPar_t *p )
 	p->revComp = true;
 	break;
 
-      case 'x':
-	p->skipErrThld = 1;
-	//cerr << "Setting p->skipErrThld to " << p->skipErrThld << endl;
+      case 'd':
+	p->mcDir = strdup(optarg);
 	break;
 
-      case 'y':
-	p->coreErrRFile = strdup(optarg);
+      case 'f':
+	p->fullTxFile = strdup(optarg);
 	break;
 
-      case 'r':
-	p->treeFile = strdup(optarg);
+      case 'g':
+	p->faDir = strdup(optarg);
 	break;
 
-      case 'e':
-	p->seqID = strdup(optarg);
+      case 'h':
+	printHelp(argv[0]);
+	exit (EXIT_SUCCESS);
+	break;
+
+      case 'i':
+	p->inFile = strdup(optarg);
+	break;
+
+      case 'k':
+	parseCommaList(optarg, p->kMerLens);
+	break;
+
+      case 'o':
+	p->outDir = strdup(optarg);
 	break;
 
       case 'p':
@@ -953,49 +953,33 @@ void parseArgs( int argc, char ** argv, inPar_t *p )
 	}
 	break;
 
-      case 'd':
-	p->mcDir = strdup(optarg);
-	break;
-
-      case 'o':
-	p->outDir = strdup(optarg);
-	break;
-
-      case 't':
-	p->trgFile = strdup(optarg);
-	break;
-
-      case 'f':
-	p->fullTxFile = strdup(optarg);
-	break;
-
-      case 'g':
-	p->faDir = strdup(optarg);
-	break;
-
-      case 'i':
-	p->inFile = strdup(optarg);
-	break;
-
-      case 'k':
-	parseCommaList(optarg, p->kMerLens);
-	break;
-
-      case 'v':
-	p->verbose = true;
-	break;
-
       case 'q':
 	p->quiet = true;
+	break;
+
+      case 'r':
+	p->treeFile = strdup(optarg);
 	break;
 
       case 's':
 	p->printNCprobs = true;
 	break;
 
-      case 'h':
-	printHelp(argv[0]);
-	exit (EXIT_SUCCESS);
+      case 't':
+	p->trgFile = strdup(optarg);
+	break;
+
+      case 'v':
+	p->verbose = true;
+	break;
+
+      case 'x':
+	p->skipErrThld = 1;
+	//cerr << "Setting p->skipErrThld to " << p->skipErrThld << endl;
+	break;
+
+      case 'y':
+	p->coreErrRFile = strdup(optarg);
 	break;
 
       case 0:
