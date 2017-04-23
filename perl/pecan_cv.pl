@@ -349,6 +349,8 @@ foreach my $i (0..($nFolds-1))
     }
   }
 
+  push @trainIDs, @base;
+
   my $nTestIDs = @testIDs;
   my $nTrainIDs = @trainIDs;
 
