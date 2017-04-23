@@ -1,5 +1,10 @@
 /*
-  Estimate error thresholds.
+  Estimate error thresholds only at the species level using a criterion that no
+  more than, thld, percent of reference sequences should be below the threshold
+  value. Initially the threshold is set to the max of pp of sibling's ref seq's
+  w/r to the reference species model. If the percentage of ref species' seq's
+  below this max is more than thld, then set the threshold at the
+  thld-percentile.
 
   Copyright (C) 2017 Pawel Gajer pgajer@gmail.com and Jacques Ravel jravel@som.umaryland.edu
 
@@ -29,6 +34,7 @@
 #include <string>
 #include <vector>
 #include <queue>
+#include <algorithm>
 
 #include "CUtilities.h"
 #include "IOCUtilities.h"
@@ -55,7 +61,7 @@ void printUsage( const char *s )
        << endl
        << "\tOptions:\n"
        << "\t-d <dir>           - directory containing MC model files and reference sequences fasta files\n"
-       << "\t--offset-coef <x>  - offset = log10(x). Currently x=0.99\n"
+       << "\t--ofsfset-coef <x>  - offset = log10(x). Currently x=0.99\n"
        << "\t--tx-size-thld <x> - currently 10\n"
 
        << "\n\tExample: \n"
@@ -97,6 +103,7 @@ public:
   int debug;
   double offsetCoef;
   int txSizeThld;
+  int maxFNrate;
 
   void print();
 };
@@ -116,6 +123,7 @@ inPar_t::inPar_t()
   debug           = 0;
   offsetCoef      = 0.99;
   txSizeThld      = 10;
+  maxFNrate       = 0.05;
 }
 
 //------------------------------------------------- constructor ----
@@ -318,10 +326,13 @@ int main(int argc, char **argv)
 
   // traverse the reference tree using breath first search
   NewickNode_t *node;
+  NewickNode_t *sibnode;
+  NewickNode_t *pnode;
   int numChildren;
   int nodeCount = 1;
   map<string, string>::iterator itr;
   map<string, string> seqRecs; // fasta file sequence records
+  double lpp;
 
   queue<NewickNode_t *> bfs;
   NewickNode_t *root = nt.root();
@@ -336,6 +347,8 @@ int main(int argc, char **argv)
 				       // elements, the error thld is set to
 				       // 0.99*min(pp), which corresponds to
 				       // offset + min(lpp) in the log10 scale
+  vector< set<string> > mergeCltrs; // vector of sets of leaves (species) that are to be merged
+
   if ( inPar->verbose )
     fprintf(stderr, "\n\n");
 
@@ -354,36 +367,111 @@ int main(int argc, char **argv)
 	nodeCount++;
       }
 
-      //
-      // Recording the highest and the second highest log posterior probabilities
-      // for each reference sequence of 'node'
-      //
       string faFile = string(inPar->mcDir) + string("/") + node->label + string(".fa");
       seqRecs.clear();
       readFasta( faFile.c_str(), seqRecs);
       int nRefSeqs = seqRecs.size();
 
-      vector<double> lpp(nRefSeqs);
-      double minLpp = 1.0;
+      vector<double> refLpp(nRefSeqs);
+      double refMinLpp = 1.0;
       int i = 0;
       for ( itr = seqRecs.begin(); itr != seqRecs.end(); ++itr )
       {
-	lpp[i] = probModel->normLog10prob(itr->second.c_str(), (int)itr->second.size(), node->model_idx );
-	if ( lpp[i] < minLpp )
-	  minLpp = lpp[i];
+	refLpp[i] = probModel->normLog10prob(itr->second.c_str(), (int)itr->second.size(), node->model_idx );
+	if ( refLpp[i] < refMinLpp )
+	  refMinLpp = refLpp[i];
 	i++;
       }
 
       double errorThld;
       if ( nRefSeqs >= txSizeThld )
       {
-	errorThld = offset + minLpp;
+	errorThld = offset + refMinLpp;
       }
       else
       {
-	double medianLpp = medianInPlace( lpp );
+	double medianLpp = medianInPlace( refLpp );
 	double lpp05 = lpp05_lm_slope*medianLpp + lpp05_lm_yintt;
-	errorThld = offset + min(lpp05, minLpp);
+	errorThld = offset + min(lpp05, refMinLpp);
+      }
+
+      if ( numChildren==0 ) // the node is a species
+      {
+	// Identify siblings of node
+	pnode = node->parent_m;
+	vector<NewickNode_t *> siblings;
+	int n = pnode->children_m.size();
+	for (int i = 0; i < n; i++)
+	  if ( pnode->children_m[i] != node )
+	    siblings.push_back(pnode->children_m[i]);
+
+	int nSiblings = (int)siblings.size();
+
+        #if 0
+	//debug
+	fprintf(stderr, "\tIdentifying siblings of %s\n", node->label.c_str());
+	fprintf(stderr, "\tSiblings:\n");
+	for (int i = 0; i < (int)siblings.size(); ++i )
+	  fprintf(stderr, "\t\t%s\n", siblings[i]->label.c_str());
+	fprintf(stderr, "\n");
+        #endif
+
+	double sibMaxLpp = -100.0;
+	map<NewickNode_t*, vector<double> > sibLpp; // hash table of sibling's log pp's w/r 'node'
+	for (int i = 0; i < nSiblings; i++)
+	{
+	  sibnode = siblings[i];
+
+	  faFile = string(inPar->mcDir) + string("/") + sibnode->label + string(".fa");
+	  seqRecs.clear();
+	  readFasta( faFile.c_str(), seqRecs);
+
+	  for ( itr = seqRecs.begin(); itr != seqRecs.end(); ++itr )
+	  {
+	    lpp = probModel->normLog10prob(itr->second.c_str(), (int)itr->second.size(), node->model_idx );
+	    sibLpp[sibnode].push_back(lpp);
+	    if ( lpp > sibMaxLpp ) // now we need to check that the node's model is the one with the maximal log pp
+	      sibMaxLpp = lpp;
+	  }
+	}
+
+	if ( sibMaxLpp > refMinLpp )
+	{
+	  sort(refLpp.begin(), refLpp.end());
+
+	  // computing say 5th percentile
+	  int refMaxFNPerc = (int)floor( inPar->maxFNrate * nRefSeqs );
+
+	  if ( sibMaxLpp > refLpp[refMaxFNPerc] )
+	  {
+	    errorThld = refLpp[refMaxFNPerc];
+
+	    // identifying siblings such that the percentage of their pp' above errorThld is > inPar->maxFNrate
+	    // that is their 1-inPar->maxFNrate percentile is > errorThld
+	    // in that case mark the pair (node, sib) for merging
+	    // if sib is not a species but some higher taxonomic rank
+	    // merge all species of sib with node
+
+	    set<string> mergeCltr;
+	    map<NewickNode_t*, vector<double> >::iterator sibItr;
+	    for ( sibItr = sibLpp.begin(); sibItr != sibLpp.end(); ++sibItr )
+	    {
+	      sort(sibItr->second.begin(), sibItr->second.end());
+	      int FPidx = (int)floor( (1 - inPar->maxFNrate) * sibItr->second.size() );
+	      if ( sibItr->second[FPidx] > errorThld )
+	      {
+		// node and sib's leaves need to be merged
+		vector<string> leaves;
+		nt.leafLabels(sibItr->first, leaves);
+		vector<string>::iterator vItr;
+		for ( vItr = leaves.begin(); vItr != leaves.end(); ++vItr )
+		  mergeCltr.insert( *vItr );
+	      }
+	    }
+
+	    mergeCltrs.push_back(mergeCltr);
+	  }
+	}
       }
 
       fprintf(outFH,"%s\t%f\n", node->label.c_str(), errorThld);
@@ -401,8 +489,22 @@ int main(int argc, char **argv)
 
   fclose(outFH);
 
+
+  string outFile2 = string(inPar->mcDir) + string("/merge_cltrs.txt");
+  FILE *out = fOpen( outFile2.c_str(), "w");
+  for ( int i = 0; i < (int)mergeCltrs.size(); i++ )
+  {
+    set<string> mergeCltr = mergeCltrs[i];
+    set<string>::iterator itr;
+    fprintf(out, "%d", i);
+    for ( itr = mergeCltr.begin(); itr != mergeCltr.end(); ++itr )
+      fprintf(out, "\t%s", (*itr).c_str());
+    fprintf(out, "\n");
+  }
+  fclose(out);
+
   if ( inPar->verbose )
-    fprintf(stderr,"\r\n\n\tOutput written to %s\n\n", outFile.c_str());
+    fprintf(stderr,"\r\n\n\tOutput written to %s and %s\n\n", outFile.c_str(), outFile2.c_str());
 
   delete probModel;
 
@@ -423,7 +525,7 @@ void parseArgs( int argc, char ** argv, inPar_t *p )
     {"max-num-amb-codes"  ,required_argument, 0,          'b'},
     {"offset-coef"        ,required_argument, 0,          'c'},
     {"tx-size-thld"       ,required_argument, 0,          's'},
-    {"fasta-dir"          ,required_argument, 0,          'f'},
+    {"max-FN-rate"        ,required_argument, 0,          'f'},
     {"ref-tree"           ,required_argument, 0,          'r'},
     {"pseudo-count-type"  ,required_argument, 0,          'p'},
     {"help"               ,no_argument,       0,            0},
@@ -440,6 +542,10 @@ void parseArgs( int argc, char ** argv, inPar_t *p )
 
       case 'c':
 	p->offsetCoef = atof(optarg);
+	break;
+
+      case 'f':
+	p->maxFNrate = atof(optarg);
 	break;
 
       case 's':
