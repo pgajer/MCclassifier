@@ -477,16 +477,6 @@ int main(int argc, char **argv)
   if ( nRecs > 1000 )
     q01 = int(0.01 * nRecs);
 
-
-  #if DEBUGMAIN
-  string debugFile = string(inPar->outDir) + string("/") + string("debug_log.txt");
-  FILE *debugout = fOpen(debugFile.c_str(), "w");
-  #endif
-
-  #if DEBUGMAIN1
-  FILE *debugout = stderr;
-  #endif
-
   char *id;
   int count = 0;
   string currentLabel;
@@ -498,7 +488,6 @@ int main(int argc, char **argv)
   MALLOC(data, char*, alloc * sizeof(char));
   MALLOC(seq, char*, alloc * sizeof(char));
   MALLOC(rcseq, char*, alloc * sizeof(char));
-  //double x1, x2;
 
   if ( inPar->verbose )
     cerr << "--- Number of sequences in " << inPar->inFile << ": " << nRecs << endl;
@@ -532,16 +521,10 @@ int main(int argc, char **argv)
     }
   }
 
-
   int runTime;
   int timeMin = 0;
   int timeSec = 0;
   int perc;
-
-  #define SPPDEBUG 0
-  #if SPPDEBUG
-  FILE *liout = fOpen("spp_pprob.csv", "w");
-  #endif
 
   while ( getNextFastaRecord( in, id, data, alloc, seq, seqLen) )
   {
@@ -580,23 +563,7 @@ int main(int argc, char **argv)
     NewickNode_t *node = nt.root();
     int nChildren = node->children_m.size();
     int breakLoop = 0;
-
-    #if DEBUGMAIN
-    fprintf(debugout,"---- depth %d\n",depthCount++) ;
-    for ( int i = 0; i < nChildren; i++ )
-      fprintf(debugout,"\t%s\t%f\t%f\n", node->children_m[i]->label.c_str(), x[i], x2[i]) ;
-      ##fprintf(debugout,"\t%s\t%f\n", node->children_m[i]->label.c_str(), x[i]) ;
-    #endif
-
-    #if DEBUGMAIN1
-    fprintf(debugout,"\n---- Processing %s\n",id) ;
-    fprintf(debugout,"---- Current node %s\n", node->label.c_str()) ;
-    fprintf(debugout,"---- Number of children: %d\n", nChildren) ;
-    fprintf(debugout,"---- Children:\n") ;
-    for ( int i = 0; i < nChildren; i++ )
-	fprintf(debugout,"\t%s\n", node->children_m[i]->label.c_str()) ;
-    #endif
-
+    double finalPP = 0.0; // posterior probability of the sequence w/r to the winner model
 
     if ( inPar->ppEmbedding ) // start of decition path of the given sequence
       fprintf(dOut,"%s", id);
@@ -644,6 +611,7 @@ int main(int argc, char **argv)
       }
 
       int imax = which_max( x, nChildren );
+      finalPP = pow(10, x[imax]);
       node = node->children_m[imax];
 
       if ( inPar->ppEmbedding ) // decition path
@@ -700,19 +668,12 @@ int main(int argc, char **argv)
     if ( inPar->ppEmbedding ) // end of the given seq's decition path
       fprintf(dOut,"\n");
 
-    fprintf(out,"%s\t%s\n", id, node->label.c_str());
+    fprintf(out,"%s\t%s\t%.2f\n", id, node->label.c_str(), finalPP);
 
   } // end of   while ( getNextFastaRecord( in, id, data, alloc, seq, seqLen) )
 
   fclose(in);
   fclose(out);
-
-#if DEBUGMAIN
-  fclose(debugout);
-#endif
-
-  //fprintf(stderr,"\nNumber of errors: %d / %d (%.2f%%)\n\n", errorCount, nRecs, 100.0*errorCount / (double)nRecs );
-
 
   free(seq);
   free(data);
