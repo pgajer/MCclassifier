@@ -38,6 +38,9 @@
   Cross-validation species size threshold. Only species of that size or higher
   will have their ref seq's partitioned. Default value: 100.
 
+=item B<--pp-embedding>
+  Run classifier with the --pp-embedding flag.
+
 =item B<--verbatim, -v>
   Prints content of some output files.
 
@@ -78,7 +81,7 @@ $OUTPUT_AUTOFLUSH = 1;
 ####################################################################
 
 my $nFolds       = 10;
-my $offsetCoef   = 0.99;
+my $offsetCoef   = 0.9;
 my $txSizeThld   = 10;
 my $cvSpSizeThld = 100;
 
@@ -88,6 +91,7 @@ GetOptions(
   "offset-coef|o=f"     => \$offsetCoef,
   "tx-size-thld|t=i"    => \$txSizeThld,
   "cv-sp-size-thld|s=i" => \$cvSpSizeThld,
+  "pp-embedding"        => \my $ppEmbedding,
   "skip-err-thld"       => \my $skipErrThld,
   "verbose|v"           => \my $verbose,
   "debug"               => \my $debug,
@@ -144,6 +148,12 @@ my $skipErrThldStr = "";
 if ($skipErrThld)
 {
   $skipErrThldStr = "--skip-err-thld";
+}
+
+my $ppEmbeddingStr = "";
+if ($ppEmbedding)
+{
+  $ppEmbeddingStr = "--pp-embedding"
 }
 
 my $grDir = $grPrefix . "_dir";
@@ -254,7 +264,7 @@ if ($skipErrThld)
 }
 
 open ROUT, ">$cvReportFile" or die "Cannot open $cvReportFile for writing: $OS_ERROR";
-print ROUT "phGr\titr\ttestSize\tnKnownSpp\tnNovelSpp\tpTPcommSpp\tnTPcommSpp\tnIDsCommSpp\tpFPnovelSpp\tnFPnovelSpp\tnIDsNovelSpp\n";
+print ROUT "phGr\titr\ttestSize\tnKnownSpp\tnNovelSpp\tpTPknownSpp\tnTPknownSpp\tnIDsKnownSpp\tpFPnovelSpp\tnFPnovelSpp\tnIDsNovelSpp\n";
 
 print "\r                                                                                                                     ";
 
@@ -299,6 +309,15 @@ for my $sp (keys %spTbl)
   }
 }
 
+if ($nBigSpp==0)
+{
+  my $nSpp = keys %spTbl;
+  print "\n\nNo. all spp:                    $nSpp\n";
+  print     "No. spp with at least $cvSpSizeThld seq's: $nBigSpp\n\n";
+  print "\n\tNothing to be done. Exiting !!!\n\n";
+  exit 0;
+}
+
 if (1)
 {
   my $nSpp = keys %spTbl;
@@ -319,6 +338,7 @@ if (1)
   print "\nNo. parts: " . @parts . "\n";
   for my $p (@parts)
   {
+    ##print "Part size: " . (@{$p} + @base) . "\n";
     print "Part size: " . @{$p} . "\n";
   }
   print "\n";
@@ -349,6 +369,7 @@ foreach my $i (0..($nFolds-1))
     }
   }
 
+  ##push @testIDs, @base; # this would obscure misclassification error on test sequences as @base would be correctly classified
   push @trainIDs, @base;
 
   my $nTestIDs = @testIDs;
@@ -444,13 +465,21 @@ foreach my $i (0..($nFolds-1))
   print "\tcmd=$cmd\n" if $dryRun || $debug;
   system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 
+  if ($ppEmbedding)
+  {
+    print "\r[$i] Generating log pp tables for internal nodes of the model tree                                              ";
+    $cmd = "pp_embedding -d $mcDir";
+    print "\tcmd=$cmd\n" if $dryRun || $debug;
+    system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
+  }
+
   print "\r[$i] Estimating error thresholds                                      ";
   $cmd = "est_error_thlds --offset-coef $offsetCoef --tx-size-thld $txSizeThld -d $mcDir";
   print "\tcmd=$cmd\n" if $dryRun || $debug;
   system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 
   print "\r[$i] Running classify on test fasta file                               ";
-  $cmd = "classify $skipErrThldStr -d $mcDir -i $testFaFile -o $cvDir";
+  $cmd = "classify $ppEmbeddingStr $skipErrThldStr -d $mcDir -i $testFaFile -o $cvDir";
   print "\tcmd=$cmd\n" if $dryRun || $debug;
   system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 
