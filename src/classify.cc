@@ -60,7 +60,7 @@ void printUsage( const char *s )
        << "\t--rev-comp, -c          - reverse complement query sequences before computing classification posterior probabilities\n"
        << "\t--skip-err-thld         - classify all sequences to the species level\n"
        << "\t--pp-embedding          - for each internal node report pp's of all children on the given sequence.\n"
-       << "                            Each internal node's table is written to a file <node name>_lpps.txt (log posterior probabilities)\n"
+       << "                            Each internal node's table is written to a file <node name>_ref_lpps.txt (log posterior probabilities)\n"
        << "\t--max-num-amb-codes <n> - maximal acceptable number of ambiguity codes for a sequence\n"
        << "\t                          above this number sequence's log10prob() is not computed and\n"
        << "\t                          the sequence's id it appended to <genus>_more_than_<n>_amb_codes_reads.txt file.\n"
@@ -70,8 +70,6 @@ void printUsage( const char *s )
        << "\t                               f=2 the pseudocounts for a order k+1 model be alpha*probabilities from\n"
        << "\t                                   an order k model, recursively down to pseudocounts of alpha/num_letters\n"
        << "\t                                   for an order 0 model.\n"
-       << "\t--print-nc-probs, -s - print to files <tx>_true_ncProbs.txt, <tx>_false_ncProbs.txt, where <tx> are all taxons present in reference data,\n"
-       << "\t                       normalized conditional probabilities for tuning threshold values of taxon assignment\n"
        << "\t-q|--quiet           - suppers pregress messages\n"
        << "\t-v|--verbose         - verbose mode\n"
        << "\t-h|--help            - this message\n\n"
@@ -144,9 +142,8 @@ public:
   int pseudoCountType;      /// pseudo-count type; see MarkovChains2.hh for possible values
   bool verbose;
   bool quiet;
-  bool printNCprobs;        /// if true, the program prints to files normalized conditional probabilities for tuning threshold values of taxon assignment
-  int dimProbs;             /// max dimension of probs
   bool revComp;             /// reverse-complement query sequences before processing
+  bool ppEmbedding;
 
   void print();
 };
@@ -166,11 +163,10 @@ inPar_t::inPar_t()
   maxNumAmbCodes  = 5;
   randSampleSize  = 0;
   pseudoCountType = recPdoCount;
-  dimProbs        = 0;
-  printNCprobs    = false;
   verbose         = false;
   quiet           = false;
   revComp         = false;
+  ppEmbedding     = false;
 }
 
 //------------------------------------------------- constructor ----
@@ -444,7 +440,7 @@ int main(int argc, char **argv)
 
   if ( inPar->verbose )
   {
-    cerr << "\rk=" << wordLen << "\n";
+    cerr << "\r--- Rank of MC models: " << wordLen << "\n";
 
     if ( inPar->mcDir && !inPar->trgFiles.size() )
       cerr << "\r--- Reading conditional probabilities tables from " << inPar->mcDir << " ... ";
@@ -472,6 +468,15 @@ int main(int argc, char **argv)
 
   // ==== computing probabilities of each sequence of inFile to come from each of the MC models ====
   string outFile = string(inPar->outDir) + string("/") + string("MC_order") + string(str) + string("_results.txt");
+  FILE *out      = fOpen(outFile.c_str(), "w");
+
+  FILE *in = fOpen(inPar->inFile, "r");
+  int nRecs = numRecordsInFasta( inPar->inFile );
+  int q01 = 0;
+
+  if ( nRecs > 1000 )
+    q01 = int(0.01 * nRecs);
+
 
   #if DEBUGMAIN
   string debugFile = string(inPar->outDir) + string("/") + string("debug_log.txt");
@@ -482,24 +487,10 @@ int main(int argc, char **argv)
   FILE *debugout = stderr;
   #endif
 
-  // double *aLogOdds;
-  // MALLOC(aLogOdds, double*, depth * sizeof(double));
-  //int depthCount;
-
-  vector<string> path; // decision path tranced from the root to the final node for each query sequence
   char *id;
   int count = 0;
   string currentLabel;
   double x[nModels]; // stores conditional probabilities p(x | M) for children of each node. the root node has 3 children
-
-  FILE *out = fOpen(outFile.c_str(), "w");
-  FILE *in = fOpen(inPar->inFile, "r");
-
-  int nRecs = numRecordsInFasta( inPar->inFile );
-  int q01 = 0;
-
-  if ( nRecs > 1000 )
-    q01 = int(0.01 * nRecs);
 
   int seqLen;
   size_t alloc = 1024*1024;
@@ -509,48 +500,38 @@ int main(int argc, char **argv)
   MALLOC(rcseq, char*, alloc * sizeof(char));
   //double x1, x2;
 
-  double *probs;
-  MALLOC(probs, double*, alloc * sizeof(double));
-
-  map<string, vector<double> > txTrueNCProb;  // hash table assigning to each
-                                              // taxon a vector of normalized
-                                              // conditional probabilities that
-                                              // quary sequences achieve using
-                                              // max p(x|M) algorithm =
-                                              // classification to the taxon with
-                                              // the highest posterior
-                                              // probability
-
-  map<string, vector<double> > txFalseNCProb; // normalized conditional
-                                              // probabilities in cases when
-                                              // the taxon does not have the
-                                              // highest normalized conditional
-                                              // probability
-
-  map<string, vector<char *> > txTrueID;      // hash table assigning to each
-                                              // taxon a vector of sequence IDs
-                                              // for sequnces with p(x|M) max
-                                              // for M the model associated
-                                              // with the given taxon
-  map<string, vector<char *> > txFalseID;     // same as above but for other sequences
-
-
   if ( inPar->verbose )
     cerr << "--- Number of sequences in " << inPar->inFile << ": " << nRecs << endl;
 
-  //int rcseqCount = 0; // number of times rcseq had higher probabitity than seq
-  //int seqCount = 0;   // number of times seq had higher probabitity than rcseq
-
-  int currentModelIdx = 0; // model index of the model, M, with the highest p( x | M )
-  int rank = probModel->order() + 1;
-
-  FILE *probsOut = NULL;
-  if ( inPar->dimProbs )
+  FILE *dOut = NULL;      // file handler for decision/classification paths (reported with --pp-embedded on
+  map<string, bool> seen; // hash table used in --pp-embedding mode to mark the first visit to a node
+  if ( inPar->ppEmbedding )
   {
-    string probsFile = string(inPar->outDir) + string("/") + string("condProbs.csv");
-    probsOut = fOpen(probsFile.c_str(), "w");
-    inPar->dimProbs = inPar->dimProbs - rank;
+    string dFile = string(inPar->mcDir) + string("/") + string("classification_paths.txt");
+    dOut = fOpen(dFile.c_str(), "w");
+
+    // initializing seen to false for all nodes
+    queue<NewickNode_t *> bfs;
+    bfs.push(nt.root());
+    NewickNode_t *node;
+
+    while ( !bfs.empty() )
+    {
+      node = bfs.front();
+      seen[node->label] = false;
+      bfs.pop();
+
+      int nChildren = node->children_m.size();
+      if ( nChildren )
+      {
+	for (int i = 0; i < nChildren; i++)
+	{
+	  bfs.push(node->children_m[i]);
+	}
+      }
+    }
   }
+
 
   int runTime;
   int timeMin = 0;
@@ -597,34 +578,35 @@ int main(int argc, char **argv)
     // posterior probability is above the error threshold of the model.
     //
     NewickNode_t *node = nt.root();
-    int numChildren = node->children_m.size();
-    //path.clear();
-    //path.push_back( node->label );
+    int nChildren = node->children_m.size();
     int breakLoop = 0;
 
-
-#if DEBUGMAIN
+    #if DEBUGMAIN
     fprintf(debugout,"---- depth %d\n",depthCount++) ;
-    for ( int i = 0; i < numChildren; i++ )
+    for ( int i = 0; i < nChildren; i++ )
       fprintf(debugout,"\t%s\t%f\t%f\n", node->children_m[i]->label.c_str(), x[i], x2[i]) ;
       ##fprintf(debugout,"\t%s\t%f\n", node->children_m[i]->label.c_str(), x[i]) ;
-#endif
+    #endif
 
-#if DEBUGMAIN1
+    #if DEBUGMAIN1
     fprintf(debugout,"\n---- Processing %s\n",id) ;
     fprintf(debugout,"---- Current node %s\n", node->label.c_str()) ;
-    fprintf(debugout,"---- Number of children: %d\n", numChildren) ;
+    fprintf(debugout,"---- Number of children: %d\n", nChildren) ;
     fprintf(debugout,"---- Children:\n") ;
-    for ( int i = 0; i < numChildren; i++ )
+    for ( int i = 0; i < nChildren; i++ )
 	fprintf(debugout,"\t%s\n", node->children_m[i]->label.c_str()) ;
-#endif
+    #endif
+
+
+    if ( inPar->ppEmbedding ) // start of decition path of the given sequence
+      fprintf(dOut,"%s", id);
 
     //int depthCount = 1;
-    while ( numChildren && !breakLoop )
+    while ( nChildren && !breakLoop )
     {
       // compute model probabilities for seq and rcseq
       // NOTE: after a few iterations only seq or rcseq should be processed !!!
-      for ( int i = 0; i < numChildren; i++ )
+      for ( int i = 0; i < nChildren; i++ )
       {
 	if ( inPar->revComp )
 	{
@@ -636,42 +618,42 @@ int main(int argc, char **argv)
 	}
       }
 
-      int imax = which_max( x, numChildren );
-      currentModelIdx = (node->children_m[imax])->model_idx;
-
-      if ( inPar->printNCprobs )
+      if ( inPar->ppEmbedding )
       {
-	txTrueNCProb[node->children_m[imax]->label].push_back(x[imax]);
-	txTrueID[node->children_m[imax]->label].push_back(id);
-	for ( int i = 0; i < numChildren; i++ )
-	  if ( i != imax )
-	  {
-	    txFalseNCProb[node->children_m[i]->label].push_back(x[i]);
-	    txFalseID[node->children_m[i]->label].push_back(id);
-	  }
-
-	string file1 = string(inPar->outDir) + string("/") + node->children_m[imax]->label + string("_true_seq.ids");
-	FILE *out1 = fOpen(file1.c_str(), "a");
-	fprintf(out1, "%s\n", id);
-	fclose(out1);
-
-	for ( int i = 0; i < numChildren; i++ )
-	  if ( i != imax )
-	  {
-	    string file2 = string(inPar->outDir) + string("/") + node->children_m[i]->label + string("_true_seq.ids");
-	    FILE *out2 = fOpen(file2.c_str(), "a");
-	    fprintf(out2, "%s\n", id);
-	    fclose(out2);
-	  }
+	// log pp's
+	string ppFile = string(inPar->mcDir) + string("/") + node->label + string("__lpps.txt");
+	FILE *ppOut;
+	if ( seen[node->label] )
+	  ppOut = fOpen( ppFile.c_str(), "a");
+	else
+	{
+	  seen[node->label] = true;
+	  ppOut = fOpen( ppFile.c_str(), "w");
+	  // header
+	  fprintf(ppOut,"seqIDs\tcltr");
+	  for (int j = 0; j < nChildren; j++)
+	    fprintf(ppOut,"\t%s",node->children_m[j]->label.c_str());
+	  fprintf(ppOut,"\n");
+	  // end of header
+	}
+	fprintf(ppOut,"%s\t%d", id, -1);
+	for (int j = 0; j < nChildren; j++)
+	  fprintf(ppOut,"\t%f", x[j]);
+	fprintf(ppOut,"\n");
+	fclose(ppOut);
       }
 
+      int imax = which_max( x, nChildren );
       node = node->children_m[imax];
+
+      if ( inPar->ppEmbedding ) // decition path
+	fprintf(dOut,",%s  %.3f %.3f", node->label.c_str(), pow(10, x[imax]), pow(10, thldTbl[ node->label ]));
 
       if ( !inPar->skipErrThld && node->children_m.size()==0 )
       {
 	if ( x[imax] < thldTbl[ node->label ] )
 	{
-	  #if 0
+          #if 0
 	  fprintf(stderr,"\n---- Processing %s\n",id) ;
 	  fprintf(stderr,"maxModel: %s\tlpp: %.4f\tthld: %.4f\t",
 		  node->label.c_str(), x[imax], thldTbl[ node->label ]);
@@ -702,7 +684,7 @@ int main(int argc, char **argv)
 	  breakLoop = 1;
 
 	  if ( node->label=="d_Bacteria" )
-	  break;
+	    break;
 	}
 
         #if DEBUGMAIN1
@@ -711,96 +693,16 @@ int main(int argc, char **argv)
         #endif
       }
 
-      numChildren = node->children_m.size();
+      nChildren = node->children_m.size();
     }
+
+
+    if ( inPar->ppEmbedding ) // end of the given seq's decition path
+      fprintf(dOut,"\n");
 
     fprintf(out,"%s\t%s\n", id, node->label.c_str());
 
-    #if SPPDEBUG
-    if ( node->label=="f_Lactobacillaceae" )
-    {
-      fprintf(liout,"%s,%f,%f\n", id, y[0], y[1]);
-    }
-    #endif
-
-
-    // -----------------------------------------
-    // Printing conditional probabilities
-    // -----------------------------------------
-    if ( inPar->dimProbs )
-    {
-      // probs = vector of conditional probabilities at each position of the sequence, rcseq, given the modelIdx-th model
-      int k = probModel->log10probVect( rcseq, seqLen, currentModelIdx, probs );
-
-      if ( k > inPar->dimProbs )
-	k = inPar->dimProbs;
-
-      int k1 = k-1;
-      fprintf(probsOut, "%s,", id);
-      for ( int i = 0; i < k1; i++ )
-	fprintf(probsOut, "%f,", pow(10, probs[i]));
-      fprintf(probsOut, "%.10f", pow(10, probs[k1]));
-
-      if ( k < inPar->dimProbs )
-	for ( int i = k; i < inPar->dimProbs; i++ )
-	  fprintf(probsOut, ",0");
-
-      fprintf(probsOut, "\n");
-
-      // fprintf(stderr, "\n\nk=%d\tdimProbs=%d\n", k, inPar->dimProbs);
-      // break;
-    }
-
-
   } // end of   while ( getNextFastaRecord( in, id, data, alloc, seq, seqLen) )
-
-  if ( inPar->printNCprobs )
-  {
-    map<string, vector<double> >::iterator it;
-    for ( it = txTrueNCProb.begin(); it != txTrueNCProb.end(); it++ )
-    {
-      string file1 = string(inPar->outDir) + string("/") + it->first + string("_true_ncProbs.txt");
-      FILE *out1 = fOpen(file1.c_str(), "w");
-      int n = it->second.size();
-      for ( int i = 0; i < n; i++ )
-	fprintf(out1, "%f\n", it->second[i]);
-      fclose(out1);
-    }
-
-    for ( it = txFalseNCProb.begin(); it != txFalseNCProb.end(); it++ )
-    {
-      string file1 = string(inPar->outDir) + string("/") + it->first + string("_false_ncProbs.txt");
-      FILE *out1 = fOpen(file1.c_str(), "w");
-      int n = it->second.size();
-      for ( int i = 0; i < n; i++ )
-	fprintf(out1, "%f\n", it->second[i]);
-      fclose(out1);
-    }
-
-    #if 0
-    map<string, vector<char *> >::iterator itr;
-    for ( itr = txTrueID.begin(); itr != txTrueID.end(); itr++ )
-    {
-      string file1 = string(inPar->outDir) + string("/") + itr->first + string("_true_seq.ids");
-      FILE *out1 = fOpen(file1.c_str(), "w");
-      int n = itr->second.size();
-      for ( int i = 0; i < n; i++ )
-	fprintf(out1, "%s\n", itr->second[i]);
-      fclose(out1);
-    }
-
-    for ( itr = txFalseID.begin(); itr != txFalseID.end(); itr++ )
-    {
-      string file1 = string(inPar->outDir) + string("/") + itr->first + string("_false_seq.ids");
-      FILE *out1 = fOpen(file1.c_str(), "w");
-      int n = itr->second.size();
-      for ( int i = 0; i < n; i++ )
-	fprintf(out1, "%s\n", itr->second[i]);
-      fclose(out1);
-    }
-    #endif
-  }
-
 
   fclose(in);
   fclose(out);
@@ -868,27 +770,23 @@ void parseArgs( int argc, char ** argv, inPar_t *p )
   static struct option longOptions[] = {
     {"print-counts"       ,no_argument, &p->printCounts,    1},
     //{"skip-err-thld"      ,no_argument, &p->skipErrThld,    1},
-    {"skip-err-thld"      ,no_argument,       0, 'x'},
     {"max-num-amb-codes"  ,required_argument, 0, 'b'},
+    {"rev-comp"           ,no_argument,       0, 'c'},
+    {"pp-embedding"       ,no_argument,       0, 'e'},
     {"fullTx-file"        ,required_argument, 0, 'f'},
     {"out-dir"            ,required_argument, 0, 'o'},
-    {"ref-tree"           ,required_argument, 0, 'r'},
     {"pseudo-count-type"  ,required_argument, 0, 'p'},
-    {"print-nc-probs"     ,no_argument,       0, 's'},
-    {"rev-comp"           ,no_argument,       0, 'c'},
+    {"ref-tree"           ,required_argument, 0, 'r'},
     {"quiet"              ,no_argument,       0, 'q'},
     {"verbose"            ,no_argument,       0, 'v'},
+    {"skip-err-thld"      ,no_argument,       0, 'x'},
     {"help"               ,no_argument,       0,   0},
     {0, 0, 0, 0}
   };
 
-  while ((c = getopt_long(argc, argv,"a:b:c:d:f:g:hi:k:o:p:q:r:st:vy:x",longOptions, NULL)) != -1)
+  while ((c = getopt_long(argc, argv,"b:c:d:ef:g:hi:k:o:p:q:r:t:vy:x",longOptions, NULL)) != -1)
     switch (c)
     {
-      case 'a':
-	p->dimProbs = atoi(optarg);
-	break;
-
       case 'b':
 	p->maxNumAmbCodes = atoi(optarg);
 	break;
@@ -899,6 +797,10 @@ void parseArgs( int argc, char ** argv, inPar_t *p )
 
       case 'd':
 	p->mcDir = strdup(optarg);
+	break;
+
+      case 'e':
+	p->ppEmbedding = true;
 	break;
 
       case 'f':
@@ -959,10 +861,6 @@ void parseArgs( int argc, char ** argv, inPar_t *p )
 
       case 'r':
 	p->treeFile = strdup(optarg);
-	break;
-
-      case 's':
-	p->printNCprobs = true;
 	break;
 
       case 't':
