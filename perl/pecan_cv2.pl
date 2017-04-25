@@ -59,7 +59,7 @@
 
 =head1 EXAMPLE
 
-  pecan_cv2.pl --cv-sp-size-thld 50 --offset-coef 0.9 -n 10 -o all_bacteria_CV_April_25_run1w
+  pecan_cv2.pl --cv-sp-size-thld 50 --offset-coef 0.9 -n 10 -o all_bacteria_CV_April_25_run1
 
   pecan_cv2.pl --skip-err-thld --cv-sp-size-thld 50 -o all_bacteria_CV_April_25_run2
 
