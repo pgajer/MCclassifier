@@ -48,7 +48,7 @@
 
 =head1 EXAMPLE
 
-  mm_validate_pecan.pl --max-no-nr-seqs 500 --perc-coverage 90 --show-tree
+  mm_validate_pecan.pl --max-no-nr-seqs 500 --perc-coverage 80
 
   mm_validate_pecan.pl --max-no-nr-seqs 100 --perc-coverage 50 --phylo-part-perc-thld 0.5 --show-tree
 
@@ -69,7 +69,6 @@ $OUTPUT_AUTOFLUSH = 1;
 ##                             OPTIONS
 ####################################################################
 
-my $phyloPart      = "/Users/pgajer/devel/MCclassifier/PhyloPart_v2.1/PhyloPart_v2.1.jar";
 my $usearch6       = "/Users/pgajer/bin/usearch6.0.203_i86osx32";
 my $readNewickFile = "/Users/pgajer/.Rlocal/read.newick.R";
 
@@ -80,7 +79,6 @@ my $phyloPartPercThld = 0.1;
 GetOptions(
   "max-no-nr-seqs|n=i"       => \$maxNumNRseqs,
   "perc-coverage|p=i"        => \$percCoverage,
-  "phylo-part-perc-thld|t=f" => \$phyloPartPercThld,
   "show-tree"                => \my $showTree,
   "sp-idx|i=i"               => \my $spIndex, # this is only for debugging
   "verbose|v"                => \my $verbose,
