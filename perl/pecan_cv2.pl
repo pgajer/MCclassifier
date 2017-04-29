@@ -306,7 +306,8 @@ my @pCorrectClKnownSpp;
 foreach my $i (0..($nFolds-1))
 {
   print "\r[$i] Creating cross-validation directory";
-  my $cvDir = "$outDir/cvDir_$i";
+  ##my $cvDir = "$outDir/cvDir_$i";
+  my $cvDir = "$outDir/cvDir";
   my $cmd = "rm -rf $cvDir; mkdir $cvDir";
   print "\tcmd=$cmd\n" if $dryRun || $debug; # || $debug;
   system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
@@ -393,7 +394,7 @@ foreach my $i (0..($nFolds-1))
     print "\r[$i] Generating log pp tables for internal nodes of the model tree                                              ";
     $cmd = "pp_embedding -d $mcDir";
     print "\tcmd=$cmd\n" if $dryRun || $debug;
-    system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
+    ##system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
   }
 
   print "\r[$i] Estimating error thresholds                                      ";
@@ -403,6 +404,10 @@ foreach my $i (0..($nFolds-1))
 
   print "\r[$i] Running classify on test fasta file                               ";
   $cmd = "time classify $ppEmbeddingStr $skipErrThldStr -d $mcDir -i $testFaFile -o $cvDir";
+  print "\tcmd=$cmd\n" if $dryRun || $debug;
+  system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
+
+  $cmd = "cat $mcDir/classification_paths.txt >> $outDir/classification_paths.txt";
   print "\tcmd=$cmd\n" if $dryRun || $debug;
   system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 
