@@ -171,54 +171,6 @@ my @faFiles = map{ $_ = $baseDir . $_ } @faFiles0;
 ## print "faFiles: @faFiles\n";
 
 
-my @spLineageFiles0 = ("Actinobacteria_dir/Actinobacteria_group_0_V3V4_dir/Actinobacteria_group_0_V3V4_final.spLineage",
-		     "Actinobacteria_dir/Actinobacteria_group_1_V3V4_dir/Actinobacteria_group_1_V3V4_final.spLineage",
-		     "Actinobacteria_dir/Actinobacteria_group_2_V3V4_dir/Actinobacteria_group_2_V3V4_final.spLineage",
-		     "Actinobacteria_dir/Actinobacteria_group_3_V3V4_dir/Actinobacteria_group_3_V3V4_final.spLineage",
-		     "Actinobacteria_dir/Actinobacteria_group_4_V3V4_dir/Actinobacteria_group_4_V3V4_final.spLineage",
-		     "Actinobacteria_dir/Actinobacteria_group_5_V3V4_dir/Actinobacteria_group_5_V3V4_final.spLineage",
-		     "Bacteroidetes_dir/Bacteroidetes_group_0_V3V4_dir/Bacteroidetes_group_0_V3V4_final.spLineage",
-		     "Bacteroidetes_dir/Bacteroidetes_group_1_V3V4_dir/Bacteroidetes_group_1_V3V4_final.spLineage",
-		     "Bacteroidetes_dir/Bacteroidetes_group_2_V3V4_dir/Bacteroidetes_group_2_V3V4_final.spLineage",
-		     "Bacteroidetes_dir/Bacteroidetes_group_3_V3V4_dir/Bacteroidetes_group_3_V3V4_final.spLineage",
-		     "final_small_phyla/Chloroflexi_V3V4_dir/Chloroflexi_V3V4_final.spLineage",
-		     "final_small_phyla/Deinococcus_Thermus_V3V4_dir/Deinococcus_Thermus_V3V4_final.spLineage",
-		     "final_small_phyla/Fusobacteria_V3V4_dir/Fusobacteria_V3V4_final.spLineage",
-		     "final_small_phyla/Nitrospirae_V3V4_dir/Nitrospirae_V3V4_final.spLineage",
-		     "final_small_phyla/Planctomycetes_V3V4_dir/Planctomycetes_V3V4_final.spLineage",
-		     "final_small_phyla/Spirochaetes_V3V4_dir/Spirochaetes_V3V4_final.spLineage",
-		     "final_small_phyla/Tenericutes_V3V4_dir/Tenericutes_V3V4_final.spLineage",
-		     "final_small_phyla/Verrucomicrobia_V3V4_dir/Verrucomicrobia_V3V4_final.spLineage",
-		     "final_small_phyla/phyla_lessthen_1k_wOG_V3V4_dir/phyla_lessthen_1k_wOG_V3V4_final.spLineage",
-		     "Firmicutes_dir/Firmicutes_group_0_V3V4_dir/Firmicutes_group_0_V3V4_final.spLineage",
-		     "Firmicutes_dir/Firmicutes_group_1_V3V4_dir/Firmicutes_group_1_V3V4_final.spLineage",
-		     "Firmicutes_dir/Firmicutes_group_2_V3V4_dir/Firmicutes_group_2_V3V4_final.spLineage",
-		     "Firmicutes_dir/Firmicutes_group_3_V3V4_dir/Firmicutes_group_3_V3V4_final.spLineage",
-		     "Firmicutes_dir/Firmicutes_group_4_V3V4_dir/Firmicutes_group_4_V3V4_final.spLineage",
-		     "Firmicutes_dir/Firmicutes_group_5_V3V4_dir/Firmicutes_group_5_V3V4_final.spLineage",
-		     "Firmicutes_dir/Firmicutes_group_6_V3V4_dir/Firmicutes_group_6_V3V4_final.spLineage",
-		     "Proteobacteria_dir/Proteobacteria_group_0_V3V4_dir/Proteobacteria_group_0_V3V4_final.spLineage",
-		     "Proteobacteria_dir/Proteobacteria_group_10_V3V4_dir/Proteobacteria_group_10_V3V4_final.spLineage",
-		     "Proteobacteria_dir/Proteobacteria_group_11_V3V4_dir/Proteobacteria_group_11_V3V4_final.spLineage",
-		     "Proteobacteria_dir/Proteobacteria_group_12_V3V4_dir/Proteobacteria_group_12_V3V4_final.spLineage",
-		     "Proteobacteria_dir/Proteobacteria_group_13_V3V4_dir/Proteobacteria_group_13_V3V4_final.spLineage",
-		     "Proteobacteria_dir/Proteobacteria_group_14_V3V4_dir/Proteobacteria_group_14_V3V4_final.spLineage",
-		     "Proteobacteria_dir/Proteobacteria_group_15_V3V4_dir/Proteobacteria_group_15_V3V4_final.spLineage",
-		     "Proteobacteria_dir/Proteobacteria_group_17_V3V4_dir/Proteobacteria_group_17_V3V4_final.spLineage",
-		     "Proteobacteria_dir/Proteobacteria_group_1_V3V4_dir/Proteobacteria_group_1_V3V4_final.spLineage",
-		     "Proteobacteria_dir/Proteobacteria_group_2_V3V4_dir/Proteobacteria_group_2_V3V4_final.spLineage",
-		     "Proteobacteria_dir/Proteobacteria_group_3_V3V4_dir/Proteobacteria_group_3_V3V4_final.spLineage",
-		     "Proteobacteria_dir/Proteobacteria_group_4_V3V4_dir/Proteobacteria_group_4_V3V4_final.spLineage",
-		     "Proteobacteria_dir/Proteobacteria_group_5_V3V4_dir/Proteobacteria_group_5_V3V4_final.spLineage",
-		     "Proteobacteria_dir/Proteobacteria_group_6_V3V4_dir/Proteobacteria_group_6_V3V4_final.spLineage",
-		     "Proteobacteria_dir/Proteobacteria_group_7_V3V4_dir/Proteobacteria_group_7_V3V4_final.spLineage",
-		     "Proteobacteria_dir/Proteobacteria_group_8_V3V4_dir/Proteobacteria_group_8_V3V4_final.spLineage",
-		     "Proteobacteria_dir/Proteobacteria_group_9_V3V4_dir/Proteobacteria_group_9_V3V4_final.spLineage");
-
-my @spLineageFiles = map{ $_ = $baseDir . $_ } @spLineageFiles0;
-## print "spLineageFile: @spLineageFiles\n";
-
-
 my @txFiles0 = ("Actinobacteria_dir/Actinobacteria_group_0_V3V4_dir/Actinobacteria_group_0_V3V4_final.tx",
 		     "Actinobacteria_dir/Actinobacteria_group_1_V3V4_dir/Actinobacteria_group_1_V3V4_final.tx",
 		     "Actinobacteria_dir/Actinobacteria_group_2_V3V4_dir/Actinobacteria_group_2_V3V4_final.tx",
@@ -363,7 +315,7 @@ for my $phGr ( keys %phGrSppTbl )
   my $phGrTxFile = $f[0];
   ## print "\nphGr: $phGr; phGrTxFile: $phGrTxFile\n";
 
-  my %phGrTxTbl = readTbl($phGrTxFile);
+  #my %phGrTxTbl = readTbl($phGrTxFile);
 
   ## file with the given phylo-group's outgroup seq's
   my $phGrOGseqIDsFile = $phGrFaFile;
