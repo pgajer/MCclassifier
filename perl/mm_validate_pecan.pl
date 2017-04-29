@@ -250,17 +250,6 @@ open my $ROUT, ">$vicutCltrReport" or die "Cannot open $vicutCltrReport for writ
 my $qFaFile = "/Users/pgajer/projects/M_and_M/new_16S_classification_data/mm_all_good_seqIDs.fa";
 ##my $qTxFile = "/Users/pgajer/projects/M_and_M/new_16S_classification_data/clDir/pecan_good_seqIDs.tx";
 
-# my $pdfDirGoodSpp = $mmDir . "pdf_dir_good_spp";
-# my $pdfDirBadSpp  = $mmDir . "pdf_dir_bad_spp";
-
-# $cmd = "mkdir -p $pdfDirGoodSpp";
-# print "\tcmd=$cmd\n" if $dryRun || $debug;
-# system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
-
-# $cmd = "mkdir -p $pdfDirBadSpp";
-# print "\tcmd=$cmd\n" if $dryRun || $debug;
-# system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
-
 my $treesDir = $mmDir . "trees_dir";
 
 $cmd = "mkdir -p $treesDir";
