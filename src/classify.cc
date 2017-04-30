@@ -585,7 +585,7 @@ int main(int argc, char **argv)
 	}
       }
 
-      if ( inPar->ppEmbedding )
+      if ( 0 && inPar->ppEmbedding )
       {
 	// log pp's
 	string ppFile = string(inPar->mcDir) + string("/") + node->label + string("__lpps.txt");
