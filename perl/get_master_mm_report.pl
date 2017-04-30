@@ -245,7 +245,7 @@ open OUT, ">$masterFile" or die "Cannot open $masterFile for writing: $OS_ERROR"
 for my $sp (@complRecSpp)
 {
   print OUT "------------------------------------------------\n";
-  print OUT "\n$sp\n";
+  print OUT "\nsp: $sp\n";
   print OUT $rTbl{$sp};
 }
 print OUT "\n";
