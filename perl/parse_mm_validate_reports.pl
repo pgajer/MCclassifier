@@ -112,9 +112,6 @@ my %spToPhGr = parseSpTbl($sppTblFile); # spToPhGr: <sp> => <sp's phylo-group>
 
 my @allSpp = keys %spToPhGr;
 my $nAllSpp = @allSpp;
-print "\nNo. of species detected in the M&M project: $nAllSpp\n";
-
-#my $file = "/Users/pgajer/projects/M_and_M/new_16S_classification_data/mm_validate_reports_dir_2017-04-29_01_02_13/vicut_cltrs_report.txt";
 
 my %rTbl; # <species name> => record with cluster info text
 my $sp;
@@ -193,10 +190,6 @@ my $nComplRecSpp = @complRecSpp;
 my @incompRecSpp = diff(\@recSpp, \@complRecSpp);
 my $nIncompRecSpp = @incompRecSpp;
 
-print "\n\n\tNo. of all detected species $nRecSpp\n";
-print "\tNo. of complete record species $nComplRecSpp\n";
-print "\tNo. of species with incomplete record: $nIncompRecSpp\n";
-
 if (@incompRecSpp)
 {
   printArray(\@incompRecSpp, "\nSpecies with incomplete records\n");
@@ -225,10 +218,10 @@ for my $sp (@complRecSpp)
 print OUT "\n";
 close OUT;
 
-print "\n\tComplete records written to $outFile\n";
 
 ## Generating a list of species missing record
 my @spMissingRec = diff(\@allSpp, \@complRecSpp);
+
 $outFile = $mmDir . "/spp_missing_record.txt";
 open OUT, ">$outFile" or die "Cannot open $outFile for writing: $OS_ERROR\n";
 for my $sp (@spMissingRec)
@@ -237,6 +230,13 @@ for my $sp (@spMissingRec)
 }
 close OUT;
 
+print "\n\n\tNo. of species detected in the M&M project: $nAllSpp\n";
+print     "\tNo. of all detected species:                $nRecSpp\n";
+print     "\tNo. of complete record species:             $nComplRecSpp\n";
+print     "\tNo. of species with incomplete record:      $nIncompRecSpp\n";
+print     "\tNo. of species with no record:              " . @spMissingRec . "\n";
+
+print "\n\tComplete records written to $outFile\n";
 print "\tSpecies with missing record written to $outFile\n\n";
 
 
