@@ -6,9 +6,10 @@
 
 =head1 DESCRIPTION
 
- Validate PECAN taxonomic assignment of the M&M sequences by creating
- phylogenetic trees of representative sequences to PECAN species together with
- ref seq's of of the corresponding phylo group.
+  This script attempts to validate PECAN taxonomic assignment of the M&M
+  sequences by generating vicut clustering results report and creating
+  phylogenetic trees of representative sequences to PECAN species together with
+  ref seq's of of the corresponding phylo group.
 
 =head1 SYNOPSIS
 
@@ -278,7 +279,7 @@ my %spIdsTbl   = %{$rspIdsTbl};   # sp   => ref of array with seqIDs of seq's cl
 my %phGrSppTbl = %{$rphGrSppTbl}; # phGr => species of phGr
 my %ppTbl      = %{$rppTbl};      # seqID => posterior probability of the best model
 
-#my $phGr = "Firmicutes_group_6_V3V4";
+#my $phGr = "Firmicutes_group_3_V3V4";
 for my $phGr ( keys %phGrSppTbl )
 {
   print "--- Processing $phGr species\n";
@@ -328,8 +329,6 @@ for my $phGr ( keys %phGrSppTbl )
     system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
   }
 
-  #my $sp = "Lactobacillus_iners";
-
   #my $spIdx = $spIndex;
 
   my @uqSpp = unique($phGrSppTbl{$phGr});
@@ -337,6 +336,7 @@ for my $phGr ( keys %phGrSppTbl )
   for my $spIdx ( 0..$#spp )
   {
     my $sp = $spp[$spIdx];
+    #my $sp = "Chryseomicrobium_imtechense";
 
     my @ids = @{$spIdsTbl{$sp}}; # seq IDs of $sp
     my $nSp = scalar(@ids); # number of sequences of the given species
