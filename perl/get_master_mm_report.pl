@@ -2,7 +2,7 @@
 
 =head1 NAME
 
-  parse_mm_validate_reports.pl
+  get_master_mm_report.pl
 
 =head1 DESCRIPTION
 
@@ -44,7 +44,7 @@
 
 =head1 SYNOPSIS
 
-  parse_mm_validate_reports.pl
+  get_master_mm_report.pl
 
 =head1 OPTIONS
 
@@ -67,7 +67,7 @@
 
 =head1 EXAMPLE
 
-  parse_mm_validate_reports.pl
+  get_master_mm_report.pl
 
 =cut
 
