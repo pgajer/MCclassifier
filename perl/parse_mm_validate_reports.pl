@@ -108,9 +108,9 @@ my $mmDir = "/Users/pgajer/projects/M_and_M/new_16S_classification_data";
 
 ## parsing table of species detected in the M&M dataset
 my $sppTblFile = $mmDir . "/mm_uq_spp_report.txt";
-my %sppToPhGr = parseSpTbl($sppTblFile); # sppToPhGr: <sp> => <sp's phylo-group>
+my %spToPhGr = parseSpTbl($sppTblFile); # spToPhGr: <sp> => <sp's phylo-group>
 
-my @allSpp = keys %sppToPhGr;
+my @allSpp = keys %spToPhGr;
 my $nAllSpp = @allSpp;
 print "\nNo. of species detected in the M&M project: $nAllSpp\n";
 
@@ -186,14 +186,14 @@ closedir(DIR);
 ##
 ## Summary
 ##
-my @allSpp = keys %rTbl;
-my $nAllSpp = @allSpp;
+my @recSpp = keys %rTbl;
+my $nRecSpp = @recSpp;
 my @complRecSpp = keys %recComplete;
 my $nComplRecSpp = @complRecSpp;
-my @incompRecSpp = diff(\@allSpp, \@complRecSpp);
+my @incompRecSpp = diff(\@recSpp, \@complRecSpp);
 my $nIncompRecSpp = @incompRecSpp;
 
-print "\n\n\tNo. of all detected species $nAllSpp\n";
+print "\n\n\tNo. of all detected species $nRecSpp\n";
 print "\tNo. of complete record species $nComplRecSpp\n";
 print "\tNo. of species with incomplete record: $nIncompRecSpp\n";
 
@@ -237,7 +237,7 @@ for my $sp (@spMissingRec)
 }
 close OUT;
 
-print "\n\tSpecies with missing record written to $outFile\n";
+print "\n\tSpecies with missing record written to $outFile\n\n";
 
 
 ####################################################################
