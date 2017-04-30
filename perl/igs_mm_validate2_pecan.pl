@@ -1,0 +1,1770 @@
+#!/usr/bin/env perl
+
+=head1 NAME
+
+  igs_mm_validate2_pecan.pl
+
+=head1 DESCRIPTION
+
+  IGS version of mm_validate2_pecan.pl
+
+  This script attempts to validate PECAN taxonomic assignment of the M&M
+  sequences by generating vicut clustering results report and creating
+  phylogenetic trees of representative sequences to PECAN species together with
+  ref seq's of of the corresponding phylo group.
+
+=head1 SYNOPSIS
+
+  igs_mm_validate2_pecan.pl
+
+=head1 OPTIONS
+
+=over
+
+=item B<--spp-file, -i>
+  Maximal number of non-redundant seq's.
+
+=item B<--max-no-nr-seqs, -n>
+  Maximal number of non-redundant seq's.
+
+=item B<--perc-coverage, -p>
+  Percentage coverage: the percentage, say 80%, of the total number of non-redundant sequences
+  Used to reduce the number of non-redundant seq's
+
+=item B<--phylo-part-perc-thld, -t>
+  Percentile threshold for phylo-partitioning specified as a decimal between 0 and 1. Default: 0.1
+
+=item B<--show-tree>
+  Open the pdf file with the tree used to do clustering.
+
+=item B<--verbose, -v>
+  Prints content of some output files.
+
+=item B<--debug>
+  Prints system commands
+
+=item B<--dry-run>
+  Print commands to be executed, but do not execute them.
+
+=item B<-h|--help>
+  Print help message and exit successfully.
+
+=back
+
+
+=head1 EXAMPLE
+
+  in ~/projects/M_and_M/new_16S_classification_data
+
+  igs_mm_validate2_pecan.pl --spp-file mm_valid_spp_part_1.txt --max-no-nr-seqs 500 --perc-coverage 80
+
+=cut
+
+use strict;
+use warnings;
+use diagnostics;
+use Pod::Usage;
+use English qw( -no_match_vars );
+use Getopt::Long qw(:config no_ignore_case no_auto_abbrev pass_through);
+use Cwd 'abs_path';
+use List::Util qw( sum min max );
+use File::Temp qw/ tempfile /;
+#use File::Temp qw/ :POSIX /;
+
+$OUTPUT_AUTOFLUSH = 1;
+
+####################################################################
+##                             OPTIONS
+####################################################################
+
+my $usearch6       = "/home/pgajer/bin/usearch6.0.203_i86linux32";
+my $readNewickFile = "/home/pgajer/.Rlocal/read.newick.R";
+
+my $maxNumNRseqs = 100;
+my $percCoverage = 80;
+my $phyloPartPercThld = 0.1;
+
+GetOptions(
+  "spp-file|i=s"             => \my $sppFile,
+  "max-no-nr-seqs|n=i"       => \$maxNumNRseqs,
+  "perc-coverage|p=i"        => \$percCoverage,
+  "show-tree"                => \my $showTree,
+  "verbose|v"                => \my $verbose,
+  "debug"                    => \my $debug,
+  "dry-run"                  => \my $dryRun,
+  "help|h!"                  => \my $help,
+  )
+  or pod2usage(verbose => 0,exitstatus => 1);
+
+
+if ($help)
+{
+  pod2usage(verbose => 2,exitstatus => 0);
+  exit 1;
+}
+
+if ( !$sppFile )
+{
+  warn "\n\n\tERROR: Missing species list file";
+  print "\n\n";
+  pod2usage(verbose => 2,exitstatus => 0);
+  exit 1;
+}
+
+####################################################################
+##                               MAIN
+####################################################################
+
+my $startRun = time();
+my $endRun = time();
+my $runTime = $endRun - $startRun;
+my $timeStr;
+my $timeMin = int($runTime / 60);
+my $timeSec = $runTime % 60;
+
+##
+my $debugStr = "";
+my $quietStr = "--quiet";
+if ($debug)
+{
+  $debugStr = "--debug";
+  $quietStr = "";
+}
+
+my $verboseStr = "";
+if ($verbose)
+{
+  $verboseStr = "--verbose";
+}
+
+my $baseDir = "/usr/local/projects/pgajer/devel/MCextras/data/RDP/V3V4/";
+
+my @faFiles0 = ("Actinobacteria_group_0_V3V4_dir/Actinobacteria_group_0_V3V4_final.fa",
+		"Actinobacteria_group_1_V3V4_dir/Actinobacteria_group_1_V3V4_final.fa",
+		"Actinobacteria_group_2_V3V4_dir/Actinobacteria_group_2_V3V4_final.fa",
+		"Actinobacteria_group_3_V3V4_dir/Actinobacteria_group_3_V3V4_final.fa",
+		"Actinobacteria_group_4_V3V4_dir/Actinobacteria_group_4_V3V4_final.fa",
+		"Actinobacteria_group_5_V3V4_dir/Actinobacteria_group_5_V3V4_final.fa",
+		"Bacteroidetes_group_0_V3V4_dir/Bacteroidetes_group_0_V3V4_final.fa",
+		"Bacteroidetes_group_1_V3V4_dir/Bacteroidetes_group_1_V3V4_final.fa",
+		"Bacteroidetes_group_2_V3V4_dir/Bacteroidetes_group_2_V3V4_final.fa",
+		"Bacteroidetes_group_3_V3V4_dir/Bacteroidetes_group_3_V3V4_final.fa",
+		"Chloroflexi_V3V4_dir/Chloroflexi_V3V4_final.fa",
+		"Deinococcus_Thermus_V3V4_dir/Deinococcus_Thermus_V3V4_final.fa",
+		"Fusobacteria_V3V4_dir/Fusobacteria_V3V4_final.fa",
+		"Nitrospirae_V3V4_dir/Nitrospirae_V3V4_final.fa",
+		"Planctomycetes_V3V4_dir/Planctomycetes_V3V4_final.fa",
+		"Spirochaetes_V3V4_dir/Spirochaetes_V3V4_final.fa",
+		"Tenericutes_V3V4_dir/Tenericutes_V3V4_final.fa",
+		"Verrucomicrobia_V3V4_dir/Verrucomicrobia_V3V4_final.fa",
+		"phyla_lessthen_1k_wOG_V3V4_dir/phyla_lessthen_1k_wOG_V3V4_final.fa",
+		"Firmicutes_group_0_V3V4_dir/Firmicutes_group_0_V3V4_final.fa",
+		"Firmicutes_group_1_V3V4_dir/Firmicutes_group_1_V3V4_final.fa",
+		"Firmicutes_group_2_V3V4_dir/Firmicutes_group_2_V3V4_final.fa",
+		"Firmicutes_group_3_V3V4_dir/Firmicutes_group_3_V3V4_final.fa",
+		"Firmicutes_group_4_V3V4_dir/Firmicutes_group_4_V3V4_final.fa",
+		"Firmicutes_group_5_V3V4_dir/Firmicutes_group_5_V3V4_final.fa",
+		"Firmicutes_group_6_V3V4_dir/Firmicutes_group_6_V3V4_final.fa",
+		"Proteobacteria_group_0_V3V4_dir/Proteobacteria_group_0_V3V4_final.fa",
+		"Proteobacteria_group_10_V3V4_dir/Proteobacteria_group_10_V3V4_final.fa",
+		"Proteobacteria_group_11_V3V4_dir/Proteobacteria_group_11_V3V4_final.fa",
+		"Proteobacteria_group_12_V3V4_dir/Proteobacteria_group_12_V3V4_final.fa",
+		"Proteobacteria_group_13_V3V4_dir/Proteobacteria_group_13_V3V4_final.fa",
+		"Proteobacteria_group_14_V3V4_dir/Proteobacteria_group_14_V3V4_final.fa",
+		"Proteobacteria_group_15_V3V4_dir/Proteobacteria_group_15_V3V4_final.fa",
+		"Proteobacteria_group_17_V3V4_dir/Proteobacteria_group_17_V3V4_final.fa",
+		"Proteobacteria_group_1_V3V4_dir/Proteobacteria_group_1_V3V4_final.fa",
+		"Proteobacteria_group_2_V3V4_dir/Proteobacteria_group_2_V3V4_final.fa",
+		"Proteobacteria_group_3_V3V4_dir/Proteobacteria_group_3_V3V4_final.fa",
+		"Proteobacteria_group_4_V3V4_dir/Proteobacteria_group_4_V3V4_final.fa",
+		"Proteobacteria_group_5_V3V4_dir/Proteobacteria_group_5_V3V4_final.fa",
+		"Proteobacteria_group_6_V3V4_dir/Proteobacteria_group_6_V3V4_final.fa",
+		"Proteobacteria_group_7_V3V4_dir/Proteobacteria_group_7_V3V4_final.fa",
+		"Proteobacteria_group_8_V3V4_dir/Proteobacteria_group_8_V3V4_final.fa",
+		"Proteobacteria_group_9_V3V4_dir/Proteobacteria_group_9_V3V4_final.fa");
+
+my @faFiles = map{ $_ = $baseDir . $_ } @faFiles0;
+## print "faFiles: @faFiles\n";
+
+
+my @txFiles0 = ("Actinobacteria_group_0_V3V4_dir/Actinobacteria_group_0_V3V4_final.tx",
+		"Actinobacteria_group_1_V3V4_dir/Actinobacteria_group_1_V3V4_final.tx",
+		"Actinobacteria_group_2_V3V4_dir/Actinobacteria_group_2_V3V4_final.tx",
+		"Actinobacteria_group_3_V3V4_dir/Actinobacteria_group_3_V3V4_final.tx",
+		"Actinobacteria_group_4_V3V4_dir/Actinobacteria_group_4_V3V4_final.tx",
+		"Actinobacteria_group_5_V3V4_dir/Actinobacteria_group_5_V3V4_final.tx",
+		"Bacteroidetes_group_0_V3V4_dir/Bacteroidetes_group_0_V3V4_final.tx",
+		"Bacteroidetes_group_1_V3V4_dir/Bacteroidetes_group_1_V3V4_final.tx",
+		"Bacteroidetes_group_2_V3V4_dir/Bacteroidetes_group_2_V3V4_final.tx",
+		"Bacteroidetes_group_3_V3V4_dir/Bacteroidetes_group_3_V3V4_final.tx",
+		"Chloroflexi_V3V4_dir/Chloroflexi_V3V4_final.tx",
+		"Deinococcus_Thermus_V3V4_dir/Deinococcus_Thermus_V3V4_final.tx",
+		"Fusobacteria_V3V4_dir/Fusobacteria_V3V4_final.tx",
+		"Nitrospirae_V3V4_dir/Nitrospirae_V3V4_final.tx",
+		"Planctomycetes_V3V4_dir/Planctomycetes_V3V4_final.tx",
+		"Spirochaetes_V3V4_dir/Spirochaetes_V3V4_final.tx",
+		"Tenericutes_V3V4_dir/Tenericutes_V3V4_final.tx",
+		"Verrucomicrobia_V3V4_dir/Verrucomicrobia_V3V4_final.tx",
+		"phyla_lessthen_1k_wOG_V3V4_dir/phyla_lessthen_1k_wOG_V3V4_final.tx",
+		"Firmicutes_group_0_V3V4_dir/Firmicutes_group_0_V3V4_final.tx",
+		"Firmicutes_group_1_V3V4_dir/Firmicutes_group_1_V3V4_final.tx",
+		"Firmicutes_group_2_V3V4_dir/Firmicutes_group_2_V3V4_final.tx",
+		"Firmicutes_group_3_V3V4_dir/Firmicutes_group_3_V3V4_final.tx",
+		"Firmicutes_group_4_V3V4_dir/Firmicutes_group_4_V3V4_final.tx",
+		"Firmicutes_group_5_V3V4_dir/Firmicutes_group_5_V3V4_final.tx",
+		"Firmicutes_group_6_V3V4_dir/Firmicutes_group_6_V3V4_final.tx",
+		"Proteobacteria_group_0_V3V4_dir/Proteobacteria_group_0_V3V4_final.tx",
+		"Proteobacteria_group_10_V3V4_dir/Proteobacteria_group_10_V3V4_final.tx",
+		"Proteobacteria_group_11_V3V4_dir/Proteobacteria_group_11_V3V4_final.tx",
+		"Proteobacteria_group_12_V3V4_dir/Proteobacteria_group_12_V3V4_final.tx",
+		"Proteobacteria_group_13_V3V4_dir/Proteobacteria_group_13_V3V4_final.tx",
+		"Proteobacteria_group_14_V3V4_dir/Proteobacteria_group_14_V3V4_final.tx",
+		"Proteobacteria_group_15_V3V4_dir/Proteobacteria_group_15_V3V4_final.tx",
+		"Proteobacteria_group_17_V3V4_dir/Proteobacteria_group_17_V3V4_final.tx",
+		"Proteobacteria_group_1_V3V4_dir/Proteobacteria_group_1_V3V4_final.tx",
+		"Proteobacteria_group_2_V3V4_dir/Proteobacteria_group_2_V3V4_final.tx",
+		"Proteobacteria_group_3_V3V4_dir/Proteobacteria_group_3_V3V4_final.tx",
+		"Proteobacteria_group_4_V3V4_dir/Proteobacteria_group_4_V3V4_final.tx",
+		"Proteobacteria_group_5_V3V4_dir/Proteobacteria_group_5_V3V4_final.tx",
+		"Proteobacteria_group_6_V3V4_dir/Proteobacteria_group_6_V3V4_final.tx",
+		"Proteobacteria_group_7_V3V4_dir/Proteobacteria_group_7_V3V4_final.tx",
+		"Proteobacteria_group_8_V3V4_dir/Proteobacteria_group_8_V3V4_final.tx",
+		"Proteobacteria_group_9_V3V4_dir/Proteobacteria_group_9_V3V4_final.tx");
+
+my @txFiles = map{ $_ = $baseDir . $_ } @txFiles0;
+## print "txFile: @txFiles\n";
+
+
+my $mmDir = "/home/pgajer/projects/M_and_M/new_16S_classification_data/";
+
+##
+## Creating output reports directory
+##
+
+## from http://stackoverflow.com/questions/18532026/how-to-append-system-date-to-a-filename-in-perl
+my @now = localtime();
+my $timeStamp = sprintf("%04d-%02d-%02d_%02d_%02d_%02d",
+			$now[5]+1900, $now[4]+1, $now[3],
+			$now[2],      $now[1],   $now[0]);
+
+my $outDir = $mmDir . "mm_validate_reports_dir_$timeStamp";
+my $cmd = "mkdir -p $outDir";
+print "\tcmd=$cmd\n" if $dryRun || $debug;
+system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
+
+## main report
+my $vicutCltrReport = $outDir . "/vicut_cltrs_report.txt";
+open my $ROUT, ">$vicutCltrReport" or die "Cannot open $vicutCltrReport for writing: $OS_ERROR";
+
+## pp vs vicut-cluster-size
+#my $ppVsVicutCltrSize = $outDir . "/pp_vs_vicut_cltrs_size.txt";
+#open PPSOUT, ">$outFile" or die "Cannot open $outFile for writing: $OS_ERROR";
+
+
+my $qFaFile = "/home/pgajer/projects/M_and_M/new_16S_classification_data/mm_all_good_seqIDs.fa";
+
+my $treesDir = $mmDir . "trees_dir";
+
+$cmd = "mkdir -p $treesDir";
+print "\tcmd=$cmd\n" if $dryRun || $debug;
+system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
+
+
+print "\r--- Parsing file with PECAN generated taxonomy on M&M's sequences\n";
+my $qTxFile = "/home/pgajer/projects/M_and_M/new_16S_classification_data/mm_pecan_tx2.txt";
+
+## $qTxFile file content: <seqID> <tx classification of seqID> <its phylo-group>
+
+# $ head /Users/pgajer/devel/MCextras/data/mm_pecan_tx2.txt
+
+#                                                tx   pp                        phGr
+# 1642.V1_0                     Lactobacillus_iners 0.93     Firmicutes_group_6_V3V4
+# 0980.V2_1                     Lactobacillus_iners 0.97     Firmicutes_group_6_V3V4
+# 1670.V2_2 Lactobacillus_crispatus_kefiranofaciens 0.98     Firmicutes_group_6_V3V4
+# 0711.V3_3                       Atopobium_vaginae 0.56 Actinobacteria_group_0_V3V4
+# 1149.V1_4                     Lactobacillus_iners 0.94     Firmicutes_group_6_V3V4
+# 1386.V1_5                     Prevotella_buccalis 0.85  Bacteroidetes_group_2_V3V4
+
+my ($rspIdsTbl, $rppTbl) = readQtxTbl2($qTxFile);
+
+my %spIdsTbl   = %{$rspIdsTbl};   # sp   => ref of array with seqIDs of seq's classified to sp
+my %ppTbl      = %{$rppTbl};      # seqID => posterior probability of the best model
+
+
+print "\r--- Parsing species list table\n";
+
+my %phGrSppTbl = parseSppTbl($sppFile);
+
+for my $phGr ( keys %phGrSppTbl )
+{
+  print "--- Processing $phGr species\n";
+
+  print $ROUT "================================================\n";
+  print $ROUT "\t$phGr\n";
+  print $ROUT "================================================\n\n";
+
+  ## create mm phylo-group dir
+  my $phGrDir = $mmDir . "mm_" . $phGr . "_dir/";
+  ##my $cmd = "rm -rf $phGrDir; mkdir $phGrDir";
+  my $cmd = "mkdir -p $phGrDir";
+  print "\tcmd=$cmd\n" if $dryRun || $debug;
+  system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
+
+  ## Identifying fa finale file of the given phylo-group
+  my @f = grep { $_ =~ /$phGr/ } @faFiles;
+  my $phGrFaFile = $f[0];
+  ## print "\nphGr: $phGr; phGrFaFile: $phGrFaFile\n";
+
+  ## Identifying tx finale file of the given phylo-group
+  @f = grep { $_ =~ /$phGr/ } @txFiles;
+  my $phGrTxFile = $f[0];
+  ## print "\nphGr: $phGr; phGrTxFile: $phGrTxFile\n";
+
+  #my %phGrTxTbl = readTbl($phGrTxFile);
+
+  ## file with the given phylo-group's outgroup seq's
+  my $phGrOGseqIDsFile = $phGrFaFile;
+  $phGrOGseqIDsFile =~ s/_final\.fa/_outgroup\.seqIDs/;
+  ## print "phGrOGseqIDsFile: $phGrOGseqIDsFile\n";
+
+  my @ogSeqIDs = readArray($phGrOGseqIDsFile);
+  print "\nNo. OG seq's: " . scalar(@ogSeqIDs) . "\n";
+
+  ## file with the given phylo-group's fa file of all seq's before curation including outgroup seq's
+  my $phGrBigFaFile = $phGrFaFile;
+  $phGrBigFaFile =~ s/_final//;
+  ## print "phGrBigFaFile: $phGrBigFaFile\n";
+
+  my $phGrOGfaFile = $phGrDir . "og.fa";
+  if ( ! -e $phGrOGfaFile )
+  {
+    print "--- Generating fa file of outgroup seq's of $phGr       ";
+    $cmd = "select_seqs.pl $quietStr -s $phGrOGseqIDsFile -i $phGrBigFaFile -o $phGrOGfaFile";
+    print "\tcmd=$cmd\n" if $dryRun || $debug;
+    system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
+  }
+
+  my @uqSpp = unique($phGrSppTbl{$phGr});
+  my @spp = sort { @{$spIdsTbl{$b}} <=> @{$spIdsTbl{$a}} } @uqSpp;
+  for my $spIdx ( 0..$#spp )
+  {
+    my $sp = $spp[$spIdx];
+
+    my @ids = @{$spIdsTbl{$sp}}; # seq IDs of $sp
+    my $nSp = scalar(@ids); # number of sequences of the given species
+
+    print "\r\tProcessing $sp (n=" . commify($nSp) . ")                                    \n";
+
+    my $spSeqsFile = $phGrDir . $sp . ".seqIDs";
+    writeArray(\@ids, $spSeqsFile);
+
+    my $spFaFile = $phGrDir . $sp . ".fa";
+    if ( ! -e $spFaFile )
+    {
+      print "\r\t\tCreating sp fa file                  ";
+      $cmd = "select_seqs.pl $quietStr -s $spSeqsFile -i $qFaFile -o $spFaFile";
+      print "\tcmd=$cmd\n" if $dryRun || $debug;
+      system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
+    }
+
+    my $spNRfaFile  = $phGrDir . $sp . "_nr.fa";
+    my $spUCfile    = $phGrDir . $sp . ".uc";
+    my $spUCfilelog = $phGrDir . $sp . "_uc.log";
+    if ( ! -e $spNRfaFile )
+    {
+      print "\r\t\tDereplicating species fasta file                   ";
+      $cmd = "$usearch6 -cluster_fast $spFaFile -id 1.0 -uc $spUCfile -centroids $spNRfaFile";
+      print "\tcmd=$cmd\n" if $dryRun || $debug;
+      system($cmd) == 0 or die "system($cmd) failed:$?" if !$dryRun;
+    }
+
+    my $nrSeqIDsFile = $phGrDir . $sp . "_nr.seqIDs";
+    if ( ! -e $nrSeqIDsFile )
+    {
+      print "\r\t\tExtracting non-redundant seq IDs               ";
+      ## extracting seq IDs from the alignment file and selecting those IDs from the taxon file
+      $cmd = "extract_seq_IDs.pl -i $spNRfaFile -o $nrSeqIDsFile";
+      print "\tcmd=$cmd\n" if $dryRun || $debug;
+      system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+    }
+
+    my @nrSeqIDs = readArray($nrSeqIDsFile);
+    my $nnrSp = @nrSeqIDs;
+    print "\nNo. nr seq IDs: " . commify($nnrSp) . "\n";
+
+    print $ROUT "------------------------------------------------\n\n";
+    print $ROUT "$sp\n\n";
+    print $ROUT "n:     " . commify($nSp) . "\n";
+    print $ROUT "n(nr): " . commify($nnrSp) . "\n";
+
+    my $spClstr2File = $phGrDir . $sp . "_nr.clstr2";
+    if ( ! -e $spClstr2File )
+    {
+      print "\r\t\tCreating clstr2 file                               ";
+      $cmd = "uc2clstr2.pl -i $spUCfile -o $spClstr2File";
+      print "cmd=$cmd\n" if $dryRun || $debug;
+      system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+    }
+
+    print "\r\t\tParsing clstr2 file                   ";
+    my %cTbl = parseClstr2($spClstr2File);
+
+    # sort cluster reference sequence IDs w/r cluster size
+    @nrSeqIDs = sort { $cTbl{$b} <=> $cTbl{$a} } keys %cTbl;
+
+    # print "\n\nFirst 10 ref seq's and the corresponding cluster sizes\n";
+    # map { print "\t$_\t$cTbl{$_}\n" } @nrSeqIDs[0..10];
+
+    my @clSizes = map { $cTbl{$_} } @nrSeqIDs;
+    my $total   = sum (@clSizes); # total number of sequences
+    my @clPercs = map { 100.0*$_/$total } @clSizes;
+
+    my %clSizeTbl = map { $_ => $cTbl{$_} } @nrSeqIDs;
+    my %clPercsTbl = map{ $_ => 100.0 * $clSizeTbl{$_} / $total } @nrSeqIDs;
+
+    ## for validation of the above calculations and getting a sense what the thld for cumulative percentage to choose
+    # my $outDir = "/Users/pgajer/projects/M_and_M/new_16S_classification_data/mm_speciation_validation_data/";
+    # writeArray(\@clSizes, $outDir . "Li_cltr_sizes.txt");
+    # writeArray(\@clPercs, $outDir . "Li_cltr_percs.txt");
+
+    my $cumPerc = 0;
+    my $percCovIdx = 0; # index of the sequence in @nrSeqIDs so that sum(clPercs[0..percCovIdx]) gives percCoverage
+    for my $i (0..$#clPercs)
+    {
+      $cumPerc += $clPercs[$i];
+      if ( $cumPerc > $percCoverage )
+      {
+	$percCovIdx = $i-1;
+	last;
+      }
+    }
+
+    $percCovIdx = 0 if $percCovIdx < 0;
+    ##print "\npercCovIdx: $percCovIdx\n";
+
+
+    if ( @nrSeqIDs < $maxNumNRseqs )
+    {
+      # my $spNRtxFile = $phGrDir . $sp . "_nr.tx";
+      # if ( ! -e )
+      # {
+      # 	print "\r\t\tCreating non-redundant seq's taxonomy file               ";
+      # 	$cmd = "select_seqs.pl $quietStr -s $nrSeqIDsFile -i $qTxFile -o $spNRtxFile";
+      # 	print "cmd=$cmd\n" if $dryRun || $debug;
+      # 	system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
+      # }
+
+      ##
+      ## 1. Generating a fa file that is concatenation of OG fa, the final fa of
+      ## the phGr and sel set of given sp's seq's fa
+      ##
+
+      my $bigFaFile = $phGrDir . $sp . "_phGr_og.fa";
+      if ( ! -e $bigFaFile )
+      {
+	print "\r\t\tGenerating bigFaFile                                          ";
+	$cmd = "rm -f $bigFaFile; cat $phGrOGfaFile $phGrFaFile $spNRfaFile > $bigFaFile";
+	print "\tcmd=$cmd\n" if $dryRun || $debug;
+	system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+      }
+
+      ##
+      ## 2. Generate alignment
+      ##
+      my $bigAlgnFile = $phGrDir . $sp . "_algn.fa";
+      if ( ! -e $bigAlgnFile )
+      {
+	print "\r\t\tAligning phGr ref seq's (includeing OG seq's) and the selected seq's of $sp           ";
+	$cmd = "rm -f $bigAlgnFile; mafft --auto --inputorder $bigFaFile > $bigAlgnFile";
+	print "\tcmd=$cmd\n" if $dryRun || $debug;
+	system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+      }
+
+      ##
+      ## 3. Generate phylo tree
+      ##
+      my $bigNotRootedTreeFile = $phGrDir . $sp . "_not_rooted_with_OGs.tree";
+      if ( ! -e $bigNotRootedTreeFile )
+      {
+	print "\r\t\tGenerating phylo tree of the above alignment                                    ";
+	$cmd = "rm -f $bigNotRootedTreeFile; FastTree -nt $bigAlgnFile > $bigNotRootedTreeFile";
+	print "\tcmd=$cmd\n" if $dryRun || $debug;
+	system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+      }
+
+      ## Rerooting the tree
+      my $bigTreeWithOGsFile = $phGrDir . $sp . "_with_OGs.tree";
+      if ( ! -e $bigTreeWithOGsFile )
+      {
+	print "\r\t\tRerooting the tree using outgroup sequences                          ";
+	$cmd = "rm -f $bigTreeWithOGsFile; nw_reroot $bigNotRootedTreeFile @ogSeqIDs | nw_order -  > $bigTreeWithOGsFile";
+	print "\tcmd=$cmd\n" if $dryRun || $debug;
+	system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+      }
+
+      ## Pruning tree froom OG seq's
+      my $bigTreeFile = $phGrDir . $sp . ".tree";
+      #if ( ! -e $bigTreeFile )
+      {
+	print "\r\t\tpruning the tree from OG seq's                                          ";
+	$cmd = "rm -f $bigTreeFile; nw_prune $bigTreeWithOGsFile @ogSeqIDs | nw_order -  > $bigTreeFile";
+	print "\tcmd=$cmd\n" if $dryRun || $debug;
+	system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+      }
+
+      ##
+      ## 4. Running vicut on the tree using seq's of $sp as query nodes
+      ##
+      my $vicutDir    = $phGrDir . $sp . "_cov" . $percCoverage . "_vicut_dir";
+      my $annFile     = $phGrTxFile;
+      my $queryFile   = $nrSeqIDsFile;
+      ##my $vicutTxFile = $vicutDir . "/minNodeCut_NAge1_TXge1_querySeqs.taxonomy"; # minNodeCut.cltrs
+      my $vicutCltrsFile = $vicutDir . "/minNodeCut.cltrs";
+      if ( ! -e $vicutCltrsFile )
+      {
+	print "\r\t\tRunning vicut                                                              ";
+	$cmd = "vicut -t $bigTreeFile -a $annFile -q $queryFile -o $vicutDir"; #  $quietStr
+	print "\tcmd=$cmd\n" if $dryRun || $debug;
+	system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
+      }
+
+      ##
+      ## 5. Reporting results of vicut
+      ##
+
+      my ($rvCltrTbl, $rvTxTbl, $rvExtTxTbl) = readCltrsTbl($vicutCltrsFile);
+
+      my %vCltrTbl   = %{$rvCltrTbl};  # seqID => vicut cluster ID
+      my %vTxTbl     = %{$rvTxTbl};    # seqID => taxonomy (NA for query seq's)
+      my %vExtTxTbl  = %{$rvExtTxTbl}; # seqID => taxonomy of seqID if seqID is a phGr ref seq and c<vicut cluster ID of seqID> if seqID is a query seq
+
+      my $vExtTxTblFile = $phGrDir . $sp . "_cov" . $percCoverage . "_ext.tx";
+      writeTbl(\%vExtTxTbl, $vExtTxTblFile);
+
+      ## vicut-cltr/tx frequency table
+      my %vCltrvTxFreq;
+      my %vCltrvTxIds;  # $vCltrvTxIds{cltr}{tx} = ref to seqID of the cluster's, cltr, taxon, tx.
+      my %vCltrIds;
+      for my $id ( keys %vCltrTbl )
+      {
+	$vCltrvTxFreq{$vCltrTbl{$id}}{$vTxTbl{$id}}++;
+	push @{$vCltrvTxIds{$vCltrTbl{$id}}{$vTxTbl{$id}}}, $id;
+	push @{$vCltrIds{$vCltrTbl{$id}}}, $id;
+      }
+
+      ## Identify clusters that contain query sequences
+      my @nrSeqCltrs; # = @vCltrTbl{@nrSeqIDs};
+      ##print "\n\nvCltrTbl\n";
+      for (@nrSeqIDs)
+      {
+	if ( exists $vCltrTbl{$_} )
+	{
+	  push @nrSeqCltrs, $vCltrTbl{$_};
+	}
+	else
+	{
+	  print "\n\nWARNING: $_ undefined in vCltrTbl\n";
+	}
+      }
+      my @nrCltrs = unique(\@nrSeqCltrs);
+
+      print "\nnrCltrs: @nrCltrs\n";
+
+      ## size of each cluster
+      my %vicutCltrSize;
+      for my $cl ( @nrCltrs )
+      {
+	if (exists $vCltrvTxFreq{$cl})
+	{
+	  my @txs = keys %{$vCltrvTxFreq{$cl}};
+	  my $size = 0;
+	  for my $tx (@txs)
+	  {
+	    $size += $vCltrvTxFreq{$cl}{$tx};
+	  }
+	  $vicutCltrSize{$cl} = $size;
+	}
+	else
+	{
+	  warn "\nWARNING $cl not found in vCltrvTxFreq";
+	  print "\n";
+	}
+      }
+
+      #print "\nFrequency table of vicut taxonomic assignments on selected nr seq's of $sp\n";
+      my @nrSortedCltrs = sort { $vicutCltrSize{$b} <=> $vicutCltrSize{$a} } @nrCltrs;
+      for my $cl (@nrSortedCltrs)
+      {
+	print "\nCluster $cl (" . $vicutCltrSize{$cl} . ")\n";
+	print $ROUT "\n\nCluster $cl (" . $vicutCltrSize{$cl} . ")\n\n";
+
+	## Generating a list of species present in $cl sorted by size and with NA
+	## at the end (igoring the size of NA when sorting
+	my @txs = keys %{$vCltrvTxFreq{$cl}};
+	@txs = sort { $vCltrvTxFreq{$cl}{$b} <=> $vCltrvTxFreq{$cl}{$a} } @txs;
+	## putting NA at the end
+	my @na = ("NA");
+	@txs = diff(\@txs, \@na);
+	push @txs, "NA";
+	my %txSizes;
+	for my $tx ( @txs )
+	{
+	  $txSizes{$tx} = $vCltrvTxFreq{$cl}{$tx};
+	  #print "\t$tx\t" . $vCltrvTxFreq{$cl}{$tx} . "\n";
+	}
+	#print "\n";
+
+	printFormatedTbl(\%txSizes, \@txs);
+	printFormatedTblToFile(\%txSizes, \@txs, $ROUT);
+
+	## Reporting some characteristics of query seq's
+
+	## Coverage: percentage of seq's of the 100% identity clusters of NAs
+	## within all NAs' clusters
+	my @clNRids = @{$vCltrvTxIds{$cl}{"NA"}};
+	my $nCov = sum( @cTbl{ @clNRids } );
+	my $pCov = sprintf( "%.1f%%", 100.0 * $nCov/ $nSp );
+	print "Coverage: $pCov (" . commify($nCov) . " out of " . commify($nSp) . " seq's)\n";
+	print $ROUT "Coverage: $pCov (" . commify($nCov) . " out of " . commify($nSp) . " seq's)\n";
+
+	## Size ranks
+	my %clNRidsTbl = map { $_ => 1 } @clNRids;
+	my @sizeRanks = grep { exists $clNRidsTbl{$nrSeqIDs[$_ - 1]}  } 1..($#nrSeqIDs+1);
+	my @sizeRanks0 = grep { exists $clNRidsTbl{$nrSeqIDs[$_]}  } 0..$#nrSeqIDs;
+	print "Size ranks: @sizeRanks\n";
+	print $ROUT "Size ranks: @sizeRanks\n";
+
+	## Size percentage
+	my @clSizePercs = @clPercsTbl{ @nrSeqIDs[ @sizeRanks0 ] };
+	@clSizePercs = map { sprintf("%.2f", $_) } @clSizePercs;
+	print "Size %'s: @clSizePercs\n";
+	print $ROUT "Size %'s: @clSizePercs\n";
+
+	## pp's
+	my @pps = @ppTbl{ @nrSeqIDs };
+	@pps = @pps[ @sizeRanks0 ];
+	print "pp's: @pps\n";
+	print $ROUT "pp's: @pps\n";
+
+	## range(pp)
+	my $minpp = min @pps;
+	my $maxpp = max @pps;
+	print "range(pp): [$minpp, $maxpp]\n";
+	print $ROUT "range(pp): [$minpp, $maxpp]\n";
+      }
+      print "\n";
+      print $ROUT "\n";
+
+      ##
+      ## 6. Generating and maybe viewing the tree
+      ##
+      ## Collapsing the tree using ref tx and vicut tx on query seq's
+
+      print "\r\t\tGenerating a condensed tree of ref seq's species and vicut tx clades collapsed to a single node  ";
+      my $condTreeFile2 = $phGrDir . $sp . "_spp_cond2.tree";
+      if ( ! -e $condTreeFile2 )
+      {
+	print "\r\t\tGenerating a tree with species names at leaves ";
+	my $sppTreeFile = $phGrDir . $sp . "_spp.tree";
+	$cmd = "rm -f $sppTreeFile; nw_rename $bigTreeFile $vExtTxTblFile | nw_order -c n  - > $sppTreeFile";
+	print "\tcmd=$cmd\n" if $dryRun || $debug;
+	system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
+
+	my $condTreeFile = $phGrDir . $sp . "_spp_cond1.tree";
+	$cmd = "rm -f $condTreeFile; nw_condense $sppTreeFile > $condTreeFile";
+	print "\tcmd=$cmd\n" if $dryRun || $debug;
+	system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
+
+	## Relabeling tree so that only $sp and vicut tx taxonomy is left
+
+	my $condSppLeavesFile = $phGrDir . $sp . "_cond_spp.leaves";
+	$cmd = "rm -f $condSppLeavesFile; nw_labels -I $condTreeFile > $condSppLeavesFile";
+	print "\tcmd=$cmd\n" if $dryRun || $debug;
+	system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
+
+	my @condSppTreeLeaves = readArray($condSppLeavesFile);
+
+	##print "condSppTreeLeaves: @condSppTreeLeaves\n";
+
+	my %spThatMingleWithQuery;
+	for my $cl (@nrCltrs)
+	{
+	  my @txs = keys %{$vCltrvTxFreq{$cl}};
+	  for my $tx (@txs)
+	  {
+	    if ( $tx ne "NA" )
+	    {
+	      $spThatMingleWithQuery{$tx} = 1;
+	    }
+	  }
+	}
+
+	##my @matches = grep { /pattern/ } @condSppTreeLeaves;
+	my %newLeafNames;
+       	for my $l (@condSppTreeLeaves)
+	{
+	  if ( exists $spThatMingleWithQuery{$l} || $l =~ /^c\d+/ )
+	  {
+	    $newLeafNames{$l} = $l;
+	  }
+	  else
+	  {
+	    $newLeafNames{$l} = "*";
+	  }
+	}
+
+	my $condSppLeavesFile2 = $phGrDir . $sp . "_spp_cond.leaves2";
+	writeTbl(\%newLeafNames, $condSppLeavesFile2);
+
+	$cmd = "rm -f $sppTreeFile; nw_rename $condTreeFile $condSppLeavesFile2 | nw_order -c n  - > $condTreeFile2";
+	print "\tcmd=$cmd\n" if $dryRun || $debug;
+	system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
+      }
+
+
+      ## Producing pdf file of the tree sending it to either dir of species where
+      ## vicut taxonomy agrees with PECAN's or to dir with spp for which there is
+      ## a disagreement.
+
+      my $pdfTreeFile = $treesDir . "/$sp" . "_tree.pdf";
+      if ( ! -e $pdfTreeFile )
+      {
+	my $treeAbsPath = abs_path( $condTreeFile2 );
+	plot_tree($treeAbsPath, $pdfTreeFile, $sp);
+      }
+
+      if ( $showTree && $OSNAME eq "darwin")
+      {
+	$cmd = "open $pdfTreeFile";
+	print "\tcmd=$cmd\n" if $dryRun || $debug;
+	system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+      }
+
+    }
+    else
+    {
+      #
+      # Use only the number of sequences that cover, say 80%, of the total
+      # number of non-redundant sequences
+      #
+
+      @nrSeqIDs = @nrSeqIDs[0..$percCovIdx];
+
+      print $ROUT "n(nr seq's covering $percCoverage" . "% of seq's classified to $sp): " . commify(scalar(@nrSeqIDs)) . "\n";
+      print "\nNo. nr seq IDs covering $percCoverage" . "% of seq's classified to $sp: " . commify(scalar(@nrSeqIDs)) . "\n";
+
+      $nrSeqIDsFile = $phGrDir . $sp . "_nr_cov" . $percCoverage . ".seqIDs";
+      writeArray(\@nrSeqIDs, $nrSeqIDsFile);
+
+      ## Restricting nr fa file to only nr ref seq's covering $percCoverage of all seq's
+      my $spNRfaFile2 = $phGrDir . $sp . "_nr_cov" . $percCoverage . ".fa";
+      if ( ! -e $spNRfaFile2 )
+      {
+	print "\r\t\tCreating restricted $sp fa file                  ";
+	$cmd = "select_seqs.pl $quietStr -s $nrSeqIDsFile -i $spNRfaFile -o $spNRfaFile2";
+	print "\tcmd=$cmd\n" if $dryRun || $debug;
+	system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
+      }
+
+      ## Here was a code with ribotying-type attempt that I moved to
+      ## ~/projects/16S_rRNA_pipeline/perl/ribotyping_attempt_in_mm_validate.pl
+
+      ##
+      ## 1. Generating a fa file that is concatenation of OG fa, the final fa of
+      ## the phGr and sel set of given sp's seq's fa
+      ## 2. Generating alignment
+      ## 3. Generating phylo tree; rerooting it
+      ## 4. Running vicut on the tree using seq's of $sp as query nodes
+      ## 5. Reporting results of vicut
+      ## 6. Viewing the tree
+      ##
+
+      ##
+      ## 1. Generating a fa file that is concatenation of OG fa, the final fa of
+      ## the phGr and sel set of given sp's seq's fa
+      ##
+
+      my $bigFaFile = $phGrDir . $sp . "_nr_cov" . $percCoverage . "_phGr_og.fa";
+      if ( ! -e $bigFaFile )
+      {
+	print "\r\t\tGenerating bigFaFile                                          ";
+	$cmd = "rm -f $bigFaFile; cat $phGrOGfaFile $phGrFaFile $spNRfaFile2 > $bigFaFile";
+	print "\tcmd=$cmd\n" if $dryRun || $debug;
+	system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+      }
+
+      ##
+      ## 2. Generate alignment
+      ##
+      my $bigAlgnFile = $phGrDir . $sp . "_nr_cov" . $percCoverage . "_algn.fa";
+      if ( ! -e $bigAlgnFile )
+      {
+	print "\r\t\tAligning phGr ref seq's (includeing OG seq's) and the selected seq's of $sp           ";
+	$cmd = "rm -f $bigAlgnFile; mafft --auto --inputorder $bigFaFile > $bigAlgnFile";
+	print "\tcmd=$cmd\n" if $dryRun || $debug;
+	system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+      }
+
+      ##
+      ## 3. Generate phylo tree
+      ##
+      my $bigNotRootedTreeFile = $phGrDir . $sp . "_nr_cov" . $percCoverage . "_not_rooted_with_OGs.tree";
+      if ( ! -e $bigNotRootedTreeFile )
+      {
+	print "\r\t\tGenerating phylo tree of the above alignment                                    ";
+	$cmd = "rm -f $bigNotRootedTreeFile; FastTree -nt $bigAlgnFile > $bigNotRootedTreeFile";
+	print "\tcmd=$cmd\n" if $dryRun || $debug;
+	system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+      }
+
+      ## Rerooting the tree
+      my $bigTreeWithOGsFile = $phGrDir . $sp . "_nr_cov" . $percCoverage . "_with_OGs.tree";
+      if ( ! -e $bigTreeWithOGsFile )
+      {
+	print "\r\t\tRerooting the tree using outgroup sequences                          ";
+	$cmd = "rm -f $bigTreeWithOGsFile; nw_reroot $bigNotRootedTreeFile @ogSeqIDs | nw_order -  > $bigTreeWithOGsFile";
+	print "\tcmd=$cmd\n" if $dryRun || $debug;
+	system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+      }
+
+      ## Pruning tree froom OG seq's
+      my $bigTreeFile = $phGrDir . $sp . "_nr_cov" . $percCoverage . ".tree";
+      #if ( ! -e $bigTreeFile )
+      {
+	print "\r\t\tpruning the tree from OG seq's                                          ";
+	$cmd = "rm -f $bigTreeFile; nw_prune $bigTreeWithOGsFile @ogSeqIDs | nw_order -  > $bigTreeFile";
+	print "\tcmd=$cmd\n" if $dryRun || $debug;
+	system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+      }
+
+      ##
+      ## 4. Running vicut on the tree using seq's of $sp as query nodes
+      ##
+      my $vicutDir    = $phGrDir . $sp . "_cov" . $percCoverage . "_vicut_dir";
+      my $annFile     = $phGrTxFile;
+      my $queryFile   = $nrSeqIDsFile;
+      ##my $vicutTxFile = $vicutDir . "/minNodeCut_NAge1_TXge1_querySeqs.taxonomy"; # minNodeCut.cltrs
+      my $vicutCltrsFile = $vicutDir . "/minNodeCut.cltrs";
+      if ( ! -e $vicutCltrsFile )
+      {
+	print "\r\t\tRunning vicut                                                              ";
+	$cmd = "vicut -t $bigTreeFile -a $annFile -q $queryFile -o $vicutDir"; #  $quietStr
+	print "\tcmd=$cmd\n" if $dryRun || $debug;
+	system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
+      }
+
+      ##
+      ## 5. Reporting results of vicut
+      ##
+
+      my ($rvCltrTbl, $rvTxTbl, $rvExtTxTbl) = readCltrsTbl($vicutCltrsFile);
+
+      my %vCltrTbl   = %{$rvCltrTbl};  # seqID => vicut cluster ID
+      my %vTxTbl     = %{$rvTxTbl};    # seqID => taxonomy (NA for query seq's)
+      my %vExtTxTbl  = %{$rvExtTxTbl}; # seqID => taxonomy of seqID if seqID is a phGr ref seq and c<vicut cluster ID of seqID> if seqID is a query seq
+
+      my $vExtTxTblFile = $phGrDir . $sp . "_cov" . $percCoverage . "_ext.tx";
+      writeTbl(\%vExtTxTbl, $vExtTxTblFile);
+
+      ## vicut-cltr/tx frequency table
+      my %vCltrvTxFreq;
+      my %vCltrvTxIds;  # $vCltrvTxIds{cltr}{tx} = ref to seqID of the cluster's, cltr, taxon, tx.
+      my %vCltrIds;
+      for my $id ( keys %vCltrTbl )
+      {
+	$vCltrvTxFreq{$vCltrTbl{$id}}{$vTxTbl{$id}}++;
+	push @{$vCltrvTxIds{$vCltrTbl{$id}}{$vTxTbl{$id}}}, $id;
+	push @{$vCltrIds{$vCltrTbl{$id}}}, $id;
+      }
+
+      ## Identify clusters that contain query sequences
+      my @nrSeqCltrs; # = @vCltrTbl{@nrSeqIDs};
+      ##print "\n\nvCltrTbl\n";
+      for (@nrSeqIDs)
+      {
+	if ( exists $vCltrTbl{$_} )
+	{
+	  push @nrSeqCltrs, $vCltrTbl{$_};
+	}
+	else
+	{
+	  print "\n\nWARNING: $_ undefined in vCltrTbl\n";
+	}
+      }
+      my @nrCltrs = unique(\@nrSeqCltrs);
+
+      print "\nnrCltrs: @nrCltrs\n";
+
+      ## size of each cluster
+      my %vicutCltrSize;
+      for my $cl ( @nrCltrs )
+      {
+	if (exists $vCltrvTxFreq{$cl})
+	{
+	  my @txs = keys %{$vCltrvTxFreq{$cl}};
+	  my $size = 0;
+	  for my $tx (@txs)
+	  {
+	    $size += $vCltrvTxFreq{$cl}{$tx};
+	  }
+	  $vicutCltrSize{$cl} = $size;
+	}
+	else
+	{
+	  warn "\nWARNING $cl not found in vCltrvTxFreq";
+	  print "\n";
+	}
+      }
+
+      #print "\nFrequency table of vicut taxonomic assignments on selected nr seq's of $sp\n";
+      my @nrSortedCltrs = sort { $vicutCltrSize{$b} <=> $vicutCltrSize{$a} } @nrCltrs;
+      for my $cl (@nrSortedCltrs)
+      {
+	print "\nCluster $cl (" . $vicutCltrSize{$cl} . ")\n";
+	print $ROUT "\n\nCluster $cl (" . $vicutCltrSize{$cl} . ")\n\n";
+
+	## Generating a list of species present in $cl sorted by size and with NA
+	## at the end (igoring the size of NA when sorting
+	my @txs = keys %{$vCltrvTxFreq{$cl}};
+	@txs = sort { $vCltrvTxFreq{$cl}{$b} <=> $vCltrvTxFreq{$cl}{$a} } @txs;
+	## putting NA at the end
+	my @na = ("NA");
+	@txs = diff(\@txs, \@na);
+	push @txs, "NA";
+	my %txSizes;
+	for my $tx ( @txs )
+	{
+	  $txSizes{$tx} = $vCltrvTxFreq{$cl}{$tx};
+	  #print "\t$tx\t" . $vCltrvTxFreq{$cl}{$tx} . "\n";
+	}
+	#print "\n";
+
+	printFormatedTbl(\%txSizes, \@txs);
+	printFormatedTblToFile(\%txSizes, \@txs, $ROUT);
+
+	## Reporting some characteristics of query seq's
+
+	## Coverage: percentage of seq's of the 100% identity clusters of NAs
+	## within all NAs' clusters
+	my @clNRids = @{$vCltrvTxIds{$cl}{"NA"}};
+	my $nCov = sum( @cTbl{ @clNRids } );
+	my $pCov = sprintf( "%.1f%%", 100.0 * $nCov/ $nSp );
+	print "Coverage: $pCov (" . commify($nCov) . " out of " . commify($nSp) . " seq's)\n";
+	print $ROUT "Coverage: $pCov (" . commify($nCov) . " out of " . commify($nSp) . " seq's)\n";
+
+	## Size ranks
+	my %clNRidsTbl = map { $_ => 1 } @clNRids;
+	my @sizeRanks = grep { exists $clNRidsTbl{$nrSeqIDs[$_ - 1]}  } 1..($#nrSeqIDs+1);
+	my @sizeRanks0 = grep { exists $clNRidsTbl{$nrSeqIDs[$_]}  } 0..$#nrSeqIDs;
+	print "Size ranks: @sizeRanks\n";
+	print $ROUT "Size ranks: @sizeRanks\n";
+
+	## Size percentage
+	my @clSizePercs = @clPercsTbl{ @nrSeqIDs[ @sizeRanks0 ] };
+	@clSizePercs = map { sprintf("%.2f", $_) } @clSizePercs;
+	print "Size %'s: @clSizePercs\n";
+	print $ROUT "Size %'s: @clSizePercs\n";
+
+	## pp's
+	my @pps = @ppTbl{ @nrSeqIDs };
+	@pps = @pps[ @sizeRanks0 ];
+	print "pp's: @pps\n";
+	print $ROUT "pp's: @pps\n";
+
+	## range(pp)
+	my $minpp = min @pps;
+	my $maxpp = max @pps;
+	print "range(pp): [$minpp, $maxpp]\n";
+	print $ROUT "range(pp): [$minpp, $maxpp]\n";
+      }
+      print "\n";
+      print $ROUT "\n";
+
+      ##
+      ## 6. Generating and maybe viewing the tree
+      ##
+      ## Collapsing the tree using ref tx and vicut tx on query seq's
+
+      print "\r\t\tGenerating a condensed tree of ref seq's species and vicut tx clades collapsed to a single node  ";
+      my $condTreeFile2 = $phGrDir . $sp . "_nr_cov" . $percCoverage . "_spp_cond2.tree";
+      if ( ! -e $condTreeFile2 )
+      {
+	print "\r\t\tGenerating a tree with species names at leaves ";
+	my $sppTreeFile = $phGrDir . $sp . "_nr_cov" . $percCoverage . "_spp.tree";
+	$cmd = "rm -f $sppTreeFile; nw_rename $bigTreeFile $vExtTxTblFile | nw_order -c n  - > $sppTreeFile";
+	print "\tcmd=$cmd\n" if $dryRun || $debug;
+	system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
+
+	my $condTreeFile = $phGrDir . $sp . "_nr_cov" . $percCoverage . "_spp_cond1.tree";
+	$cmd = "rm -f $condTreeFile; nw_condense $sppTreeFile > $condTreeFile";
+	print "\tcmd=$cmd\n" if $dryRun || $debug;
+	system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
+
+	## Relabeling tree so that only $sp and vicut tx taxonomy is left
+
+	my $condSppLeavesFile = $phGrDir . $sp . "_nr_cov" . $percCoverage . "_cond_spp.leaves";
+	$cmd = "rm -f $condSppLeavesFile; nw_labels -I $condTreeFile > $condSppLeavesFile";
+	print "\tcmd=$cmd\n" if $dryRun || $debug;
+	system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
+
+	my @condSppTreeLeaves = readArray($condSppLeavesFile);
+
+	##print "condSppTreeLeaves: @condSppTreeLeaves\n";
+
+	my %spThatMingleWithQuery;
+	for my $cl (@nrCltrs)
+	{
+	  my @txs = keys %{$vCltrvTxFreq{$cl}};
+	  for my $tx (@txs)
+	  {
+	    if ( $tx ne "NA" )
+	    {
+	      $spThatMingleWithQuery{$tx} = 1;
+	    }
+	  }
+	}
+
+	##my @matches = grep { /pattern/ } @condSppTreeLeaves;
+	my %newLeafNames;
+       	for my $l (@condSppTreeLeaves)
+	{
+	  if ( exists $spThatMingleWithQuery{$l} || $l =~ /^c\d+/ )
+	  {
+	    $newLeafNames{$l} = $l;
+	  }
+	  else
+	  {
+	    $newLeafNames{$l} = "*";
+	  }
+	}
+
+	my $condSppLeavesFile2 = $phGrDir . $sp . "_nr_cov" . $percCoverage . "_spp_cond.leaves2";
+	writeTbl(\%newLeafNames, $condSppLeavesFile2);
+
+	$cmd = "rm -f $sppTreeFile; nw_rename $condTreeFile $condSppLeavesFile2 | nw_order -c n  - > $condTreeFile2";
+	print "\tcmd=$cmd\n" if $dryRun || $debug;
+	system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
+      }
+
+
+      ## Producing pdf file of the tree sending it to either dir of species where
+      ## vicut taxonomy agrees with PECAN's or to dir with spp for which there is
+      ## a disagreement.
+
+      my $pdfTreeFile = $treesDir . "/$sp" . "_tree.pdf";
+      if ( ! -e $pdfTreeFile )
+      {
+	my $treeAbsPath = abs_path( $condTreeFile2 );
+	plot_tree($treeAbsPath, $pdfTreeFile, $sp);
+      }
+
+      if ( $showTree && $OSNAME eq "darwin")
+      {
+	$cmd = "open $pdfTreeFile";
+	print "\tcmd=$cmd\n" if $dryRun || $debug;
+	system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+      }
+
+    }
+  } ## end of    for my $spIdx (0..
+} ## end of   for my $phGr ( keys %phGrSppTbl )
+
+close $ROUT;
+#close PPSOUT;
+
+## report timing
+$endRun = time();
+$runTime = $endRun - $startRun;
+if ( $runTime > 60 )
+{
+  $timeMin = int($runTime / 60);
+  $timeSec = sprintf("%02d", $runTime % 60);
+  print "\rCompleted in $timeMin:$timeSec\n"
+}
+else
+{
+  print "\rCompleted in $runTime seconds\n"
+}
+
+print "\n\n\tReport written to $vicutCltrReport\n\n";
+
+####################################################################
+##                               SUBS
+####################################################################
+
+# parse a clstr2 file
+# output table: refId -> number of elements in the corresponding cluster
+sub parseClstr2
+{
+  my $inFile = shift;
+
+  my %tbl;
+  open IN, "$inFile" or die "Cannot open $inFile for reading: $OS_ERROR\n";
+  foreach my $rec (<IN>)
+  {
+    chomp $rec;
+    my @ids = split ",", $rec;
+    my $refId = shift @ids;
+    ##$tbl{$refId} = \@ids;
+    $tbl{$refId} = @ids; # we are only interested in the size of the cluseter
+  }
+  close IN;
+
+  return %tbl;
+}
+
+##
+## parse 4 column taxon table
+##
+
+# file format
+
+#                                                tx   pp                        phGr
+# 1642.V1_0                     Lactobacillus_iners 0.93     Firmicutes_group_6_V3V4
+# 0980.V2_1                     Lactobacillus_iners 0.97     Firmicutes_group_6_V3V4
+# 1670.V2_2 Lactobacillus_crispatus_kefiranofaciens 0.98     Firmicutes_group_6_V3V4
+# 0711.V3_3                       Atopobium_vaginae 0.56 Actinobacteria_group_0_V3V4
+# 1149.V1_4                     Lactobacillus_iners 0.94     Firmicutes_group_6_V3V4
+# 1386.V1_5                     Prevotella_buccalis 0.85  Bacteroidetes_group_2_V3V4
+# ...
+sub readQtxTbl2
+{
+  my $file = shift;
+
+  if ( ! -f $file )
+  {
+    warn "\n\n\tERROR in readQtxTbl(): $file does not exist";
+    print "\n\n";
+    exit 1;
+  }
+
+  my %spIdsTbl;
+  ##my %phGrSppTbl;
+  my %ppTbl;
+  ##my %sp2phGrSppTbl;
+  open IN, "$file" or die "Cannot open $file for reading: $OS_ERROR";
+  foreach (<IN>)
+  {
+    next if /^$/;
+    chomp;
+    my ($id, $sp, $pp, $gr) = split /\s+/,$_;
+    push @{$spIdsTbl{$sp}}, $id;
+    ##push @{$phGrSppTbl{$gr}}, $sp;
+    $ppTbl{$id} = $pp;
+    ##$sp2phGrSppTbl{$sp} = $gr;
+  }
+  close IN;
+
+  ##return (\%spIdsTbl, \%phGrSppTbl, \%ppTbl);
+  return (\%spIdsTbl, \%ppTbl);
+}
+
+
+##
+## parse 3 column species table
+##
+
+# file format
+
+#   Akkermansia_muciniphila	2413	Verrucomicrobia_V3V4
+#   Akkermansia_sp_5	14	Verrucomicrobia_V3V4
+#   Akkermansia_sp_7	13	Verrucomicrobia_V3V4
+#   Coraliomargarita_akajimensis	2	Verrucomicrobia_V3V4
+#   Akkermansia_sp_4	1	Verrucomicrobia_V3V4
+#   Fibrobacter_sp	51504	phyla_lessthen_1k_wOG_V3V4
+#   Jonquetella_anthropi	1299	phyla_lessthen_1k_wOG_V3V4
+#   Chlamydia_trachomatis	128	phyla_lessthen_1k_wOG_V3V4
+#   Pyramidobacter_piscolens	62	phyla_lessthen_1k_wOG_V3V4
+#   Cloacibacillus_evryensis	37	phyla_lessthen_1k_wOG_V3V4
+
+sub parseSppTbl
+{
+  my $file = shift;
+
+  if ( ! -f $file )
+  {
+    warn "\n\n\tERROR in readQtxTbl(): $file does not exist";
+    print "\n\n";
+    exit 1;
+  }
+
+  my %phGrSppTbl;
+  open IN, "$file" or die "Cannot open $file for reading: $OS_ERROR";
+  foreach (<IN>)
+  {
+    next if /^$/;
+    chomp;
+    my ($sp, $size, $gr) = split /\s+/,$_;
+    push @{$phGrSppTbl{$gr}}, $sp;
+  }
+  close IN;
+
+  return %phGrSppTbl;
+}
+
+
+
+# read 3 column clstrs table
+sub readCltrsTbl{
+
+  my $file = shift;
+
+  if ( ! -f $file )
+  {
+    warn "\n\n\tERROR in readTbl(): $file does not exist";
+    print "\n\n";
+    exit 1;
+  }
+
+  my %vCltrTbl;
+  my %txTbl;
+  my %txTbl2;
+  open IN, "$file" or die "Cannot open $file for reading: $OS_ERROR";
+  foreach (<IN>)
+  {
+    chomp;
+    my ($id, $cl, $tx) = split /\s+/,$_;
+    if (defined $id)
+    {
+      $vCltrTbl{$id} = "c" . $cl;
+      $txTbl{$id} = $tx;
+      if ($tx ne "NA")
+      {
+	$txTbl2{$id} = $tx;
+      }
+      else
+      {
+	$txTbl2{$id} = "c" . $cl;
+      }
+    }
+  }
+  close IN;
+
+  return (\%vCltrTbl, \%txTbl, \%txTbl2);
+}
+
+# read two column table; create a table that assigns
+# elements of the first column to the second column
+sub readTbl{
+
+  my $file = shift;
+
+  if ( ! -f $file )
+  {
+    warn "\n\n\tERROR in readTbl(): $file does not exist";
+    print "\n\n";
+    exit 1;
+  }
+
+  my %tbl;
+  open IN, "$file" or die "Cannot open $file for reading: $OS_ERROR";
+  foreach (<IN>)
+  {
+    chomp;
+    my ($id, $t, $r) = split /\s+/,$_;
+    $tbl{$id} = $t;
+  }
+  close IN;
+
+  return %tbl;
+}
+
+# read lineage table
+sub readLineageTbl{
+
+  my $file = shift;
+
+  if ( ! -f $file )
+  {
+    warn "\n\n\tERROR in readLineageTbl(): $file does not exist";
+    print "\n\n";
+    exit 1;
+  }
+
+  my %tbl;
+  open IN, "$file" or die "Cannot open $file for reading: $OS_ERROR";
+  foreach (<IN>)
+  {
+    chomp;
+    my ($id, $t) = split /\s+/,$_;
+    $tbl{$id} = $t;
+    ## test for '/' characters
+    if ($t =~ /\//)
+    {
+      warn "\n\n\tERROR: Discovered '/' for id: $id\t$t";
+      print "\n\n";
+      exit 1;
+    }
+  }
+  close IN;
+
+  return %tbl;
+}
+
+sub get_seqIDs_from_fa
+{
+  my $file = shift;
+
+  my $quiet = 1;
+  my $startRun = time();
+  my $endRun = time();
+
+  open (IN, "<$file") or die "Cannot open $file for reading: $OS_ERROR";
+  $/ = ">";
+  my $junkFirstOne = <IN>;
+  my $count = 1;
+  my $timeStr = "";
+  my @seqIDs;
+  while (<IN>)
+  {
+    if ( !$quiet && ($count % 500 == 0) )
+    {
+      $endRun = time();
+      my $runTime = $endRun - $startRun;
+      if ( $runTime > 60 )
+      {
+	my $timeMin = int($runTime / 60);
+	my $timeSec = sprintf("%02d", $runTime % 60);
+	$timeStr = "$timeMin:$timeSec";
+      }
+      else
+      {
+	my $runTime = sprintf("%02d", $runTime);
+	$timeStr = "0:$runTime";
+      }
+      print "\r$timeStr";
+    }
+
+    chomp;
+    my ($id,@seqlines) = split /\n/, $_;
+    push @seqIDs, $id;
+    $count++;
+  }
+  close IN;
+  $/ = "\n";
+
+  return @seqIDs;
+}
+
+# common part of two arrays
+sub comm{
+
+  my ($a1, $a2) = @_;
+
+  my @c; # common array
+  my %count;
+
+  foreach my $e (@{$a1}, @{$a2}){ $count{$e}++ }
+
+  foreach my $e (keys %count)
+  {
+    push @c, $e if $count{$e} == 2;
+  }
+
+  return @c;
+}
+
+# read table with one column
+sub readArray{
+
+  my ($file, $hasHeader) = @_;
+  my @rows;
+
+  if ( ! -f $file )
+  {
+    warn "\n\n\tERROR in readArray(): $file does not exist";
+    print "\n\n";
+    exit 1;
+  }
+
+  open IN, "$file" or die "Cannot open $file for reading: $OS_ERROR";
+  if ( defined $hasHeader )
+  {
+    <IN>;
+  }
+  foreach (<IN>)
+  {
+    chomp;
+    push @rows, $_;
+  }
+  close IN;
+
+  return @rows;
+}
+
+# fisher_yates_shuffle( \@array ) : generate a random permutation
+# of @array in place
+sub fisher_yates_shuffle {
+    my $array = shift;
+    my $i;
+    for ($i = @$array; --$i; ) {
+        my $j = int rand ($i+1);
+        next if $i == $j;
+        @$array[$i,$j] = @$array[$j,$i];
+    }
+}
+
+
+# difference of two arrays
+sub diff{
+
+  my ($a1, $a2) = @_;
+
+  my (%aa1, %aa2);
+
+  foreach my $e (@{$a1}){ $aa1{$e} = 1; }
+  foreach my $e (@{$a2}){ $aa2{$e} = 1; }
+
+  my @d; # dfference array
+
+  foreach my $e (keys %aa1, keys %aa2)
+  {
+    push @d, $e if exists $aa1{$e} && !exists $aa2{$e};
+  }
+
+  return @d;
+}
+
+# extract unique elements from an array
+sub unique{
+
+  my $a = shift;
+  my %saw;
+  my @out = grep(!$saw{$_}++, @{$a});
+
+  return @out;
+}
+
+# print elements of a hash table
+sub printTbl{
+
+  my $rTbl = shift;
+  map {print "$_\t" . $rTbl->{$_} . "\n"} keys %$rTbl;
+}
+
+# print elements of a hash table so that arguments are aligned
+sub printFormatedTbl{
+
+  my ($rTbl, $rSub) = @_; # the second argument is a subarray of the keys of the table
+
+  my @args;
+  if ($rSub)
+  {
+    @args = @{$rSub};
+  }
+  else
+  {
+    @args = keys %{$rTbl};
+  }
+
+  my $maxStrLen = 0;
+  map { $maxStrLen = length($_) if( length($_) > $maxStrLen )} @args;
+
+  for (@args)
+  {
+    my $n = $maxStrLen - length($_);
+    my $pad = ": ";
+    for (my $i=0; $i<$n; $i++)
+    {
+      $pad .= " ";
+    }
+    print "\t$_$pad" . $rTbl->{$_} . "\n";
+  }
+  #print "\n";
+}
+
+# print elements of a hash table so that arguments are aligned
+sub printFormatedTblToFile{
+
+  my ($rTbl, $rSub, $fh) = @_; # the second argument is a subarray of the keys of the table
+
+  my @args;
+  if ($rSub)
+  {
+    @args = @{$rSub};
+  }
+  else
+  {
+    @args = keys %{$rTbl};
+  }
+
+  my $maxStrLen = 0;
+  map { $maxStrLen = length($_) if( length($_) > $maxStrLen )} @args;
+
+  for (@args)
+  {
+    my $n = $maxStrLen - length($_);
+    my $pad = ": ";
+    for (my $i=0; $i<$n; $i++)
+    {
+      $pad .= " ";
+    }
+    print $fh "$_$pad" . $rTbl->{$_} . "\n";
+  }
+  print $fh "\n";
+}
+
+# write array to a file (one column format)
+sub writeArray
+{
+  my ($a, $outFile) = @_;
+  open OUT, ">$outFile" or die "Cannot open $outFile for writing: $OS_ERROR";
+  map {print OUT "$_\n"} @{$a};
+  close OUT
+}
+
+## put commas in numbers for better readability
+## lifted from
+## http://www.perlmonks.org/?node_id=2145
+sub commify {
+   local $_  = shift;
+   s{(?<!\d|\.)(\d{4,})}
+    {my $n = $1;
+     $n=~s/(?<=.)(?=(?:.{3})+$)/,/g;
+     $n;
+    }eg;
+   return $_;
+}
+
+
+## plot tree with clade colors
+sub plot_tree
+{
+  my ($treeFile, $pdfFile, $title) = @_;
+
+  my $showBoostrapVals = "T";
+
+  if (!defined $title)
+  {
+    $title = "";
+  }
+
+  my $Rscript = qq~
+
+.libPaths(c("/home/pgajer/R/x86_64-pc-linux-gnu-library/3.4", "/home/pgajer/bin/lib64/R/library", "/usr/local/packages/R-2.15.2-recompiled/lib64/R/library"))
+
+require(phytools)
+
+tr <- read.newick(file=\"$treeFile\")
+tr <- collapse.singles(tr)
+
+(nLeaves <- length(tr\$tip.label))
+
+figH <- 8
+figW <- 6
+if ( nLeaves >= 50 )
+{
+    figH <- 6.0/50.0 * ( nLeaves - 50) + 10
+    figW <- 6.0/50.0 * ( nLeaves - 50) + 6
+}
+
+pdf(\"$pdfFile\", width=figW, height=figH)
+op <- par(mar=c(0,0,1.5,0), mgp=c(2.85,0.6,0),tcl = -0.3)
+plot(tr, type=\"phylogram\", no.margin=FALSE, show.node.label=F, cex=0.8, main=\"$title\")
+par(op)
+dev.off()
+~;
+
+  runRscript( $Rscript );
+}
+
+sub plot_tree2
+{
+  my ($treeFile, $clFile, $pdfFile, $title) = @_;
+
+  my $showBoostrapVals = "F";
+
+  if (!defined $title)
+  {
+    $title = "";
+  }
+
+  my $Rscript = qq~
+
+.libPaths(c("/home/pgajer/R/x86_64-pc-linux-gnu-library/3.4", "/home/pgajer/bin/lib64/R/library", "/usr/local/packages/R-2.15.2-recompiled/lib64/R/library"))
+
+clTbl <- read.table(\"$clFile\", header=F)
+str(clTbl)
+
+cltr <- clTbl[,2]
+names(cltr) <- clTbl[,1]
+
+source(\"$readNewickFile\")
+require(phytools)
+
+tr1 <- read.newick(file=\"$treeFile\")
+tr1 <- collapse.singles(tr1)
+
+tip.cltr <- cltr[tr1\$tip.label]
+
+colIdx <- 1
+tip.colors <- c()
+tip.colors[1] <- colIdx
+for ( i in 2:length(tip.cltr) )
+{
+    if ( tip.cltr[i] != tip.cltr[i-1] )
+    {
+        colIdx <- colIdx + 1
+        if ( colIdx==9 )
+        {
+            colIdx <- 1
+        }
+    }
+    tip.colors[i] <- colIdx
+    if ( colIdx==7 )
+    {
+        tip.colors[i] <- "brown"
+    }
+}
+
+(nLeaves <- length(tr1\$tip.label))
+
+figH <- 8
+figW <- 6
+if ( nLeaves >= 50 )
+{
+    figH <- 6.0/50.0 * ( nLeaves - 50) + 10
+    figW <- 6.0/50.0 * ( nLeaves - 50) + 6
+}
+
+pdf(\"$pdfFile\", width=figW, height=figH)
+op <- par(mar=c(0,0,1.5,0), mgp=c(2.85,0.6,0),tcl = -0.3)
+plot(tr1,type=\"phylogram\", no.margin=FALSE, show.node.label=$showBoostrapVals, cex=0.8, tip.color=tip.colors, main=\"$title\")
+par(op)
+dev.off()
+~;
+
+  runRscript( $Rscript );
+}
+
+
+# execute an R-script
+sub runRscript
+{
+  my $Rscript = shift;
+
+  ##my $outFile = "rTmp.R";
+  my ($fh, $outFile) = tempfile("rTmpXXXX", SUFFIX => '.R', OPEN => 1, DIR => $mmDir);
+  #open OUT, ">$outFile",  or die "cannot write to $outFile: $!\n";
+  print $fh "$Rscript";
+  close $fh;
+
+  my $cmd = "R CMD BATCH $outFile";
+  system($cmd) == 0 or die "system($cmd) failed:$?\n";
+
+  my $outR = $outFile . "out";
+  open IN, "$outR" or die "Cannot open $outR for reading: $OS_ERROR";
+  my $exitStatus = 1;
+
+  foreach my $line (<IN>)
+  {
+    if ( $line =~ /Error/ )
+    {
+      print "R script crashed at\n$line";
+      print "check $outR for details\n";
+      $exitStatus = 0;
+      exit 1;
+    }
+  }
+  close IN;
+}
+
+# parse a CSV partition table
+sub read_part_tbl
+{
+  my $file = shift;
+
+  if ( ! -f $file )
+  {
+    warn "\n\n\tERROR: $file does not exist";
+    print "\n\n";
+    exit 1;
+  }
+
+  my %tbl;
+  open IN, "$file" or die "Cannot open $file for reading: $OS_ERROR";
+  my $headerStr = <IN>;
+  foreach my $line (<IN>)
+  {
+    chomp $line;
+
+    ##  $ clustername        : int  426 426 432 432 432 432 432 432 432 449 ...
+    ##  $ bootstrap          : num  0.904 0.904 0.908 0.908 0.908 0.908 0.908 0.908 0.908 0.976 ...
+    ##  $ leafname           : chr  "Lactobacillus_hordei" "Lactobacillus_mali_tRT_2" "Lactobacillus_nagelii" "Lactobacillus_vini" ...
+    ##  $ branchPath         : num  0.0462 0.0525 0.0547 0.0546 0.0526 ...
+    ##  $ medianOfDistances  : num  0.00651 0.00651 0.01502 0.01502 0.01502 ...
+    ##  $ sequencesperCluster: int  2 2 7 7 7 7 7 7 7 2 ...
+
+    my @f = split ",", $line;
+    my $cltrId = shift @f;
+    my $boot   = shift @f;
+    my $leafId = shift @f;
+    $tbl{ $leafId } = $cltrId;
+  }
+  close IN;
+
+  return %tbl;
+}
+
+# write hash table to a file
+sub writeTbl
+{
+  my ($rTbl, $outFile) = @_;
+  my %tbl = %{$rTbl};
+  open OUT, ">$outFile" or die "Cannot open $outFile for writing: $OS_ERROR";
+  map {print OUT $_ . "\t" . $tbl{$_} . "\n"} sort keys %tbl;
+  close OUT;
+}
+
+## Testing if two arrays are identical in a set-theoretic sense. That is that
+## they have exactly the same set of elements.
+sub setEqual
+{
+  my ($rA, $rB) = @_;
+
+  my @a = @{$rA};
+  my @b = @{$rB};
+  my @c = comm(\@a, \@b);
+
+  my $ret = 1;
+
+  if (@c != @a || @c != @b)
+  {
+    warn "\n\n\tERROR: Elements of the two arrays do not match";
+    print "\n\tNumber of elements in the first array: " . @a . "\n";
+    print "\tNumber of elements in the second array: " . @b . "\n";
+    print "\tNumber of common elements: " . @c . "\n";
+
+    # writeArray(\@a, "a.txt");
+    # writeArray(\@b, "b.txt");
+    #print "\n\tNew taxon keys and fasta IDs written to a.txt and b.txt, respectively\n\n";
+
+    if (@a > @b)
+    {
+      my @d = diff(\@a, \@b);
+      print "\nElements a but not b:\n";
+      for (@d)
+      {
+	print "\t$_\n";
+      }
+      print "\n\n";
+    }
+
+    if (@b > @a)
+    {
+      my @d = diff(\@b, \@a);
+      print "\nElements in b that are not a:\n";
+      for (@d)
+      {
+	print "\t$_\n";
+      }
+      print "\n\n";
+    }
+
+    $ret = 0;
+  }
+
+  return $ret;
+}
+
+exit 0;
