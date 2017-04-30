@@ -77,11 +77,13 @@ my $timeSec = $runTime % 60;
 my $mmDir = "/Users/pgajer/projects/M_and_M/new_16S_classification_data/";
 
 ## out file
-my $uqSppReport = $mmDir . "mm_uq_spp_report.txt";
+##my $uqSppReport = $mmDir . "mm_uq_spp_report.txt";
+my $uqSppReport = $mmDir . "mm_uq_spp_report_no_controls.txt";
 open my $ROUT, ">$uqSppReport" or die "Cannot open $uqSppReport for writing: $OS_ERROR";
 
 print "\r--- Parsing file with PECAN generated taxonomy on M&M's sequences\n";
-my $qTxFile = "/Users/pgajer/devel/MCextras/data/mm_pecan_tx2.txt";
+##my $qTxFile = "/Users/pgajer/devel/MCextras/data/mm_pecan_tx2.txt";
+my $qTxFile = "/Users/pgajer/devel/MCextras/data/mm_pecan_tx2_no_controls.txt"; # using only non-control seq's
 
 ## $qTxFile file content: <seqID> <tx classification of seqID> <pp> <its phylo-group>
 

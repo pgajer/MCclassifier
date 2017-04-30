@@ -271,7 +271,7 @@ system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 
 
 print "\r--- Parsing file with PECAN generated taxonomy on M&M's sequences\n";
-my $qTxFile = "/home/pgajer/projects/M_and_M/new_16S_classification_data/mm_pecan_tx2.txt";
+my $qTxFile = "/home/pgajer/projects/M_and_M/new_16S_classification_data/mm_pecan_tx2mm_pecan_tx2.txt";
 
 ## $qTxFile file content: <seqID> <tx classification of seqID> <its phylo-group>
 

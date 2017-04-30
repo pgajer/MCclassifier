@@ -35,6 +35,9 @@
 =item B<--phylo-part-perc-thld, -t>
   Percentile threshold for phylo-partitioning specified as a decimal between 0 and 1. Default: 0.1
 
+=item B<--run-all>
+  Ignore if ( ! -e ... ) statements.
+
 =item B<--show-tree>
   Open the pdf file with the tree used to do clustering.
 
@@ -88,6 +91,7 @@ GetOptions(
   "spp-file|i=s"             => \my $sppFile,
   "max-no-nr-seqs|n=i"       => \$maxNumNRseqs,
   "perc-coverage|p=i"        => \$percCoverage,
+  "run-all"                  => \my $runAll,
   "show-tree"                => \my $showTree,
   "verbose|v"                => \my $verbose,
   "debug"                    => \my $debug,
@@ -274,7 +278,7 @@ system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 
 
 print "\r--- Parsing file with PECAN generated taxonomy on M&M's sequences\n";
-my $qTxFile = "/Users/pgajer/devel/MCextras/data/mm_pecan_tx2.txt";
+my $qTxFile = "/Users/pgajer/devel/MCextras/data/mm_pecan_tx2_no_controls.txt";
 
 ## $qTxFile file content: <seqID> <tx classification of seqID> <its phylo-group>
 
@@ -300,7 +304,7 @@ my %phGrSppTbl = parseSppTbl($sppFile);
 
 for my $phGr ( keys %phGrSppTbl )
 {
-  print "--- Processing $phGr species\n";
+  print "\r--- Processing $phGr species                                    \n";
 
   print $ROUT "================================================\n";
   print $ROUT "\t$phGr\n";
@@ -339,7 +343,7 @@ for my $phGr ( keys %phGrSppTbl )
   ## print "phGrBigFaFile: $phGrBigFaFile\n";
 
   my $phGrOGfaFile = $phGrDir . "og.fa";
-  if ( ! -e $phGrOGfaFile )
+  if ( ! -e $phGrOGfaFile || $runAll )
   {
     print "--- Generating fa file of outgroup seq's of $phGr       ";
     $cmd = "select_seqs.pl $quietStr -s $phGrOGseqIDsFile -i $phGrBigFaFile -o $phGrOGfaFile";
@@ -356,13 +360,13 @@ for my $phGr ( keys %phGrSppTbl )
     my @ids = @{$spIdsTbl{$sp}}; # seq IDs of $sp
     my $nSp = scalar(@ids); # number of sequences of the given species
 
-    print "\r\tProcessing $sp (n=" . commify($nSp) . ")                                    \n";
+    print "\n--- Processing $sp (n=" . commify($nSp) . ")                                    \n";
 
     my $spSeqsFile = $phGrDir . $sp . ".seqIDs";
     writeArray(\@ids, $spSeqsFile);
 
     my $spFaFile = $phGrDir . $sp . ".fa";
-    if ( ! -e $spFaFile )
+    if ( ! -e $spFaFile || $runAll )
     {
       print "\r\t\tCreating sp fa file                  ";
       $cmd = "select_seqs.pl $quietStr -s $spSeqsFile -i $qFaFile -o $spFaFile";
@@ -373,7 +377,7 @@ for my $phGr ( keys %phGrSppTbl )
     my $spNRfaFile  = $phGrDir . $sp . "_nr.fa";
     my $spUCfile    = $phGrDir . $sp . ".uc";
     my $spUCfilelog = $phGrDir . $sp . "_uc.log";
-    if ( ! -e $spNRfaFile )
+    if ( ! -e $spNRfaFile || $runAll )
     {
       print "\r\t\tDereplicating species fasta file                   ";
       $cmd = "$usearch6 -cluster_fast $spFaFile -id 1.0 -uc $spUCfile -centroids $spNRfaFile";
@@ -382,7 +386,7 @@ for my $phGr ( keys %phGrSppTbl )
     }
 
     my $nrSeqIDsFile = $phGrDir . $sp . "_nr.seqIDs";
-    if ( ! -e $nrSeqIDsFile )
+    if ( ! -e $nrSeqIDsFile || $runAll )
     {
       print "\r\t\tExtracting non-redundant seq IDs               ";
       ## extracting seq IDs from the alignment file and selecting those IDs from the taxon file
@@ -401,7 +405,7 @@ for my $phGr ( keys %phGrSppTbl )
     print $ROUT "n(nr): " . commify($nnrSp) . "\n";
 
     my $spClstr2File = $phGrDir . $sp . "_nr.clstr2";
-    if ( ! -e $spClstr2File )
+    if ( ! -e $spClstr2File || $runAll )
     {
       print "\r\t\tCreating clstr2 file                               ";
       $cmd = "uc2clstr2.pl -i $spUCfile -o $spClstr2File";
@@ -463,7 +467,7 @@ for my $phGr ( keys %phGrSppTbl )
       ##
 
       my $bigFaFile = $phGrDir . $sp . "_phGr_og.fa";
-      if ( ! -e $bigFaFile )
+      if ( ! -e $bigFaFile || $runAll )
       {
 	print "\r\t\tGenerating bigFaFile                                          ";
 	$cmd = "rm -f $bigFaFile; cat $phGrOGfaFile $phGrFaFile $spNRfaFile > $bigFaFile";
@@ -475,7 +479,7 @@ for my $phGr ( keys %phGrSppTbl )
       ## 2. Generate alignment
       ##
       my $bigAlgnFile = $phGrDir . $sp . "_algn.fa";
-      if ( ! -e $bigAlgnFile )
+      if ( ! -e $bigAlgnFile || $runAll )
       {
 	print "\r\t\tAligning phGr ref seq's (includeing OG seq's) and the selected seq's of $sp           ";
 	$cmd = "rm -f $bigAlgnFile; mafft --auto --inputorder $bigFaFile > $bigAlgnFile";
@@ -487,7 +491,7 @@ for my $phGr ( keys %phGrSppTbl )
       ## 3. Generate phylo tree
       ##
       my $bigNotRootedTreeFile = $phGrDir . $sp . "_not_rooted_with_OGs.tree";
-      if ( ! -e $bigNotRootedTreeFile )
+      if ( ! -e $bigNotRootedTreeFile || $runAll )
       {
 	print "\r\t\tGenerating phylo tree of the above alignment                                    ";
 	$cmd = "rm -f $bigNotRootedTreeFile; FastTree -nt $bigAlgnFile > $bigNotRootedTreeFile";
@@ -497,7 +501,7 @@ for my $phGr ( keys %phGrSppTbl )
 
       ## Rerooting the tree
       my $bigTreeWithOGsFile = $phGrDir . $sp . "_with_OGs.tree";
-      if ( ! -e $bigTreeWithOGsFile )
+      if ( ! -e $bigTreeWithOGsFile || $runAll )
       {
 	print "\r\t\tRerooting the tree using outgroup sequences                          ";
 	$cmd = "rm -f $bigTreeWithOGsFile; nw_reroot $bigNotRootedTreeFile @ogSeqIDs | nw_order -  > $bigTreeWithOGsFile";
@@ -507,9 +511,9 @@ for my $phGr ( keys %phGrSppTbl )
 
       ## Pruning tree froom OG seq's
       my $bigTreeFile = $phGrDir . $sp . ".tree";
-      #if ( ! -e $bigTreeFile )
+      if ( ! -e $bigTreeFile || $runAll )
       {
-	print "\r\t\tpruning the tree from OG seq's                                          ";
+	print "\r\t\tPruning the tree from OG seq's                                          ";
 	$cmd = "rm -f $bigTreeFile; nw_prune $bigTreeWithOGsFile @ogSeqIDs | nw_order -  > $bigTreeFile";
 	print "\tcmd=$cmd\n" if $dryRun || $debug;
 	system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
@@ -523,7 +527,7 @@ for my $phGr ( keys %phGrSppTbl )
       my $queryFile   = $nrSeqIDsFile;
       ##my $vicutTxFile = $vicutDir . "/minNodeCut_NAge1_TXge1_querySeqs.taxonomy"; # minNodeCut.cltrs
       my $vicutCltrsFile = $vicutDir . "/minNodeCut.cltrs";
-      if ( ! -e $vicutCltrsFile )
+      if ( ! -e $vicutCltrsFile || $runAll )
       {
 	print "\r\t\tRunning vicut                                                              ";
 	$cmd = "vicut $quietStr -t $bigTreeFile -a $annFile -q $queryFile -o $vicutDir";
@@ -665,7 +669,7 @@ for my $phGr ( keys %phGrSppTbl )
 
       print "\r\t\tGenerating a condensed tree of ref seq's species and vicut tx clades collapsed to a single node  ";
       my $condTreeFile2 = $phGrDir . $sp . "_spp_cond2.tree";
-      if ( ! -e $condTreeFile2 )
+      if ( ! -e $condTreeFile2 || $runAll )
       {
 	print "\r\t\tGenerating a tree with species names at leaves ";
 	my $sppTreeFile = $phGrDir . $sp . "_spp.tree";
@@ -730,7 +734,7 @@ for my $phGr ( keys %phGrSppTbl )
       ## a disagreement.
 
       my $pdfTreeFile = $treesDir . "/$sp" . "_tree.pdf";
-      if ( ! -e $pdfTreeFile )
+      if ( ! -e $pdfTreeFile || $runAll )
       {
 	my $treeAbsPath = abs_path( $condTreeFile2 );
 	plot_tree($treeAbsPath, $pdfTreeFile, $sp);
@@ -761,7 +765,7 @@ for my $phGr ( keys %phGrSppTbl )
 
       ## Restricting nr fa file to only nr ref seq's covering $percCoverage of all seq's
       my $spNRfaFile2 = $phGrDir . $sp . "_nr_cov" . $percCoverage . ".fa";
-      if ( ! -e $spNRfaFile2 )
+      if ( ! -e $spNRfaFile2 || $runAll )
       {
 	print "\r\t\tCreating restricted $sp fa file                  ";
 	$cmd = "select_seqs.pl $quietStr -s $nrSeqIDsFile -i $spNRfaFile -o $spNRfaFile2";
@@ -788,7 +792,7 @@ for my $phGr ( keys %phGrSppTbl )
       ##
 
       my $bigFaFile = $phGrDir . $sp . "_nr_cov" . $percCoverage . "_phGr_og.fa";
-      if ( ! -e $bigFaFile )
+      if ( ! -e $bigFaFile || $runAll )
       {
 	print "\r\t\tGenerating bigFaFile                                          ";
 	$cmd = "rm -f $bigFaFile; cat $phGrOGfaFile $phGrFaFile $spNRfaFile2 > $bigFaFile";
@@ -800,7 +804,7 @@ for my $phGr ( keys %phGrSppTbl )
       ## 2. Generate alignment
       ##
       my $bigAlgnFile = $phGrDir . $sp . "_nr_cov" . $percCoverage . "_algn.fa";
-      if ( ! -e $bigAlgnFile )
+      if ( ! -e $bigAlgnFile || $runAll )
       {
 	print "\r\t\tAligning phGr ref seq's (includeing OG seq's) and the selected seq's of $sp           ";
 	$cmd = "rm -f $bigAlgnFile; mafft --auto --inputorder $bigFaFile > $bigAlgnFile";
@@ -812,7 +816,7 @@ for my $phGr ( keys %phGrSppTbl )
       ## 3. Generate phylo tree
       ##
       my $bigNotRootedTreeFile = $phGrDir . $sp . "_nr_cov" . $percCoverage . "_not_rooted_with_OGs.tree";
-      if ( ! -e $bigNotRootedTreeFile )
+      if ( ! -e $bigNotRootedTreeFile || $runAll )
       {
 	print "\r\t\tGenerating phylo tree of the above alignment                                    ";
 	$cmd = "rm -f $bigNotRootedTreeFile; FastTree -nt $bigAlgnFile > $bigNotRootedTreeFile";
@@ -822,7 +826,7 @@ for my $phGr ( keys %phGrSppTbl )
 
       ## Rerooting the tree
       my $bigTreeWithOGsFile = $phGrDir . $sp . "_nr_cov" . $percCoverage . "_with_OGs.tree";
-      if ( ! -e $bigTreeWithOGsFile )
+      if ( ! -e $bigTreeWithOGsFile || $runAll )
       {
 	print "\r\t\tRerooting the tree using outgroup sequences                          ";
 	$cmd = "rm -f $bigTreeWithOGsFile; nw_reroot $bigNotRootedTreeFile @ogSeqIDs | nw_order -  > $bigTreeWithOGsFile";
@@ -832,9 +836,9 @@ for my $phGr ( keys %phGrSppTbl )
 
       ## Pruning tree froom OG seq's
       my $bigTreeFile = $phGrDir . $sp . "_nr_cov" . $percCoverage . ".tree";
-      #if ( ! -e $bigTreeFile )
+      if ( ! -e $bigTreeFile || $runAll )
       {
-	print "\r\t\tpruning the tree from OG seq's                                          ";
+	print "\r\t\tPruning the tree from OG seq's                                          ";
 	$cmd = "rm -f $bigTreeFile; nw_prune $bigTreeWithOGsFile @ogSeqIDs | nw_order -  > $bigTreeFile";
 	print "\tcmd=$cmd\n" if $dryRun || $debug;
 	system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
@@ -848,7 +852,7 @@ for my $phGr ( keys %phGrSppTbl )
       my $queryFile   = $nrSeqIDsFile;
       ##my $vicutTxFile = $vicutDir . "/minNodeCut_NAge1_TXge1_querySeqs.taxonomy"; # minNodeCut.cltrs
       my $vicutCltrsFile = $vicutDir . "/minNodeCut.cltrs";
-      if ( ! -e $vicutCltrsFile )
+      if ( ! -e $vicutCltrsFile || $runAll )
       {
 	print "\r\t\tRunning vicut                                                              ";
 	$cmd = "vicut $quietStr -t $bigTreeFile -a $annFile -q $queryFile -o $vicutDir";
@@ -990,7 +994,7 @@ for my $phGr ( keys %phGrSppTbl )
 
       print "\r\t\tGenerating a condensed tree of ref seq's species and vicut tx clades collapsed to a single node  ";
       my $condTreeFile2 = $phGrDir . $sp . "_nr_cov" . $percCoverage . "_spp_cond2.tree";
-      if ( ! -e $condTreeFile2 )
+      if ( ! -e $condTreeFile2 || $runAll )
       {
 	print "\r\t\tGenerating a tree with species names at leaves ";
 	my $sppTreeFile = $phGrDir . $sp . "_nr_cov" . $percCoverage . "_spp.tree";
@@ -1055,7 +1059,7 @@ for my $phGr ( keys %phGrSppTbl )
       ## a disagreement.
 
       my $pdfTreeFile = $treesDir . "/$sp" . "_tree.pdf";
-      if ( ! -e $pdfTreeFile )
+      if ( ! -e $pdfTreeFile || $runAll )
       {
 	my $treeAbsPath = abs_path( $condTreeFile2 );
 	plot_tree($treeAbsPath, $pdfTreeFile, $sp);
