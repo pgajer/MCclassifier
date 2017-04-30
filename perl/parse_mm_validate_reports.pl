@@ -207,8 +207,8 @@ if (0)
   print "\n";
 }
 
-my $outFile = $mmDir . "/master_mm_validate_report.txt";
-open OUT, ">$outFile" or die "Cannot open $outFile for writing: $OS_ERROR";
+my $masterFile = $mmDir . "/master_mm_validate_report.txt";
+open OUT, ">$masterFile" or die "Cannot open $masterFile for writing: $OS_ERROR";
 for my $sp (@complRecSpp)
 {
   print OUT "------------------------------------------------\n";
@@ -222,8 +222,8 @@ close OUT;
 ## Generating a list of species missing record
 my @spMissingRec = diff(\@allSpp, \@complRecSpp);
 
-$outFile = $mmDir . "/spp_missing_record.txt";
-open OUT, ">$outFile" or die "Cannot open $outFile for writing: $OS_ERROR\n";
+my $missingRecFile = $mmDir . "/spp_missing_record.txt";
+open OUT, ">$missingRecFile" or die "Cannot open $missingRecFile for writing: $OS_ERROR\n";
 for my $sp (@spMissingRec)
 {
   print OUT "$sp\t-1\t" . $spToPhGr{$sp} . "\n";
@@ -236,8 +236,8 @@ print     "\tNo. of complete record species:             $nComplRecSpp\n";
 print     "\tNo. of species with incomplete record:      $nIncompRecSpp\n";
 print     "\tNo. of species with no record:              " . @spMissingRec . "\n";
 
-print "\n\tComplete records written to $outFile\n";
-print "\tSpecies with missing record written to $outFile\n\n";
+print "\n\tComplete records written to $masterFile\n";
+print "\tSpecies with missing record written to $missingRecFile\n\n";
 
 
 ####################################################################
