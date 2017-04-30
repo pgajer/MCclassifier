@@ -144,9 +144,9 @@ while (my $file = readdir(DIR))
       ## checking if the old sp has a complete record
       if ( defined $sp && exists $rTbl{$sp} && !exists $recComplete{$sp} )
       {
-	print "\n\n\tWARNING: $sp has incomplete record\n";
-	print $rTbl{$sp};
-	print "\tDeleting it from rTbl table\n";
+	# print "\n\n\tWARNING: $sp has incomplete record\n";
+	# print $rTbl{$sp};
+	# print "\tDeleting it from rTbl table\n";
 	delete $rTbl{$sp};
       }
 
@@ -237,7 +237,7 @@ for my $sp (@spMissingRec)
 }
 close OUT;
 
-print "\n\tSpecies with missing record written to $outFile\n\n";
+print "\tSpecies with missing record written to $outFile\n\n";
 
 
 ####################################################################
