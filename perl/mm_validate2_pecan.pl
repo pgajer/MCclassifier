@@ -256,7 +256,7 @@ my $timeStamp = sprintf("%04d-%02d-%02d_%02d_%02d_%02d",
 my $outDir = $mmDir . "mm_validate_reports_dir_$timeStamp";
 my $cmd = "mkdir -p $outDir";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
-system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
+system($cmd) == 0 or die "system($cmd) failed with exit code: $?";# if !$dryRun;
 
 ## main report
 my $vicutCltrReport = $outDir . "/vicut_cltrs_report.txt";
