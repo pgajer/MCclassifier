@@ -8,8 +8,8 @@
 
   Given a phylogenetic tree with outgroup sequences and a lineage data, the
   script runs vicut clustering based on the taxonomic information, using
-  different of majority vote taxonomy modification to clean up taxonomy at all
-  taxonomic ranks up to the class level.
+  different incarnations of the majority vote strategy to clean up taxonomy at
+  all taxonomic ranks up to the class level.
 
   The alignment data (especially the trimmed one) is maintained for the purpose
   truncation and generation of variable region reference db. As such MSAs have
@@ -95,6 +95,8 @@ my $maxStrLen     = 150;  # maximal number of characters in a taxon string; if
 			  # larger file names using the taxon name will use an
 			  # abbreviated version of the taxon name
 my $taxonSizeThld = 20;
+my $offsetCoef    = 0.9;
+my $txSizeThld    = 10;
 
 GetOptions(
   "input-group|i=s" 	=> \my $grPrefix,
@@ -106,6 +108,9 @@ GetOptions(
   "do-not-pop-pdfs"     => \my $doNotPopPDFs,
   "build-model-data"    => \my $buildModelData,
   "rm-ref-outliers"     => \my $rmRefOutliers,
+  "pp-embedding"        => \my $ppEmbedding,
+  "offset-coef|c=f"     => \$offsetCoef,
+  "tx-size-thld|t=i"    => \$txSizeThld,
   "igs"                 => \my $igs,
   "johanna"             => \my $johanna,
   "verbose|v"           => \my $verbose,
@@ -165,10 +170,6 @@ if ($showAllTrees)
   $showAllTreesStr = "--show-tree";
 }
 
-####################################################################
-##                               MAIN
-####################################################################
-
 my @suffixes;
 
 my $debugStr = "";
@@ -193,6 +194,11 @@ if ( ! -d $grDir )
   print "\n\n";
   exit 1;
 }
+
+####################################################################
+##                               MAIN
+####################################################################
+
 
 my $section = qq~
 
@@ -277,19 +283,17 @@ if ( check_parent_consistency(\%lineageTbl) )
 ## testing if lineage and fa files has the same seq IDs
 print "--- Checking if seqIDs of $trimmedAlgnFile and $lineageFile are the same\n";
 my @lSeqIDs = keys %lineageTbl;
-my @commSeqIDs = comm(\@seqIDs, \@lSeqIDs);
-if (@commSeqIDs != @seqIDs || @commSeqIDs != @lSeqIDs)
+
+if ( ! setequal(\@seqIDs, \@lSeqIDs) )
 {
   warn "WARNING: seq IDs of trimmed alignment fasta file and lineage file do not match";
   print "Number of elements in the trimmed alignment file: " . @seqIDs . "\n";
-  print "Number of elements in the lineage file: " . @lSeqIDs . "\n";
-  print "Number of elements common to the alignment and lineage files: " . @commSeqIDs . "\n";
+  print "Number of elements in the lineage file: " . @lSeqIDs . "\n\n";
 }
-
 
 print "--- Testing if outgroup sequences are part of seqIDs\n";
 my @ogDiff = diff( \@ogSeqIDs, \@seqIDs );
-@ogSeqIDs = comm( \@ogSeqIDs, \@commSeqIDs );
+@ogSeqIDs = comm( \@ogSeqIDs, \@seqIDs );
 
 if ( scalar(@ogDiff) != 0 )
 {
@@ -307,7 +311,7 @@ if ( scalar(@ogSeqIDs) == 0 )
 if ($debug)
 {
   print "\n\tNumber of seq's in the trimmed alignment/lineage files: " . @seqIDs . "\n";
-  print "\tNumber of outgroup seq's: " . @ogSeqIDs . "\n\n";
+  print   "\tNumber of outgroup seq's: " . @ogSeqIDs . "\n\n";
 }
 
 print "--- Testing if $treeFile is consistent with $trimmedAlgnFile\n";
@@ -320,68 +324,25 @@ system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 ## looking at the difference between leaf IDs and newTx keys
 my @treeLeaves = readArray($treeLeavesFile);
 
-my @commTL = comm(\@treeLeaves, \@seqIDs);
-if (@commTL != @treeLeaves || @commTL != @seqIDs)
+if ( !setequal( \@treeLeaves, \@seqIDs ) )
 {
+  my @commTL = comm(\@treeLeaves, \@seqIDs);
+
   warn "\n\n\tERROR: seq IDs of $treeFile and $algnFile do not match";
   print "\tNumber of seq IDs of $treeFile: " . @treeLeaves . "\n";
   print "\tNumber of seq IDs of $trimmedAlgnFile: " . @seqIDs . "\n";
   print "\tNumber of common seq IDs elements: " . @commTL . "\n\n";
+
   exit 1;
 }
 
 if ($debug)
 {
+  my @commTL = comm(\@treeLeaves, \@seqIDs);
+
   print "\n\n\tNumber of seq IDs of $treeFile: " . @treeLeaves . "\n";
   print     "\tNumber of seq IDs of $trimmedAlgnFile: " . @seqIDs . "\n";
   print     "\tNumber of common seq IDs elements: " . @commTL . "\n\n";
-}
-
-my $bFile = "bad_seqIDs.pp";
-if ( $rmRefOutliers && -e $bFile )
-{
-  print "--- Removing sequences identified as outliers in ref_sib_pp_models.R\n";
-
-  my @badIDs = readArray($bFile);
-
-  print "--- Pruning outlier ref seq's from lineageTbl\n";
-
-  ## first check if all elements of @badIDs are in @lineageTbl
-  my @c = comm(\@badIDs, \@lSeqIDs);
-  if (@c !=  @badIDs)
-  {
-    warn "\n\n\tERROR: some elements in $bFile are no present in the lineage table";
-    print "\tNumber of seq IDs in $bFile: " . @badIDs . "\n";
-    print "\tNumber of common seq IDs elements: " . @c . "\n";
-    print "\tElements in $bFile but not in the lineage table:\n";
-    for (diff(\@badIDs, \@lSeqIDs))
-    {
-      print "\t\t$_\n";
-    }
-    print "\n\n";
-    exit 1;
-  }
-
-  delete @lineageTbl{@badIDs};
-
-  # pruning alignment
-  print "--- Pruning outlier ref seq's from $trimmedAlgnFile\n";
-  my $prunedAlgnFile = $grPrefix . "_algn_trimmed_pruned0.fa";
-  $cmd = "select_seqs.pl $quietStr -e $bFile -i $trimmedAlgnFile -o $prunedAlgnFile";
-  print "\tcmd=$cmd\n" if $dryRun || $debug;
-  system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
-
-  $trimmedAlgnFile = $prunedAlgnFile;
-
-  # pruning tree
-  print "--- Pruning outlier ref seq's from $treeFile\n";
-  my $prunedTreeFile = $grPrefix . "_pruned0.tree";
-  $cmd = "rm -f $prunedTreeFile; nw_prune $treeFile @badIDs > $prunedTreeFile";
-  print "\tcmd=$cmd\n" if $dryRun || $debug;
-  system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
-
-  $treeFile = $prunedTreeFile;
-
 }
 
 ## Keeping outgroup sequences pollutes taxonomy cleanup process while running
@@ -487,7 +448,7 @@ if ($debug)
 }
 
 my $summaryStatsFile = "summary_stats.txt";
-open my $SRYOUT, ">$summaryStatsFile" or die "Cannot open $summaryStatsFile for writing: $OS_ERROR\n";
+open my $SRYOUT, ">$summaryStatsFile" or die "Cannot open $summaryStatsFile for writing: $OS_ERROR";
 printLineageToFile($SRYOUT, "\n\n====== Taxonomy BEFORE cleanup ======\n");
 
 ## outgroup seq's lineage
@@ -577,8 +538,8 @@ my $vicutDir   = "spp_vicut_dir";
 my $nQuerySeqs = 0;
 my $nAnnSeqs   = 0;
 my %querySpp; # species => count of seq's of that species in the query file
-open QOUT, ">$queryFile" or die "Cannot open $queryFile for writing: $OS_ERROR\n";
-open ANNOUT, ">$annFile" or die "Cannot open $annFile for writing: $OS_ERROR\n";
+open QOUT, ">$queryFile" or die "Cannot open $queryFile for writing: $OS_ERROR";
+open ANNOUT, ">$annFile" or die "Cannot open $annFile for writing: $OS_ERROR";
 for my $id ( keys %spp )
 {
   my $t = $spp{$id};
@@ -630,9 +591,10 @@ else
 print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 
-## update_spp_tx.pl takes vicut clusters and updates taxonomy using majority vote.
-## Moreover, if a species is present in more than 1 cluster, it changes
-## taxonomies of sequences from the small clusters to <genus>_sp
+## update_spp_tx.pl takes vicut clusters and updates taxonomy using majority
+## vote.  If a species is present in more than 1 cluster, the largest cluster is
+## left alone and the taxonomies of sequences from the clusters of size smaller
+## than the largest one are changed to <genus>_sp
 print "--- Running update_spp_tx.pl\n";
 $cmd = "update_spp_tx.pl $quietStr $debugStr $useLongSppNamesStr -a $txFile -d $vicutDir";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
@@ -648,7 +610,7 @@ my %newTx = readTbl($updatedTxFile);
 my %idCl;    # seqID => cltrID
 my %cltrTbl; # cltrID => ref to array of IDs in the given cluster
 my $cltrFile = "$vicutDir/minNodeCut.cltrs";
-open IN, "$cltrFile" or die "Cannot open $cltrFile for reading: $OS_ERROR\n";
+open IN, "$cltrFile" or die "Cannot open $cltrFile for reading: $OS_ERROR";
 my $header = <IN>;
 foreach (<IN>)
 {
@@ -729,15 +691,15 @@ for my $id ( keys %newTx )
 
 my $queryFile2 = "spp_query2.seqIDs";
 my $annFile2   = "spp_ann2.tx";
-## If _sp sequences, print to file, and set vicutDir to 2nd run directory
+## If _sp species are present, print ann and query write data to files and run vicut again.
 if (@query2)
 {
   $vicutDir  = "spp_vicut_dir2";
-  open QOUT, ">$queryFile2" or die "Cannot open $queryFile2 for writing: $OS_ERROR\n";
+  open QOUT, ">$queryFile2" or die "Cannot open $queryFile2 for writing: $OS_ERROR";
   print QOUT @query2;
   close QOUT;
 
-  open ANNOUT, ">$annFile2" or die "Cannot open $annFile2 for writing: $OS_ERROR\n";
+  open ANNOUT, ">$annFile2" or die "Cannot open $annFile2 for writing: $OS_ERROR";
   print ANNOUT @ann2;
   close ANNOUT;
 
@@ -845,18 +807,25 @@ if ( @extraOG>0 )
 
   $trimmedAlgnFile = $prunedAlgnFile;
 
-  # pruning tree
+  # regenerating a phylo tree
   print "--- Pruning extraOG seq's from $treeFile\n";
-  my $prunedTreeFile = $grPrefix . "_pruned.tree";
-  $cmd = "rm -f $prunedTreeFile; nw_prune $treeFile @extraOG > $prunedTreeFile";
+  my $prunedTreeFile = $grPrefix . "_pruned1.tree";
+  $cmd = "rm -f $prunedTreeFile; FastTree -nt $trimmedAlgnFile > $prunedTreeFile";
   print "\tcmd=$cmd\n" if $dryRun || $debug;
-  system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
+  system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;# && !$skipFastTree;
 
-  $treeFile = $prunedTreeFile;
+  # rerooting it
+  print "--- Rerooting the tree using outgroup sequences\n";
+  my $rrPrunedTreeFile = $grPrefix . "_pruned1_rr.tree";
+  $cmd = "rm -f $rrPrunedTreeFile; nw_reroot $prunedTreeFile @ogSeqIDs | nw_order -  > $rrPrunedTreeFile";
+  print "\tcmd=$cmd\n" if $dryRun || $debug;
+  system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+
+  $treeFile = $rrPrunedTreeFile;
 }
 
 my $sppLineageFile = $grPrefix . "_spp.lineage";
-open OUT, ">$sppLineageFile" or die "Cannot open $sppLineageFile for writing: $OS_ERROR\n";
+open OUT, ">$sppLineageFile" or die "Cannot open $sppLineageFile for writing: $OS_ERROR";
 my $wCount = 1;
 for my $id (keys %newTx)
 {
@@ -876,19 +845,13 @@ for my $id (keys %newTx)
 }
 close OUT;
 
-## Creating symbolic link to the most recent trimmed alignment file for use with
-## truncate_algn.pl
-my $finalAlgnFile = $grPrefix . "_algn_trimmed_final.fa";
-my $ap = abs_path( $trimmedAlgnFile );
-$cmd = "rm -f $finalAlgnFile; ln -s $ap $finalAlgnFile";
-print "\tcmd=$cmd\n" if $dryRun || $debug;
-system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
-
-
 ## Removing outgroup sequences from the updated.tx file and the phylogenetic
 ## tree.
 
 ## Deleting outgroup sequences from %newTx !!!!
+
+my %newTxWithOG = %newTx;
+
 delete @newTx{@ogSeqIDs};
 delete @lineageTbl{@ogSeqIDs};
 
@@ -910,7 +873,7 @@ print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 
 # pruning tree from OG seq's
-print "--- Pruning OG seq's from $treeFile\n";
+print "--- Pruning OG seq's from the tree\n";
 my $prunedTreeFile = $grPrefix . "_no_OG_seqs.tree";
 $cmd = "rm -f $prunedTreeFile; nw_prune $treeFile @ogSeqIDs > $prunedTreeFile";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
@@ -918,7 +881,9 @@ system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 
 $treeFile = $prunedTreeFile;
 
-
+## NOTE that we do not remove OG seq's from the alignment file in case we need to
+## prune it again and then rebuild and reroot a tree (and then remove OG seq's
+## from it).
 
 ## Testing consistency between the phylo tree and sequences after taxonomy
 ## cleanup. In particular, the set of leave seqIDs has to be equal to the set of
@@ -936,17 +901,24 @@ system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 my @survivedIDs = keys %newTx;
 my @lostLeaves = diff(\@treeLeaves, \@survivedIDs);
 
-## prunning tree from lost IDs
 if (@lostLeaves>0)
 {
-  $prunedTreeFile = $grPrefix . "_no_OG_seqs_pruned.tree";
-  print "\n\tSpecies cleanup eliminated " . @lostLeaves . " sequences\n";
-  print "--- Pruning lost seqIDs from the current phylo tree\n";
-  $cmd = "rm -f $prunedTreeFile; nw_prune $treeFile @lostLeaves > $prunedTreeFile";
-  print "\tcmd=$cmd\n" if $dryRun || $debug;
-  system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
+  warn "\n\n\tERROR: inconsistency between the taxon table and the tree";
+  print "Leaves of the tree are in $treeLeavesFile\n";
+  print "Taxon table in $updatedTxFile\n";
+  print "Here are seq IDs in the tree but not in the taxon table\n";
+  printArray(\@lostLeaves, "lostLeaves");
+  exit 1;
 
-  $treeFile = $prunedTreeFile;
+  ## prunning tree from lost IDs
+  # $prunedTreeFile = $grPrefix . "_no_OG_seqs_pruned.tree";
+  # print "\n\tSpecies cleanup eliminated " . @lostLeaves . " sequences\n";
+  # print "--- Pruning lost seqIDs from the current phylo tree\n";
+  # $cmd = "rm -f $prunedTreeFile; nw_prune $treeFile @lostLeaves > $prunedTreeFile";
+  # print "\tcmd=$cmd\n" if $dryRun || $debug;
+  # system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
+
+  # $treeFile = $prunedTreeFile;
 }
 
 print "--- Removing _sp singletons clusters\n";
@@ -954,7 +926,7 @@ print "--- Removing _sp singletons clusters\n";
 my %clSize;
 my %clSeqs;
 $cltrFile = "$vicutDir/minNodeCut.cltrs";
-open IN, "$cltrFile" or die "Cannot open $cltrFile for reading: $OS_ERROR\n";
+open IN, "$cltrFile" or die "Cannot open $cltrFile for reading: $OS_ERROR";
 $header = <IN>;
 foreach (<IN>)
 {
@@ -1018,8 +990,31 @@ if ( @spSingletons )
   print "\tcmd=$cmd\n" if $dryRun || $debug;
   system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 
-  # pruning alignment
-  print "--- Pruning spSingletons seq's from $trimmedAlgnFile\n";
+  # Pruning alignment
+
+  # Making sure OG seq(s) are still in the alignment
+  my @algnSeqIDs = get_seqIDs_from_fa($trimmedAlgnFile);
+  my @c = comm( \@algnSeqIDs, \@ogSeqIDs );
+  if ( @c==0 )
+  {
+    warn "\n\n\tERROR: trimmed alignment does not have any OG seq's";
+
+    print "\nogSeqIDs: @ogSeqIDs\n";
+
+    my $trAlgnSeqIDsFile = $grPrefix . "_trAlgn.seqIDs";
+    writeArray(\@algnSeqIDs, $trAlgnSeqIDsFile);
+
+    print "Trimmed algn seq IDs: $trAlgnSeqIDsFile\n";
+    print "\n\n";
+
+    exit 1;
+  }
+
+  ## removing OG seq ids
+  @spSingletons = diff( \@spSingletons, \@ogSeqIDs );
+  writeArray(\@spSingletons, $spSingletonsFile);
+
+  print "--- Pruning spSingletons seq's from the alignment\n";
   my $prunedAlgnFile = $grPrefix . "_algn_trimmed_pruned2.fa";
   $cmd = "select_seqs.pl $quietStr -e $spSingletonsFile -i $trimmedAlgnFile -o $prunedAlgnFile";
   print "\tcmd=$cmd\n" if $dryRun || $debug;
@@ -1027,19 +1022,42 @@ if ( @spSingletons )
 
   $trimmedAlgnFile = $prunedAlgnFile;
 
-  # pruning tree
-  print "--- Pruning spSingletons seq's from $treeFile\n";
-  my $prunedTreeFile = $grPrefix . "_pruned.tree";
-  $cmd = "rm -f $prunedTreeFile; nw_prune $treeFile @spSingletons > $prunedTreeFile";
+  # Rebuilding tree
+  print "--- Rebuilding phylo tree (1)\n";
+  my $prunedTreeFile = $grPrefix . "_pruned2.tree";
+  $cmd = "rm -f $prunedTreeFile; FastTree -nt $trimmedAlgnFile > $prunedTreeFile";
+  print "\tcmd=$cmd\n" if $dryRun || $debug;
+  system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;# && !$skipFastTree;
+
+  ## reroot it
+  print "--- Rerooting the tree after spp singletons removal\n";
+  my $rrPrunedTreeFile = $grPrefix . "_pruned2_rr.tree";
+  $cmd = "rm -f $rrPrunedTreeFile; nw_reroot $prunedTreeFile @ogSeqIDs | nw_order -  > $rrPrunedTreeFile";
+  print "\tcmd=$cmd\n" if $dryRun || $debug;
+  system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+
+  ## removing OG seq's from the tree
+  print "--- Pruning OG seq's from the tree after spp singletons removal\n";
+  $prunedTreeFile = $grPrefix . "_pruned2_rr_noOGs.tree";
+  $cmd = "rm -f $prunedTreeFile; nw_prune $rrPrunedTreeFile @ogSeqIDs > $prunedTreeFile";
   print "\tcmd=$cmd\n" if $dryRun || $debug;
   system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 
   $treeFile = $prunedTreeFile;
 
-  ## running vicut again
-  ## NOTE: I am abandoning the strategy of protecting singleton _sp species (the only species of a genus that is an _sp species)
+  ##
+  ## Running vicut again
+  ##
+
+  ## NOTE: I am abandoning the strategy of protecting singleton _sp species (the
+  ## only species of a genus that is an _sp species)
+
   my @query3;
   my @ann3;
+  my $queryFile3 = "spp_query3.seqIDs";
+  my $annFile3   = "spp_ann3.tx";
+  open QOUT, ">$queryFile3" or die "Cannot open $queryFile3 for writing: $OS_ERROR";
+  open AOUT, ">$annFile3"   or die "Cannot open $annFile3 for writing: $OS_ERROR";
   for my $id ( keys %newTx )
   {
     my $t = $newTx{$id};
@@ -1050,25 +1068,42 @@ if ( @spSingletons )
 
     if ( defined $suffix && $suffix eq "sp" )
     {
-      push @query3, "$id\n";
+      push @query3, $id;
+      print QOUT "$id\n";
     }
     else
     {
-      push @ann3, "$id\t$t\n";
+      push @ann3, $id;
+      print AOUT "$id\t$t\n";
     }
   }
+  close QOUT;
+  close AOUT;
 
-  my $queryFile3 = "spp_query3.seqIDs";
-  my $annFile3   = "spp_ann3.tx";
+  ## Testing consistency between the ann and query seq's and the tree The leaf
+  ## IDs should be set-theoretically the same as the union of ann and query IDs.
+
+  ## extracting leave IDs
+  $cmd = "rm -f $treeLeavesFile; nw_labels -I $treeFile > $treeLeavesFile";
+  print "\tcmd=$cmd\n" if $dryRun || $debug;
+  system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
+
+  @treeLeaves = readArray($treeLeavesFile);
+
+  my @a = (@query3, @ann3);
+  if ( !setequal( \@a, \@treeLeaves ) )
+  {
+    warn "\n\n\tERROR: found inconsistency between the set of leaves of the current tree";
+    print "see $treeLeavesFile\n";
+    print "and the union of query and annotation IDs in\n";
+    print "$queryFile3\n";
+    print "and\n";
+    print "$annFile3\n\n";
+    exit 1;
+  }
+
   ## If _sp sequences, print to file, and set vicutDir to 2nd run directory
   $vicutDir  = "spp_vicut_dir3";
-  open QOUT, ">$queryFile3" or die "Cannot open $queryFile3 for writing: $OS_ERROR\n";
-  print QOUT @query3;
-  close QOUT;
-
-  open ANNOUT, ">$annFile3" or die "Cannot open $annFile3 for writing: $OS_ERROR\n";
-  print ANNOUT @ann3;
-  close ANNOUT;
 
   print "--- Running vicut on species data the 3rd time\n";
   if (@query3)
@@ -1179,9 +1214,9 @@ if ( $nSpecies == 1 )
   my $lineageExt = join ';', @t2;
 
   my $finalLineageFile = $grPrefix . "_final.lineage";
-  open OUT1, ">$finalLineageFile" or die "Cannot open $finalLineageFile for writing: $OS_ERROR\n";
+  open OUT1, ">$finalLineageFile" or die "Cannot open $finalLineageFile for writing: $OS_ERROR";
   my $finalLineageFile2 = $grPrefix . "_final_no_tGTs.lineage";
-  open OUT2, ">$finalLineageFile2" or die "Cannot open $finalLineageFile2 for writing: $OS_ERROR\n";
+  open OUT2, ">$finalLineageFile2" or die "Cannot open $finalLineageFile2 for writing: $OS_ERROR";
   for my $id (keys %newTx)
   {
     my $lineage = $lineageTbl{$id};
@@ -1244,7 +1279,7 @@ if (0)
 $cltrFile = "$vicutDir/minNodeCut.cltrs";
 %idCl = ();
 %clSize = ();
-open IN, "$cltrFile" or die "Cannot open $cltrFile for reading: $OS_ERROR\n";
+open IN, "$cltrFile" or die "Cannot open $cltrFile for reading: $OS_ERROR";
 $header = <IN>;
 foreach (<IN>)
 {
@@ -1284,7 +1319,7 @@ for my $id (keys %newTx)
 
 print "--- Creating species_nSize_clID tree\n";
 my $spSizeCltrFile = "$grPrefix" . "_preGenotyping.spp_size_cltr";
-open OUT, ">$spSizeCltrFile" or die "Cannot open $spSizeCltrFile for writing: $OS_ERROR\n";
+open OUT, ">$spSizeCltrFile" or die "Cannot open $spSizeCltrFile for writing: $OS_ERROR";
 for my $id (keys %idSppCltr)
 {
   print OUT "$id\t" . $idSppCltr{$id} . "\n";
@@ -1412,34 +1447,55 @@ system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 ## prunning tree
 if (@lostLeaves>0)
 {
-  $prunedTreeFile = $grPrefix . "_no_OG_seqs_pruned2.tree";
   print "\n\tSpecies cleanup eliminated " . @lostLeaves . " sequences\n\n" if $debug;
-  print "--- Pruning lost seqIDs from the current phylo tree\n";
-  $cmd = "rm -f $prunedTreeFile; nw_prune $treeFile @lostLeaves > $prunedTreeFile";
+
+  my $lostLeavesFile = $grPrefix . "_lost_leaves.txt";
+  writeArray(\@lostLeaves, $lostLeavesFile);
+
+  print "--- Pruning lost seqIDs from the current alignment\n";
+  my $prunedAlgnFile = $grPrefix . "_algn_trimmed_pruned3.fa";
+  $cmd = "select_seqs.pl $quietStr -e $lostLeavesFile -i $trimmedAlgnFile -o $prunedAlgnFile";
+  print "\tcmd=$cmd\n" if $dryRun || $debug;
+  system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
+
+  $trimmedAlgnFile = $prunedAlgnFile;
+
+  print "--- Rebuilding phylo tree (2)\n";
+  $prunedTreeFile = $grPrefix . "_pruned3.tree";
+  $cmd = "rm -f $prunedTreeFile; FastTree -nt $trimmedAlgnFile > $prunedTreeFile";
+  print "\tcmd=$cmd\n" if $dryRun || $debug;
+  system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;# && !$skipFastTree;
+
+  print "--- Rerooting the tree\n";
+  my $rrPrunedTreeFile = $grPrefix . "_pruned3_rr.tree";
+  $cmd = "rm -f $rrPrunedTreeFile; nw_reroot $prunedTreeFile @ogSeqIDs | nw_order -  > $rrPrunedTreeFile";
+  print "\tcmd=$cmd\n" if $dryRun || $debug;
+  system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+
+  ## removing OG seq's from the tree
+  print "--- Pruning OG seq's from the tree after spp singletons removal\n";
+  $prunedTreeFile = $grPrefix . "_pruned3_rr_noOGs.tree";
+  $cmd = "rm -f $prunedTreeFile; nw_prune $rrPrunedTreeFile @ogSeqIDs > $prunedTreeFile";
   print "\tcmd=$cmd\n" if $dryRun || $debug;
   system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 
   $treeFile = $prunedTreeFile;
 }
 
-print "--- Creating a symbolic link to the most recent version of the phylogenetic tree\n";
-my $finalTreeFile = $grPrefix . "_final.tree";
-$ap = abs_path( $treeFile );
-$cmd = "rm -f $finalTreeFile; ln -s $ap $finalTreeFile";
-print "\tcmd=$cmd\n" if $dryRun || $debug;
-system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
-
 
 print "--- Testing consistency between lineageTbl and newTx keys\n";
+
 @newTxKeys      = keys %newTx;
 @lineageTblKeys = keys %lineageTbl;
-my @tlComm = comm(\@newTxKeys, \@lineageTblKeys);
-if (@tlComm != @newTxKeys || @tlComm != @lineageTblKeys)
+
+if ( !setequal( \@newTxKeys, \@lineageTblKeys ) )
 {
-  warn "\n\nWARNING: seq IDs of new taxonomy table and the new lineage table do not match";
-  print "\n\tNumber of elements in the new taxonomy table: " . @newTxKeys . "\n";
-  print "\tNumber of elements in the lineage table: " . @lineageTblKeys . "\n";
-  print "\tNumber of common elements: " . @tlComm . "\n";
+  my @tlComm = comm(\@newTxKeys, \@lineageTblKeys);
+
+  warn "\n\n\tERROR: seq IDs of new taxonomy table and the new lineage table do not match";
+  print  "\n\tNumber of elements in the new taxonomy table: " . @newTxKeys . "\n";
+  print    "\tNumber of elements in the lineage table: " . @lineageTblKeys . "\n";
+  print    "\tNumber of common elements: " . @tlComm . "\n";
 
   writeArray(\@newTxKeys, "newTxKeys.txt");
   writeArray(\@lineageTblKeys, "lineageTblKeys.txt");
@@ -1565,7 +1621,7 @@ print "$section";
 #
 # Using phyloPart followed by vicut to generate genus taxonomy
 #
-# Given a condenset tree at some taxonomic rank (say species), a percentile
+# Given a condensed tree at some taxonomic rank (say species), a percentile
 # threshold and a taxonomic parent table, the script performs a partition of a
 # phylogenetic tree with the given percentile distance threshold using phyloPart
 # and then does vicut clustering using all except 0 clusters of phyloPart as
@@ -1582,9 +1638,10 @@ print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 
 @treeLeaves = readArray($treeLeavesFile);
+my @uqTreeLeaves = unique(\@treeLeaves);
 
 my @spParentKeys = keys %spParent;
-my @excessSpp = diff(\@spParentKeys, \@treeLeaves);
+my @excessSpp = diff(\@spParentKeys, \@uqTreeLeaves);
 if (@excessSpp)
 {
   if ($debug)
@@ -1602,22 +1659,21 @@ if (@excessSpp)
 my $spParentFile = $grPrefix . ".spParent";
 writeTbl(\%spParent, $spParentFile);
 
-if ( @spParentKeys != @treeLeaves )
+if ( @spParentKeys != @uqTreeLeaves )
 {
   warn "\n\n\tERROR: number of spParent species and $finalCondSppTreeFile leaves are not the same";
 
   print "\n\tspParentKeys: " . @spParentKeys . "\n";
-  print "\ttreeLeaves: " . @treeLeaves . "\n";
+  print "\tUnique tree leaves: " . @uqTreeLeaves . "\n";
 
   print "\n\tspParent tbl written to $spParentFile\n";
 
-  my @excessLeaves = diff(\@treeLeaves, \@spParentKeys);
+  my @excessLeaves = diff(\@uqTreeLeaves, \@spParentKeys);
   print "\n\tHere is the list of tree leaves (species) that are missing in spParent table\n";
   printArray(\@excessLeaves);
 
   exit 1;
 }
-
 
 if ($debug)
 {
@@ -1966,7 +2022,7 @@ if ($debug)
 
 print "--- Updating lineage table at the genus level\n";
 my $finalGenusTxFile = $grPrefix . "_final_genus.tx";
-open OUT, ">$finalGenusTxFile" or die "Cannot open $finalGenusTxFile for writing: $OS_ERROR\n";
+open OUT, ">$finalGenusTxFile" or die "Cannot open $finalGenusTxFile for writing: $OS_ERROR";
 my $gCounter = 1;
 for my $id (keys %lineageTbl)
 {
@@ -2012,7 +2068,7 @@ print "--- Checking parent consistency of the lineage table\n";
 if ( check_parent_consistency(\%lineageTbl) )
 {
   my $tmpLineageFile = $grPrefix . "_tmp.lineage";
-  open OUT, ">$tmpLineageFile" or die "Cannot open $tmpLineageFile for writing: $OS_ERROR\n";
+  open OUT, ">$tmpLineageFile" or die "Cannot open $tmpLineageFile for writing: $OS_ERROR";
   for my $id (keys %lineageTbl)
   {
     my $lineage = $lineageTbl{$id};
@@ -2080,7 +2136,7 @@ if ($debug)
 }
 
 my $genusIdxFile = abs_path( "$grPrefix" . "_genus.idx" );
-open OUT, ">$genusIdxFile" or die "Cannot open $genusIdxFile for writing: $OS_ERROR\n";
+open OUT, ">$genusIdxFile" or die "Cannot open $genusIdxFile for writing: $OS_ERROR";
 for my $sp (keys %sppGenus)
 {
   print OUT "$sp\t" . $genusIdx{$sppGenus{$sp}} . "\n";
@@ -2143,12 +2199,16 @@ for my $ge (@a)
 
     my @cladeLeaves = readArray($prunedTreeLeavesFile);
 
-    my @commSpp = comm(\@cladeLeaves, \@spp);
-    if (@commSpp != @cladeLeaves || @commSpp != @spp)
+    my @uqCladeLeaves = unique(\@cladeLeaves);
+    my @uqSpp         = unique(\@spp);
+
+    if ( !setequal( \@uqCladeLeaves, \@uqSpp ) )
     {
+      my @commSpp = comm(\@uqCladeLeaves, \@uqSpp);
+
       warn "\n\n\tERROR: leaves of $prunedTreeLeavesFile and genus $ge species do not match";
-      print "\tNumber of leaves of $prunedTreeLeavesFile: " . @cladeLeaves . "\n";
-      print "\tNumber of species in $ge: " . @spp . "\n";
+      print "\tNumber of unique leaf names of $prunedTreeLeavesFile: " . @uqCladeLeaves . "\n";
+      print "\tNumber of unique species in $ge: " . @uqSpp . "\n";
       print "\tNumber of common species: " . @commSpp . "\n";
       exit 1;
     }
@@ -2346,7 +2406,7 @@ if ($detectedLargeGenus)
   }
 
   my $finalSubGenusTxFile = $grPrefix . "_final_sub_genus.tx";
-  open OUT, ">$finalSubGenusTxFile" or die "Cannot open $finalSubGenusTxFile for writing: $OS_ERROR\n";
+  open OUT, ">$finalSubGenusTxFile" or die "Cannot open $finalSubGenusTxFile for writing: $OS_ERROR";
   for my $id (keys %lineageTbl)
   {
     my $lineage = $lineageTbl{$id};
@@ -2396,7 +2456,7 @@ if ($detectedLargeGenus)
   }
 
   my $subgenusIdxFile = abs_path( "$grPrefix" . "_subgenus.idx" );
-  open OUT, ">$subgenusIdxFile" or die "Cannot open $subgenusIdxFile for writing: $OS_ERROR\n";
+  open OUT, ">$subgenusIdxFile" or die "Cannot open $subgenusIdxFile for writing: $OS_ERROR";
   for my $sp (keys %sppSubGenus)
   {
     print OUT "$sp\t" . $subgenusIdx{$sppSubGenus{$sp}} . "\n";
@@ -2451,7 +2511,9 @@ print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 
 my @geTreeLeaves = readArray($treeLeavesFile);
-my $nGeTreeLeaves = @geTreeLeaves;
+my @uqGeTreeLeaves = unique(\@geTreeLeaves);
+my $nGeTreeLeaves = @uqGeTreeLeaves;
+
 print "\n\tNumber of elemets of the leaves of the genus condensed tree: $nGeTreeLeaves\n" if $debug;
 
 my $nGeParent = keys %geParent;
@@ -2468,7 +2530,7 @@ if ( $nGeParent != $nGeTreeLeaves )
   {
     if ( $nGeParent > $nGeTreeLeaves )
     {
-      my @d = diff(\@ges, \@geTreeLeaves);
+      my @d = diff(\@ges, \@uqGeTreeLeaves);
       print "Here are geParent genera not in the tree:\n";
       printArray(\@d);
       print "\n";
@@ -2476,18 +2538,18 @@ if ( $nGeParent != $nGeTreeLeaves )
 
     if ( $nGeParent < $nGeTreeLeaves )
     {
-      my @d = diff(\@geTreeLeaves, \@ges);
+      my @d = diff(\@uqGeTreeLeaves, \@ges);
       print "Here are leaves not present in geParent:\n";
       printArray(\@d);
       print "\n";
     }
   }
 
-  my @c = comm(\@ges, \@geTreeLeaves);
+  my @c = comm(\@ges, \@uqGeTreeLeaves);
   if ( $nGeParent>@c && $nGeTreeLeaves==@c )
   {
     print "geParent is a superset of geTreeLeaves. Restricting geParent to geTreeLeaves\n\n" if $debug;
-    my @d = diff(\@ges, \@geTreeLeaves);
+    my @d = diff(\@ges, \@uqGeTreeLeaves);
 
     delete @geParent{@d};
     $nGeParent = keys %geParent;
@@ -2770,7 +2832,7 @@ for my $fa (@newFamilies)
 
 print "--- Updating lineage table at the family level\n";
 my $finalFamilyTxFile = $grPrefix . "_final_family.tx";
-open OUT, ">$finalFamilyTxFile" or die "Cannot open $finalFamilyTxFile for writing: $OS_ERROR\n";
+open OUT, ">$finalFamilyTxFile" or die "Cannot open $finalFamilyTxFile for writing: $OS_ERROR";
 for my $id (keys %lineageTbl)
 {
   my $lineage = $lineageTbl{$id};
@@ -2891,7 +2953,7 @@ if ( scalar(keys %faChildren) > 1 )
   }
 
   my $familyIdxFile = abs_path( "$grPrefix" . "_family.idx" );
-  open OUT, ">$familyIdxFile" or die "Cannot open $familyIdxFile for writing: $OS_ERROR\n";
+  open OUT, ">$familyIdxFile" or die "Cannot open $familyIdxFile for writing: $OS_ERROR";
   for my $sp (keys %sppGenus)
   {
     my $ge = $sppGenus{$sp};
@@ -2935,8 +2997,9 @@ if ( scalar(keys %faChildren) > 1 )
   system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 
   my @faTreeLeaves = readArray($treeLeavesFile);
-  my $nFaTreeLeaves = @faTreeLeaves;
-  print "\n\tNumber of elemets of the leaves of the family condensed tree: $nFaTreeLeaves\n" if $debug;
+  my @uqFaTreeLeaves = unique(\@faTreeLeaves);
+  my $nFaTreeLeaves = @uqFaTreeLeaves;
+    print "\n\tNumber of elemets of the leaves of the family condensed tree: $nFaTreeLeaves\n" if $debug;
 
   my $nFaParent = keys %faParent;
   print "\tNumber of elemets of the family parent table: $nFaParent\n\n" if $debug;
@@ -2952,7 +3015,7 @@ if ( scalar(keys %faChildren) > 1 )
     {
       if ( $nFaParent > $nFaTreeLeaves )
       {
-	my @d = diff(\@fas, \@faTreeLeaves);
+	my @d = diff(\@fas, \@uqFaTreeLeaves);
 	print "Here are faParent fanera not in the tree:\n";
 	printArray(\@d);
 	print "\n";
@@ -2960,18 +3023,18 @@ if ( scalar(keys %faChildren) > 1 )
 
       if ( $nFaParent < $nFaTreeLeaves )
       {
-	my @d = diff(\@faTreeLeaves, \@fas);
+	my @d = diff(\@uqFaTreeLeaves, \@fas);
 	print "Here are leaves not present in faParent:\n";
 	printArray(\@d);
 	print "\n";
       }
     }
 
-    my @c = comm(\@fas, \@faTreeLeaves);
+    my @c = comm(\@fas, \@uqFaTreeLeaves);
     if ( $nFaParent>@c && $nFaTreeLeaves==@c )
     {
       print "faParent is a superset of faTreeLeaves. Restricting faParent to faTreeLeaves\n\n" if $debug;
-      my @d = diff(\@fas, \@faTreeLeaves);
+      my @d = diff(\@fas, \@uqFaTreeLeaves);
 
       delete @faParent{@d};
       $nFaParent = keys %faParent;
@@ -3183,7 +3246,7 @@ if ( scalar(keys %faChildren) > 1 )
   @orders = unique(\@orders);
 
   my $finalOrderTxFile = $grPrefix . "_final_order.tx";
-  open OUT, ">$finalOrderTxFile" or die "Cannot open $finalOrderTxFile for writing: $OS_ERROR\n";
+  open OUT, ">$finalOrderTxFile" or die "Cannot open $finalOrderTxFile for writing: $OS_ERROR";
   for my $id (keys %lineageTbl)
   {
     my $lineage = $lineageTbl{$id};
@@ -3290,7 +3353,7 @@ if ( scalar(keys %faChildren) > 1 )
     }
 
     my $orderIdxFile = abs_path( "$grPrefix" . "_order.idx" );
-    open OUT, ">$orderIdxFile" or die "Cannot open $orderIdxFile for writing: $OS_ERROR\n";
+    open OUT, ">$orderIdxFile" or die "Cannot open $orderIdxFile for writing: $OS_ERROR";
     for my $sp (keys %sppGenus)
     {
       my $ge = $sppGenus{$sp};
@@ -3334,7 +3397,7 @@ if ( scalar(keys %faChildren) > 1 )
     system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 
     my @orTreeLeaves = readArray($treeLeavesFile);
-    my $nOrTreeLeaves = @orTreeLeaves;
+    my $nOrTreeLeaves = unique(\@orTreeLeaves);
     print "\n\tNumber of elemets of the leaves of the order condensed tree: $nOrTreeLeaves\n" if $debug;
 
     my $nOrParent = keys %orParent;
@@ -3512,7 +3575,7 @@ if ( scalar(keys %faChildren) > 1 )
     @classes = unique(\@classes);
 
     my $finalClassTxFile = $grPrefix . "_final_class.tx";
-    open OUT, ">$finalClassTxFile" or die "Cannot open $finalClassTxFile for writing: $OS_ERROR\n";
+    open OUT, ">$finalClassTxFile" or die "Cannot open $finalClassTxFile for writing: $OS_ERROR";
     for my $id (keys %lineageTbl)
     {
       my $lineage = $lineageTbl{$id};
@@ -3613,7 +3676,7 @@ if ( scalar(keys %faChildren) > 1 )
       }
 
       my $classIdxFile = abs_path( "$grPrefix" . "_class.idx" );
-      open OUT, ">$classIdxFile" or die "Cannot open $classIdxFile for writing: $OS_ERROR\n";
+      open OUT, ">$classIdxFile" or die "Cannot open $classIdxFile for writing: $OS_ERROR";
       for my $sp (keys %sppGenus)
       {
 	my $ge = $sppGenus{$sp};
@@ -3728,8 +3791,13 @@ if ($debug)
 printLineageToFile2($SRYOUT, "\n\n====== Taxonomy AFTER cleanup ======\n");
 
 
+print "--- Creating final taxonomy file\n";
+my $finalTxFile = $grPrefix . "_final.tx";
+writeTbl(\%newTx, $finalTxFile);
+
+print "--- Creating final lineage file\n";
 my $finalLineageFile = $grPrefix . "_final.lineage";
-open OUT, ">$finalLineageFile" or die "Cannot open $finalLineageFile for writing: $OS_ERROR\n";
+open OUT, ">$finalLineageFile" or die "Cannot open $finalLineageFile for writing: $OS_ERROR";
 for my $id (keys %newTx)
 {
   my $lineage = $lineageTbl{$id};
@@ -3737,9 +3805,8 @@ for my $id (keys %newTx)
 }
 close OUT;
 
-
 my $finalLineageFile2 = $grPrefix . "_final_no_tGTs.lineage";
-open OUT, ">$finalLineageFile2" or die "Cannot open $finalLineageFile2 for writing: $OS_ERROR\n";
+open OUT, ">$finalLineageFile2" or die "Cannot open $finalLineageFile2 for writing: $OS_ERROR";
 for my $id (keys %newTx)
 {
   my $lineage = $lineageTbl{$id};
@@ -3758,6 +3825,73 @@ for my $id ( keys %ogLineageTbl )
 }
 close OUT;
 
+print "--- Testing one more time consistency between lineageTbl and newTx keys\n";
+@newTxKeys      = keys %newTx;
+@lineageTblKeys = keys %lineageTbl;
+
+if ( !setequal( \@newTxKeys, \@lineageTblKeys ) )
+{
+  my @tlComm = comm(\@newTxKeys, \@lineageTblKeys);
+
+  warn "\n\n\tERROR: seq IDs of new taxonomy table and the new lineage table do not match";
+  print  "\n\tNumber of elements in the new taxonomy table: " . @newTxKeys . "\n";
+  print    "\tNumber of elements in the lineage table: " . @lineageTblKeys . "\n";
+  print    "\tNumber of common elements: " . @tlComm . "\n";
+
+  exit 1;
+}
+
+print "--- Testing one more time consistency between taxonomy and the final version of the phylo tree\n";
+## extracting leave IDs
+$cmd = "rm -f $treeLeavesFile; nw_labels -I $treeFile > $treeLeavesFile";
+print "\tcmd=$cmd\n" if $dryRun || $debug;
+system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
+
+@treeLeaves = readArray($treeLeavesFile);
+
+if ( !setequal( \@newTxKeys, \@treeLeaves ) )
+{
+  warn "\n\n\tERROR: Found inconsistency between the set of leaves of the final version of taxonomy";
+  print "Tree leaves: $treeLeavesFile\n";
+  print "Latest taxonomy: $updatedTxFile2\n\n";
+  exit 1;
+}
+
+print "--- Testing consistency between the final trimmed alignment and the final version of the phylo tree\n";
+
+print "--- Extracting seq IDs from trimmed alignment fasta file\n";
+my @trAlgnSeqIDs = get_seqIDs_from_fa($trimmedAlgnFile);
+
+my @trAlgnNoOG = diff(\@trAlgnSeqIDs, \@ogSeqIDs);
+
+if ( !setequal( \@trAlgnNoOG, \@treeLeaves ) )
+{
+  warn "\n\n\tERROR: Found inconsistency between the set of leaves of the current tree";
+
+  my $trAlgnNoOGfile = $grPrefix . "_trAlgnNoOG.seqIDs";
+  writeArray(\@trAlgnNoOG, $trAlgnNoOGfile);
+
+  print "Trimmed algn with no OG seq's: $trAlgnNoOGfile\n";
+  print "Tree leaves: $treeLeavesFile\n";
+
+  exit 1;
+}
+
+print "--- Creating a symbolic link to the final version of the phylogenetic tree\n";
+my $finalTreeFile = $grPrefix . "_final.tree";
+my $ap = abs_path( $treeFile );
+$cmd = "rm -f $finalTreeFile; ln -s $ap $finalTreeFile";
+print "\tcmd=$cmd\n" if $dryRun || $debug;
+system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
+
+print "--- Creating a symbolic link to the final version of the trimmed alignment file\n";
+my $finalAlgnFile = $grPrefix . "_algn_trimmed_final.fa";
+$ap = abs_path( $trimmedAlgnFile );
+$cmd = "rm -f $finalAlgnFile; ln -s $ap $finalAlgnFile";
+print "\tcmd=$cmd\n" if $dryRun || $debug;
+system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
+
+
 if ($buildModelData)
 {
   # Generate
@@ -3774,22 +3908,9 @@ if ($buildModelData)
 ~;
   print $section;
 
-  print "--- Creating final taxonomy file\n";
-  my $txFile = $grPrefix . "_final.tx";
-  $cmd = "rm -f $txFile";
-  print "\tcmd=$cmd\n" if $dryRun || $debug;
-  system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
-
-  open OUT, ">$txFile" or die "Cannot open $txFile for writing: $OS_ERROR\n";
-  for my $id (keys %newTx)
-  {
-    print OUT "$id\t" . $newTx{$id} . "\n";
-  }
-  close OUT;
-
   print "--- Creating species lineage file\n";
   my $spLineageFile = $grPrefix . "_final.spLineage";
-  open OUT, ">$spLineageFile" or die "Cannot open $spLineageFile for writing: $OS_ERROR\n";
+  open OUT, ">$spLineageFile" or die "Cannot open $spLineageFile for writing: $OS_ERROR";
   for my $sp (keys %spLineage)
   {
     print OUT "$sp\t" . $spLineage{$sp} . "\n";
@@ -3803,17 +3924,18 @@ if ($buildModelData)
   system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 
   my $faFile = $grPrefix . "_final.fa";
-  $cmd = "select_seqs.pl $quietStr -s $txFile -i $tmpFile -o $faFile";
+  $cmd = "select_seqs.pl $quietStr -s $finalTxFile -i $tmpFile -o $faFile";
   print "\tcmd=$cmd\n" if $dryRun || $debug;
   system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 
-  # testing if faFile and txFile have the same seq IDs
+  # testing if faFile and finalTxFile have the same seq IDs
   my @faSeqIDs  = get_seqIDs_from_fa($faFile);
   my @newTxKeys = keys %newTx;
 
-  my @commIDs = comm(\@newTxKeys, \@faSeqIDs);
-  if (@commIDs != @newTxKeys || @commIDs != @faSeqIDs)
+  if ( !setequal( \@faSeqIDs, \@newTxKeys) )
   {
+    my @commIDs = comm(\@newTxKeys, \@faSeqIDs);
+
     warn "\n\n\tERROR: seq IDs of new taxonomy table and the fasta file do not match";
     print "\n\tNumber of elements in the new taxonomy table: " . @newTxKeys . "\n";
     print "\tNumber of elements in the fasta file: " . @faSeqIDs . "\n";
@@ -3849,10 +3971,9 @@ if ($buildModelData)
     exit 1;
   }
 
-  # rm -rf Firmicutes_group_6_V3V4_MC_models_dir; buildModelTree -l Firmicutes_group_6_V3V4_final.spLineage -i Firmicutes_group_6_V3V4_final.fa -t Firmicutes_group_6_V3V4_final.tx -o Firmicutes_group_6_V3V4_MC_models_dir
   print "--- Building model tree and creating taxon's reference fasta files\n";
   my $mcDir = $grPrefix . "_MC_models_dir";
-  $cmd = "rm -rf $mcDir; buildModelTree $quietStr -l $spLineageFile -i $faFile -t $txFile -o $mcDir";
+  $cmd = "rm -rf $mcDir; buildModelTree $quietStr -l $spLineageFile -i $faFile -t $finalTxFile -o $mcDir";
   print "\tcmd=$cmd\n" if $dryRun || $debug;
   system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 
@@ -3861,7 +3982,7 @@ if ($buildModelData)
 
   # extracting leaves of the model tree
   my $modelTreeFile = $grPrefix . "_MC_models_dir/model.tree";
-  if ( ! -e $prunedTreeFile )
+  if ( ! -e $modelTreeFile )
   {
     warn "\n\n\tERROR: model tree file $modelTreeFile not found";
     print "\n\n";
@@ -3876,43 +3997,47 @@ if ($buildModelData)
   my @txVals = values %newTx;
   my @spp = unique(\@txVals);
 
-  my @commMT = comm(\@mtLeaves, \@spp);
-  if (@commMT != @mtLeaves || @commMT != @spp)
+  if ( !setequal( \@mtLeaves, \@spp ) )
   {
+    my @commMT = comm(\@mtLeaves, \@spp);
+
     warn "\n\n\tERROR: leaves of $modelTreeFile and species found in the newTx table do not match";
     print "\tNumber of leaves of $modelTreeFile: " . @mtLeaves . "\n";
     print "\tNumber of species of the newTx table: " . @spp . "\n";
     print "\tNumber of common species: " . @commMT . "\n";
+
     exit 1;
   }
 
-
-  # buildMC -t Firmicutes_group_6_V3V4_MC_models_dir/spp_paths.txt -k 8 -d Firmicutes_group_6_V3V4_MC_models_dir
   print "--- Building MC models\n";
   $cmd = "buildMC -t $mcDir/spp_paths.txt -k 8 -d $mcDir";
   print "\tcmd=$cmd\n" if $dryRun || $debug;
   system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 
-  # clError -d Firmicutes_group_6_V3V4_MC_models_dir -o Firmicutes_group_6_V3V4_MC_models_clError_dir
-  print "--- Generating random sequences from the MC models\n";
-  my $errorDir = $grPrefix . "_MC_models_clError_dir";
-  $cmd = "rm -rf $errorDir; clError -v --random-seq-length 429 -d $mcDir -o $errorDir";
-  print "\tcmd=$cmd\n" if $dryRun || $debug;
-  #system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
+  if ($ppEmbedding)
+  {
+    print "--- Generating log pp tables for internal nodes of the model tree\n";
+    $cmd = "pp_embedding -d $mcDir";
+    print "\tcmd=$cmd\n" if $dryRun || $debug;
+    system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
+  }
 
-  # pp_ref_sib_wr_ref_models -v -d Firmicutes_group_6_V3V4_MC_models_dir -o Firmicutes_group_6_V3V4_ref_sib_pps_dir
-  print "--- Compute posterior probabilities for the reference and sibling models\n";
-  my $refSibDir = $grPrefix . "_ref_sib_pps_dir";
-  $cmd = "pp_ref_sib_wr_ref_models -v -d $mcDir -o $refSibDir";
+  print "--- Estimating error thresholds\n";
+  $cmd = "est_error_thlds --offset-coef $offsetCoef --tx-size-thld $txSizeThld -d $mcDir";
   print "\tcmd=$cmd\n" if $dryRun || $debug;
   system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 
-  # generate ncProbThlds.txt
-  print "--- Generating ncProbThlds.txt\n";
-  build_clError(abs_path($mcDir), abs_path($errorDir), abs_path($refSibDir));
+  # print "--- Compute posterior probabilities for the reference and sibling models\n";
+  # my $refSibDir = $grPrefix . "_ref_sib_pps_dir";
+  # $cmd = "pp_ref_sib_wr_ref_models -v -d $mcDir -o $refSibDir";
+  # print "\tcmd=$cmd\n" if $dryRun || $debug;
+  # system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 
-  my $figFile = $mcDir . "/error_thld_figs.pdf";
-  print "\n\tError threshold diagnostic plots written to $figFile\n\n";
+  # print "--- Generating ncProbThlds.txt\n";
+  # build_clError(abs_path($mcDir), abs_path($errorDir), abs_path($refSibDir));
+
+  # my $figFile = $mcDir . "/error_thld_figs.pdf";
+  # print "\n\tError threshold diagnostic plots written to $figFile\n\n";
 
   # classify  -d Firmicutes_group_6_V3V4_MC_models_dir -i Firmicutes_group_6_V3V4_final.fa -o Firmicutes_group_6_V3V4_MC_models_dir
   print "--- Running classify on $faFile\n";
@@ -3920,10 +4045,8 @@ if ($buildModelData)
   print "\tcmd=$cmd\n" if $dryRun || $debug;
   system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 
-  #$ classify -r vaginal_319_806_v2_dir/refTx.tree -d vaginal_319_806_v2_MCdir -i vaginal_319_806_v2.fa -o mcDir_319_806_v2
-  #$ cmp_tx.pl -i vaginal_319_806_v2.tx -j mcDir_319_806_v2_no_err_thld//MC.order7.results.txt -o mcDir_319_806_v2_no_err_thld/
   print "--- Comparing ref seq's taxonomy with the classification results\n";
-  $cmd = "cmp_tx.pl --verbose $quietStr -i $txFile -j $mcDir/MC_order7_results.txt -o $mcDir";
+  $cmd = "cmp_tx.pl --verbose $quietStr -i $finalTxFile -j $mcDir/MC_order7_results.txt -o $mcDir";
   print "\tcmd=$cmd\n" if $dryRun || $debug;
   system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 }
@@ -3935,7 +4058,7 @@ if ($buildModelData)
 
 ## log file of old and new taxonomic assignments for each sequence
 my $oldNewTxFile = "old_new.spp";
-open OUT, ">$oldNewTxFile" or die "Cannot open $oldNewTxFile for writing: $OS_ERROR\n";
+open OUT, ">$oldNewTxFile" or die "Cannot open $oldNewTxFile for writing: $OS_ERROR";
 my %sppTr; ## species transition table
 for ( keys %spp )
 {
@@ -4240,7 +4363,7 @@ sub runRscript{
   my ($Rscript, $noErrorCheck) = @_;
 
   my $outFile = "rTmp.R";
-  open OUT, ">$outFile",  or die "cannot write to $outFile: $!\n";
+  open OUT, ">$outFile",  or die "cannot write to $outFile: $!";
   print OUT "$Rscript";
   close OUT;
 
@@ -4250,7 +4373,7 @@ sub runRscript{
   if (!$noErrorCheck)
   {
     my $outR = $outFile . "out";
-    open IN, "$outR" or die "Cannot open $outR for reading: $OS_ERROR\n";
+    open IN, "$outR" or die "Cannot open $outR for reading: $OS_ERROR";
     my $exitStatus = 1;
     foreach my $line (<IN>)
     {
@@ -4274,7 +4397,7 @@ sub get_seqIDs_from_fa
   my $startRun = time();
   my $endRun = time();
 
-  open (IN, "<$file") or die "Cannot open $file for reading: $OS_ERROR\n";
+  open (IN, "<$file") or die "Cannot open $file for reading: $OS_ERROR";
   $/ = ">";
   my $junkFirstOne = <IN>;
   my $count = 1;
@@ -4920,7 +5043,7 @@ sub readArray{
     exit 1;
   }
 
-  open IN, "$file" or die "Cannot open $file for reading: $OS_ERROR\n";
+  open IN, "$file" or die "Cannot open $file for reading: $OS_ERROR";
   if ( defined $hasHeader )
   {
     <IN>;
@@ -4940,7 +5063,7 @@ sub writeTbl
 {
   my ($rTbl, $outFile) = @_;
   my %tbl = %{$rTbl};
-  open OUT, ">$outFile" or die "Cannot open $outFile for writing: $OS_ERROR\n";
+  open OUT, ">$outFile" or die "Cannot open $outFile for writing: $OS_ERROR";
   map {print OUT $_ . "\t" . $tbl{$_} . "\n"} sort keys %tbl;
   close OUT;
 }
@@ -4959,7 +5082,7 @@ sub readTbl{
   }
 
   my %tbl;
-  open IN, "$file" or die "Cannot open $file for reading: $OS_ERROR\n";
+  open IN, "$file" or die "Cannot open $file for reading: $OS_ERROR";
   foreach (<IN>)
   {
     chomp;
@@ -4985,7 +5108,7 @@ sub readTxTbl{
   }
 
   my %tbl;
-  open IN, "$file" or die "Cannot open $file for reading: $OS_ERROR\n";
+  open IN, "$file" or die "Cannot open $file for reading: $OS_ERROR";
   if ( defined $outgroupSeqID )
   {
     foreach (<IN>)
@@ -5022,7 +5145,7 @@ sub createCommandTxt{
 
     my (@arr) = @{$_[0]};
     my $file = "mothur_script.txt"; ##tmpnam();
-    open OUT, ">$file" or die "Cannot open file $file to write: $!\n";
+    open OUT, ">$file" or die "Cannot open file $file to write: $!";
     foreach my $c (@arr){
         print OUT $c . "\n";
     }
@@ -5053,7 +5176,7 @@ sub findSeqIDinFasta
   }
 
   my $found = 0;
-  open (FASTA, "<$inFile") or die "Cannot open $inFile for reading: $OS_ERROR\n";
+  open (FASTA, "<$inFile") or die "Cannot open $inFile for reading: $OS_ERROR";
   $/ = ">";
   my $junkFirstOne = <FASTA>;
   while (<FASTA>)
@@ -5096,7 +5219,7 @@ sub readBigTbl{
   my @header;
   my @rowIds;
 
-  open IN, "$file" or die "Cannot open $file for reading: $OS_ERROR\n";
+  open IN, "$file" or die "Cannot open $file for reading: $OS_ERROR";
 
   if ( defined $hasHeader )
   {
@@ -5132,7 +5255,7 @@ sub readLineageTbl{
   }
 
   my %tbl;
-  open IN, "$file" or die "Cannot open $file for reading: $OS_ERROR\n";
+  open IN, "$file" or die "Cannot open $file for reading: $OS_ERROR";
   foreach (<IN>)
   {
     chomp;
@@ -5155,7 +5278,7 @@ sub readLineageTbl{
 sub writeArray
 {
   my ($a, $outFile) = @_;
-  open OUT, ">$outFile" or die "Cannot open $outFile for writing: $OS_ERROR\n";
+  open OUT, ">$outFile" or die "Cannot open $outFile for writing: $OS_ERROR";
   map {print OUT "$_\n"} @{$a};
   close OUT
 }
@@ -5255,7 +5378,7 @@ step of the algorithm and the corresonding trees are labeled as
 
 ~;
 
-  open OUT, ">$file" or die "Cannot open $file for writing: $OS_ERROR\n";
+  open OUT, ">$file" or die "Cannot open $file for writing: $OS_ERROR";
   print OUT "$text\n";
   close OUT;
 }
@@ -5784,6 +5907,56 @@ sub check_parent_consistency
       }
       print "\n\n";
     }
+  }
+
+  return $ret;
+}
+
+## are two arrays equal set-theoretically
+sub setequal
+{
+  my ($rA, $rB) = @_;
+
+  my @a = @{$rA};
+  my @b = @{$rB};
+  my @c = comm(\@a, \@b);
+
+  my $ret = 1;
+
+  if (@c != @a || @c != @b)
+  {
+    warn "\n\n\tERROR: Elements of the two arrays do not match";
+    print "\n\tNumber of elements in the first array: " . @a . "\n";
+    print "\tNumber of elements in the second array: " . @b . "\n";
+    print "\tNumber of common elements: " . @c . "\n";
+
+    # writeArray(\@a, "a.txt");
+    # writeArray(\@b, "b.txt");
+    #print "\n\tNew taxon keys and fasta IDs written to a.txt and b.txt, respectively\n\n";
+
+    if (@a > @b)
+    {
+      my @d = diff(\@a, \@b);
+      print "\nElements a but not b:\n";
+      for (@d)
+      {
+	print "\t$_\n";
+      }
+      print "\n\n";
+    }
+
+    if (@b > @a)
+    {
+      my @d = diff(\@b, \@a);
+      print "\nElements in b that are not a:\n";
+      for (@d)
+      {
+	print "\t$_\n";
+      }
+      print "\n\n";
+    }
+
+    $ret = 0;
   }
 
   return $ret;

@@ -369,23 +369,31 @@ if ( $nPhyloParts > 1 )
     my $nParent = keys %parent;
     print     "\tNumber of elemets of the parent table: $nParent\n\n" if !$quiet;
 
-    if ( $nParent != @treeLeaves )
+    my @uqLeafLabels = unique(\@treeLeaves);
+    my $nUqLeafLabels = @uqLeafLabels;
+
+    if ( $nParent != $nUqLeafLabels )
     {
-      print "\n\nParent table:\n";
+      warn "\n\n\tERROR: Number of unique leaf labels and the number of keys in the parent table should be the same";
+
+      print "\n\nnUqLeafLabels: nUqLeafLabels\n";
+
+      print "\nParent table:\n";
       printFormatedTbl(\%parent);
 
-      warn "\n\n\tERROR: $treeFile and $parentFile should have the same number of elements";
       print "\n\n";
       exit 1;
     }
 
     # Checking if keys of parent and leaves of the tree are the same sets
     my @parentElts = keys %parent;
-    my @commElts = comm(\@parentElts, \@treeLeaves);
-    if (@commElts != @parentElts || @commElts != @treeLeaves)
+
+    if ( !setequal( \@parentElts, \@uqLeafLabels ) )
     {
-      warn "\n\n\tERROR: $treeFile and $parentFile should have the same elements";
-      print "Number of elements in $treeFile: " . @treeLeaves . "\n";
+      my @commElts = comm(\@parentElts, \@uqLeafLabels);
+
+      warn "\n\n\tERROR: $treeFile and $parentFile should have the same elements (ignoring duplicates)";
+      print "Number of unique leaf labels in $treeFile: $nUqLeafLabels\n";
       print "Number of elements in $parentFile: $nParent\n";
       print "Number of common elements: " . @commElts . "\n\n";
       exit 1;
@@ -1080,6 +1088,66 @@ sub comm{
   }
 
   return @c;
+}
+
+# extract unique elements from an array
+sub unique{
+
+  my $a = shift;
+  my %saw;
+  my @out = grep(!$saw{$_}++, @{$a});
+
+  return @out;
+}
+
+## are two arrays equal set-theoretically
+sub setequal
+{
+  my ($rA, $rB) = @_;
+
+  my @a = @{$rA};
+  my @b = @{$rB};
+  my @c = comm(\@a, \@b);
+
+  my $ret = 1;
+
+  if (@c != @a || @c != @b)
+  {
+    warn "\n\n\tERROR: Elements of the two arrays do not match";
+    print "\n\tNumber of elements in the first array: " . @a . "\n";
+    print "\tNumber of elements in the second array: " . @b . "\n";
+    print "\tNumber of common elements: " . @c . "\n";
+
+    # writeArray(\@a, "a.txt");
+    # writeArray(\@b, "b.txt");
+    #print "\n\tNew taxon keys and fasta IDs written to a.txt and b.txt, respectively\n\n";
+
+    if (@a > @b)
+    {
+      my @d = diff(\@a, \@b);
+      print "\nElements a but not b:\n";
+      for (@d)
+      {
+	print "\t$_\n";
+      }
+      print "\n\n";
+    }
+
+    if (@b > @a)
+    {
+      my @d = diff(\@b, \@a);
+      print "\nElements in b that are not a:\n";
+      for (@d)
+      {
+	print "\t$_\n";
+      }
+      print "\n\n";
+    }
+
+    $ret = 0;
+  }
+
+  return $ret;
 }
 
 exit 0;
