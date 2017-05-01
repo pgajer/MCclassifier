@@ -245,28 +245,28 @@ for ( <IN> )
 }
 close IN;
 
-my $nType1spNAspp      = 0;
-my $nType1spNAseqs     = 0;
+my $nType1NAspSpp      = 0;
+my $nType1NAspSeqs     = 0;
 
-my $nType1spNAplusSpp  = 0;
-my $nType1spNAplusSeqs = 0;
+my $nType1NAspPlusSpp  = 0;
+my $nType1NAspPlusSeqs = 0;
 
 my $nType1NAseqs        = 0;
-my $nType1spNAminusSeqs = 0;
-my $nType2spNAplusSeqs  = 0;
-my $nType2spNAminusSeqs = 0;
+my $nType1NAspMinusSeqs = 0;
+my $nType2NAspPlusSeqs  = 0;
+my $nType2NAspMinusSeqs = 0;
 
-my @type1spNAspp;
-my @type1spNAplusSpp;
+my @type1NAspSpp;
+my @type1NAspPlusSpp;
 my @type1NAspp;
-my @type1spNAminusSpp;
-my @type2spNAplusSpp;
-my @type2spNAminusSpp;
+my @type1NAspMinusSpp;
+my @type2NAspPlusSpp;
+my @type2NAspMinusSpp;
 
-my $type1spNAfileSpp = $mmDir . "/type_1spNA_spp.txt";
-my $type1spNAplusFileSpp = $mmDir . "/type_1spNA_plus_spp.txt";
-open OUT1, ">$type1spNAfileSpp" or die "Cannot open $type1spNAfileSpp for writing: $OS_ERROR";
-open OUT2, ">$type1spNAplusFileSpp" or die "Cannot open $type1spNAplusFileSpp for writing: $OS_ERROR";
+my $type1NAspfileSpp = $mmDir . "/type_1NAsp_spp.txt";
+my $type1NAspPlusFileSpp = $mmDir . "/type_1NAsp_plus_spp.txt";
+open OUT1, ">$type1NAspfileSpp" or die "Cannot open $type1NAspfileSpp for writing: $OS_ERROR";
+open OUT2, ">$type1NAspPlusFileSpp" or die "Cannot open $type1NAspPlusFileSpp for writing: $OS_ERROR";
 print OUT1 "sp\tspSize\tnaSize\n"; # header
 for my $sp ( keys %spCltrs )
 {
@@ -284,15 +284,15 @@ for my $sp ( keys %spCltrs )
   {
     %clElSize = %{ $cltrs{$clIDs[0]} };
     my @elts = keys %clElSize;
-    my @spNA = ($sp, "NA");
-    if ( setequal(\@elts, \@spNA) )
+    my @NAsp = ($sp, "NA");
+    if ( setequal(\@elts, \@NAsp) )
     {
       my $spSize = $clElSize{$sp};
       my $naSize = $clElSize{"NA"};
       print OUT1 "$sp\t$spSize\t$naSize\n";
-      push @type1spNAspp, $sp;
-      $nType1spNAspp++;
-      $nType1spNAseqs += $spSize{$sp};
+      push @type1NAspSpp, $sp;
+      $nType1NAspSpp++;
+      $nType1NAspSeqs += $spSize{$sp};
     }
     else
     {
@@ -302,9 +302,9 @@ for my $sp ( keys %spCltrs )
 	print OUT2 "\t$_";
       }
       print OUT2 "\n";
-      push @type1spNAplusSpp, $sp;
-      $nType1spNAplusSpp++;
-      $nType1spNAplusSeqs += $spSize{$sp};
+      push @type1NAspPlusSpp, $sp;
+      $nType1NAspPlusSpp++;
+      $nType1NAspPlusSeqs += $spSize{$sp};
     }
   }
   elsif ( $spMatch{$sp}==0 && $nCltrs==1 )
@@ -319,23 +319,23 @@ for my $sp ( keys %spCltrs )
     }
     else
     {
-      # type 1spNA-
-      push @type1spNAminusSpp, $sp;
-      $nType1spNAminusSeqs += $spSize{$sp};
+      # type 1NAsp-
+      push @type1NAspMinusSpp, $sp;
+      $nType1NAspMinusSeqs += $spSize{$sp};
     }
   }
   elsif ( $spMatch{$sp}==1 && $nCltrs>1)
   {
-    # type 2spNA+
-    push @type2spNAplusSpp, $sp;
-    $nType2spNAplusSeqs += $spSize{$sp};
+    # type 2NAsp+
+    push @type2NAspPlusSpp, $sp;
+    $nType2NAspPlusSeqs += $spSize{$sp};
   }
   else
   {
     # $spMatch{$sp}==0 && $nCltrs>1
-    # type 2spNA-
-    push @type2spNAminusSpp, $sp;
-    $nType2spNAminusSeqs += $spSize{$sp};
+    # type 2NAsp-
+    push @type2NAspMinusSpp, $sp;
+    $nType2NAspMinusSeqs += $spSize{$sp};
   }
 }
 close OUT1;
@@ -343,12 +343,12 @@ close OUT2;
 
 
 my @allTypes;
-push @allTypes, @type1spNAspp;
-push @allTypes, @type1spNAplusSpp;
+push @allTypes, @type1NAspSpp;
+push @allTypes, @type1NAspPlusSpp;
 push @allTypes, @type1NAspp;
-push @allTypes, @type1spNAminusSpp;
-push @allTypes, @type2spNAplusSpp;
-push @allTypes, @type2spNAminusSpp;
+push @allTypes, @type1NAspMinusSpp;
+push @allTypes, @type2NAspPlusSpp;
+push @allTypes, @type2NAspMinusSpp;
 
 my @d = diff(\@allSpp, \@allTypes);
 if (@d)
@@ -356,9 +356,9 @@ if (@d)
   print "\n\n\td: @d\n";
 }
 
-my $type1spNAfile = $mmDir . "/type_1spNA_rec.txt";
-open OUT, ">$type1spNAfile" or die "Cannot open $type1spNAfile for writing: $OS_ERROR";
-for my $sp ( @type1spNAspp )
+my $type1NAspfile = $mmDir . "/type_1NAsp_rec.txt";
+open OUT, ">$type1NAspfile" or die "Cannot open $type1NAspfile for writing: $OS_ERROR";
+for my $sp ( @type1NAspSpp )
 {
   if ( !exists $rTbl{$sp} )
   {
@@ -371,9 +371,9 @@ for my $sp ( @type1spNAspp )
 }
 close OUT;
 
-my $type1spNAplusFile = $mmDir . "/type_1spNA_plus_rec.txt";
-open OUT, ">$type1spNAplusFile" or die "Cannot open $type1spNAplusFile for writing: $OS_ERROR";
-for my $sp ( @type1spNAplusSpp )
+my $type1NAspPlusFile = $mmDir . "/type_1NAsp_plus_rec.txt";
+open OUT, ">$type1NAspPlusFile" or die "Cannot open $type1NAspPlusFile for writing: $OS_ERROR";
+for my $sp ( @type1NAspPlusSpp )
 {
   print OUT "------------------------------------------------\n";
   print OUT "\n$sp\n";
@@ -393,9 +393,9 @@ for my $sp ( @type1NAspp )
 close OUT;
 
 
-my $type1spNAminusFile = $mmDir . "/type_1spNA_minus_rec.txt";
-open OUT, ">$type1spNAminusFile" or die "Cannot open $type1spNAminusFile for writing: $OS_ERROR";
-for my $sp ( @type1spNAminusSpp )
+my $type1NAspMinusFile = $mmDir . "/type_1NAsp_minus_rec.txt";
+open OUT, ">$type1NAspMinusFile" or die "Cannot open $type1NAspMinusFile for writing: $OS_ERROR";
+for my $sp ( @type1NAspMinusSpp )
 {
   print OUT "------------------------------------------------\n";
   print OUT "\n$sp\n";
@@ -403,9 +403,9 @@ for my $sp ( @type1spNAminusSpp )
 }
 close OUT;
 
-my $type2spNAplusFile = $mmDir . "/type_2spNA_plus_rec.txt";
-open OUT, ">$type2spNAplusFile" or die "Cannot open $type2spNAplusFile for writing: $OS_ERROR";
-for my $sp ( @type2spNAplusSpp )
+my $type2NAspPlusFile = $mmDir . "/type_2NAsp_plus_rec.txt";
+open OUT, ">$type2NAspPlusFile" or die "Cannot open $type2NAspPlusFile for writing: $OS_ERROR";
+for my $sp ( @type2NAspPlusSpp )
 {
   print OUT "------------------------------------------------\n";
   print OUT "\n$sp\n";
@@ -413,9 +413,9 @@ for my $sp ( @type2spNAplusSpp )
 }
 close OUT;
 
-my $type2spNAminusFile = $mmDir . "/type_2spNA_minus_rec.txt";
-open OUT, ">$type2spNAminusFile" or die "Cannot open $type2spNAminusFile for writing: $OS_ERROR";
-for my $sp ( @type2spNAminusSpp )
+my $type2NAspMinusFile = $mmDir . "/type_2NAsp_minus_rec.txt";
+open OUT, ">$type2NAspMinusFile" or die "Cannot open $type2NAspMinusFile for writing: $OS_ERROR";
+for my $sp ( @type2NAspMinusSpp )
 {
   print OUT "------------------------------------------------\n";
   print OUT "\n$sp\n";
@@ -428,46 +428,46 @@ my $nType1NAspp        = @type1NAspp;
 my $pType1NAspp        = sprintf("%.1f%%", 100.0 * $nType1NAspp / $nSpp);
 my $pType1NAseqs        = sprintf("%.1f%%", 100.0 * $nType1NAseqs / $nSeqs);
 
-my $nType1spNAminusSpp = @type1spNAminusSpp;
-my $pType1spNAminusSpp = sprintf("%.1f%%", 100.0 * $nType1spNAminusSpp / $nSpp);
-my $pType1spNAminusSeqs = sprintf("%.1f%%", 100.0 * $nType1spNAminusSeqs / $nSeqs);
+my $nType1NAspMinusSpp = @type1NAspMinusSpp;
+my $pType1NAspMinusSpp = sprintf("%.1f%%", 100.0 * $nType1NAspMinusSpp / $nSpp);
+my $pType1NAspMinusSeqs = sprintf("%.1f%%", 100.0 * $nType1NAspMinusSeqs / $nSeqs);
 
-my $nType2spNAplusSpp  = @type2spNAplusSpp;
-my $pType2spNAplusSpp  = sprintf("%.1f%%", 100.0 * $nType2spNAplusSpp / $nSpp);
-my $pType2spNAplusSeqs  = sprintf("%.1f%%", 100.0 * $nType2spNAplusSeqs / $nSeqs);
+my $nType2NAspPlusSpp  = @type2NAspPlusSpp;
+my $pType2NAspPlusSpp  = sprintf("%.1f%%", 100.0 * $nType2NAspPlusSpp / $nSpp);
+my $pType2NAspPlusSeqs  = sprintf("%.1f%%", 100.0 * $nType2NAspPlusSeqs / $nSeqs);
 
-my $nType2spNAminusSpp = @type2spNAminusSpp;
-my $pType2spNAminusSpp = sprintf("%.1f%%", 100.0 * $nType2spNAminusSpp / $nSpp);
-my $pType2spNAminusSeqs = sprintf("%.1f%%", 100.0 * $nType2spNAminusSeqs / $nSeqs);
+my $nType2NAspMinusSpp = @type2NAspMinusSpp;
+my $pType2NAspMinusSpp = sprintf("%.1f%%", 100.0 * $nType2NAspMinusSpp / $nSpp);
+my $pType2NAspMinusSeqs = sprintf("%.1f%%", 100.0 * $nType2NAspMinusSeqs / $nSeqs);
 
-my $pType1spNAspp      = sprintf("%.1f%%", 100.0 * $nType1spNAspp / $nSpp);
-my $pType1spNAseqs     = sprintf("%.1f%%", 100.0 * $nType1spNAseqs / $nSeqs);
+my $pType1NAspSpp      = sprintf("%.1f%%", 100.0 * $nType1NAspSpp / $nSpp);
+my $pType1NAspSeqs     = sprintf("%.1f%%", 100.0 * $nType1NAspSeqs / $nSeqs);
 
-my $pType1spNAplusSpp  = sprintf("%.1f%%", 100.0 * $nType1spNAplusSpp / $nSpp);
-my $pType1spNAplusSeqs = sprintf("%.1f%%", 100.0 * $nType1spNAplusSeqs / $nSeqs);
+my $pType1NAspPlusSpp  = sprintf("%.1f%%", 100.0 * $nType1NAspPlusSpp / $nSpp);
+my $pType1NAspPlusSeqs = sprintf("%.1f%%", 100.0 * $nType1NAspPlusSeqs / $nSeqs);
 
 $nSeqs = commify($nSeqs);
 
 print "\n\n\tNo. of sequences:           $nSeqs\n";
 print     "\tNo. of species:             $nSpp\n";
-print     "\tNo. of type 1spNA species:  $nType1spNAspp ($pType1spNAspp  cov: $pType1spNAseqs)\n";
-print     "\tNo. of type 1spNA+ species: $nType1spNAplusSpp ($pType1spNAplusSpp cov: $pType1spNAplusSeqs)\n";
+print     "\tNo. of type 1NAsp species:  $nType1NAspSpp ($pType1NAspSpp  cov: $pType1NAspSeqs)\n";
+print     "\tNo. of type 1NAsp+ species: $nType1NAspPlusSpp ($pType1NAspPlusSpp cov: $pType1NAspPlusSeqs)\n";
 print     "\tNo. of type 1NA species:    $nType1NAspp ($pType1NAspp cov: $pType1NAseqs)\n";
-print     "\tNo. of type 1spNA- species: $nType1spNAminusSpp ($pType1spNAminusSpp cov: $pType1spNAminusSeqs)\n";
-print     "\tNo. of type 2spNA+ species: $nType2spNAplusSpp ($pType2spNAplusSpp cov: $pType2spNAplusSeqs)\n";
-print     "\tNo. of type 2spNA- species: $nType2spNAminusSpp ($pType2spNAminusSpp cov: $pType2spNAminusSeqs)\n";
+print     "\tNo. of type 1NAsp- species: $nType1NAspMinusSpp ($pType1NAspMinusSpp cov: $pType1NAspMinusSeqs)\n";
+print     "\tNo. of type 2NAsp+ species: $nType2NAspPlusSpp ($pType2NAspPlusSpp cov: $pType2NAspPlusSeqs)\n";
+print     "\tNo. of type 2NAsp- species: $nType2NAspMinusSpp ($pType2NAspMinusSpp cov: $pType2NAspMinusSeqs)\n";
 
 my @suffixes = (".txt");
 
-print "\n\tType 1spNA  species table written to " . basename($type1spNAfileSpp, @suffixes) . ".txt\n";
-print   "\tType 1spNA+ species table written to " . basename($type1spNAplusFileSpp, @suffixes) . ".txt\n";
+print "\n\tType 1NAsp  species table written to " . basename($type1NAspfileSpp, @suffixes) . ".txt\n";
+print   "\tType 1NAsp+ species table written to " . basename($type1NAspPlusFileSpp, @suffixes) . ".txt\n";
 
-print "\n\tType 1spNA  species records written to " . basename($type1spNAfile, @suffixes) . ".txt\n";
-print   "\tType 1spNA+ species records written to " . basename($type1spNAplusFile, @suffixes) . ".txt\n";
+print "\n\tType 1NAsp  species records written to " . basename($type1NAspfile, @suffixes) . ".txt\n";
+print   "\tType 1NAsp+ species records written to " . basename($type1NAspPlusFile, @suffixes) . ".txt\n";
 print   "\tType 1NA    species records written to " . basename($type1NAfile, @suffixes) . ".txt\n";
-print   "\tType 1spNA- species records written to " . basename($type1spNAminusFile, @suffixes) . ".txt\n";
-print   "\tType 2spNA+ species records written to " . basename($type2spNAplusFile, @suffixes) . ".txt\n";
-print   "\tType 2spNA- species records written to " . basename($type2spNAminusFile, @suffixes) . ".txt\n\n";
+print   "\tType 1NAsp- species records written to " . basename($type1NAspMinusFile, @suffixes) . ".txt\n";
+print   "\tType 2NAsp+ species records written to " . basename($type2NAspPlusFile, @suffixes) . ".txt\n";
+print   "\tType 2NAsp- species records written to " . basename($type2NAspMinusFile, @suffixes) . ".txt\n\n";
 
 ####################################################################
 ##                               SUBS
