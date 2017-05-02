@@ -54,6 +54,7 @@ use warnings;
 use Pod::Usage;
 use English qw( -no_match_vars );
 use Getopt::Long qw(:config no_ignore_case no_auto_abbrev pass_through);
+use Cwd qw(abs_path);
 
 $OUTPUT_AUTOFLUSH = 1;
 
@@ -89,12 +90,14 @@ if ( !$grPrefix )
 }
 
 my $ginsi = "/usr/local/bin/ginsi"; # MAFFT v7.310 (2017/Mar/17)
+my $fastTree = "FastTree";
 
 my $igsStr = "";
 if ( defined $igs )
 {
-  $igsStr = "--igs";
-  $ginsi = "/home/pgajer/bin/ginsi"; # MAFFT v7.310 (2017/Mar/17)
+  $igsStr   = "--igs";
+  $ginsi    = "ginsi"; # MAFFT v7.310 (2017/Mar/17)
+  $fastTree = "/usr/local/projects/pgajer/bin/FastTree";
 }
 
 my $johannaStr = "";
@@ -132,10 +135,10 @@ if ( ! -d $grDir )
 ##                               MAIN
 ####################################################################
 
-
 chdir $grDir;
 print "--- Changed dir to $grDir\n";
 
+my $algnFile	    = $grPrefix . "_algn.fa";
 my $trimmedAlgnFile = $grPrefix . "_algn_trimmed.fa";
 my $outgroupFile    = $grPrefix . "_outgroup.seqIDs";
 
@@ -149,11 +152,15 @@ if ( ! -e $trimmedAlgnFile )
 }
 elsif ( ! -e $outgroupFile )
 {
-  warn "\n\n\tERROR: $treeFile does not exist";
+  warn "\n\n\tERROR: $outgroupFile does not exist";
   print "\n\n";
   exit 1;
 }
 
+if ( -l $trimmedAlgnFile )
+{
+  $trimmedAlgnFile = readlink($trimmedAlgnFile);
+}
 
 ## Gathering outgroup data
 print "--- Parsing $outgroupFile\n";
@@ -187,26 +194,26 @@ if ($debug)
 }
 
 my $ginsiAlgnFile = $grPrefix . "_ginsi_algn.fa";
-if ( ! -e $ginsiAlgnFile )
+#if ( ! -e $ginsiAlgnFile )
 {
   print "--- Redoing alignment using ginsi\n";
   ## first remove gaps
   my $faFile2 = $grPrefix . "_from_algn_gapFree.fa";
-  $cmd = "rmGaps -i $trimmedAlgnFile -o $faFile2";
+  my $cmd = "rmGaps -i $trimmedAlgnFile -o $faFile2";
   print "\tcmd=$cmd\n" if $dryRun || $debug; # || $debug;
   system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 
-  $cmd = "rm -f $ginsiAlgnFile; time ginsi --inputorder $quietStr --thread $nProc $faFile2 > $ginsiAlgnFile";
+  $cmd = "rm -f $ginsiAlgnFile; time $ginsi --inputorder $quietStr --thread $nProc $faFile2 > $ginsiAlgnFile";
   print "\tcmd=$cmd\n" if $dryRun || $debug;
   system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 }
 
 my $rrPrunedGinsiTreeFile = $grPrefix . "_ginsi_rr.tree";
-if ( ! -e $rrPrunedGinsiTreeFile)
+#if ( ! -e $rrPrunedGinsiTreeFile)
 {
   print "--- Producing tree for the ginsi algn\n";
   my $ginsiTreeFile = $grPrefix . "_ginsi.tree";
-  $cmd = "rm -f $ginsiTreeFile; FastTree -nt $trimmedAlgnFile > $ginsiTreeFile";
+  my $cmd = "rm -f $ginsiTreeFile; $fastTree -nt $trimmedAlgnFile > $ginsiTreeFile";
   print "\tcmd=$cmd\n" if $dryRun || $debug;
   system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;# && !$skipFastTree;
 
@@ -215,6 +222,121 @@ if ( ! -e $rrPrunedGinsiTreeFile)
   $cmd = "rm -f $rrPrunedGinsiTreeFile; nw_reroot $ginsiTreeFile @ogSeqIDs | nw_order -  > $rrPrunedGinsiTreeFile";
   print "\tcmd=$cmd\n" if $dryRun || $debug;
   system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+}
+
+####################################################################
+##                               SUBS
+####################################################################
+
+# common part of two arrays
+sub comm{
+
+  my ($a1, $a2) = @_;
+
+  my @c; # common array
+  my %count;
+
+  foreach my $e (@{$a1}, @{$a2}){ $count{$e}++ }
+
+  foreach my $e (keys %count)
+  {
+    push @c, $e if $count{$e} == 2;
+  }
+
+  return @c;
+}
+
+# difference of two arrays
+sub diff{
+
+  my ($a1, $a2) = @_;
+
+  my (%aa1, %aa2);
+
+  foreach my $e (@{$a1}){ $aa1{$e} = 1; }
+  foreach my $e (@{$a2}){ $aa2{$e} = 1; }
+
+  my @d; # dfference array
+
+  foreach my $e (keys %aa1, keys %aa2)
+  {
+    push @d, $e if exists $aa1{$e} && !exists $aa2{$e};
+  }
+
+  return @d;
+}
+
+# read table with one column
+sub readArray{
+
+  my ($file, $hasHeader) = @_;
+  my @rows;
+
+  if ( ! -f $file )
+  {
+    warn "\n\n\tERROR in readArray(): $file does not exist";
+    print "\n\n";
+    exit 1;
+  }
+
+  open IN, "$file" or die "Cannot open $file for reading: $OS_ERROR";
+  if ( defined $hasHeader )
+  {
+    <IN>;
+  }
+  foreach (<IN>)
+  {
+    chomp;
+    push @rows, $_;
+  }
+  close IN;
+
+  return @rows;
+}
+
+sub get_seqIDs_from_fa
+{
+  my $file = shift;
+
+  my $quiet = 1;
+  my $startRun = time();
+  my $endRun = time();
+
+  open (IN, "<$file") or die "Cannot open $file for reading: $OS_ERROR";
+  $/ = ">";
+  my $junkFirstOne = <IN>;
+  my $count = 1;
+  my $timeStr = "";
+  my @seqIDs;
+  while (<IN>)
+  {
+    if ( !$quiet && ($count % 500 == 0) )
+    {
+      $endRun = time();
+      my $runTime = $endRun - $startRun;
+      if ( $runTime > 60 )
+      {
+	my $timeMin = int($runTime / 60);
+	my $timeSec = sprintf("%02d", $runTime % 60);
+	$timeStr = "$timeMin:$timeSec";
+      }
+      else
+      {
+	my $runTime = sprintf("%02d", $runTime);
+	$timeStr = "0:$runTime";
+      }
+      print "\r$timeStr";
+    }
+
+    chomp;
+    my ($id,@seqlines) = split /\n/, $_;
+    push @seqIDs, $id;
+    $count++;
+  }
+  close IN;
+  $/ = "\n";
+
+  return @seqIDs;
 }
 
 exit 0;
