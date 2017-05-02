@@ -59,6 +59,9 @@
 =item B<--debug>
   Prints system commands
 
+=item B<--debug-spp>
+  Debug some isolated species taxonomy cleanup steps.
+
 =item B<--dry-run>
   Print commands to be executed, but do not execute them.
 
@@ -115,6 +118,7 @@ GetOptions(
   "johanna"             => \my $johanna,
   "verbose|v"           => \my $verbose,
   "debug"               => \my $debug,
+  "debug-spp"           => \my $debugSpp,
   "debug2"              => \my $debug2,## file name debug
   "dry-run"             => \my $dryRun,
   "help|h!"             => \my $help,
@@ -598,7 +602,7 @@ if ( ! -e $ginsiAlgnFile && ! -e $rrPrunedGinsiTreeFile )
 $trimmedAlgnFile = $ginsiAlgnFile;
 $treeFile        = $rrPrunedGinsiTreeFile;
 
-if ( $debug )
+if ( $debugSpp )
 {
   print "\n\n\tNumber of annotation seq's: $nAnnSeqs\n";
   print     "\tNumber of query seq's:      $nQuerySeqs\n";
@@ -627,6 +631,18 @@ if ( $debug )
   build_cond_spp_tree($treeFile, $txTblFile, $condSppTree1File);
 
   print "\n\n\tBefore the 1st vicut condensed species tree written to $condSppTree1File\n\n";
+
+  if ( !$doNotPopPDFs && $OSNAME eq "darwin")
+  {
+    my $pdfFile = abs_path( $grPrefix . "_cond_spp_before_1st_vicut_tree.pdf" );
+    my $title = $grPrefix . " - cond_spp_before_1st_vicut";
+    plot_tree_bw($condSppTree1File, $pdfFile, $title);
+
+    $cmd = "open $pdfFile";
+    print "\tcmd=$cmd\n" if $dryRun || $debug;
+    system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
+  }
+
 }
 
 print "--- Running vicut\n";
@@ -741,7 +757,7 @@ for my $id ( keys %newTx )
 ## If _sp species are present, print ann and query write data to files and run vicut again.
 if (@query2)
 {
-  if ( $debug )
+  if ( $debugSpp )
   {
     print "\n\n\tNumber of annotation seq's: " . @ann2. "\n";
     print     "\tNumber of query seq's:      " . @query2 . "\n";
@@ -765,6 +781,18 @@ if (@query2)
     build_cond_spp_tree($treeFile, $txTblFile, $condSppTreeFile);
 
     print "\n\n\tBefore the 2nd vicut condensed species tree written to $condSppTreeFile\n\n";
+
+    if ( !$doNotPopPDFs && $OSNAME eq "darwin")
+    {
+      my $pdfFile = abs_path( $grPrefix . "_cond_spp_before_2nd_vicut_tree.pdf" );
+      my $title = $grPrefix . " - cond_spp_before_2nd_vicut";
+      plot_tree_bw($condSppTreeFile, $pdfFile, $title);
+
+      $cmd = "open $pdfFile";
+      print "\tcmd=$cmd\n" if $dryRun || $debug;
+      system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
+    }
+
   }
 
   my $queryFile2 = "spp_query2.seqIDs";
@@ -1182,7 +1210,7 @@ if ( @spSingletons )
     exit 1;
   }
 
-  if ( $debug )
+  if ( $debugSpp )
   {
     print "\n\n\tNumber of annotation seq's: " . @ann3. "\n";
     print     "\tNumber of query seq's:      " . @query3 . "\n";
@@ -1200,6 +1228,18 @@ if ( @spSingletons )
     build_cond_spp_tree($treeFile, $txTblFile, $condSppTreeFile);
 
     print "\n\n\tBefore the 3rd vicut condensed species tree written to $condSppTreeFile\n\n";
+
+    if ( !$doNotPopPDFs && $OSNAME eq "darwin")
+    {
+      my $pdfFile = abs_path( $grPrefix . "_cond_spp_before_3rd_vicut_tree.pdf" );
+      my $title = $grPrefix . " - cond_spp_before_3rd_vicut";
+      plot_tree_bw($condSppTreeFile, $pdfFile, $title);
+
+      $cmd = "open $pdfFile";
+      print "\tcmd=$cmd\n" if $dryRun || $debug;
+      system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
+    }
+
   }
 
   ## If _sp sequences, print to file, and set vicutDir to 2nd run directory
@@ -1707,7 +1747,7 @@ $cmd = "rm -f $finalCondSppTreeFile; nw_condense $finalSppTreeFile > $finalCondS
 print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 
-if ( $debug )
+if ( $debugSpp )
 {
   print "--- Generating condensed species tree after genotype_spp.pl\n";
 
@@ -1722,7 +1762,18 @@ if ( $debug )
 
   print "\n\n\tAfter genotype_spp.pl condensed species tree written to $condSppTreeFile\n\n";
 
-  ##exit 1;
+  if ( !$doNotPopPDFs && $OSNAME eq "darwin")
+  {
+    my $pdfFile = abs_path( $grPrefix . "_cond_spp_after_genotype_spp.pdf" );
+    my $title = $grPrefix . " - cond_spp_after_genotype_spp";
+    plot_tree_bw($condSppTreeFile, $pdfFile, $title);
+
+    $cmd = "open $pdfFile";
+    print "\tcmd=$cmd\n" if $dryRun || $debug;
+    system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
+  }
+
+  exit 1;
 }
 
 $section = qq~
@@ -6128,6 +6179,12 @@ sub build_cond_spp_tree
   $cmd = "rm -f $condSppFile; nw_condense $sppTreeFile > $condSppFile";
   print "\tcmd=$cmd\n" if $dryRun || $debug;
   system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
+
+  print "\n\ntree:        $treeFile\n";
+  print     "tx:          $txFile\n";
+  print     "sppTree:     $sppTreeFile\n";
+  print     "condSppTree: $condSppFile\n\n";
+
 }
 
 ## For each species the script looks at
@@ -6164,17 +6221,19 @@ sub get_tree_spp_purity
     exit 1;
   }
 
-  my $sppTreeFile = "$grPrefix" . "_tmp_spp.tree";
-  $cmd = "rm -f $sppTreeFile; nw_rename $treeFile $txFile | nw_order -c n  - > $sppTreeFile";
-  print "\tcmd=$cmd\n" if $dryRun || $debug;
-  system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
+  if ( 0 )
+  {
+    my $sppTreeFile = "$grPrefix" . "_tmp_spp.tree";
+    $cmd = "rm -f $sppTreeFile; nw_rename $treeFile $txFile | nw_order -c n  - > $sppTreeFile";
+    print "\tcmd=$cmd\n" if $dryRun || $debug;
+    system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 
-  $cmd = "rm -f $treeLeavesFile; nw_labels -I $sppTreeFile > $treeLeavesFile";
-  print "\tcmd=$cmd\n" if $dryRun || $debug;
-  system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
+    $cmd = "rm -f $treeLeavesFile; nw_labels -I $sppTreeFile > $treeLeavesFile";
+    print "\tcmd=$cmd\n" if $dryRun || $debug;
+    system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 
-  my @sppTreeLeaves = readArray($treeLeavesFile);
-
+    my @sppTreeLeaves = readArray($treeLeavesFile);
+  }
 
   $cmd = "rm -f $condSppTreeFile; nw_condense $sppTreeFile > $condSppTreeFile";
   print "\tcmd=$cmd\n" if $dryRun || $debug;
@@ -6186,8 +6245,56 @@ sub get_tree_spp_purity
 
   my @condSppTreeLeaves = readArray($treeLeavesFile);
 
+  my %spFreq; # species frequency
+  map { $spFreq{$_}++ } @condSppTreeLeaves;
 
+  # selecting species appearing more than once in the condensed species tree
+  my @hiFreqSpp;
+  for (keys %spFreq)
+  {
+    if ( $spFreq{$_} > 1 )
+    {
+      push @hiFreqSpp, $_;
+    }
+  }
 
+  @hiFreqSpp = sort { $spFreq{$b} <=> $spFreq{$a} } @hiFreqSpp;
+
+  print "\n\ntree:        $treeFile\n";
+  print     "tx:          $txFile\n";
+  print     "sppTree:     $sppTreeFile\n";
+  print     "condSppTree: $condSppTreeFile\n\n";
+
+  print "\nSpecies freq's within the species condensed tree\n";
+  printFormatedTbl(\%spFreq, @hiFreqSpp);
+  print "\n\n";
+
+  ## looking at the clades of of hiFreqSpp
+
+  ## we need to know seq IDs of seq's of a given species
+  #
+  my %spToSeqIDs;
+  for my $id (keys %txTbl)
+  {
+    push @{$spToSeqIDs{ $txTbl{$id} }}, $id;
+  }
+
+  print "\n\nhiFreqSpp\n";
+  for my $sp (@hiFreqSpp)
+  {
+    print "Processing $sp\n";
+    my @ids = @{$spToSeqIDs{ $sp }};
+    my $lFile = "leaves.txt";
+    my $cmd = "rm -f $lFile; nw_clade $treeFile @ids | nw_labels -I - > $lFile";
+    print "\tcmd=$cmd\n" if $dryRun || $debug;
+    system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
+
+    my @leaves = readArray($lFile);
+    my @lSpp = @txTbl{@leaves};
+    my %lSpFreq; # leaves species frequencies
+    map { $lSpFreq{$_}++ } @lSpp;
+
+  }
 }
 
 exit 0;
