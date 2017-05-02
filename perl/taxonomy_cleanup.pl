@@ -247,7 +247,7 @@ elsif ( ! -e $treeFile )
 }
 elsif ( ! -e $outgroupFile )
 {
-  warn "\n\n\tERROR: $treeFile does not exist";
+  warn "\n\n\tERROR: $outgroupFile does not exist";
   print "\n\n";
   exit 1;
 }
