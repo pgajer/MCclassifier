@@ -94,7 +94,7 @@ my $igsStr = "";
 if ( defined $igs )
 {
   $igsStr = "--igs";
-  $ginsi = "/usr/local/bin/ginsi"; # MAFFT v7.310 (2017/Mar/17)
+  $ginsi = "/home/pgajer/bin/ginsi"; # MAFFT v7.310 (2017/Mar/17)
 }
 
 my $johannaStr = "";
@@ -102,8 +102,6 @@ if ( defined $johanna )
 {
   $johannaStr = "--johanna";
 }
-
-local $ENV{LD_LIBRARY_PATH} = "/usr/local/packages/readline/lib:/usr/local/packages/gcc-5.3.0/lib64";
 
 my @suffixes;
 
@@ -198,7 +196,7 @@ if ( ! -e $ginsiAlgnFile )
   print "\tcmd=$cmd\n" if $dryRun || $debug; # || $debug;
   system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 
-  $cmd = "rm -f $ginsiAlgnFile; ginsi --inputorder $quietStr --thread $nProc $faFile2 > $ginsiAlgnFile";
+  $cmd = "rm -f $ginsiAlgnFile; time ginsi --inputorder $quietStr --thread $nProc $faFile2 > $ginsiAlgnFile";
   print "\tcmd=$cmd\n" if $dryRun || $debug;
   system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 }
