@@ -188,10 +188,8 @@ if ($debug)
   print   "\tNumber of outgroup seq's: " . @ogSeqIDs . "\n\n";
 }
 
-my $ginsiAlgnFile         = $grPrefix . "_ginsi_algn.fa";
-my $rrPrunedGinsiTreeFile = $grPrefix . "_ginsi_rr.tree";
-
-if ( ! -e $ginsiAlgnFile && ! -e $rrPrunedGinsiTreeFile )
+my $ginsiAlgnFile = $grPrefix . "_ginsi_algn.fa";
+if ( ! -e $ginsiAlgnFile )
 {
   print "--- Redoing alignment using ginsi\n";
   ## first remove gaps
@@ -203,7 +201,11 @@ if ( ! -e $ginsiAlgnFile && ! -e $rrPrunedGinsiTreeFile )
   $cmd = "rm -f $ginsiAlgnFile; ginsi --inputorder $quietStr --thread $nProc $faFile2 > $ginsiAlgnFile";
   print "\tcmd=$cmd\n" if $dryRun || $debug;
   system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+}
 
+my $rrPrunedGinsiTreeFile = $grPrefix . "_ginsi_rr.tree";
+if ( ! -e $rrPrunedGinsiTreeFile)
+{
   print "--- Producing tree for the ginsi algn\n";
   my $ginsiTreeFile = $grPrefix . "_ginsi.tree";
   $cmd = "rm -f $ginsiTreeFile; FastTree -nt $trimmedAlgnFile > $ginsiTreeFile";
