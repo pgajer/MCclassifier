@@ -721,8 +721,15 @@ for my $sp (keys %spFreqTbl)
 }
 print "\n\n" if $debug;
 
+$vicutDir  = "spp_vicut_dir2";
+
+my $queryFile2 = "spp_query2.seqIDs";
+my $annFile2   = "spp_ann2.tx";
 my @query2;
 my @ann2;
+
+open QOUT, ">$queryFile2" or die "Cannot open $queryFile2 for writing: $OS_ERROR";
+open ANNOUT, ">$annFile2" or die "Cannot open $annFile2 for writing: $OS_ERROR";
 for my $id ( keys %newTx )
 {
   my $t = $newTx{$id};
@@ -733,28 +740,28 @@ for my $id ( keys %newTx )
 
   if ( defined $suffix && $suffix eq "sp" )
   {
-    if ( !exists $sspSeqID{$id} && !defined $suffix2 )
+    if ( !exists $sspSeqID{$id} && !defined $suffix2 ) ## ??? I am not sure about the second condition ??? at this point we should not have _sp_index type specie names
     {
-      push @query2, "$id\n";
+      push @query2, $id;
+      print QOUT "$id\n";
       #print "Query2: $id\t$t\n" if $debug;
     }
     else
     {
-      push @ann2, "$id\t$t\n";
+      push @ann2, $id;
+      print ANNOUT "$id\t$t\n";
     }
   }
-  # elsif ( $g eq "Unclassified" )
-  # {
-  #   push @query2, "$id\n";
-  #   print "\n\n\tWARNING: $g eq Unclassified in Query2b: $id\t$t\n" if $debug;
-  # }
   else
   {
-    push @ann2, "$id\t$t\n";
+    push @ann2, $id;
+    print ANNOUT "$id\t$t\n";
   }
 }
+close QOUT;
+close ANNOUT;
 
-## If _sp species are present, print ann and query write data to files and run vicut again.
+## If _sp species are present, run vicut again.
 if (@query2)
 {
   if ( $debugSpp )
@@ -792,20 +799,7 @@ if (@query2)
       print "\tcmd=$cmd\n" if $dryRun || $debug;
       system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
     }
-
-  }
-
-  my $queryFile2 = "spp_query2.seqIDs";
-  my $annFile2   = "spp_ann2.tx";
-
-  $vicutDir  = "spp_vicut_dir2";
-  open QOUT, ">$queryFile2" or die "Cannot open $queryFile2 for writing: $OS_ERROR";
-  print QOUT @query2;
-  close QOUT;
-
-  open ANNOUT, ">$annFile2" or die "Cannot open $annFile2 for writing: $OS_ERROR";
-  print ANNOUT @ann2;
-  close ANNOUT;
+  } ## end of if ( debugSpp )
 
   print "--- Running vicut again\n";
   $cmd = "vicut $quietStr -t $treeFile -a $annFile2 -q $queryFile2 -o $vicutDir";
@@ -928,6 +922,46 @@ if ( @extraOG>0 )
   system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 
   $treeFile = $rrPrunedTreeFile;
+
+  ## Every time the phylo-tree is rebuild the phylogeny changes and the resulting
+  ## vicut clustering and so vicut has to be rerun now using the same type of
+  ## query and annotation data as before.
+
+  @query2 = diff( \@query2, \@extraOG );
+
+  if ( @query2 )
+  {
+    writeArray(\@query2, $queryFile2 );
+
+    ## updating query and annotation data removing from them elements of @extraOG
+    my %extraOGtbl = map { $_ => 1 } @extraOG;
+
+    my %aTbl = readTbl( $annFile2 );
+
+    open ANNOUT, ">$annFile2" or die "Cannot open $annFile2 for writing: $OS_ERROR";
+    for my $id ( keys %aTbl )
+    {
+      if ( !exists $extraOGtbl{$id} )
+      {
+	print ANNOUT "$id\t" . $newTx{$id} . "\n";
+      }
+    }
+    close ANNOUT;
+
+    print "--- Running vicut again\n";
+    $cmd = "vicut $quietStr -t $treeFile -a $annFile2 -q $queryFile2 -o $vicutDir";
+    ##$cmd = "vicut $quietStr -t $treeFile -a $annFile -o $vicutDir";
+    print "\tcmd=$cmd\n" if $dryRun || $debug;
+    system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
+
+    print "--- Running update_spp_tx.pl\n";
+    $cmd = "update_spp_tx.pl $quietStr $debugStr $useLongSppNamesStr -a $updatedTxFile -d $vicutDir";
+    print "\tcmd=$cmd\n" if $dryRun || $debug;
+    system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
+
+    $updatedTxFile = "$vicutDir/updated.tx";
+    %newTx = readTbl($updatedTxFile);
+  }
 }
 
 my $sppLineageFile = $grPrefix . "_spp.lineage";
@@ -1477,15 +1511,14 @@ $cmd = "rm -f $condSppSizeCltrTreeFile; nw_condense $sppSizeCltrTreeFile > $cond
 print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 
-my $pdfTreeFile = abs_path( "$grPrefix" . "_preGenotyping_sppSizeCltr_condensed_tree.pdf" );
-my $condSppSizeCltrTreeFileAbsPath = abs_path( $condSppSizeCltrTreeFile );
-# my $idSppCltrIdxFile = abs_path( "$grPrefix" . "_preGenotyping_sppSizeCltr.idx" );
-# writeTbl(\%idSppCltrIdx, $idSppCltrIdxFile);
-
-plot_tree_bw($condSppSizeCltrTreeFileAbsPath, $pdfTreeFile);
-
 if ( $showAllTrees && $OSNAME eq "darwin")
 {
+  my $pdfTreeFile = abs_path( "$grPrefix" . "_preGenotyping_sppSizeCltr_condensed_tree.pdf" );
+  my $condSppSizeCltrTreeFileAbsPath = abs_path( $condSppSizeCltrTreeFile );
+  # my $idSppCltrIdxFile = abs_path( "$grPrefix" . "_preGenotyping_sppSizeCltr.idx" );
+  # writeTbl(\%idSppCltrIdx, $idSppCltrIdxFile);
+  plot_tree_bw($condSppSizeCltrTreeFileAbsPath, $pdfTreeFile);
+
   $cmd = "open $pdfTreeFile";
   print "\tcmd=$cmd\n" if $dryRun || $debug;
   system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
@@ -1620,6 +1653,10 @@ if (@lostLeaves>0)
   system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 
   $treeFile = $prunedTreeFile;
+
+  ##
+  ## Tree has changed and so vicut should be run again to update the taxonomy
+  ##
 }
 
 
