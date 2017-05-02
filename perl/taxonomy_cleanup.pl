@@ -2288,9 +2288,18 @@ for my $ge (@a)
   if ( @spp > $taxonSizeThld ) # try to split this cluster into smaller pieces
   {
     $detectedLargeGenus = 1;
-    print "\n\tSplitting $ge\n" if $debug;
-    print "Species of $ge:\n" if $debug;
-    printArray(\@spp) if $debug;
+
+    if ( $debug )
+    {
+      print "\n------------------------------------------\n";
+      print "Splitting $ge";
+      print "\n------------------------------------------\n\n";
+
+      print "Species of $ge:\n\n";
+      @spp = sort @spp;
+      printArray(\@spp);
+      print "\n\n";
+    }
 
     my $geStr = $ge;
     if ( length($geStr) > $maxStrLen )
@@ -2319,15 +2328,14 @@ for my $ge (@a)
     my @uqCladeLeaves = unique(\@cladeLeaves);
     my @uqSpp         = unique(\@spp);
 
-    if ( !setequal( \@uqCladeLeaves, \@uqSpp ) )
+    if ( @uqCladeLeaves > @uqSpp )
     {
       my @commSpp = comm(\@uqCladeLeaves, \@uqSpp);
 
-      warn "\n\n\tERROR: leaves of $prunedTreeLeavesFile and genus $ge species do not match";
+      warn "\n\n\tWARNING: the clade of $ge species is bigger than the genus";
       print "\tNumber of unique leaf names of $prunedTreeLeavesFile: " . @uqCladeLeaves . "\n";
       print "\tNumber of unique species in $ge: " . @uqSpp . "\n";
-      print "\tNumber of common species: " . @commSpp . "\n";
-      exit 1;
+      print "\tNumber of common species: " . @commSpp . "\n\n";
     }
 
     # make this a rooted tree
@@ -2345,16 +2353,16 @@ for my $ge (@a)
     {
       #print "\nsp: $sp\n" if $debug;
       my ($g, $s) = split "_", $sp;
-      if (!defined $g)
+      if ( defined $g )
+      {
+	$spParent2{$sp} = $g;
+	#print "g: $g\n" if $debug;
+      }
+      else
       {
 	warn "\n\n\tERROR: Genus undef for $sp";
 	print "\n\n";
 	exit 1;
-      }
-      else
-      {
-	$spParent2{$sp} = $g;
-	#print "g: $g\n" if $debug;
       }
     }
 
@@ -2388,7 +2396,8 @@ for my $ge (@a)
 
     if ($debug)
     {
-      print "\nNumber of phylo-partition-vicut based sub-genera of $ge: " . scalar(keys %geChildren2) . "\n";
+      print "\n\nNumber of phylo-partition-vicut based sub-genera of $ge: " . scalar(keys %geChildren2) . "\n";
+
       print "\nSpecies frequencies in phylo-partition-vicut based sub-genera of $ge:\n";
       my @a = sort { scalar(keys %{$geChildren2{$b}}) <=> scalar(keys %{$geChildren2{$a}}) } keys %geChildren2;
       printFormatedTableValuedTbl(\%geChildren2, \@a);
@@ -2412,9 +2421,9 @@ for my $ge (@a)
 
 if ($debug)
 {
-  print "\ngenus => sub-genus table BEFORE sub-genus renaming:\n";
+  print "\n\ngenus => sub-genus table BEFORE sub-genus renaming:\n\n";
   printTableValuedTbl(\%genusSubGenusTb);
-  print "\n";
+  print "\n\n";
 }
 
 # Modifying sub-genus names if they appear in more than one genus.
@@ -2467,9 +2476,9 @@ for my $subge (keys %subGeName)
 
 if ($debug)
 {
-  print "\n\ngenus => sub-genus table AFTER sub-genus renaming:\n";
+  print "\n\ngenus => sub-genus table AFTER sub-genus renaming:\n\n";
   printTableValuedTbl(\%genusSubGenusTb2);
-  print "\n";
+  print "\n\n";
 }
 
 print "--- Updating lineage table at the sub-genus level\n" if $debug;
@@ -3514,7 +3523,8 @@ if ( scalar(keys %faChildren) > 1 )
     system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 
     my @orTreeLeaves = readArray($treeLeavesFile);
-    my $nOrTreeLeaves = unique(\@orTreeLeaves);
+    my @uqOrTreeLeaves = unique(\@orTreeLeaves);
+    my $nOrTreeLeaves = @uqOrTreeLeaves;
     print "\n\tNumber of elemets of the leaves of the order condensed tree: $nOrTreeLeaves\n" if $debug;
 
     my $nOrParent = keys %orParent;
@@ -3531,26 +3541,26 @@ if ( scalar(keys %faChildren) > 1 )
       {
 	if ( $nOrParent > $nOrTreeLeaves )
 	{
-	  my @d = diff(\@ors, \@orTreeLeaves);
-	  print "Here are orParent ornera not in the tree:\n";
+	  my @d = diff(\@ors, \@uqOrTreeLeaves);
+	  print "Here are orParent orders not in the tree:\n";
 	  printArray(\@d);
 	  print "\n";
 	}
 
 	if ( $nOrParent < $nOrTreeLeaves )
 	{
-	  my @d = diff(\@orTreeLeaves, \@ors);
+	  my @d = diff(\@uqOrTreeLeaves, \@ors);
 	  print "Here are leaves not present in orParent:\n";
 	  printArray(\@d);
 	  print "\n";
 	}
       }
 
-      my @c = comm(\@ors, \@orTreeLeaves);
+      my @c = comm(\@ors, \@uqOrTreeLeaves);
       if ( $nOrParent>@c && $nOrTreeLeaves==@c )
       {
-	print "orParent is a superset of orTreeLeaves. Restricting orParent to orTreeLeaves\n\n" if $debug;
-	my @d = diff(\@ors, \@orTreeLeaves);
+	print "orParent is a superset of uqOrTreeLeaves. Restricting orParent to uqOrTreeLeaves\n\n" if $debug;
+	my @d = diff(\@ors, \@uqOrTreeLeaves);
 
 	delete @orParent{@d};
 	$nOrParent = keys %orParent;
@@ -6047,6 +6057,14 @@ sub setequal
     print "\tNumber of elements in the second array: " . @b . "\n";
     print "\tNumber of common elements: " . @c . "\n";
 
+    print "\na: ";
+    map {print "$_ "} @a;
+    print "\n\n";
+
+    print "b: ";
+    map {print "$_ "} @b;
+    print "\n\n";
+
     # writeArray(\@a, "a.txt");
     # writeArray(\@b, "b.txt");
     #print "\n\tNew taxon keys and fasta IDs written to a.txt and b.txt, respectively\n\n";
@@ -6054,7 +6072,7 @@ sub setequal
     if (@a > @b)
     {
       my @d = diff(\@a, \@b);
-      print "\nElements a but not b:\n";
+      print "\nElements in a, but not b:\n";
       for (@d)
       {
 	print "\t$_\n";
@@ -6065,7 +6083,7 @@ sub setequal
     if (@b > @a)
     {
       my @d = diff(\@b, \@a);
-      print "\nElements in b that are not a:\n";
+      print "\nElements in b that are not in a:\n";
       for (@d)
       {
 	print "\t$_\n";
@@ -6110,6 +6128,66 @@ sub build_cond_spp_tree
   $cmd = "rm -f $condSppFile; nw_condense $sppTreeFile > $condSppFile";
   print "\tcmd=$cmd\n" if $dryRun || $debug;
   system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
+}
+
+## For each species the script looks at
+
+## 1. the clade of that species in the spp.tree
+## 2. the clade of that species in the spp_cond.tree
+
+## A purity of a clade is the entropy of the proportions of different species
+## there. Purity 0 means, the clade consists of only one species.
+
+## The sum of species clade purities is reported for the spp and spp_cond trees.
+
+## Clades are also reported
+sub get_tree_spp_purity
+{
+  my ($treeFile, $txFile, $condSppTreeFile) = @_;
+
+  ## Testing if the tree leaves and the txFile IDs match
+  my %txTbl = readTbl($txFile);
+  my @txs = keys %txTbl;
+
+  ## extracting leave IDs
+  my $treeLeavesFile = $grPrefix . "_tmp_tree.leaves";
+  $cmd = "rm -f $treeLeavesFile; nw_labels -I $treeFile > $treeLeavesFile";
+  print "\tcmd=$cmd\n" if $dryRun || $debug;
+  system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
+
+  my @treeLeaves = readArray($treeLeavesFile);
+
+  if ( !setequal( \@txs, \@treeLeaves ) )
+  {
+    warn "\n\n\tERROR: Discrepancy between taxon IDs in $txFile and leaf IDs in $treeFile";
+    print "\n\n";
+    exit 1;
+  }
+
+  my $sppTreeFile = "$grPrefix" . "_tmp_spp.tree";
+  $cmd = "rm -f $sppTreeFile; nw_rename $treeFile $txFile | nw_order -c n  - > $sppTreeFile";
+  print "\tcmd=$cmd\n" if $dryRun || $debug;
+  system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
+
+  $cmd = "rm -f $treeLeavesFile; nw_labels -I $sppTreeFile > $treeLeavesFile";
+  print "\tcmd=$cmd\n" if $dryRun || $debug;
+  system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
+
+  my @sppTreeLeaves = readArray($treeLeavesFile);
+
+
+  $cmd = "rm -f $condSppTreeFile; nw_condense $sppTreeFile > $condSppTreeFile";
+  print "\tcmd=$cmd\n" if $dryRun || $debug;
+  system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
+
+  $cmd = "rm -f $treeLeavesFile; nw_labels -I $condSppTreeFile > $treeLeavesFile";
+  print "\tcmd=$cmd\n" if $dryRun || $debug;
+  system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
+
+  my @condSppTreeLeaves = readArray($treeLeavesFile);
+
+
+
 }
 
 exit 0;
