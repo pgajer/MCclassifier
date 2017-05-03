@@ -1000,7 +1000,7 @@ if ( @extraOG>0 )
   $cmd = "update_spp_tx.pl $quietStr $debugStr $useLongSppNamesStr -a $updatedTxFile -d $vicutDir";
   print "\tcmd=$cmd\n" if $dryRun || $debug;
   system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
-  
+
   $updatedTxFile = "$vicutDir/updated.tx";
   %newTx = readTbl($updatedTxFile);
 }
@@ -1430,7 +1430,7 @@ if (@lostLeaves>0)
   ##
   ## Tree has changed and so vicut should be run again to update the taxonomy
   ##
-  
+
   my @query4;
   my @ann4;
   my $queryFile4 = "spp_query4.seqIDs";
@@ -1458,7 +1458,7 @@ if (@lostLeaves>0)
   }
   close QOUT;
   close AOUT;
-  
+
   $vicutDir  = "spp_vicut_dir4";
 
   print "--- Running vicut on species data the 4th time\n";
@@ -1480,7 +1480,7 @@ if (@lostLeaves>0)
 
   $updatedTxFile = "$vicutDir/updated.tx";
   %newTx = readTbl($updatedTxFile);
-  
+
   print "--- Updating lineageTbl after 4th run of vicut\n";
   for my $id (keys %lineageTbl)
   {
