@@ -947,8 +947,8 @@ if ( @extraOG>0 )
   my @query2b;
   my @ann2b;
 
-  open QOUT, ">$queryFile2b" or die "Cannot open $queryFile2b for writing: $OS_ERROR";
-  open ANNOUT, ">$annFile2b" or die "Cannot open $annFile2b for writing: $OS_ERROR";
+  open QOUT, ">$queryFile2" or die "Cannot open $queryFile2 for writing: $OS_ERROR";
+  open AOUT, ">$annFile2" or die "Cannot open $annFile2 for writing: $OS_ERROR";
   for my $id ( keys %newTx )
   {
     my $t = $newTx{$id};
@@ -961,34 +961,34 @@ if ( @extraOG>0 )
     {
       if ( !exists $sspSeqID{$id} && !defined $suffix2 ) ## ??? I am not sure about the second condition ??? at this point we should not have _sp_index type specie names
       {
-	push @query2, $id;
+	push @query2b, $id;
 	print QOUT "$id\n";
 	#print "Query2: $id\t$t" if $debug;
       }
       else
       {
-	push @ann2, $id;
-	print ANNOUT "$id\t$t\n";
+	push @ann2b, $id;
+	print AOUT "$id\t$t\n";
 	print "Ann2: $id\t$t - with suffix2 def\n";# if $debug;
       }
     }
     else
     {
-      push @ann2, $id;
-      print ANNOUT "$id\t$t\n";
+      push @ann2b, $id;
+      print AOUT "$id\t$t\n";
     }
   }
   close QOUT;
-  close ANNOUT;
+  close AOUT;
 
   print "--- Running vicut again\n";
   if ( @query2b )
   {
-    $cmd = "vicut $quietStr -t $treeFile -a $annFile2b -q $queryFile2b -o $vicutDir";
+    $cmd = "vicut $quietStr -t $treeFile -a $annFile2 -q $queryFile2 -o $vicutDir";
   }
   else
   {
-    $cmd = "vicut $quietStr -t $treeFile -a $annFile -o $vicutDir";
+    $cmd = "vicut $quietStr -t $treeFile -a $annFile2 -o $vicutDir";
   }
 
   print "\tcmd=$cmd\n" if $dryRun || $debug;
