@@ -940,41 +940,63 @@ if ( @extraOG>0 )
   ## vicut clustering and so vicut has to be rerun now using the same type of
   ## query and annotation data as before.
 
-  @query2 = diff( \@query2, \@extraOG );
+  $vicutDir  = "spp_vicut_dir2b";
 
-  if ( @query2 )
+  my $queryFile2 = "spp_query2b.seqIDs";
+  my $annFile2   = "spp_ann2b.tx";
+  my @query2b;
+  my @ann2b;
+
+  open QOUT, ">$queryFile2b" or die "Cannot open $queryFile3 for writing: $OS_ERROR";
+  open ANNOUT, ">$annFile2b" or die "Cannot open $annFile3 for writing: $OS_ERROR";
+  for my $id ( keys %newTx )
   {
-    writeArray(\@query2, $queryFile2 );
+    my $t = $newTx{$id};
+    my @f = split "_", $t;
+    my $g = shift @f;
+    my $suffix = shift @f;
+    my $suffix2 = shift @f;
 
-    ## updating query and annotation data removing from them elements of @extraOG
-    my %extraOGtbl = map { $_ => 1 } @extraOG;
-
-    my %aTbl = readTbl( $annFile2 );
-
-    open ANNOUT, ">$annFile2" or die "Cannot open $annFile2 for writing: $OS_ERROR";
-    for my $id ( keys %aTbl )
+    if ( defined $suffix && $suffix eq "sp" )
     {
-      if ( !exists $extraOGtbl{$id} )
-      {
-	print ANNOUT "$id\t" . $newTx{$id} . "\n";
-      }
-    }
-    close ANNOUT;
-
-    print "--- Running vicut again\n";
-    $cmd = "vicut $quietStr -t $treeFile -a $annFile2 -q $queryFile2 -o $vicutDir";
-    ##$cmd = "vicut $quietStr -t $treeFile -a $annFile -o $vicutDir";
-    print "\tcmd=$cmd\n" if $dryRun || $debug;
-    system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
-
-    print "--- Running update_spp_tx.pl\n";
-    $cmd = "update_spp_tx.pl $quietStr $debugStr $useLongSppNamesStr -a $updatedTxFile -d $vicutDir";
-    print "\tcmd=$cmd\n" if $dryRun || $debug;
-    system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
-
-    $updatedTxFile = "$vicutDir/updated.tx";
-    %newTx = readTbl($updatedTxFile);
+   	if ( !exists $sspSeqID{$id} ) # && !defined $suffix2 ) ## ??? I am not sure about the second condition ??? at this point we should not have _sp_index type specie names
+  	{
+	  push @query2b, $id;
+	  print QOUT "$id\n";
+	  #print "Query2: $id\t$t\n" if $debug;
+	}
+	else
+	{
+	  push @ann2b, $id;
+	  print ANNOUT "$id\t$t\n";
+	}
   }
+  else
+  {
+	push @ann2b, $id;
+	print ANNOUT "$id\t$t\n";
+    }
+  }
+  close QOUT;
+  close ANNOUT;
+
+#@query2 = diff( \@query2, \@extraOG );
+
+  if ( @query2b )
+
+  print "--- Running vicut again\n";
+  $cmd = "vicut $quietStr -t $treeFile -a $annFile2b -q $queryFile2b -o $vicutDir";
+  ##$cmd = "vicut $quietStr -t $treeFile -a $annFile -o $vicutDir";
+  print "\tcmd=$cmd\n" if $dryRun || $debug;
+  system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
+
+  print "--- Running update_spp_tx.pl\n";
+  $cmd = "update_spp_tx.pl $quietStr $debugStr $useLongSppNamesStr -a $updatedTxFile -d $vicutDir";
+  print "\tcmd=$cmd\n" if $dryRun || $debug;
+  system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
+
+  $updatedTxFile = "$vicutDir/updated.tx";
+  %newTx = readTbl($updatedTxFile);
 }
 
 my $sppLineageFile = $grPrefix . "_spp.lineage";
