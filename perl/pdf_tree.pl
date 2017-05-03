@@ -120,7 +120,7 @@ if ( defined $johanna )
 
 $pdfFile = abs_path($pdfFile);
 
-plot_tree_bw(abs_path($treeFile), $pdfFile, $title);
+plot_tree(abs_path($treeFile), $pdfFile, $title);
 
 if ( $showTree && $OSNAME eq "darwin")
 {
@@ -134,8 +134,7 @@ if ( $showTree && $OSNAME eq "darwin")
 ##                               SUBS
 ####################################################################
 
-## plot tree with without any colors
-sub plot_tree_bw
+sub plot_tree
 {
   my ($treeFile, $pdfFile, $title) = @_;
 
