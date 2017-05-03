@@ -942,8 +942,8 @@ if ( @extraOG>0 )
 
   $vicutDir  = "spp_vicut_dir2b";
 
-  my $queryFile2 = "spp_query2b.seqIDs";
-  my $annFile2   = "spp_ann2b.tx";
+  my $queryFile2b = "spp_query2b.seqIDs";
+  my $annFile2b   = "spp_ann2b.tx";
   my @query2b;
   my @ann2b;
 
@@ -981,16 +981,17 @@ if ( @extraOG>0 )
   close QOUT;
   close AOUT;
 
-  print "--- Running vicut again\n";
-  if ( @query2b )
+  $vicutDir  = "spp_vicut_dir2b";
+
+  print "--- Running vicut on species data the 2b time\n";
+  if (@query2b)
   {
-    $cmd = "vicut $quietStr -t $treeFile -a $annFile2 -q $queryFile2 -o $vicutDir";
+    $cmd = "vicut $quietStr -t $treeFile -a $annFile2b -q $queryFile2b -o $vicutDir";
   }
   else
   {
-    $cmd = "vicut $quietStr -t $treeFile -a $annFile2 -o $vicutDir";
+    $cmd = "vicut $quietStr -t $treeFile -a $annFile2b -o $vicutDir";
   }
-
   print "\tcmd=$cmd\n" if $dryRun || $debug;
   system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 
@@ -1376,6 +1377,147 @@ if ( @spSingletons )
   }
 }
 
+print "--- Testing again consistency between the phylo tree and sequences after taxonomy cleanup\n";
+
+## extracting leave IDs
+$cmd = "rm -f $treeLeavesFile; nw_labels -I $treeFile > $treeLeavesFile";
+print "\tcmd=$cmd\n" if $dryRun || $debug;
+system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
+
+## looking at the difference between leaf IDs and newTx keys
+@treeLeaves = readArray($treeLeavesFile);
+@survivedIDs = keys %newTx;
+@lostLeaves = diff(\@treeLeaves, \@survivedIDs);
+
+## prunning tree
+if (@lostLeaves>0)
+{
+  print "\n\tSpecies cleanup eliminated " . @lostLeaves . " sequences\n\n" if $debug;
+
+  my $lostLeavesFile = $grPrefix . "_lost_leaves.txt";
+  writeArray(\@lostLeaves, $lostLeavesFile);
+
+  print "--- Pruning lost seqIDs from the current alignment\n";
+  my $prunedAlgnFile = $grPrefix . "_algn_trimmed_pruned3.fa";
+  $cmd = "select_seqs.pl $quietStr -e $lostLeavesFile -i $trimmedAlgnFile -o $prunedAlgnFile";
+  print "\tcmd=$cmd\n" if $dryRun || $debug;
+  system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
+
+  $trimmedAlgnFile = $prunedAlgnFile;
+
+  print "--- Rebuilding phylo tree (2)\n";
+  $prunedTreeFile = $grPrefix . "_pruned3.tree";
+  $cmd = "rm -f $prunedTreeFile; FastTree -nt $trimmedAlgnFile > $prunedTreeFile";
+  print "\tcmd=$cmd\n" if $dryRun || $debug;
+  system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;# && !$skipFastTree;
+
+  print "--- Rerooting the tree\n";
+  my $rrPrunedTreeFile = $grPrefix . "_pruned3_rr.tree";
+  $cmd = "rm -f $rrPrunedTreeFile; nw_reroot $prunedTreeFile @ogSeqIDs | nw_order -  > $rrPrunedTreeFile";
+  print "\tcmd=$cmd\n" if $dryRun || $debug;
+  system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+
+  ## removing OG seq's from the tree
+  print "--- Pruning OG seq's from the tree after spp singletons removal\n";
+  $prunedTreeFile = $grPrefix . "_pruned3_rr_noOGs.tree";
+  $cmd = "rm -f $prunedTreeFile; nw_prune $rrPrunedTreeFile @ogSeqIDs > $prunedTreeFile";
+  print "\tcmd=$cmd\n" if $dryRun || $debug;
+  system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
+
+  $treeFile = $prunedTreeFile;
+
+  ##
+  ## Tree has changed and so vicut should be run again to update the taxonomy
+  ##
+
+  my @query4;
+  my @ann4;
+  my $queryFile4 = "spp_query4.seqIDs";
+  my $annFile4   = "spp_ann3.tx";
+  open QOUT, ">$queryFile4" or die "Cannot open $queryFile4 for writing: $OS_ERROR";
+  open AOUT, ">$annFile4"   or die "Cannot open $annFile4 for writing: $OS_ERROR";
+  for my $id ( keys %newTx )
+  {
+    my $t = $newTx{$id};
+    my @f = split "_", $t;
+    my $g = shift @f;
+    my $suffix = shift @f;
+    my $suffix2 = shift @f;
+
+    if ( defined $suffix && $suffix eq "sp" )
+    {
+      push @query4, $id;
+      print QOUT "$id\n";
+    }
+    else
+    {
+      push @ann4, $id;
+      print AOUT "$id\t$t\n";
+    }
+  }
+  close QOUT;
+  close AOUT;
+
+  $vicutDir  = "spp_vicut_dir4";
+
+  print "--- Running vicut on species data the 4th time\n";
+  if (@query4)
+  {
+    $cmd = "vicut $quietStr -t $treeFile -a $annFile4 -q $queryFile4 -o $vicutDir";
+  }
+  else
+  {
+    $cmd = "vicut $quietStr -t $treeFile -a $annFile4 -o $vicutDir";
+  }
+  print "\tcmd=$cmd\n" if $dryRun || $debug;
+  system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
+
+  print "--- Running update_spp_tx.pl\n";
+  $cmd = "update_spp_tx.pl $quietStr $debugStr $useLongSppNamesStr -a $updatedTxFile -d $vicutDir";
+  print "\tcmd=$cmd\n" if $dryRun || $debug;
+  system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
+
+  $updatedTxFile = "$vicutDir/updated.tx";
+  %newTx = readTbl($updatedTxFile);
+
+  print "--- Updating lineageTbl after 4th run of vicut\n";
+  for my $id (keys %lineageTbl)
+  {
+    if ( exists $newTx{$id} )
+    {
+      my $lineage = $lineageTbl{$id};
+      my @f = split ";", $lineage;
+      my $sp = pop @f;
+      my $newSp = $newTx{$id};
+      if ($newSp ne $sp)
+      {
+	my ($g, $s) = split "_", $newSp;
+	if ( exists $geLineage{$g} )
+	{
+	  $lineageTbl{$id} = $geLineage{$g} . ";$newSp";
+	}
+	else
+	{
+	  if (exists $spParent{$newSp})
+	  {
+	    $g = $spParent{$newSp};
+	    $lineageTbl{$id} = $geLineage{$g} . ";$newSp";
+	  }
+	  else
+	  {
+	    warn "\n\n\tERROR: $g not found in geLineage";
+	    print "\tand spParent{$newSp} not found\n";
+	    print "\tnewSp: $newSp\n";
+	    print "\tlineageTbl{$id}: " . $lineageTbl{$id} . "\n";
+	    print "\n\n";
+	    exit 1;
+	  }
+	}
+      }
+    } # end of if ( exists $newTx{$id} )
+  }
+}
+
 print "--- Checking parent consistency of the lineage table\n";
 if ( check_parent_consistency(\%lineageTbl) )
 {
@@ -1641,60 +1783,6 @@ if ( check_parent_consistency(\%lineageTbl) )
   warn "";
   print "\n\n";
   exit 1;
-}
-
-print "--- Testing again consistency between the phylo tree and sequences after taxonomy cleanup\n";
-
-## extracting leave IDs
-$cmd = "rm -f $treeLeavesFile; nw_labels -I $treeFile > $treeLeavesFile";
-print "\tcmd=$cmd\n" if $dryRun || $debug;
-system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
-
-## looking at the difference between leaf IDs and newTx keys
-@treeLeaves = readArray($treeLeavesFile);
-@survivedIDs = keys %newTx;
-@lostLeaves = diff(\@treeLeaves, \@survivedIDs);
-
-## prunning tree
-if (@lostLeaves>0)
-{
-  print "\n\tSpecies cleanup eliminated " . @lostLeaves . " sequences\n\n" if $debug;
-
-  my $lostLeavesFile = $grPrefix . "_lost_leaves.txt";
-  writeArray(\@lostLeaves, $lostLeavesFile);
-
-  print "--- Pruning lost seqIDs from the current alignment\n";
-  my $prunedAlgnFile = $grPrefix . "_algn_trimmed_pruned3.fa";
-  $cmd = "select_seqs.pl $quietStr -e $lostLeavesFile -i $trimmedAlgnFile -o $prunedAlgnFile";
-  print "\tcmd=$cmd\n" if $dryRun || $debug;
-  system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
-
-  $trimmedAlgnFile = $prunedAlgnFile;
-
-  print "--- Rebuilding phylo tree (2)\n";
-  $prunedTreeFile = $grPrefix . "_pruned3.tree";
-  $cmd = "rm -f $prunedTreeFile; FastTree -nt $trimmedAlgnFile > $prunedTreeFile";
-  print "\tcmd=$cmd\n" if $dryRun || $debug;
-  system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;# && !$skipFastTree;
-
-  print "--- Rerooting the tree\n";
-  my $rrPrunedTreeFile = $grPrefix . "_pruned3_rr.tree";
-  $cmd = "rm -f $rrPrunedTreeFile; nw_reroot $prunedTreeFile @ogSeqIDs | nw_order -  > $rrPrunedTreeFile";
-  print "\tcmd=$cmd\n" if $dryRun || $debug;
-  system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
-
-  ## removing OG seq's from the tree
-  print "--- Pruning OG seq's from the tree after spp singletons removal\n";
-  $prunedTreeFile = $grPrefix . "_pruned3_rr_noOGs.tree";
-  $cmd = "rm -f $prunedTreeFile; nw_prune $rrPrunedTreeFile @ogSeqIDs > $prunedTreeFile";
-  print "\tcmd=$cmd\n" if $dryRun || $debug;
-  system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
-
-  $treeFile = $prunedTreeFile;
-
-  ##
-  ## Tree has changed and so vicut should be run again to update the taxonomy
-  ##
 }
 
 
