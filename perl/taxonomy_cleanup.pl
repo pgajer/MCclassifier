@@ -756,12 +756,13 @@ for my $id ( keys %newTx )
     {
       push @query2, $id;
       print QOUT "$id\n";
-      #print "Query2: $id\t$t\n" if $debug;
+      #print "Query2: $id\t$t" if $debug;
     }
     else
     {
       push @ann2, $id;
       print ANNOUT "$id\t$t\n";
+      print "Ann2: $id\t$t - with suffix2 def\n";# if $debug;
     }
   }
   else
@@ -1824,6 +1825,37 @@ if ( $debugSpp )
 
   exit 1;
 }
+
+## checking frequencies of species names on the condensed species tree
+## $finalCondSppTreeFile
+
+print "--- Extracting leaves from the final condense species tree\n";
+my $leavesFile = $grPrefix . "_final_spp_condensed_tree.leaves";
+$cmd = "rm -f $leavesFile; nw_labels -I $finalCondSppTreeFile > $leavesFile";
+print "\tcmd=$cmd\n" if $dryRun || $debug;
+system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
+
+my @finalCondSppTreeLeaves = readArray($leavesFile);
+
+my %finalCondSppTreeLeafFreq;
+for ( @finalCondSppTreeLeaves )
+{
+  $finalCondSppTreeLeafFreq{$_}++;
+}
+
+## species that appear more than once
+my @finalCondSppTreeCountGr1Leaves = grep { $_ > 1 } values %finalCondSppTreeLeafFreq;
+## print "finalCondSppTreeCountGr1Leaves: @finalCondSppTreeCountGr1Leaves\n";
+
+@finalCondSppTreeCountGr1Leaves = sort { $finalCondSppTreeLeafFreq{$b} <=> $finalCondSppTreeLeafFreq{$a} } @finalCondSppTreeCountGr1Leaves;
+
+print "\n\nFrequency of species occuring more than once on the final condense species tree\n";
+print "\t$finalCondSppTreeFile\n\n";
+printFormatedTbl(\%finalCondSppTreeLeafFreq, \@finalCondSppTreeCountGr1Leaves);
+print "\n\n";
+
+
+exit 1;
 
 $section = qq~
 
@@ -6319,7 +6351,7 @@ sub build_cond_spp_tree
 ## Clades are also reported
 sub get_tree_spp_purity
 {
-  my ($treeFile, $txFile, $condSppFile) = @_;
+  my ($treeFile, $txFile, $condSppTreeFile) = @_;
 
   my %txTbl = readTbl($txFile);
   my @txs = keys %txTbl;
@@ -6385,89 +6417,92 @@ sub get_tree_spp_purity
 
   ## looking at the clades of of hiFreqSpp
 
-  ## we need to know seq IDs of seq's of a given species
   #
-  my %spToSeqIDs;
-  for my $id (keys %txTbl)
+  # we need to know seq IDs of seq's of a given species
+  #
+  if (0)
   {
-    push @{$spToSeqIDs{ $txTbl{$id} }}, $id;
-  }
-
-  print "\n\nhiFreqSpp\n";
-  for my $sp (@hiFreqSpp)
-  {
-    my @ids = @{$spToSeqIDs{ $sp }};
-
-    print "$sp (n=" . @ids . ")\t";
-
-    ## Generating species' clade tree
-    my $cladeFile = $sp . "_clade.tree";
-    my $cmd = "rm -f $cladeFile; nw_clade $treeFile @ids | nw_order -c n  - > $cladeFile";
-    print "\tcmd=$cmd\n" if $dryRun || $debug;
-    system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
-
-    ## Getting leaves
-    my $lFile = "leaves.txt";
-    $cmd = "rm -f $lFile; nw_labels -I $cladeFile > $lFile";
-    print "\tcmd=$cmd\n" if $dryRun || $debug;
-    system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
-
-    my @leaves = readArray($lFile);
-
-    ## entropy of the species
-    my @lSpp = @txTbl{@leaves}; # leaf species
-    my %lSpFreqTbl; # frequency table of leaf species
-    map { $lSpFreqTbl{$_}++ } @lSpp;
-
-    my @lSpFreq = values %lSpFreqTbl;
-    # my $total = sum( @lSpFreq );
-    # my @lSpProp = map{ $_ / $total } @lSpFreq;
-    my $H = evenness( \@lSpFreq );
-
-    print "n(clade spp)=" . (keys %lSpFreqTbl) . "\tEvenness: " . sprintf("%.4f", $H) . "\n";
-    #  print "\nSpecies freq's within the species' clade\n";
-    my @clSpp = sort { $lSpFreqTbl{$b} <=> $lSpFreqTbl{$a} } keys  %lSpFreqTbl;
-    printFormatedTbl( \%lSpFreqTbl, \@clSpp );
-    print "\n\n";
-
-    ## leaf => sp table
-    my $l2spFile = $sp . "_leaf_to_spp.txt";
-    open OUT, ">$l2spFile" or die "Cannot open $l2spFile for writing: $OS_ERROR";
-    for (@leaves)
+    my %spToSeqIDs;
+    for my $id (keys %txTbl)
     {
-      print OUT "$_\t" . $txTbl{$_} . "\n";
+      push @{$spToSeqIDs{ $txTbl{$id} }}, $id;
     }
-    close OUT;
-    ## species tree
-    my $sFile = $sp . "_clade_spp.tree";
-    $cmd = "rm -f $sFile; nw_rename $cladeFile $l2spFile | nw_order -c n  - > $sFile";
-    print "\tcmd=$cmd\n" if $dryRun || $debug;
-    system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 
-    ## condensed species tree
-    my $csFile = $sp . "_clade_cond_spp.tree";
-    $cmd = "rm -f $csFile; nw_condense $sFile > $csFile";
-    print "\tcmd=$cmd\n" if $dryRun || $debug;
-    system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
-
-    if ( $showCladeTrees && $OSNAME eq "darwin")
+    print "\n\nhiFreqSpp\n";
+    for my $sp (@hiFreqSpp)
     {
-      ## plot the condensed species tree
-      my $pdfFile = $cladeTreesDir . $sp . "_clade_cond_spp_tree.pdf";
-      my $title   = $sp . " clade cond spp tree";
+      my @ids = @{$spToSeqIDs{ $sp }};
 
-      # $cmd = "root_tree.pl -i $csFile";
-      # print "\tcmd=$cmd\n" if $dryRun || $debug;
-      # system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
+      print "$sp (n=" . @ids . ")\t";
 
-      ##plot_color_tree($csFile, $pdfFile, $title);
-      plot_tree_bw($csFile, $pdfFile, $title);
-
-      $cmd = "open $pdfFile";
+      ## Generating species' clade tree
+      my $cladeFile = $sp . "_clade.tree";
+      my $cmd = "rm -f $cladeFile; nw_clade $treeFile @ids | nw_order -c n  - > $cladeFile";
       print "\tcmd=$cmd\n" if $dryRun || $debug;
       system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
-    }
 
+      ## Getting leaves
+      my $lFile = "leaves.txt";
+      $cmd = "rm -f $lFile; nw_labels -I $cladeFile > $lFile";
+      print "\tcmd=$cmd\n" if $dryRun || $debug;
+      system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
+
+      my @leaves = readArray($lFile);
+
+      ## entropy of the species
+      my @lSpp = @txTbl{@leaves}; # leaf species
+      my %lSpFreqTbl; # frequency table of leaf species
+      map { $lSpFreqTbl{$_}++ } @lSpp;
+
+      my @lSpFreq = values %lSpFreqTbl;
+      # my $total = sum( @lSpFreq );
+      # my @lSpProp = map{ $_ / $total } @lSpFreq;
+      my $H = evenness( \@lSpFreq );
+
+      print "n(clade spp)=" . (keys %lSpFreqTbl) . "\tEvenness: " . sprintf("%.4f", $H) . "\n";
+      #  print "\nSpecies freq's within the species' clade\n";
+      my @clSpp = sort { $lSpFreqTbl{$b} <=> $lSpFreqTbl{$a} } keys  %lSpFreqTbl;
+      printFormatedTbl( \%lSpFreqTbl, \@clSpp );
+      print "\n\n";
+
+      ## leaf => sp table
+      my $l2spFile = $sp . "_leaf_to_spp.txt";
+      open OUT, ">$l2spFile" or die "Cannot open $l2spFile for writing: $OS_ERROR";
+      for (@leaves)
+      {
+	print OUT "$_\t" . $txTbl{$_} . "\n";
+      }
+      close OUT;
+      ## species tree
+      my $sFile = $sp . "_clade_spp.tree";
+      $cmd = "rm -f $sFile; nw_rename $cladeFile $l2spFile | nw_order -c n  - > $sFile";
+      print "\tcmd=$cmd\n" if $dryRun || $debug;
+      system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
+
+      ## condensed species tree
+      my $csFile = $sp . "_clade_cond_spp.tree";
+      $cmd = "rm -f $csFile; nw_condense $sFile > $csFile";
+      print "\tcmd=$cmd\n" if $dryRun || $debug;
+      system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
+
+      if ( $showCladeTrees && $OSNAME eq "darwin")
+      {
+	## plot the condensed species tree
+	my $pdfFile = $cladeTreesDir . $sp . "_clade_cond_spp_tree.pdf";
+	my $title   = $sp . " clade cond spp tree";
+
+	# $cmd = "root_tree.pl -i $csFile";
+	# print "\tcmd=$cmd\n" if $dryRun || $debug;
+	# system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
+
+	##plot_color_tree($csFile, $pdfFile, $title);
+	plot_tree_bw($csFile, $pdfFile, $title);
+
+	$cmd = "open $pdfFile";
+	print "\tcmd=$cmd\n" if $dryRun || $debug;
+	system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
+      }
+    }
 
   }
 }
