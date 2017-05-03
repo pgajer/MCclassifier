@@ -122,6 +122,12 @@ if ($verbose)
   $verboseStr = "--verbose";
 }
 
+my $nProcStr = "";
+if ($nProc)
+{
+  $nProcStr = "--thread $nProc";
+}
+
 my $grDir = $grPrefix . "_dir";
 
 if ( ! -d $grDir )
@@ -203,7 +209,7 @@ my $ginsiAlgnFile = $grPrefix . "_ginsi_algn.fa";
   print "\tcmd=$cmd\n" if $dryRun || $debug; # || $debug;
   system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 
-  $cmd = "rm -f $ginsiAlgnFile; time $ginsi --inputorder $quietStr --thread $nProc $faFile2 > $ginsiAlgnFile";
+  $cmd = "rm -f $ginsiAlgnFile; time $ginsi --inputorder $quietStr $nProcStr $faFile2 > $ginsiAlgnFile";
   print "\tcmd=$cmd\n" if $dryRun || $debug;
   system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 }
