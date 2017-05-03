@@ -50,6 +50,9 @@
 =item B<--rm-ref-outliers>
   Removing sequences identified as outliers in ref_sib_pp_models.R
 
+=item B<--show-clade-trees>
+  Show clade trees.
+
 =item B<--verbose, -v>
   Prints content of some output files.
 
@@ -87,6 +90,7 @@ use English qw( -no_match_vars );
 use Getopt::Long qw(:config no_ignore_case no_auto_abbrev pass_through);
 use File::Basename;
 use Cwd qw(abs_path);
+use List::Util qw( sum );
 
 $OUTPUT_AUTOFLUSH = 1;
 
@@ -109,6 +113,7 @@ GetOptions(
   "taxon-size-thld"     => \$taxonSizeThld,
   "show-all-trees"      => \my $showAllTrees,
   "do-not-pop-pdfs"     => \my $doNotPopPDFs,
+  "show-clade-trees"    => \my $showCladeTrees,
   "build-model-data"    => \my $buildModelData,
   "rm-ref-outliers"     => \my $rmRefOutliers,
   "pp-embedding"        => \my $ppEmbedding,
@@ -256,6 +261,13 @@ elsif ( ! -e $outgroupFile )
   exit 1;
 }
 
+my $cladeTreesDir = "clade_trees_dir/";
+if ($showCladeTrees)
+{
+   my $cmd = "mkdir -p $cladeTreesDir";
+   print "\tcmd=$cmd\n" if $dryRun || $debug;
+   system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+}
 
 ## Gathering outgroup data
 print "--- Parsing $outgroupFile\n";
@@ -628,7 +640,8 @@ if ( $debugSpp )
 
   my $condSppTree1File = $grPrefix . "_cond_spp_before_1st_vicut.tree";
 
-  build_cond_spp_tree($treeFile, $txTblFile, $condSppTree1File);
+  #get_tree_spp_purity($treeFile, $txTblFile, $condSppTree1File);
+  #build_cond_spp_tree($treeFile, $txTblFile, $condSppTree1File);
 
   print "\n\n\tBefore the 1st vicut condensed species tree written to $condSppTree1File\n\n";
 
@@ -642,7 +655,6 @@ if ( $debugSpp )
     print "\tcmd=$cmd\n" if $dryRun || $debug;
     system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
   }
-
 }
 
 print "--- Running vicut\n";
@@ -1335,7 +1347,6 @@ if ( @spSingletons )
       }
     } # end of if ( exists $newTx{$id} )
   }
-
 }
 
 print "--- Checking parent consistency of the lineage table\n";
@@ -1795,7 +1806,8 @@ if ( $debugSpp )
 
   my $condSppTreeFile = $grPrefix . "_cond_spp_after_genotype_spp.tree";
 
-  build_cond_spp_tree($treeFile, $txTblFile, $condSppTreeFile);
+  get_tree_spp_purity($treeFile, $txTblFile, $condSppTreeFile);
+  #build_cond_spp_tree($treeFile, $txTblFile, $condSppTreeFile);
 
   print "\n\n\tAfter genotype_spp.pl condensed species tree written to $condSppTreeFile\n\n";
 
@@ -2314,12 +2326,11 @@ $cmd = "rm -f $finalCondGenusTreeFile; nw_condense $finalGenusTreeFile > $finalC
 print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 
-
-my $pdfCondGenusTreeFile = abs_path( "$grPrefix" . "_final_genus_condensed_tree.pdf" );
-plot_tree_bw($finalCondGenusTreeFile, $pdfCondGenusTreeFile);
-
 if ( $showAllTrees &&  $OSNAME eq "darwin")
 {
+  my $pdfCondGenusTreeFile = abs_path( "$grPrefix" . "_final_genus_condensed_tree.pdf" );
+  plot_tree_bw($finalCondGenusTreeFile, $pdfCondGenusTreeFile);
+
   $cmd = "open $pdfCondGenusTreeFile";
   print "\tcmd=$cmd\n" if $dryRun || $debug;
   system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
@@ -3175,13 +3186,12 @@ if ( scalar(keys %faChildren) > 1 )
   }
   close OUT;
 
-  my $pdfFamilyColorsCsppTreeFile = abs_path( $grPrefix . "_final_species_condensed_tree_with_family_colors.pdf" );
-
-  $title = $grPrefix . " - families";
-  plot_tree($finalCondSppTreeFile, $familyIdxFile, $pdfFamilyColorsCsppTreeFile, $title);
-
   if ( !$doNotPopPDFs && $OSNAME eq "darwin")
   {
+    my $pdfFamilyColorsCsppTreeFile = abs_path( $grPrefix . "_final_species_condensed_tree_with_family_colors.pdf" );
+    $title = $grPrefix . " - families";
+    plot_tree($finalCondSppTreeFile, $familyIdxFile, $pdfFamilyColorsCsppTreeFile, $title);
+
     $cmd = "open $pdfFamilyColorsCsppTreeFile";
     print "\tcmd=$cmd\n" if $dryRun || $debug;
     system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
@@ -3542,11 +3552,11 @@ if ( scalar(keys %faChildren) > 1 )
     print "\tcmd=$cmd\n" if $dryRun || $debug;
     system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 
-    my $pdfCondOrderTreeFile = abs_path( "$grPrefix" . "_final_order_condensed_tree.pdf" );
-    plot_tree_bw($finalCondOrderTreeFile, $pdfCondOrderTreeFile);
-
     if ( $showAllTrees &&  $OSNAME eq "darwin")
     {
+      my $pdfCondOrderTreeFile = abs_path( "$grPrefix" . "_final_order_condensed_tree.pdf" );
+      plot_tree_bw($finalCondOrderTreeFile, $pdfCondOrderTreeFile);
+
       $cmd = "open $pdfCondOrderTreeFile";
       print "\tcmd=$cmd\n" if $dryRun || $debug;
       system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
@@ -3575,13 +3585,12 @@ if ( scalar(keys %faChildren) > 1 )
     }
     close OUT;
 
-    my $pdfOrderColorsCsppTreeFile = abs_path( $grPrefix . "_final_species_condensed_tree_with_order_colors.pdf" );
-
-    $title = $grPrefix . " - orders";
-    plot_tree($finalCondSppTreeFile, $orderIdxFile, $pdfOrderColorsCsppTreeFile, $title);
-
     if ( !$doNotPopPDFs && $OSNAME eq "darwin")
     {
+      my $pdfOrderColorsCsppTreeFile = abs_path( $grPrefix . "_final_species_condensed_tree_with_order_colors.pdf" );
+      $title = $grPrefix . " - orders";
+      plot_tree($finalCondSppTreeFile, $orderIdxFile, $pdfOrderColorsCsppTreeFile, $title);
+
       $cmd = "open $pdfOrderColorsCsppTreeFile";
       print "\tcmd=$cmd\n" if $dryRun || $debug;
       system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
@@ -3866,11 +3875,11 @@ if ( scalar(keys %faChildren) > 1 )
       print "\tcmd=$cmd\n" if $dryRun || $debug;
       system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 
-      my $pdfCondClassTreeFile = abs_path( "$grPrefix" . "_final_class_condensed_tree.pdf" );
-      plot_tree_bw($finalCondClassTreeFile, $pdfCondClassTreeFile);
-
       if ( $showAllTrees &&  $OSNAME eq "darwin")
       {
+	my $pdfCondClassTreeFile = abs_path( "$grPrefix" . "_final_class_condensed_tree.pdf" );
+	plot_tree_bw($finalCondClassTreeFile, $pdfCondClassTreeFile);
+
 	$cmd = "open $pdfCondClassTreeFile";
 	print "\tcmd=$cmd\n" if $dryRun || $debug;
 	system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
@@ -3899,13 +3908,12 @@ if ( scalar(keys %faChildren) > 1 )
       }
       close OUT;
 
-      my $pdfClassColorsCsppTreeFile = abs_path( $grPrefix . "_final_species_condensed_tree_with_class_colors.pdf" );
-
-      $title = $grPrefix . " - classes";
-      plot_tree($finalCondSppTreeFile, $classIdxFile, $pdfClassColorsCsppTreeFile, $title);
-
       if ( !$doNotPopPDFs && $OSNAME eq "darwin")
       {
+	my $pdfClassColorsCsppTreeFile = abs_path( $grPrefix . "_final_species_condensed_tree_with_class_colors.pdf" );
+	$title = $grPrefix . " - classes";
+	plot_tree($finalCondSppTreeFile, $classIdxFile, $pdfClassColorsCsppTreeFile, $title);
+
 	$cmd = "open $pdfClassColorsCsppTreeFile";
 	print "\tcmd=$cmd\n" if $dryRun || $debug;
 	system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
@@ -4463,6 +4471,81 @@ print     "\tSummary stats written to $grDir/$summaryStatsFile\n\n";
 ####################################################################
 ##                               SUBS
 ####################################################################
+
+sub plot_color_tree
+{
+  my ($treeFile, $pdfFile, $title) = @_;
+
+  my $showBoostrapVals = "T";
+
+  if (!defined $title)
+  {
+    $title = "";
+  }
+
+  my $Rscript = qq~
+
+source(\"$readNewickFile\")
+require(phytools)
+library(ade4)
+
+treeStr <- readChar(\"$treeFile\", file.info(\"$treeFile\")\$size)
+tr1 <- newick2phylog(treeStr)
+
+parent <- c()
+for ( node in names(tr1\$parts))
+{
+    chld <- tr1\$parts[[node]]
+    for ( ch in chld )
+    {
+        parent[ch] <- node
+    }
+}
+
+tr <- read.newick(file=\"$treeFile\")
+tr <- collapse.singles(tr)
+
+pars <- parent[tr\$tip.label]
+
+colIdx <- 1
+tip.colors <- c()
+tip.colors[1] <- colIdx
+for ( i in 2:length(pars) )
+{
+    if ( pars[i] != pars[i-1] )
+    {
+        colIdx <- colIdx + 1
+        if ( colIdx==9 )
+        {
+            colIdx <- 1
+        }
+    }
+    tip.colors[i] <- colIdx
+    if ( colIdx==7 )
+    {
+        tip.colors[i] <- "brown" # using brown instead of yellow
+    }
+}
+
+(nLeaves <- length(tr\$tip.label))
+
+figH <- 8
+figW <- 6
+if ( nLeaves >= 50 )
+{
+    figH <- 6.0/50.0 * ( nLeaves - 50) + 10
+    figW <- 6.0/50.0 * ( nLeaves - 50) + 6
+}
+
+pdf(\"$pdfFile\", width=figW, height=figH)
+op <- par(mar=c(0,0,1.5,0), mgp=c(2.85,0.6,0),tcl = -0.3)
+plot(tr, tip.color=tip.colors, type=\"phylogram\", no.margin=FALSE, show.node.label=$showBoostrapVals, cex=0.8, main=\"$title\")
+par(op)
+dev.off()
+~;
+
+  runRscript( $Rscript );
+}
 
 sub plot_tree
 {
@@ -6189,7 +6272,6 @@ sub build_cond_spp_tree
 {
   my ($treeFile, $txFile, $condSppFile) = @_;
 
-  ## Testing if the tree leaves and the txFile IDs match
   my %txTbl = readTbl($txFile);
   my @txs = keys %txTbl;
 
@@ -6203,7 +6285,7 @@ sub build_cond_spp_tree
 
   if ( !setequal( \@txs, \@treeLeaves ) )
   {
-    warn "\n\n\tERROR: Discrepancy between taxon IDs in $txFile and leaf IDs in $treeFile";
+    warn "\n\n\tERROR: Discrepancy between sequence IDs of the leaves of $treeFile and the keys of the taxon table";
     print "\n\n";
     exit 1;
   }
@@ -6237,9 +6319,8 @@ sub build_cond_spp_tree
 ## Clades are also reported
 sub get_tree_spp_purity
 {
-  my ($treeFile, $txFile, $condSppTreeFile) = @_;
+  my ($treeFile, $txFile, $condSppFile) = @_;
 
-  ## Testing if the tree leaves and the txFile IDs match
   my %txTbl = readTbl($txFile);
   my @txs = keys %txTbl;
 
@@ -6253,24 +6334,20 @@ sub get_tree_spp_purity
 
   if ( !setequal( \@txs, \@treeLeaves ) )
   {
-    warn "\n\n\tERROR: Discrepancy between taxon IDs in $txFile and leaf IDs in $treeFile";
+    warn "\n\n\tERROR: Discrepancy between sequence IDs of the leaves of $treeFile and the keys of the taxon table";
     print "\n\n";
     exit 1;
   }
 
-  if ( 0 )
-  {
-    my $sppTreeFile = "$grPrefix" . "_tmp_spp.tree";
-    $cmd = "rm -f $sppTreeFile; nw_rename $treeFile $txFile | nw_order -c n  - > $sppTreeFile";
-    print "\tcmd=$cmd\n" if $dryRun || $debug;
-    system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
+  my $sppTreeFile = "$grPrefix" . "_tmp_spp.tree";
+  $cmd = "rm -f $sppTreeFile; nw_rename $treeFile $txFile | nw_order -c n  - > $sppTreeFile";
+  print "\tcmd=$cmd\n" if $dryRun || $debug;
+  system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 
-    $cmd = "rm -f $treeLeavesFile; nw_labels -I $sppTreeFile > $treeLeavesFile";
-    print "\tcmd=$cmd\n" if $dryRun || $debug;
-    system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
-
-    my @sppTreeLeaves = readArray($treeLeavesFile);
-  }
+  # $cmd = "rm -f $treeLeavesFile; nw_labels -I $sppTreeFile > $treeLeavesFile";
+  # print "\tcmd=$cmd\n" if $dryRun || $debug;
+  # system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
+  # my @sppTreeLeaves = readArray($treeLeavesFile);
 
   $cmd = "rm -f $condSppTreeFile; nw_condense $sppTreeFile > $condSppTreeFile";
   print "\tcmd=$cmd\n" if $dryRun || $debug;
@@ -6303,7 +6380,7 @@ sub get_tree_spp_purity
   print     "condSppTree: $condSppTreeFile\n\n";
 
   print "\nSpecies freq's within the species condensed tree\n";
-  printFormatedTbl(\%spFreq, @hiFreqSpp);
+  printFormatedTbl(\%spFreq, \@hiFreqSpp);
   print "\n\n";
 
   ## looking at the clades of of hiFreqSpp
@@ -6319,19 +6396,119 @@ sub get_tree_spp_purity
   print "\n\nhiFreqSpp\n";
   for my $sp (@hiFreqSpp)
   {
-    print "Processing $sp\n";
     my @ids = @{$spToSeqIDs{ $sp }};
+
+    print "$sp (n=" . @ids . ")\t";
+
+    ## Generating species' clade tree
+    my $cladeFile = $sp . "_clade.tree";
+    my $cmd = "rm -f $cladeFile; nw_clade $treeFile @ids | nw_order -c n  - > $cladeFile";
+    print "\tcmd=$cmd\n" if $dryRun || $debug;
+    system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
+
+    ## Getting leaves
     my $lFile = "leaves.txt";
-    my $cmd = "rm -f $lFile; nw_clade $treeFile @ids | nw_labels -I - > $lFile";
+    $cmd = "rm -f $lFile; nw_labels -I $cladeFile > $lFile";
     print "\tcmd=$cmd\n" if $dryRun || $debug;
     system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 
     my @leaves = readArray($lFile);
-    my @lSpp = @txTbl{@leaves};
-    my %lSpFreq; # leaves species frequencies
-    map { $lSpFreq{$_}++ } @lSpp;
+
+    ## entropy of the species
+    my @lSpp = @txTbl{@leaves}; # leaf species
+    my %lSpFreqTbl; # frequency table of leaf species
+    map { $lSpFreqTbl{$_}++ } @lSpp;
+
+    my @lSpFreq = values %lSpFreqTbl;
+    # my $total = sum( @lSpFreq );
+    # my @lSpProp = map{ $_ / $total } @lSpFreq;
+    my $H = evenness( \@lSpFreq );
+
+    print "n(clade spp)=" . (keys %lSpFreqTbl) . "\tEvenness: " . sprintf("%.4f", $H) . "\n";
+    #  print "\nSpecies freq's within the species' clade\n";
+    my @clSpp = sort { $lSpFreqTbl{$b} <=> $lSpFreqTbl{$a} } keys  %lSpFreqTbl;
+    printFormatedTbl( \%lSpFreqTbl, \@clSpp );
+    print "\n\n";
+
+    ## leaf => sp table
+    my $l2spFile = $sp . "_leaf_to_spp.txt";
+    open OUT, ">$l2spFile" or die "Cannot open $l2spFile for writing: $OS_ERROR";
+    for (@leaves)
+    {
+      print OUT "$_\t" . $txTbl{$_} . "\n";
+    }
+    close OUT;
+    ## species tree
+    my $sFile = $sp . "_clade_spp.tree";
+    $cmd = "rm -f $sFile; nw_rename $cladeFile $l2spFile | nw_order -c n  - > $sFile";
+    print "\tcmd=$cmd\n" if $dryRun || $debug;
+    system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
+
+    ## condensed species tree
+    my $csFile = $sp . "_clade_cond_spp.tree";
+    $cmd = "rm -f $csFile; nw_condense $sFile > $csFile";
+    print "\tcmd=$cmd\n" if $dryRun || $debug;
+    system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
+
+    if ( $showCladeTrees && $OSNAME eq "darwin")
+    {
+      ## plot the condensed species tree
+      my $pdfFile = $cladeTreesDir . $sp . "_clade_cond_spp_tree.pdf";
+      my $title   = $sp . " clade cond spp tree";
+
+      # $cmd = "root_tree.pl -i $csFile";
+      # print "\tcmd=$cmd\n" if $dryRun || $debug;
+      # system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
+
+      ##plot_color_tree($csFile, $pdfFile, $title);
+      plot_tree_bw($csFile, $pdfFile, $title);
+
+      $cmd = "open $pdfFile";
+      print "\tcmd=$cmd\n" if $dryRun || $debug;
+      system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
+    }
+
 
   }
 }
+
+# Shannon entropy
+sub entropy
+{
+    my $x = shift;
+    my $n = sum (@{$x});
+    #my @p = map{ $_ / $n } @{$x};
+
+    my $H = 0; # output value
+    foreach my $v ( @{$x} )
+    {
+      if ( $v )
+      {
+	my $p = $v / $n;
+	$H -= $p * log( $p );
+      }
+    }
+    return $H;
+}
+
+
+sub evenness
+{
+    my $x = shift;
+    my $n = sum (@{$x});
+    #my @p = map{ $_ / $n } @{$x};
+
+    my $H = 0; # output value
+    foreach my $v ( @{$x} )
+    {
+      if ( $v )
+      {
+	my $p = $v / $n;
+	$H -= $p * log( $p );
+      }
+    }
+    return $H / log( @{$x} );
+}
+
 
 exit 0;
