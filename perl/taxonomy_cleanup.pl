@@ -948,7 +948,7 @@ if ( @extraOG>0 )
   my @ann2b;
 
   open QOUT, ">$queryFile2b" or die "Cannot open $queryFile2b for writing: $OS_ERROR";
-  open ANNOUT, ">$annFile2b" or die "Cannot open $annFile2b for writing: $OS_ERROR";
+  open AOUT, ">$annFile2b" or die "Cannot open $annFile2b for writing: $OS_ERROR";
   for my $id ( keys %newTx )
   {
     my $t = $newTx{$id};
@@ -959,28 +959,27 @@ if ( @extraOG>0 )
 
     if ( defined $suffix && $suffix eq "sp" )
     {
-   	if ( !exists $sspSeqID{$id} ) # && !defined $suffix2 ) ## ??? I am not sure about the second condition ??? at this point we should not have _sp_index type specie names
-  	{
-	  push @query2b, $id;
-	  print QOUT "$id\n";
-	  #print "Query2: $id\t$t\n" if $debug;
-	}
-	else
-	{
-	  push @ann2b, $id;
-	  print ANNOUT "$id\t$t\n";
-	}
-  }
-  else
-  {
+      if ( !exists $sspSeqID{$id} && !defined $suffix2 ) ## ??? I am not sure about the second condition ??? at this point we should not have _sp_index type specie names
+      {
+	push @query2b, $id;
+	print QOUT "$id\n";
+	#print "Query2: $id\t$t" if $debug;
+      }
+      else
+      {
 	push @ann2b, $id;
-	print ANNOUT "$id\t$t\n";
+	print AOUT "$id\t$t\n";
+	print "Ann2b: $id\t$t - with suffix2 def\n";# if $debug;
+      }
+    }
+    else
+    {
+      push @ann2b, $id;
+      print AOUT "$id\t$t\n";
     }
   }
   close QOUT;
-  close ANNOUT;
-
-#@query2 = diff( \@query2, \@extraOG );
+  close AOUT;
 
   $vicutDir  = "spp_vicut_dir2b";
 
@@ -993,6 +992,7 @@ if ( @extraOG>0 )
   {
     $cmd = "vicut $quietStr -t $treeFile -a $annFile2b -o $vicutDir";
   }
+
   print "\tcmd=$cmd\n" if $dryRun || $debug;
   system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 
@@ -1959,7 +1959,7 @@ for ( @finalCondSppTreeLeaves )
 }
 
 ## species that appear more than once
-my @finalCondSppTreeCountGr1Leaves = grep { $_ > 1 } values %finalCondSppTreeLeafFreq;
+my @finalCondSppTreeCountGr1Leaves = grep { $finalCondSppTreeLeafFreq{$_} > 1 } keys %finalCondSppTreeLeafFreq;
 ## print "finalCondSppTreeCountGr1Leaves: @finalCondSppTreeCountGr1Leaves\n";
 
 @finalCondSppTreeCountGr1Leaves = sort { $finalCondSppTreeLeafFreq{$b} <=> $finalCondSppTreeLeafFreq{$a} } @finalCondSppTreeCountGr1Leaves;
