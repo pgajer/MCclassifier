@@ -947,8 +947,8 @@ if ( @extraOG>0 )
   my @query2b;
   my @ann2b;
 
-  open QOUT, ">$queryFile2b" or die "Cannot open $queryFile3 for writing: $OS_ERROR";
-  open ANNOUT, ">$annFile2b" or die "Cannot open $annFile3 for writing: $OS_ERROR";
+  open QOUT, ">$queryFile2b" or die "Cannot open $queryFile2b for writing: $OS_ERROR";
+  open ANNOUT, ">$annFile2b" or die "Cannot open $annFile2b for writing: $OS_ERROR";
   for my $id ( keys %newTx )
   {
     my $t = $newTx{$id};
