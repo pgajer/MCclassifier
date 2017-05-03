@@ -940,9 +940,15 @@ if ( @extraOG>0 )
   ## vicut clustering and so vicut has to be rerun now using the same type of
   ## query and annotation data as before.
 
-  ##@query2 = diff( \@query2, \@extraOG );
-  open QOUT, ">$queryFile2" or die "Cannot open $queryFile2 for writing: $OS_ERROR";
-  open ANNOUT, ">$annFile2" or die "Cannot open $annFile2 for writing: $OS_ERROR";
+  $vicutDir  = "spp_vicut_dir2b";
+
+  my $queryFile2 = "spp_query2b.seqIDs";
+  my $annFile2   = "spp_ann2b.tx";
+  my @query2b;
+  my @ann2b;
+
+  open QOUT, ">$queryFile2b" or die "Cannot open $queryFile2b for writing: $OS_ERROR";
+  open ANNOUT, ">$annFile2b" or die "Cannot open $annFile2b for writing: $OS_ERROR";
   for my $id ( keys %newTx )
   {
     my $t = $newTx{$id};
@@ -976,36 +982,25 @@ if ( @extraOG>0 )
   close ANNOUT;
 
   print "--- Running vicut again\n";
-  if ( @query2 )
+  if ( @query2b )
   {
-    #writeArray(\@query2, $queryFile2 );
-    ## updating query and annotation data removing from them elements of @extraOG
-    #my %extraOGtbl = map { $_ => 1 } @extraOG;
-    #my %aTbl = readTbl( $annFile2 );
-    # open ANNOUT, ">$annFile2" or die "Cannot open $annFile2 for writing: $OS_ERROR";
-    # for my $id ( keys %aTbl )
-    # {
-    #   if ( !exists $extraOGtbl{$id} )
-    #   {
-    # 	print ANNOUT "$id\t" . $newTx{$id} . "\n";
-    #   }
-    # }
-    # close ANNOUT;
-
-
-    $cmd = "vicut $quietStr -t $treeFile -a $annFile2 -q $queryFile2 -o $vicutDir";
-    ##$cmd = "vicut $quietStr -t $treeFile -a $annFile -o $vicutDir";
-    print "\tcmd=$cmd\n" if $dryRun || $debug;
-    system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
-
-    print "--- Running update_spp_tx.pl\n";
-    $cmd = "update_spp_tx.pl $quietStr $debugStr $useLongSppNamesStr -a $updatedTxFile -d $vicutDir";
-    print "\tcmd=$cmd\n" if $dryRun || $debug;
-    system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
-
-    $updatedTxFile = "$vicutDir/updated.tx";
-    %newTx = readTbl($updatedTxFile);
+    $cmd = "vicut $quietStr -t $treeFile -a $annFile2b -q $queryFile2b -o $vicutDir";
   }
+  else
+  {
+    $cmd = "vicut $quietStr -t $treeFile -a $annFile -o $vicutDir";
+  }
+
+  print "\tcmd=$cmd\n" if $dryRun || $debug;
+  system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
+
+  print "--- Running update_spp_tx.pl\n";
+  $cmd = "update_spp_tx.pl $quietStr $debugStr $useLongSppNamesStr -a $updatedTxFile -d $vicutDir";
+  print "\tcmd=$cmd\n" if $dryRun || $debug;
+  system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
+
+  $updatedTxFile = "$vicutDir/updated.tx";
+  %newTx = readTbl($updatedTxFile);
 }
 
 my $sppLineageFile = $grPrefix . "_spp.lineage";
