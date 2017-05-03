@@ -940,28 +940,59 @@ if ( @extraOG>0 )
   ## vicut clustering and so vicut has to be rerun now using the same type of
   ## query and annotation data as before.
 
-  @query2 = diff( \@query2, \@extraOG );
-
-  if ( @query2 )
+  ##@query2 = diff( \@query2, \@extraOG );
+  open QOUT, ">$queryFile2" or die "Cannot open $queryFile2 for writing: $OS_ERROR";
+  open ANNOUT, ">$annFile2" or die "Cannot open $annFile2 for writing: $OS_ERROR";
+  for my $id ( keys %newTx )
   {
-    writeArray(\@query2, $queryFile2 );
+    my $t = $newTx{$id};
+    my @f = split "_", $t;
+    my $g = shift @f;
+    my $suffix = shift @f;
+    my $suffix2 = shift @f;
 
-    ## updating query and annotation data removing from them elements of @extraOG
-    my %extraOGtbl = map { $_ => 1 } @extraOG;
-
-    my %aTbl = readTbl( $annFile2 );
-
-    open ANNOUT, ">$annFile2" or die "Cannot open $annFile2 for writing: $OS_ERROR";
-    for my $id ( keys %aTbl )
+    if ( defined $suffix && $suffix eq "sp" )
     {
-      if ( !exists $extraOGtbl{$id} )
+      if ( !exists $sspSeqID{$id} && !defined $suffix2 ) ## ??? I am not sure about the second condition ??? at this point we should not have _sp_index type specie names
       {
-	print ANNOUT "$id\t" . $newTx{$id} . "\n";
+	push @query2, $id;
+	print QOUT "$id\n";
+	#print "Query2: $id\t$t" if $debug;
+      }
+      else
+      {
+	push @ann2, $id;
+	print ANNOUT "$id\t$t\n";
+	print "Ann2: $id\t$t - with suffix2 def\n";# if $debug;
       }
     }
-    close ANNOUT;
+    else
+    {
+      push @ann2, $id;
+      print ANNOUT "$id\t$t\n";
+    }
+  }
+  close QOUT;
+  close ANNOUT;
 
-    print "--- Running vicut again\n";
+  print "--- Running vicut again\n";
+  if ( @query2 )
+  {
+    #writeArray(\@query2, $queryFile2 );
+    ## updating query and annotation data removing from them elements of @extraOG
+    #my %extraOGtbl = map { $_ => 1 } @extraOG;
+    #my %aTbl = readTbl( $annFile2 );
+    # open ANNOUT, ">$annFile2" or die "Cannot open $annFile2 for writing: $OS_ERROR";
+    # for my $id ( keys %aTbl )
+    # {
+    #   if ( !exists $extraOGtbl{$id} )
+    #   {
+    # 	print ANNOUT "$id\t" . $newTx{$id} . "\n";
+    #   }
+    # }
+    # close ANNOUT;
+
+
     $cmd = "vicut $quietStr -t $treeFile -a $annFile2 -q $queryFile2 -o $vicutDir";
     ##$cmd = "vicut $quietStr -t $treeFile -a $annFile -o $vicutDir";
     print "\tcmd=$cmd\n" if $dryRun || $debug;
@@ -1844,7 +1875,7 @@ for ( @finalCondSppTreeLeaves )
 }
 
 ## species that appear more than once
-my @finalCondSppTreeCountGr1Leaves = grep { $_ > 1 } values %finalCondSppTreeLeafFreq;
+my @finalCondSppTreeCountGr1Leaves = grep { $finalCondSppTreeLeafFreq{$_} > 1 } keys %finalCondSppTreeLeafFreq;
 ## print "finalCondSppTreeCountGr1Leaves: @finalCondSppTreeCountGr1Leaves\n";
 
 @finalCondSppTreeCountGr1Leaves = sort { $finalCondSppTreeLeafFreq{$b} <=> $finalCondSppTreeLeafFreq{$a} } @finalCondSppTreeCountGr1Leaves;
