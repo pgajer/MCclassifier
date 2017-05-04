@@ -203,7 +203,6 @@ print "\r[genotype_spp.pl] --- Generating species within cluster frequency table
 
 my %spp; # $spp{speciesName}{clID} holds sequence IDs of the given species that
 	 # belong to cluster clID
-
 for ( keys %tx )
 {
   if (exists $cltr{$_})
