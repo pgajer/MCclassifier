@@ -225,7 +225,7 @@ my $lineageFile     = $grPrefix . ".lineage";
 my $algnFile	    = $grPrefix . "_ginsi_algn.fa";
 my $trimmedAlgnFile = $grPrefix . "_ginsi_algn.fa"; # "_algn_trimmed.fa";
 my $outgroupFile    = $grPrefix . "_outgroup.seqIDs";
-my $treeFile	    = $grPrefix . "_ginsi_rr.tree";
+my $treeFile	    = $grPrefix . ".tree";
 my $txFile          = $grPrefix . ".tx";
 
 if ( ! -e $lineageFile )
@@ -587,7 +587,7 @@ my $faFile2               = $grPrefix . "_from_algn_gapFree.fa";
 my $ginsiAlgnFile         = $grPrefix . "_ginsi_algn.fa";
 my $rrPrunedGinsiTreeFile = $grPrefix . "_ginsi_rr.tree";
 
-if ( ! -e $ginsiAlgnFile && ! -e $rrPrunedGinsiTreeFile )
+if ( ! -e $ginsiAlgnFile )
 {
   print "--- Redoing alignment using ginsi\n";
   ## first remove gaps
@@ -598,7 +598,10 @@ if ( ! -e $ginsiAlgnFile && ! -e $rrPrunedGinsiTreeFile )
   $cmd = "rm -f $ginsiAlgnFile; ginsi --inputorder $faFile2 > $ginsiAlgnFile";
   print "\tcmd=$cmd\n" if $dryRun || $debug;
   system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+}
 
+if ( ! -e $rrPrunedGinsiTreeFile )
+{
   print "--- Producing tree for the ginsi algn\n";
   my $ginsiTreeFile = $grPrefix . "_ginsi.tree";
   $cmd = "rm -f $ginsiTreeFile; FastTree -nt $trimmedAlgnFile > $ginsiTreeFile";
@@ -848,9 +851,15 @@ for my $id (keys %lineageTbl)
     my @f = split ";", $lineage;
     my $sp = pop @f;
 
-    if ($newSp ne $sp)
+    if ( $newSp ne $sp )
     {
       my ($g, $s) = split "_", $newSp;
+
+      if ( $g =~ /BVAB/ )
+      {
+	$newSp =~ s/_sp$//;
+      }
+
       if ( exists $geLineage{$g} )
       {
 	$lineageTbl{$id} = $geLineage{$g} . ";$newSp";
@@ -864,7 +873,7 @@ for my $id (keys %lineageTbl)
 	}
 	else
 	{
-	  warn "\n\n\tERROR: $g not found in geLineage";
+	  warn "\n\n\tERROR: $g not found in spLineage";
 	  print "\tand spParent{$newSp} not found\n";
 	  print "\tnewSp: $newSp\n";
 	  print "\tlineageTbl{$id}: " . $lineageTbl{$id} . "\n";
@@ -5839,7 +5848,7 @@ sub test_OG
 
   my $ret = 0;
 
-  print "\t--- Extracting leaves\n" if $debug_test_OG;
+  print "\t--- Extracting leaves from $treeFile\n" if $debug_test_OG;
   my $treeLeavesFile = "$grPrefix" . "_sppSeqIDs.leaves";
   my $cmd = "rm -f $treeLeavesFile; nw_labels -I $treeFile > $treeLeavesFile";
   print "\tcmd=$cmd\n" if $dryRun || $debug_test_OG;
