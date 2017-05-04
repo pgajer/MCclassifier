@@ -186,7 +186,12 @@ if ( -l $treeFile )
 print "\n";
 
 print "\r--- Creating cross-validation reports directory";
-my $cvReportsDir = "cv_reports_dir";
+my @now = localtime();
+my $timeStamp = sprintf("%04d-%02d-%02d_%02d_%02d_%02d",
+			$now[5]+1900, $now[4]+1, $now[3],
+			$now[2],      $now[1],   $now[0]);
+
+my $cvReportsDir = "cv_reports_dir_$timeStamp";
 my $cmd = "mkdir -p $cvReportsDir";
 print "\tcmd=$cmd\n" if $dryRun || $debug; # || $debug;
 system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
@@ -213,7 +218,7 @@ if (@commSeqIDs != @seqIDs || @commSeqIDs != @lSeqIDs)
   print "Number of elements in the fasta file: " . @seqIDs . "\n";
   print "Number of elements in the lineage file: " . @lSeqIDs . "\n";
   print "Number of elements common to the fasta and lineage files: " . @commSeqIDs . "\n";
-  exit 1;
+  #exit 1;
 }
 
 print "\r--- Testing if treeFile is consistent with faFile                      ";
