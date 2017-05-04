@@ -912,7 +912,7 @@ if ( @extraOG>0 )
   $cmd = "select_seqs.pl $quietStr -e $extraOGfile -i $trimmedAlgnFile -o $prunedAlgnFile";
   print "\tcmd=$cmd\n" if $dryRun || $debug;
   system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
-  
+
   print "\nThere were ".length $origNewTxFileNoTGTs." seq's. Now there are ". length $updatedTxFile . " seq's.\n\n";
 
   $trimmedAlgnFile = $prunedAlgnFile;
@@ -993,12 +993,12 @@ if ( @extraOG>0 )
 
   $updatedTxFile = "$vicutDir/updated.tx";
   %newTx = readTbl($updatedTxFile);
-  }
-  
-  else {
-  print "\n\n--- No extra OG seq's to be removed (length of extraOG = ".scalar @extraOG. "), SKIPPED VICUT_2b \n\n";
-  }
-  
+}
+else
+{
+  print "--- No extra OG seq's to be removed (length of extraOG = ".scalar @extraOG. "), SKIPPED VICUT_2b\n";
+}
+
 my $sppLineageFile = $grPrefix . "_spp.lineage";
 open OUT, ">$sppLineageFile" or die "Cannot open $sppLineageFile for writing: $OS_ERROR";
 my $wCount = 1;
@@ -1147,7 +1147,7 @@ for my $sp (keys %spFreqTbl)
   }
 }
 
-## Remove _sp species that contain only 1 sequence. 
+## Remove _sp species that contain only 1 sequence.
 if ( @spSingletonSeqs )
 {
   print "--- Found " . scalar @spSingletonSeqs . " _sp species clusters with only one sequence - Removing them now\n";
@@ -1231,7 +1231,7 @@ if ( @spSingletonSeqs )
 
 ## NOTE: I am abandoning the strategy of protecting singleton _sp species (the
 ## only species of a genus that is an _sp species)
-## Regardless of if OGs or singleton seq _sp were found, run now again, 
+## Regardless of if OGs or singleton seq _sp were found, run now again,
 ## but don't protect _sp species that are only ones of genus
 my @query3;
 my @ann3;
@@ -1516,7 +1516,7 @@ if (@lostLeaves>0)
     } # end of if ( exists $newTx{$id} )
   }
 }
-else 
+else
   {
   print "Taxonomy and phylo tree are consistent. Vicut not run again.\n\n";
   }
@@ -1969,9 +1969,6 @@ print "\n\nFrequency of species occuring more than once on the final condense sp
 print "\t$finalCondSppTreeFile\n\n";
 printFormatedTbl(\%finalCondSppTreeLeafFreq, \@finalCondSppTreeCountGr1Leaves);
 print "\n\n";
-
-
-##exit 1;
 
 $section = qq~
 
@@ -2527,7 +2524,7 @@ my %subGeName;       # subGeName{subGeName}{name of the corresponding genus} = c
 my %genusSubGenusTb; # genusSubGenusTb{genus}{subGenus} = count of species
 
 my $detectedLargeGenus = 0;
-my @a = sort { scalar(keys %{$geChildren{$b}}) <=> scalar(keys %{$geChildren{$a}}) } keys %geChildren;
+@a = sort { scalar(keys %{$geChildren{$b}}) <=> scalar(keys %{$geChildren{$a}}) } keys %geChildren;
 for my $ge (@a)
 {
   my @spp = keys %{$geChildren{$ge}};
