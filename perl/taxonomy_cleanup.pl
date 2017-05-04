@@ -222,7 +222,7 @@ chdir $grDir;
 print "--- Changed dir to $grDir\n";
 
 my $lineageFile     = $grPrefix . ".lineage";
-my $algnFile	    = $grPrefix . "_algn.fa";
+my $algnFile	    = $grPrefix . "_ginsi_algn.fa";
 my $trimmedAlgnFile = $grPrefix . "_ginsi_algn.fa"; # "_algn_trimmed.fa";
 my $outgroupFile    = $grPrefix . "_outgroup.seqIDs";
 my $treeFile	    = $grPrefix . "_ginsi_rr.tree";
