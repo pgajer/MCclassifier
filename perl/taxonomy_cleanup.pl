@@ -1971,7 +1971,7 @@ printFormatedTbl(\%finalCondSppTreeLeafFreq, \@finalCondSppTreeCountGr1Leaves);
 print "\n\n";
 
 
-exit 1;
+##exit 1;
 
 $section = qq~
 
@@ -4393,7 +4393,8 @@ if ($buildModelData)
     system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
   }
 
-  print "--- Estimating error thresholds\n";
+  print "--- Estimating error thresholds\n"; ## If we see a novel sequence, let's make sure this isn't classified
+  ## to a species annotation
   $cmd = "est_error_thlds --offset-coef $offsetCoef --tx-size-thld $txSizeThld -d $mcDir";
   print "\tcmd=$cmd\n" if $dryRun || $debug;
   system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
