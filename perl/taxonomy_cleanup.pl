@@ -996,7 +996,7 @@ if ( @extraOG>0 )
 }
 else
 {
-  print "--- No extra OG seq's to be removed (length of extraOG = ".scalar @extraOG. "), SKIPPED VICUT_2b";
+  print "--- No extra OG seq's to be removed (length of extraOG = ".scalar @extraOG. "), SKIPPED VICUT_2b\n";
 }
 
 my $sppLineageFile = $grPrefix . "_spp.lineage";
