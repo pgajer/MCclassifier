@@ -213,6 +213,7 @@ for ( keys %tx )
   else
   {
     stop("ERROR: $_ does not exist in $cltrFile\n");
+    exit;
   }
 }
 
@@ -227,46 +228,51 @@ open TXOUT, ">$newTxFile" or die "Cannot open $newTxFile for writing: $OS_ERROR\
 for my $sp ( keys %spp )
 {
   my ($g, $suffix) = split "_", $sp;
-  ##print "\tsp: $sp\n";
+  print "\tsp: $sp\n";
 
   my %spCltrs = %{$spp{$sp}};
   my $nClts = keys %spCltrs;
 
-  if ( (($suffix && $suffix ne "sp") || (defined $spSpecies{$sp}) ) && $nClts > 1 )
+  if ( (($suffix && $suffix eq "sp") || (defined $spSpecies{$sp}) ) && $nClts > 1 ) ## if an _sp sequence is a singleton
+  ## species and is present in > 1 cluster ... 
   {
     my @cltrIDs = sort { scalar(@{$spCltrs{$b}}) <=> scalar(@{$spCltrs{$a}}) } keys %spCltrs;
-
+	## sort the species clusters by size
     print FREQOUT "$sp\n";
+    ## print the 
     my $clCount = 1;
-    for my $clID ( @cltrIDs )
+    for my $clID ( @cltrIDs ) ## for each cluster ID
     {
-      print FREQOUT "\t$clID\t" . scalar(@{$spCltrs{$clID}}) . "\n";
-      for my $seqID (@{$spCltrs{$clID}})
+      print FREQOUT "\t$clID\t" . scalar(@{$spCltrs{$clID}}) . "\n"; ## print the cluster ID and size of cluster
+      for my $seqID (@{$spCltrs{$clID}}) ## for each seqID within that cluster ID
       {
-	print TXOUT "$seqID\t$sp" . "_$clCount\n";
-	$nFinal++;
+	print TXOUT "$seqID\t$sp" . "_$clCount\n"; ## print the species and attach the cluster count to it
+	$nFinal++; ## increase the final count by one
+	print "after first if statement, nfinal = $nFinal.\n\n"
       }
-      $clCount++;
+      $clCount++; ## and increase the cluster count by 1... repeat this for each of the cluster IDs for this species
     }
     print FREQOUT "\n";
   }
-  elsif ( $suffix && $suffix eq "sp" && !defined $spSpecies{$sp} && $nClts > 1 )
+  elsif ( $suffix && $suffix eq "sp" && !defined $spSpecies{$sp} && $nClts > 1 ) ## or if something is an _sp species, 
+  ## and it is not a singleton _sp species (only species in genus), and it is present in > 1 cluster
   {
     # Count the number of clusters with more than $clSizeThld elements
     my $nLargeCltrs = 0;
-    for my $clID (keys %spCltrs)
+    for my $clID (keys %spCltrs) ## for each cluster ID
     {
-      $nLargeCltrs++ if (scalar(@{$spCltrs{$clID}}) > $clSizeThld);
+      $nLargeCltrs++ if (scalar(@{$spCltrs{$clID}}) > $clSizeThld); ## increase the nLargeclstr by one if  #species in 
+      ## the cluster are > than the threshold
     }
 
-    if ($nLargeCltrs > 1)
+    if ($nLargeCltrs > 1) ## and if this # is greater than 1
     {
-      my $clCount = 1;
-      for my $clID (keys %spCltrs)
+      my $clCount = 1; ## start the cluster count at 1
+      for my $clID (keys %spCltrs) ## and for each cluster ID
       {
-	if (scalar(@{$spCltrs{$clID}}) > $clSizeThld)
+	if (scalar(@{$spCltrs{$clID}}) > 1) ## the # clusters for that species is > 1
 	{
-	  for my $seqID (@{$spCltrs{$clID}})
+	  for my $seqID (@{$spCltrs{$clID}}) ## for each species, attach a cluster ID
 	  {
 	    print TXOUT "$seqID\t$sp" . "_$clCount\n";
 	    $nFinal++;
@@ -275,30 +281,50 @@ for my $sp ( keys %spp )
 	}
       }
     }
-    elsif ($nLargeCltrs > 0)
+    else
     {
-      for my $clID (keys %spCltrs)
+      for my $clID (keys %spCltrs) ## otherwise, for all species clusters, 
       {
-	if (scalar(@{$spCltrs{$clID}}) > $clSizeThld)
-	{
-	  for my $seqID (@{$spCltrs{$clID}})
-	  {
-	    print TXOUT "$seqID\t$sp\n";
-	    $nFinal++;
-	  }
-	}
-      }
-    }
+		if (scalar(@{$spCltrs{$clID}}) > $clSizeThld) ## if the number of species is greater than the thld, 
+		{
+	  		for my $seqID (@{$spCltrs{$clID}})
+	  		{
+	   		 print TXOUT "$seqID\t$sp\n"; ## print to taxonomy. 
+	   		 $nFinal++;
+	  		}
+		}
+       }
+     }
   }
-  elsif ( $suffix && $suffix eq "sp" && !defined $spSpecies{$sp} )
+  elsif ( $suffix && $suffix ne "sp" && $nClts > 1)
+  {
+   my @cltrIDs = sort { scalar(@{$spCltrs{$b}}) <=> scalar(@{$spCltrs{$a}}) } keys %spCltrs;
+	## sort the species clusters by size
+    print FREQOUT "$sp\n";
+    ## print the 
+    my $clCount = 1;
+    for my $clID ( @cltrIDs ) ## for each cluster ID
+    {
+      print FREQOUT "\t$clID\t" . scalar(@{$spCltrs{$clID}}) . "\n"; ## print the cluster ID and size of cluster
+      for my $seqID (@{$spCltrs{$clID}}) ## for each seqID within that cluster ID
+      {
+	print TXOUT "$seqID\t$sp" . "_$clCount\n"; ## print the species and attach the cluster count to it
+	$nFinal++; ## increase the final count by one
+	print "after first if statement, nfinal = $nFinal.\n\n"
+      }
+      $clCount++; ## and increase the cluster count by 1... repeat this for each of the cluster IDs for this species
+    }
+    print FREQOUT "\n";
+    }
+  else ##( $suffix && $suffix eq "sp" && !defined $spSpecies{$sp} ) ## or if it is an _sp species
   {
     ##print "sp: $sp\n";
     my @clIDs = keys %spCltrs;
     ##print "clIDs: @clIDs\n";
     my $clID = shift @clIDs;
 
-    if (scalar(@{$spCltrs{$clID}}) > $clSizeThld)
-    {
+   # if (scalar(@{$spCltrs{$clID}}) > $clSizeThld)
+   # {
       for my $clID (keys %spCltrs)
       {
 	for my $seqID (@{$spCltrs{$clID}})
@@ -306,28 +332,29 @@ for my $sp ( keys %spp )
 	  print TXOUT "$seqID\t$sp\n";
 	  $nFinal++;
 	}
-      }
+    #  }
     }
   }
-  else
-  {
-    ##print "sp: $sp\n";
-    my @clIDs = keys %spCltrs;
+ # else
+  #{
+   # ##print "sp: $sp\n";
+   # my @clIDs = keys %spCltrs;
     ##print "clIDs: @clIDs\n";
-    my $clID = shift @clIDs;
-
-    for my $clID (keys %spCltrs)
-    {
-      for my $seqID (@{$spCltrs{$clID}})
-      {
-	print TXOUT "$seqID\t$sp\n";
-	$nFinal++;
-      }
-    }
-  }
+   # my $clID = shift @clIDs;
+   # for my $clID (keys %spCltrs)
+   # {
+   #   for my $seqID (@{$spCltrs{$clID}})
+   #   {
+#	print TXOUT "$seqID\t$sp\n";
+#	$nFinal++;
+#      }
+#    }
+#  }
 }
 close FREQOUT;
 close TXOUT;
+
+#my @Diff = diff( \@tx, \@newTxFile );
 
 if ($debug)
 {
@@ -363,6 +390,25 @@ sub read2colTbl{
   close IN;
 
   return %tbl;
+}
+
+sub diff{
+
+  my ($a1, $a2) = @_;
+
+  my (%aa1, %aa2);
+
+  foreach my $e (@{$a1}){ $aa1{$e} = 1; }
+  foreach my $e (@{$a2}){ $aa2{$e} = 1; }
+
+  my @d; # dfference array
+
+  foreach my $e (keys %aa1, keys %aa2)
+  {
+    push @d, $e if exists $aa1{$e} && !exists $aa2{$e};
+  }
+
+  return @d;
 }
 
 exit 0;

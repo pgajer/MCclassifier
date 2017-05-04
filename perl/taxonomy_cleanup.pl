@@ -36,7 +36,7 @@
   Firmicutes_group_6 group, then the input group name is "Firmicutes_group_6".
 
 =item B<--use-long-spp-names>
-  Use long species names for sequences from multi-species vicut clusters.
+  Use long species names for sequences from multi-species vicut clusters (option for update_spp_tx.pl)
 
 =item B<--taxon-size-thld>
   Upper limit for the number of elements within each taxon
@@ -236,10 +236,11 @@ if ( ! -e $lineageFile )
 }
 elsif ( ! -e $algnFile )
 {
-  warn "\n\n\tERROR: $algnFile does not exist";
+  warn "\n\n\tERROR: $algnFile or $trimmedAlgnFile does not exist, searching for trimmed alignment file...";
   print "\n\n";
-  exit 1;
+  #exit 1;
 }
+
 elsif ( ! -e $trimmedAlgnFile )
 {
   warn "WARNING: $trimmedAlgnFile does not exist. Creating a symbolic link to $algnFile.\n";
@@ -542,7 +543,7 @@ if ( $debug )
   print "\n\n";
 }
 
-print "--- Generating species ann and query files\n";
+print "--- Generating species ann and query files for 1st vicut run.\n";
 
 # NOTE. We are going to keep outgroup sequences for the species taxonomy cleanup
 # to identify sequences of the target group that cluster with outgroup
@@ -561,7 +562,7 @@ for my $id ( keys %spp )
   my $t = $spp{$id};
   my ($g, $suffix) = split "_", $t;
 
-  if ( defined $suffix && $suffix eq "sp" && !defined $sspSpecies{$t} ) # do not add _sp species coming from genera where they are the only species = this is why !defined $sspSpecies{$t}
+  if ( defined $suffix && $suffix eq "sp" && !exists $sspSpecies{$id} ) # do not add _sp species coming from genera where they are the only species = this is why !defined $sspSpecies{$t}
   {
     print QOUT "$id\n";
     $nQuerySeqs++;
@@ -708,6 +709,7 @@ for my $id ( keys %newTx )
 }
 
 my %sspSeqID; # seqID => 1 if seqID is in the largest cluster of a singleton species;
+## Find clusters of _sp species that are the only species in a genus
 for my $sp (keys %spFreqTbl)
 {
   if (defined $sspSpecies{$sp})
@@ -750,21 +752,14 @@ for my $id ( keys %newTx )
   my $suffix = shift @f;
   my $suffix2 = shift @f;
 
-  if ( defined $suffix && $suffix eq "sp" )
+  if ( defined $suffix && $suffix eq "sp" && !exists $sspSeqID{$id})
   {
-    if ( !exists $sspSeqID{$id} && !defined $suffix2 ) ## ??? I am not sure about the second condition ??? at this point we should not have _sp_index type specie names
-    {
+    #if ( !exists $sspSeqID{$id} && !defined $suffix2 ) ## ??? I am not sure about the second condition ??? at this point we should not have _sp_index type specie names
+    #{
       push @query2, $id;
       print QOUT "$id\n";
       #print "Query2: $id\t$t" if $debug;
     }
-    else
-    {
-      push @ann2, $id;
-      print ANNOUT "$id\t$t\n";
-      print "Ann2: $id\t$t - with suffix2 def\n";# if $debug;
-    }
-  }
   else
   {
     push @ann2, $id;
@@ -814,7 +809,7 @@ if (@query2)
     }
   } ## end of if ( debugSpp )
 
-  print "--- Running vicut again\n";
+  print "--- Running vicut again for new _sp sequences\n";
   $cmd = "vicut $quietStr -t $treeFile -a $annFile2 -q $queryFile2 -o $vicutDir";
   ##$cmd = "vicut $quietStr -t $treeFile -a $annFile -o $vicutDir";
   print "\tcmd=$cmd\n" if $dryRun || $debug;
@@ -844,12 +839,12 @@ for my $id (keys %lineageTbl)
       print "\n\tWARNING: non-OG seq $id was changed to OG species => $newSp; Scheduling removal of the sequence.\n";
       print "\tlineageTbl{$id}: " . $lineageTbl{$id} . "\n\n";
       push @extraOG, $id;
-      delete $lineageTbl{$id};
-      delete $newTx{$id};
+      delete $lineageTbl{$id}; ## remove from lineage table
+      delete $newTx{$id}; ## remove from new taxonomy
       next;
     }
 
-    my $lineage = $lineageTbl{$id};
+    my $lineage = $lineageTbl{$id}; ### not sure what this is doing. Just a check it seems
     my @f = split ";", $lineage;
     my $sp = pop @f;
 
@@ -917,6 +912,8 @@ if ( @extraOG>0 )
   $cmd = "select_seqs.pl $quietStr -e $extraOGfile -i $trimmedAlgnFile -o $prunedAlgnFile";
   print "\tcmd=$cmd\n" if $dryRun || $debug;
   system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
+  
+  print "\nThere were ".length $origNewTxFileNoTGTs." seq's. Now there are ". length $updatedTxFile . " seq's.\n\n";
 
   $trimmedAlgnFile = $prunedAlgnFile;
 
@@ -957,21 +954,14 @@ if ( @extraOG>0 )
     my $suffix = shift @f;
     my $suffix2 = shift @f;
 
-    if ( defined $suffix && $suffix eq "sp" )
+    if ( defined $suffix && $suffix eq "sp" && !exists $sspSeqID{$id})
     {
-      if ( !exists $sspSeqID{$id} && !defined $suffix2 ) ## ??? I am not sure about the second condition ??? at this point we should not have _sp_index type specie names
-      {
+      #if ( !exists $sspSeqID{$id} && !defined $suffix2 ) ## ??? I am not sure about the second condition ??? at this point we should not have _sp_index type specie names
+      #{
 	push @query2b, $id;
 	print QOUT "$id\n";
 	#print "Query2: $id\t$t" if $debug;
       }
-      else
-      {
-	push @ann2b, $id;
-	print AOUT "$id\t$t\n";
-	print "Ann2b: $id\t$t - with suffix2 def\n";# if $debug;
-      }
-    }
     else
     {
       push @ann2b, $id;
@@ -1003,8 +993,12 @@ if ( @extraOG>0 )
 
   $updatedTxFile = "$vicutDir/updated.tx";
   %newTx = readTbl($updatedTxFile);
-}
-
+  }
+  
+  else {
+  print "\n\n--- No extra OG seq's to be removed (length of extraOG = ".scalar @extraOG. "), SKIPPED VICUT_2b \n\n";
+  }
+  
 my $sppLineageFile = $grPrefix . "_spp.lineage";
 open OUT, ">$sppLineageFile" or die "Cannot open $sppLineageFile for writing: $OS_ERROR";
 my $wCount = 1;
@@ -1042,7 +1036,7 @@ my %newTxNoTGTs = %newTx; ## readTbl($updatedTxFile);
 #$updatedTxFile = "$vicutDir/updated.tx";
 print "--- Removing OG seq's from $updatedTxFile\n";
 my $origNewTxFileNoTGTs = "$vicutDir/updated_orig2.tx";
-my $ogFile = "$vicutDir/og.seqIDs";
+my $ogFile = "$vicutDir/outgroup.seqIDs";
 writeArray(\@ogSeqIDs, $ogFile);
 
 $cmd = "mv $updatedTxFile $origNewTxFileNoTGTs";
@@ -1109,6 +1103,8 @@ my %clSeqs;
 $cltrFile = "$vicutDir/minNodeCut.cltrs";
 open IN, "$cltrFile" or die "Cannot open $cltrFile for reading: $OS_ERROR";
 $header = <IN>;
+
+## Determining how many sequences are in a cluster, and creating hash to capture seq IDs per cluster
 foreach (<IN>)
 {
   chomp;
@@ -1122,7 +1118,7 @@ foreach (<IN>)
 }
 close IN;
 
-
+## Determining the frequency of species per cluster
 %spFreqTbl = ();
 for my $id ( keys %newTx )
 {
@@ -1131,39 +1127,40 @@ for my $id ( keys %newTx )
   $spFreqTbl{$sp}{$cl}++;
 }
 
-my @spSingletons;
+my @spSingletonSeqs;
 for my $sp (keys %spFreqTbl)
 {
   my @f = split "_", $sp;
   my $g = shift @f;
   my $s = shift @f;
 
-  if ( defined $s && $s eq "sp" )
+  if ( defined $s && $s eq "sp" ) ## If the species is defined, and it is _sp
   {
-    my @cls = keys %{$spFreqTbl{$sp}};
+    my @cls = keys %{$spFreqTbl{$sp}}; ## find the clusters that the species is in
     for my $cl (@cls)
     {
-      if ($clSize{$cl}==1)
+      if ($clSize{$cl}==1) ## and if number of sequences in the cluster is = 1
       {
-	push @spSingletons, @{$clSeqs{$cl}};
+	push @spSingletonSeqs, @{$clSeqs{$cl}}; ## push to spSingletonSeqs the sequence ID
       }
     }
   }
 }
 
-if ( @spSingletons )
+## Remove _sp species that contain only 1 sequence. 
+if ( @spSingletonSeqs )
 {
-  print "--- Found " . @spSingletons . " _sp species singletons clusters - Removing them now\n";
+  print "--- Found " . scalar @spSingletonSeqs . " _sp species clusters with only one sequence - Removing them now\n";
 
-  delete @newTx{@spSingletons};
-  delete @lineageTbl{@spSingletons};
+  delete @newTx{@spSingletonSeqs};
+  delete @lineageTbl{@spSingletonSeqs};
 
   # removing elements of extraOG from the updated.tx file
   my $updatedTxFile = "$vicutDir/updated.tx";
   print "--- Removing elements of spSingletons from $updatedTxFile\n";
   my $origNewTxFileNoTGTs = "$vicutDir/updated_orig2.tx";
-  my $spSingletonsFile = "$vicutDir/spSingletons.seqIDs";
-  writeArray(\@spSingletons, $spSingletonsFile);
+  my $spSingletonsFile = "$vicutDir/spSingletonSeqs.seqIDs";
+  writeArray(\@spSingletonSeqs, $spSingletonsFile);
 
   $cmd = "mv $updatedTxFile $origNewTxFileNoTGTs";
   print "\tcmd=$cmd\n" if $dryRun || $debug;
@@ -1194,10 +1191,10 @@ if ( @spSingletons )
   }
 
   ## removing OG seq ids
-  @spSingletons = diff( \@spSingletons, \@ogSeqIDs );
-  writeArray(\@spSingletons, $spSingletonsFile);
+  @spSingletonSeqs = diff( \@spSingletonSeqs, \@ogSeqIDs );
+  writeArray(\@spSingletonSeqs, $spSingletonsFile);
 
-  print "--- Pruning spSingletons seq's from the alignment\n";
+  print "--- Pruning _sp species with one sequence from the alignment\n";
   my $prunedAlgnFile = $grPrefix . "_algn_trimmed_pruned2.fa";
   $cmd = "select_seqs.pl $quietStr -e $spSingletonsFile -i $trimmedAlgnFile -o $prunedAlgnFile";
   print "\tcmd=$cmd\n" if $dryRun || $debug;
@@ -1206,7 +1203,7 @@ if ( @spSingletons )
   $trimmedAlgnFile = $prunedAlgnFile;
 
   # Rebuilding tree
-  print "--- Rebuilding phylo tree (1)\n";
+  print "--- Rebuilding phylo tree after removal of _sp Singleton species\n";
   my $prunedTreeFile = $grPrefix . "_pruned2.tree";
   $cmd = "rm -f $prunedTreeFile; FastTree -nt $trimmedAlgnFile > $prunedTreeFile";
   print "\tcmd=$cmd\n" if $dryRun || $debug;
@@ -1227,155 +1224,156 @@ if ( @spSingletons )
   system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 
   $treeFile = $prunedTreeFile;
+}
+##
+## Running vicut again
+##
 
-  ##
-  ## Running vicut again
-  ##
+## NOTE: I am abandoning the strategy of protecting singleton _sp species (the
+## only species of a genus that is an _sp species)
+## Regardless of if OGs or singleton seq _sp were found, run now again, 
+## but don't protect _sp species that are only ones of genus
+my @query3;
+my @ann3;
+my $queryFile3 = "spp_query3.seqIDs";
+my $annFile3   = "spp_ann3.tx";
+open QOUT, ">$queryFile3" or die "Cannot open $queryFile3 for writing: $OS_ERROR";
+open AOUT, ">$annFile3"   or die "Cannot open $annFile3 for writing: $OS_ERROR";
+for my $id ( keys %newTx )
+{
+my $t = $newTx{$id};
+my @f = split "_", $t;
+my $g = shift @f;
+my $suffix = shift @f;
+my $suffix2 = shift @f;
 
-  ## NOTE: I am abandoning the strategy of protecting singleton _sp species (the
-  ## only species of a genus that is an _sp species)
+if ( defined $suffix && $suffix eq "sp" ) ## now allowing for _sp that are only species in genus to be replaced
+{
+  push @query3, $id;
+  print QOUT "$id\n";
+}
+else
+{
+  push @ann3, $id;
+  print AOUT "$id\t$t\n";
+}
+}
+close QOUT;
+close AOUT;
 
-  my @query3;
-  my @ann3;
-  my $queryFile3 = "spp_query3.seqIDs";
-  my $annFile3   = "spp_ann3.tx";
-  open QOUT, ">$queryFile3" or die "Cannot open $queryFile3 for writing: $OS_ERROR";
-  open AOUT, ">$annFile3"   or die "Cannot open $annFile3 for writing: $OS_ERROR";
-  for my $id ( keys %newTx )
-  {
-    my $t = $newTx{$id};
-    my @f = split "_", $t;
-    my $g = shift @f;
-    my $suffix = shift @f;
-    my $suffix2 = shift @f;
+## Testing consistency between the ann and query seq's and the tree The leaf
+## IDs should be set-theoretically the same as the union of ann and query IDs.
 
-    if ( defined $suffix && $suffix eq "sp" )
-    {
-      push @query3, $id;
-      print QOUT "$id\n";
-    }
-    else
-    {
-      push @ann3, $id;
-      print AOUT "$id\t$t\n";
-    }
-  }
-  close QOUT;
-  close AOUT;
+## extracting leave IDs
+$cmd = "rm -f $treeLeavesFile; nw_labels -I $treeFile > $treeLeavesFile";
+print "\tcmd=$cmd\n" if $dryRun || $debug;
+system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 
-  ## Testing consistency between the ann and query seq's and the tree The leaf
-  ## IDs should be set-theoretically the same as the union of ann and query IDs.
+@treeLeaves = readArray($treeLeavesFile);
 
-  ## extracting leave IDs
-  $cmd = "rm -f $treeLeavesFile; nw_labels -I $treeFile > $treeLeavesFile";
+my @a = (@query3, @ann3);
+if ( !setequal( \@a, \@treeLeaves ) )
+{
+warn "\n\n\tERROR: found inconsistency between the set of leaves of the current tree";
+print "see $treeLeavesFile\n";
+print "and the union of query and annotation IDs in\n";
+print "$queryFile3\n";
+print "and\n";
+print "$annFile3\n\n";
+exit 1;
+}
+
+if ( $debugSpp )
+{
+print "\n\n\tNumber of annotation seq's: " . @ann3. "\n";
+print     "\tNumber of query seq's:      " . @query3 . "\n";
+print     "\tSum:                        " . (@ann3 + @query3) . "\n";
+print     "\tNumber of leaves: " . @treeLeaves . "\n\n";
+
+print "--- Generating condensed species tree before the 3rd run of vicut\n";
+
+my %txTbl = %newTx;
+my $txTblFile = $grPrefix . "_before_3rd_vicut.tx";
+writeTbl(\%txTbl, $txTblFile);
+
+my $condSppTreeFile = $grPrefix . "_cond_spp_before_3rd_vicut.tree";
+
+build_cond_spp_tree($treeFile, $txTblFile, $condSppTreeFile);
+
+print "\n\n\tBefore the 3rd vicut condensed species tree written to $condSppTreeFile\n\n";
+
+if ( !$doNotPopPDFs && $OSNAME eq "darwin")
+{
+  my $pdfFile = abs_path( $grPrefix . "_cond_spp_before_3rd_vicut_tree.pdf" );
+  my $title = $grPrefix . " - cond_spp_before_3rd_vicut";
+  plot_tree_bw($condSppTreeFile, $pdfFile, $title);
+
+  $cmd = "open $pdfFile";
   print "\tcmd=$cmd\n" if $dryRun || $debug;
   system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
+}
 
-  @treeLeaves = readArray($treeLeavesFile);
+}
 
-  my @a = (@query3, @ann3);
-  if ( !setequal( \@a, \@treeLeaves ) )
+$vicutDir  = "spp_vicut_dir3";
+
+#print "--- Running vicut on species data the 3rd time\n";
+if (@query3)
+{
+print "--- Running vicut on species data the 3rd time because _sp species were still found.\n";
+$cmd = "vicut $quietStr -t $treeFile -a $annFile3 -q $queryFile3 -o $vicutDir";
+}
+else
+{
+print "--- Running vicut on species data the 3rd time without query file (no more _sp species).\n";
+$cmd = "vicut $quietStr -t $treeFile -a $annFile3 -o $vicutDir";
+}
+print "\tcmd=$cmd\n" if $dryRun || $debug;
+system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
+
+print "--- Running update_spp_tx.pl\n";
+$cmd = "update_spp_tx.pl $quietStr $debugStr $useLongSppNamesStr -a $updatedTxFile -d $vicutDir";
+print "\tcmd=$cmd\n" if $dryRun || $debug;
+system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
+
+$updatedTxFile = "$vicutDir/updated.tx";
+%newTx = readTbl($updatedTxFile);
+
+print "--- Updating lineageTbl after 3rd run of vicut\n";
+for my $id (keys %lineageTbl)
+{
+if ( exists $newTx{$id} )
+{
+  my $lineage = $lineageTbl{$id};
+  my @f = split ";", $lineage;
+  my $sp = pop @f;
+  my $newSp = $newTx{$id};
+  if ($newSp ne $sp)
   {
-    warn "\n\n\tERROR: found inconsistency between the set of leaves of the current tree";
-    print "see $treeLeavesFile\n";
-    print "and the union of query and annotation IDs in\n";
-    print "$queryFile3\n";
-    print "and\n";
-    print "$annFile3\n\n";
-    exit 1;
-  }
-
-  if ( $debugSpp )
-  {
-    print "\n\n\tNumber of annotation seq's: " . @ann3. "\n";
-    print     "\tNumber of query seq's:      " . @query3 . "\n";
-    print     "\tSum:                        " . (@ann3 + @query3) . "\n";
-    print     "\tNumber of leaves: " . @treeLeaves . "\n\n";
-
-    print "--- Generating condensed species tree before the 3rd run of vicut\n";
-
-    my %txTbl = %newTx;
-    my $txTblFile = $grPrefix . "_before_3rd_vicut.tx";
-    writeTbl(\%txTbl, $txTblFile);
-
-    my $condSppTreeFile = $grPrefix . "_cond_spp_before_3rd_vicut.tree";
-
-    build_cond_spp_tree($treeFile, $txTblFile, $condSppTreeFile);
-
-    print "\n\n\tBefore the 3rd vicut condensed species tree written to $condSppTreeFile\n\n";
-
-    if ( !$doNotPopPDFs && $OSNAME eq "darwin")
-    {
-      my $pdfFile = abs_path( $grPrefix . "_cond_spp_before_3rd_vicut_tree.pdf" );
-      my $title = $grPrefix . " - cond_spp_before_3rd_vicut";
-      plot_tree_bw($condSppTreeFile, $pdfFile, $title);
-
-      $cmd = "open $pdfFile";
-      print "\tcmd=$cmd\n" if $dryRun || $debug;
-      system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
-    }
-
-  }
-
-  ## If _sp sequences, print to file, and set vicutDir to 2nd run directory
-  $vicutDir  = "spp_vicut_dir3";
-
-  print "--- Running vicut on species data the 3rd time\n";
-  if (@query3)
-  {
-    $cmd = "vicut $quietStr -t $treeFile -a $annFile3 -q $queryFile3 -o $vicutDir";
-  }
-  else
-  {
-    $cmd = "vicut $quietStr -t $treeFile -a $annFile3 -o $vicutDir";
-  }
-  print "\tcmd=$cmd\n" if $dryRun || $debug;
-  system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
-
-  print "--- Running update_spp_tx.pl\n";
-  $cmd = "update_spp_tx.pl $quietStr $debugStr $useLongSppNamesStr -a $updatedTxFile -d $vicutDir";
-  print "\tcmd=$cmd\n" if $dryRun || $debug;
-  system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
-
-  $updatedTxFile = "$vicutDir/updated.tx";
-  %newTx = readTbl($updatedTxFile);
-
-  print "--- Updating lineageTbl after 3rd run of vicut\n";
-  for my $id (keys %lineageTbl)
-  {
-    if ( exists $newTx{$id} )
-    {
-      my $lineage = $lineageTbl{$id};
-      my @f = split ";", $lineage;
-      my $sp = pop @f;
-      my $newSp = $newTx{$id};
-      if ($newSp ne $sp)
-      {
 	my ($g, $s) = split "_", $newSp;
 	if ( exists $geLineage{$g} )
 	{
-	  $lineageTbl{$id} = $geLineage{$g} . ";$newSp";
+ 	 $lineageTbl{$id} = $geLineage{$g} . ";$newSp";
 	}
-	else
+    else
 	{
-	  if (exists $spParent{$newSp})
-	  {
-	    $g = $spParent{$newSp};
-	    $lineageTbl{$id} = $geLineage{$g} . ";$newSp";
-	  }
-	  else
-	  {
-	    warn "\n\n\tERROR: $g not found in geLineage";
-	    print "\tand spParent{$newSp} not found\n";
-	    print "\tnewSp: $newSp\n";
-	    print "\tlineageTbl{$id}: " . $lineageTbl{$id} . "\n";
-	    print "\n\n";
-	    exit 1;
-	  }
-	}
+      if (exists $spParent{$newSp})
+      {
+	  $g = $spParent{$newSp};
+	  $lineageTbl{$id} = $geLineage{$g} . ";$newSp";
       }
-    } # end of if ( exists $newTx{$id} )
+      else
+    {
+	  warn "\n\n\tERROR: $g not found in geLineage";
+	  print "\tand spParent{$newSp} not found\n";
+	  print "\tnewSp: $newSp\n";
+	  print "\tlineageTbl{$id}: " . $lineageTbl{$id} . "\n";
+	  print "\n\n";
+	  exit 1;
+    }
+   }
   }
+} # end of if ( exists $newTx{$id} )
 }
 
 print "--- Testing again consistency between the phylo tree and sequences after taxonomy cleanup\n";
@@ -1461,7 +1459,7 @@ if (@lostLeaves>0)
 
   $vicutDir  = "spp_vicut_dir4";
 
-  print "--- Running vicut on species data the 4th time\n";
+  print "--- Running vicut on species data the 4th time because of in consistency between tree & taxonomy.\n";
   if (@query4)
   {
     $cmd = "vicut $quietStr -t $treeFile -a $annFile4 -q $queryFile4 -o $vicutDir";
@@ -1518,7 +1516,10 @@ if (@lostLeaves>0)
     } # end of if ( exists $newTx{$id} )
   }
 }
-
+else 
+  {
+  print "Taxonomy and phylo tree are consistent. Vicut not run again.\n\n";
+  }
 print "--- Checking parent consistency of the lineage table\n";
 if ( check_parent_consistency(\%lineageTbl) )
 {
