@@ -302,14 +302,14 @@ if (1)
   # exit 0;
 }
 
-
 ##
 ## cross-validation loop
 ##
 foreach my $i (0..($nFolds-1))
 {
   print "\r[$i] Creating cross-validation directory";
-  my $cvDir = "cvDir_$i";
+  #my $cvDir = "cvDir_$i";
+  my $cvDir = "cvDir";
   my $cmd = "rm -rf $cvDir; mkdir $cvDir";
   print "\tcmd=$cmd\n" if $dryRun || $debug; # || $debug;
   system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
