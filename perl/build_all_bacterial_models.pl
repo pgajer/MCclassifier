@@ -124,15 +124,15 @@ my @faFiles0 = ("Actinobacteria_dir/Actinobacteria_group_0_V3V4_dir/Actinobacter
                "Bacteroidetes_dir/Bacteroidetes_group_1_V3V4_dir/Bacteroidetes_group_1_V3V4_final.fa",
                "Bacteroidetes_dir/Bacteroidetes_group_2_V3V4_dir/Bacteroidetes_group_2_V3V4_final.fa",
                "Bacteroidetes_dir/Bacteroidetes_group_3_V3V4_dir/Bacteroidetes_group_3_V3V4_final.fa",
-               "final_small_phyla/Chloroflexi_V3V4_dir/Chloroflexi_V3V4_final.fa",
-               "final_small_phyla/Deinococcus_Thermus_V3V4_dir/Deinococcus_Thermus_V3V4_final.fa",
-               "final_small_phyla/Fusobacteria_V3V4_dir/Fusobacteria_V3V4_final.fa",
-               "final_small_phyla/Nitrospirae_V3V4_dir/Nitrospirae_V3V4_final.fa",
-               "final_small_phyla/Planctomycetes_V3V4_dir/Planctomycetes_V3V4_final.fa",
-               "final_small_phyla/Spirochaetes_V3V4_dir/Spirochaetes_V3V4_final.fa",
-               "final_small_phyla/Tenericutes_V3V4_dir/Tenericutes_V3V4_final.fa",
-               "final_small_phyla/Verrucomicrobia_V3V4_dir/Verrucomicrobia_V3V4_final.fa",
-               "final_small_phyla/phyla_lessthen_1k_wOG_V3V4_dir/phyla_lessthen_1k_wOG_V3V4_final.fa",
+               "final_small_phyla_V3V4/Chloroflexi_V3V4_dir/Chloroflexi_V3V4_final.fa",
+               "final_small_phyla_V3V4/Deinococcus_Thermus_V3V4_dir/Deinococcus_Thermus_V3V4_final.fa",
+               "final_small_phyla_V3V4/Fusobacteria_V3V4_dir/Fusobacteria_V3V4_final.fa",
+               "final_small_phyla_V3V4/Nitrospirae_V3V4_dir/Nitrospirae_V3V4_final.fa",
+               "final_small_phyla_V3V4/Planctomycetes_V3V4_dir/Planctomycetes_V3V4_final.fa",
+               "final_small_phyla_V3V4/Spirochaetes_V3V4_dir/Spirochaetes_V3V4_final.fa",
+               "final_small_phyla_V3V4/Tenericutes_V3V4_dir/Tenericutes_V3V4_final.fa",
+               "final_small_phyla_V3V4/Verrucomicrobia_V3V4_dir/Verrucomicrobia_V3V4_final.fa",
+               "final_small_phyla_V3V4/phyla_lessthen_1k_wOG_V3V4_dir/phyla_lessthen_1k_wOG_V3V4_final.fa",
                "Firmicutes_dir/Firmicutes_group_0_V3V4_dir/Firmicutes_group_0_V3V4_final.fa",
                "Firmicutes_dir/Firmicutes_group_1_V3V4_dir/Firmicutes_group_1_V3V4_final.fa",
                "Firmicutes_dir/Firmicutes_group_2_V3V4_dir/Firmicutes_group_2_V3V4_final.fa",
@@ -172,15 +172,15 @@ my @spLineageFiles0 = ("Actinobacteria_dir/Actinobacteria_group_0_V3V4_dir/Actin
 		     "Bacteroidetes_dir/Bacteroidetes_group_1_V3V4_dir/Bacteroidetes_group_1_V3V4_final.spLineage",
 		     "Bacteroidetes_dir/Bacteroidetes_group_2_V3V4_dir/Bacteroidetes_group_2_V3V4_final.spLineage",
 		     "Bacteroidetes_dir/Bacteroidetes_group_3_V3V4_dir/Bacteroidetes_group_3_V3V4_final.spLineage",
-		     "final_small_phyla/Chloroflexi_V3V4_dir/Chloroflexi_V3V4_final.spLineage",
-		     "final_small_phyla/Deinococcus_Thermus_V3V4_dir/Deinococcus_Thermus_V3V4_final.spLineage",
-		     "final_small_phyla/Fusobacteria_V3V4_dir/Fusobacteria_V3V4_final.spLineage",
-		     "final_small_phyla/Nitrospirae_V3V4_dir/Nitrospirae_V3V4_final.spLineage",
-		     "final_small_phyla/Planctomycetes_V3V4_dir/Planctomycetes_V3V4_final.spLineage",
-		     "final_small_phyla/Spirochaetes_V3V4_dir/Spirochaetes_V3V4_final.spLineage",
-		     "final_small_phyla/Tenericutes_V3V4_dir/Tenericutes_V3V4_final.spLineage",
-		     "final_small_phyla/Verrucomicrobia_V3V4_dir/Verrucomicrobia_V3V4_final.spLineage",
-		     "final_small_phyla/phyla_lessthen_1k_wOG_V3V4_dir/phyla_lessthen_1k_wOG_V3V4_final.spLineage",
+		     "final_small_phyla_V3V4/Chloroflexi_V3V4_dir/Chloroflexi_V3V4_final.spLineage",
+		     "final_small_phyla_V3V4/Deinococcus_Thermus_V3V4_dir/Deinococcus_Thermus_V3V4_final.spLineage",
+		     "final_small_phyla_V3V4/Fusobacteria_V3V4_dir/Fusobacteria_V3V4_final.spLineage",
+		     "final_small_phyla_V3V4/Nitrospirae_V3V4_dir/Nitrospirae_V3V4_final.spLineage",
+		     "final_small_phyla_V3V4/Planctomycetes_V3V4_dir/Planctomycetes_V3V4_final.spLineage",
+		     "final_small_phyla_V3V4/Spirochaetes_V3V4_dir/Spirochaetes_V3V4_final.spLineage",
+		     "final_small_phyla_V3V4/Tenericutes_V3V4_dir/Tenericutes_V3V4_final.spLineage",
+		     "final_small_phyla_V3V4/Verrucomicrobia_V3V4_dir/Verrucomicrobia_V3V4_final.spLineage",
+		     "final_small_phyla_V3V4/phyla_lessthen_1k_wOG_V3V4_dir/phyla_lessthen_1k_wOG_V3V4_final.spLineage",
 		     "Firmicutes_dir/Firmicutes_group_0_V3V4_dir/Firmicutes_group_0_V3V4_final.spLineage",
 		     "Firmicutes_dir/Firmicutes_group_1_V3V4_dir/Firmicutes_group_1_V3V4_final.spLineage",
 		     "Firmicutes_dir/Firmicutes_group_2_V3V4_dir/Firmicutes_group_2_V3V4_final.spLineage",
@@ -220,15 +220,15 @@ my @txFiles0 = ("Actinobacteria_dir/Actinobacteria_group_0_V3V4_dir/Actinobacter
 		     "Bacteroidetes_dir/Bacteroidetes_group_1_V3V4_dir/Bacteroidetes_group_1_V3V4_final.tx",
 		     "Bacteroidetes_dir/Bacteroidetes_group_2_V3V4_dir/Bacteroidetes_group_2_V3V4_final.tx",
 		     "Bacteroidetes_dir/Bacteroidetes_group_3_V3V4_dir/Bacteroidetes_group_3_V3V4_final.tx",
-		     "final_small_phyla/Chloroflexi_V3V4_dir/Chloroflexi_V3V4_final.tx",
-		     "final_small_phyla/Deinococcus_Thermus_V3V4_dir/Deinococcus_Thermus_V3V4_final.tx",
-		     "final_small_phyla/Fusobacteria_V3V4_dir/Fusobacteria_V3V4_final.tx",
-		     "final_small_phyla/Nitrospirae_V3V4_dir/Nitrospirae_V3V4_final.tx",
-		     "final_small_phyla/Planctomycetes_V3V4_dir/Planctomycetes_V3V4_final.tx",
-		     "final_small_phyla/Spirochaetes_V3V4_dir/Spirochaetes_V3V4_final.tx",
-		     "final_small_phyla/Tenericutes_V3V4_dir/Tenericutes_V3V4_final.tx",
-		     "final_small_phyla/Verrucomicrobia_V3V4_dir/Verrucomicrobia_V3V4_final.tx",
-		     "final_small_phyla/phyla_lessthen_1k_wOG_V3V4_dir/phyla_lessthen_1k_wOG_V3V4_final.tx",
+		     "final_small_phyla_V3V4/Chloroflexi_V3V4_dir/Chloroflexi_V3V4_final.tx",
+		     "final_small_phyla_V3V4/Deinococcus_Thermus_V3V4_dir/Deinococcus_Thermus_V3V4_final.tx",
+		     "final_small_phyla_V3V4/Fusobacteria_V3V4_dir/Fusobacteria_V3V4_final.tx",
+		     "final_small_phyla_V3V4/Nitrospirae_V3V4_dir/Nitrospirae_V3V4_final.tx",
+		     "final_small_phyla_V3V4/Planctomycetes_V3V4_dir/Planctomycetes_V3V4_final.tx",
+		     "final_small_phyla_V3V4/Spirochaetes_V3V4_dir/Spirochaetes_V3V4_final.tx",
+		     "final_small_phyla_V3V4/Tenericutes_V3V4_dir/Tenericutes_V3V4_final.tx",
+		     "final_small_phyla_V3V4/Verrucomicrobia_V3V4_dir/Verrucomicrobia_V3V4_final.tx",
+		     "final_small_phyla_V3V4/phyla_lessthen_1k_wOG_V3V4_dir/phyla_lessthen_1k_wOG_V3V4_final.tx",
 		     "Firmicutes_dir/Firmicutes_group_0_V3V4_dir/Firmicutes_group_0_V3V4_final.tx",
 		     "Firmicutes_dir/Firmicutes_group_1_V3V4_dir/Firmicutes_group_1_V3V4_final.tx",
 		     "Firmicutes_dir/Firmicutes_group_2_V3V4_dir/Firmicutes_group_2_V3V4_final.tx",
@@ -374,7 +374,7 @@ foreach $file (@spLineageFiles)
 
 if (0)
 {
-  print "\rTesting is there are species with the same name in different phylo-groups. There should not be any";
+  print "\rTesting if there are species with the same name in different phylo-groups. There should not be any";
   for my $sp (keys %spTbl)
   {
     my @gps = keys %{$spTbl{$sp}};
@@ -384,7 +384,7 @@ if (0)
     }
   }
 
-  print "\rTesting is there are sub-genera with the same name in different phylo-groups. There should not be any";
+  print "\rTesting if there are sub-genera with the same name in different phylo-groups. There should not be any";
   for my $sge (keys %sgeTbl)
   {
     my @gps = keys %{$sgeTbl{$sge}};
@@ -394,7 +394,7 @@ if (0)
     }
   }
 
-  print "\rTesting is there are genera with the same name in different phylo-groups. There should not be any";
+  print "\rTesting if there are genera with the same name in different phylo-groups. There should not be any";
   for my $ge (keys %geTbl)
   {
     my @gps = keys %{$geTbl{$ge}};
@@ -404,7 +404,7 @@ if (0)
     }
   }
 
-  print "\rTesting is there are families with the same name in different phylo-groups.                            ";
+  print "\rTesting if there are families with the same name in different phylo-groups.                            ";
   for my $fa (keys %faTbl)
   {
     my @gps = keys %{$faTbl{$fa}};
@@ -414,7 +414,7 @@ if (0)
     }
   }
 
-  print "\rTesting is there are orders with the same name in different phylo-groups.                               ";
+  print "\rTesting if there are orders with the same name in different phylo-groups.                               ";
   for my $or (keys %orTbl)
   {
     my @gps = keys %{$orTbl{$or}};
@@ -424,7 +424,7 @@ if (0)
     }
   }
 
-  print "\rTesting is there are classes with the same name in different phylo-groups.                               ";
+  print "\rTesting if there are classes with the same name in different phylo-groups.                               ";
   for my $cl (keys %clTbl)
   {
     my @gps = keys %{$clTbl{$cl}};
@@ -434,7 +434,7 @@ if (0)
     }
   }
 
-  print "\rTesting is there are phyla with the same name in different phylo-groups.                                  ";
+  print "\rTesting if there are phyla with the same name in different phylo-groups.                                  ";
   for my $ph (keys %phTbl)
   {
     my @gps = keys %{$phTbl{$ph}};
@@ -447,7 +447,7 @@ if (0)
 
 ##print "\r                                                                                                            \n\n";
 
-# Testing is there are orders with the same name in different phylo-groups.
+# Testing if there are orders with the same name in different phylo-groups.
 # o_Actinomycetales_2: Actinobacteria_group_5_V3V4 Actinobacteria_group_1_V3V4
 # o_Actinomycetales: Actinobacteria_group_4_V3V4 Actinobacteria_group_2_V3V4 Actinobacteria_group_3_V3V4
 # o_Actinomycetales_1: Actinobacteria_group_1_V3V4 Actinobacteria_group_5_V3V4
@@ -477,7 +477,7 @@ if (0)
 # o_Actinomycetales_10: Actinobacteria_group_5_V3V4 Actinobacteria_group_1_V3V4
 # o_Actinomycetales_19: Actinobacteria_group_1_V3V4 Actinobacteria_group_5_V3V4
 
-# Testing is there are classes with the same name in different phylo-groups.
+# Testing if there are classes with the same name in different phylo-groups.
 # c_Alphaproteobacteria_5: Proteobacteria_group_5_V3V4 Proteobacteria_group_8_V3V4
 # c_Actinobacteria: Actinobacteria_group_1_V3V4 Actinobacteria_group_3_V3V4 Actinobacteria_group_2_V3V4 Actinobacteria_group_0_V3V4 Actinobacteria_group_4_V3V4
 # c_Betaproteobacteria: Proteobacteria_group_4_V3V4 Proteobacteria_group_2_V3V4 Proteobacteria_group_3_V3V4
@@ -490,7 +490,7 @@ if (0)
 # c_Alphaproteobacteria_2: Proteobacteria_group_8_V3V4 Proteobacteria_group_5_V3V4
 # c_Gammaproteobacteria: Proteobacteria_group_14_V3V4 Proteobacteria_group_12_V3V4 Proteobacteria_group_15_V3V4 Proteobacteria_group_11_V3V4 Proteobacteria_group_17_V3V4 Proteobacteria_group_13_V3V4
 
-# Testing is there are phyla with the same name in different phylo-groups.
+# Testing if there are phyla with the same name in different phylo-groups.
 # p_Bacteroidetes: Bacteroidetes_group_3_V3V4 Bacteroidetes_group_2_V3V4 Bacteroidetes_group_0_V3V4 Bacteroidetes_group_1_V3V4
 # p_Actinobacteria: Actinobacteria_group_0_V3V4 Actinobacteria_group_2_V3V4 Actinobacteria_group_4_V3V4 Actinobacteria_group_5_V3V4 Actinobacteria_group_1_V3V4 Actinobacteria_group_3_V3V4
 # p_Proteobacteria: Proteobacteria_group_13_V3V4 Proteobacteria_group_1_V3V4 Proteobacteria_group_5_V3V4 Proteobacteria_group_4_V3V4 Proteobacteria_group_9_V3V4 Proteobacteria_group_2_V3V4 Proteobacteria_group_0_V3V4 Proteobacteria_group_12_V3V4 Proteobacteria_group_7_V3V4 Proteobacteria_group_15_V3V4 Proteobacteria_group_11_V3V4 Proteobacteria_group_8_V3V4 Proteobacteria_group_14_V3V4 Proteobacteria_group_10_V3V4 Proteobacteria_group_6_V3V4 Proteobacteria_group_3_V3V4 Proteobacteria_group_17_V3V4
