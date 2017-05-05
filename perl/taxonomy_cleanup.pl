@@ -922,8 +922,6 @@ if ( @extraOG>0 )
   print "\tcmd=$cmd\n" if $dryRun || $debug;
   system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 
-  print "\nThere were ".length $origNewTxFileNoTGTs." seq's. Now there are ". length $updatedTxFile . " seq's.\n\n";
-
   $trimmedAlgnFile = $prunedAlgnFile;
 
   # regenerating a phylo tree
@@ -1525,10 +1523,7 @@ if (@lostLeaves>0)
     } # end of if ( exists $newTx{$id} )
   }
 }
-else
-  {
-  print "Taxonomy and phylo tree are consistent. Vicut not run again.\n\n";
-  }
+
 print "--- Checking parent consistency of the lineage table\n";
 if ( check_parent_consistency(\%lineageTbl) )
 {
@@ -1974,10 +1969,16 @@ my @finalCondSppTreeCountGr1Leaves = grep { $finalCondSppTreeLeafFreq{$_} > 1 } 
 
 @finalCondSppTreeCountGr1Leaves = sort { $finalCondSppTreeLeafFreq{$b} <=> $finalCondSppTreeLeafFreq{$a} } @finalCondSppTreeCountGr1Leaves;
 
-print "\n\nFrequency of species occuring more than once on the final condense species tree\n";
-print "\t$finalCondSppTreeFile\n\n";
-printFormatedTbl(\%finalCondSppTreeLeafFreq, \@finalCondSppTreeCountGr1Leaves);
-print "\n\n";
+if ( @finalCondSppTreeCountGr1Leaves )
+{
+  print "\n\nERROR: there are species appearing more than once on the final species condensed tree\n";
+  print "$finalCondSppTreeFile\n";
+  print "\n\nFrequency of species occuring more than once on the final condense species tree\n";
+  print "\t$finalCondSppTreeFile\n\n";
+  printFormatedTbl(\%finalCondSppTreeLeafFreq, \@finalCondSppTreeCountGr1Leaves);
+  print "\n\n";
+  exit 1;
+}
 
 $section = qq~
 
