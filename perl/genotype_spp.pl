@@ -247,7 +247,6 @@ for my $sp ( keys %spp )
       {
 	print TXOUT "$seqID\t$sp" . "_$clCount\n"; ## print the species and attach the cluster count to it
 	$nFinal++; ## increase the final count by one
-	#print "after first if statement, nfinal = $nFinal.\n\n"
       }
       $clCount++; ## and increase the cluster count by 1... repeat this for each of the cluster IDs for this species
     }
@@ -309,7 +308,6 @@ for my $sp ( keys %spp )
       {
 	print TXOUT "$seqID\t$sp" . "_$clCount\n"; ## print the species and attach the cluster count to it
 	$nFinal++; ## increase the final count by one
-	print "after first if statement, nfinal = $nFinal.\n\n"
       }
       $clCount++; ## and increase the cluster count by 1... repeat this for each of the cluster IDs for this species
     }
