@@ -17,7 +17,7 @@
 
 =over
 
-=item B<--tx-file, -i>
+=item B<--tx-file, -a>
   Tab or space delimited taxonomy file.
 
 =item B<--vicut-dir, -d>
@@ -105,179 +105,197 @@ if ( ! -f $newTxFile )
 ####################################################################
 
 
-print "--- Parsing tax table from before vicut taxonomy modifications\n";
-my %tx = read2colTbl($txFile);
+print "--- Parsing taxonomy table (in $txFile) from BEFORE vicut taxonomy modifications\n";
+my %preVicutTxTbl = read2colTbl($txFile);
 
-print "\t- Updating min-node-cut taxonomy using majority vote\n";
+#print "\t- Updating min-node-cut taxonomy using majority vote\n";
 
 my $cltrFile = "$vicutDir/minNodeCut.cltrs";
-if ( ! -f $cltrFile )
-{
-  print "\n\nERROR: $cltrFile does not exist\n\n\n";
-  exit 1;
-}
+my ($rclTbl, $rclIDsTbl, $rtxTbl)  = readCltrTbl($cltrFile);
 
-my ($rid2clTbl, $rclTbl, $rclFreqTbl, $rtxTbl)  = readCltrTbl($cltrFile);
+my %clIDsTbl  = %{$rclIDsTbl};    # cltrID => ref to array of IDs in the given cluster
+my %clTbl     = %{$rclTbl};       # seqID => cltrID
+my %txTbl     = %{$rtxTbl};       # seqID => taxonomy (NA for query seq's; otherwise should be consistent/the same as in preVicutTxTbl)
 
-##my %clFreqTbl = %{$rclFreqTbl}; # cltrID => table of taxon frequencies within the given cluster
-my %clTbl     = %{$rclTbl};     # cltrID => ref to array of IDs in the given cluster
-my %txTbl     = %{$rtxTbl};     # seqID => taxonomy
-my %id2clTbl  = %{$rid2clTbl};  # seqID => cltrID
-
-## Generating updated taxonomy file
-## changing NAs to taxonomy in the original taxonomy table
+# Cluster frequency table
+my %clTxFreqTbl;
 for my $id ( keys %txTbl )
 {
-  if ( $txTbl{$id} eq "NA" )
-  {
-    if ( exists $tx{$id} )
-    {
-      $txTbl{$id} = $tx{$id};
-    }
-    else
-    {
-      warn "\n\tWARNING: $id not present in $txFile table";
-      print "\n";
-    }
-  }
+  my $tx = $txTbl{$id};
+  my $cl = $clTbl{$id};
+  $clTxFreqTbl{$cl}{$tx}++;
 }
 
-## Making sure there are no NA species
-## Recall that NAs in $cltrFile come from query sequences
-## the above loop should have replaced all NAs with their taxonomy as supplied to vicut
-for my $id ( keys %txTbl )
+## Renaming of cluster members strategy
+
+## If a cluster consists of at least one non-NA taxon, all seq's of that cluster
+## are relabeled to the name of that taxon.
+
+## There is only the NA taxon in the cluster (meaning this is a cluster
+## consisting of query seq's). In this case, look at the frequency table of taxon
+## names from before vicut run and pick as the new name of all seq's of that
+## cluster, the name of the most abundant old taxon.
+
+if ( $debug )
 {
-  my $sp = $txTbl{$id};
-  if ($sp eq "NA")
-  {
-    warn "\n\n\tERROR: Discovered NA species";
-    print "\n\n";
-    exit 1;
-  }
+  print "\nFinding new taxonomy for all seq's of each vicut cluster\n";
+  print "Going over clusters using clTxFreqTbl table\n";
 }
 
-if ($debug)
+my %newTxTbl; # new taxonomy table
+for my $cl ( keys %clTxFreqTbl )
 {
-  my %txFreq;
-  for my $id ( keys %txTbl )
-  {
-    my $sp = $txTbl{$id};
-    $txFreq{$sp}++;
-  }
+  # Sort taxons within a cluster by the number of seq's representing this taxon within the cluster
+  # or if they have the same number of seq's, by the alphabetical order of their names
+  my @txs = sort { $clTxFreqTbl{$cl}{$b} <=> $clTxFreqTbl{$cl}{$a} || $a cmp $b } keys %{$clTxFreqTbl{$cl}};
 
-  print "\n\ntxFreq:\n";
-  my @q = sort { $txFreq{$b} <=> $txFreq{$a} } keys %txFreq;
-  printFormatedTbl(\%txFreq, \@q);
-}
-
-my %txIDs;
-for my $id ( keys %txTbl )
-{
-  my $sp = $txTbl{$id};
-  push @{$txIDs{$sp}}, $id;
-}
-
-
-# Updating %clFreqTbl after the above modification
-my %clFreqTbl;
-for my $id ( keys %txTbl )
-{
-  my $sp = $txTbl{$id};
-  my $cl = $id2clTbl{$id};
-  $clFreqTbl{$cl}{$sp}++;
-}
-
-# Changing taxonomy of multi-species clusters based on majority vote
-
-# The new taxon names will be concatenations of split w/r '_' base taxon names.
-# Thus, its possible that two different clusters may have the same names and so
-# we need to add indicices to those that appear more than once (this will be done
-# in genotype_tx.pl).
-
-my %clTx;
-my %nameCount;
-for my $cl ( keys %clFreqTbl )
-{
-  my @txs = sort { $clFreqTbl{$cl}{$b} <=> $clFreqTbl{$cl}{$a} || $a cmp $b } keys %{$clFreqTbl{$cl}};
-  # if ($debug)
-  # {
-  #   print "Cluster $cl taxons:\n";
-  #   map {print "\t$_\t" . $clFreqTbl{$cl}{$_} . "\n"} @txs;
-  #   print "\n";
-  # }
-  if ( @txs > 1 )
-  {
-    my $newTx = shift @txs;
-    $newTx =~ s/_tRT_\d+//;
-    my @f = split "_", $newTx;
-    my %locTx;
-    for (@f)
-    {
-      $locTx{$_}++;
-    }
-
-    for my $p (@txs)
-    {
-      $p =~ s/_tRT_\d+//;
-      @f = split "_", $p;
-      for (@f)
-      {
-	$locTx{$_}++;
-      }
-    }
-
-    my @tx = sort { $locTx{$b} <=> $locTx{$a} } keys %locTx;
-    my $txStr = join "_", @tx;
-    $clTx{$cl} = $txStr;
-    $nameCount{$txStr}++;
-  }
-  else
-  {
-    my $t = shift @txs;
-    $t =~ s/_tRT_\d+//;
-    $clTx{$cl} = $t;
-    $nameCount{$t}++;
-  }
-}
-
-print "\nDetected taxon names\n";
-my @a = sort { $nameCount{$b} <=> $nameCount{$a} } keys %nameCount;
-printFormatedTbl(\%nameCount, \@a);
-print "\n\n";
-
-
-my %newNameIdx;
-for my $cl ( keys %clFreqTbl )
-{
-  my @txs = sort { $clFreqTbl{$cl}{$b} <=> $clFreqTbl{$cl}{$a} || $a cmp $b } keys %{$clFreqTbl{$cl}};
   if ($debug)
   {
-    print "Cluster $cl taxons:\n";
-    map {print "\t$_\t" . $clFreqTbl{$cl}{$_} . "\n"} @txs;
+    print "\nCluster $cl taxons:\n";
+    map {print "\t$_\t" . $clTxFreqTbl{$cl}{$_} . "\n"} @txs;
     print "\n";
   }
 
-  my $newTx = $clTx{$cl};
-  # if ( $nameCount{$newTx}>1 )
-  # {
-  #   $newNameIdx{$newTx}++;
-  #   $newTx = $newTx . "_" . $newNameIdx{$newTx};
-  # }
-
-  print "\tChanging taxonomy of all sequences of the cluster to $newTx\n\n" if ($debug);
-
-  for my $id ( @{$clTbl{$cl}} )
+  ## checking if the cluster has one or more members
+  if ( @txs == 1 )
   {
-    $txTbl{$id} = $newTx;
+    my $tx = $txs[0];
+    print "tx: $tx\n" if $debug;
+
+    if ( $tx eq "NA" )
+    {
+      print "The only member of the cluster is NA\n" if $debug;
+
+      my @ids = @{$clIDsTbl{$cl}};
+      my %preVicutTxFreqTbl;
+      for ( @ids )
+      {
+	$preVicutTxFreqTbl{ $preVicutTxTbl{$_} }++;
+      }
+
+      my @preVicutTxs = sort { @{$preVicutTxFreqTbl{$b}} <=> @{$preVicutTxFreqTbl{$a}} } keys %preVicutTxFreqTbl;
+
+      if ( $debug )
+      {
+	print "Pre-vicut taxons of the cluster\n";
+	printFormatedTbl( \%preVicutTxFreqTbl, \@preVicutTxs );
+	print "\n";
+      }
+
+      my $newTx = $preVicutTxs[0];
+      print "New taxonomy: $newTx\n" if $debug;
+      for my $id ( @{$clIDsTbl{$cl}} )
+      {
+	$newTxTbl{$id} = $newTx;
+      }
+    }
+    else
+    {
+      ## The only taxon is not an NA.
+      ## No change in taxonomy. All seq's of that cluster preserve their old
+      ## taxonomy - the one of the only member of the cluster.
+      for my $id ( @{$clIDsTbl{$cl}} )
+      {
+	$newTxTbl{$id} = $tx;
+      }
+    }
   }
+  else
+  {
+    ## There is more than one taxon in the cluster.
+    ## The non-NA cluster with the largest number of seq's is the winner.
+    my $newTx = $txs[0];
+    if ( $newTx eq "NA" )
+    {
+      $newTx = $txs[1];
+    }
+
+    print "New taxonomy: $newTx\n" if $debug;
+    for my $id ( @{$clIDsTbl{$cl}} )
+    {
+      $newTxTbl{$id} = $newTx;
+    }
+  }
+
 } # end of if ( @txs > 1 )
 
 print "\n\n" if $debug;
 
-my $updatedTxFile = "$vicutDir/updated.tx";
-writeTbl2(\%txTbl, $updatedTxFile);
 
-#print "\tUpdated taxonomy  written to $updatedTxFile\n\n";
+# Frequencies of taxons in the new taxonomy table
+my %txClFreqTbl;
+my %txClIDsTbl;
+for my $id ( keys %newTxTbl )
+{
+  my $tx = $newTxTbl{$id};
+  my $cl = $clTbl{$id};
+  $txClFreqTbl{$tx}{$cl}++;
+  push @{ $txClIDsTbl{$tx}{$cl} }, $id;
+}
+
+# Defining multiplicity index for taxons appearing more than once
+
+## For each taxon sort clusters by size and assign multiplicity index to each
+## cluster (1= largest, 2=2nd largest, etc) Only for taxons with more than one
+## cluster.
+
+my %txClIdxTbl;
+for my $tx ( keys %txClFreqTbl )
+{
+  my @cls = sort { $txClFreqTbl{$tx}{$b} <=> $txClFreqTbl{$tx}{$a} } keys %{ $txClFreqTbl{$tx} };
+  if ( @cls > 1 )
+  {
+    my $idx = 1;
+    for my $cl ( @cls )
+    {
+      $txClIdxTbl{$tx}{$cl} = $idx;
+      $idx++;
+    }
+  }
+  else
+  {
+    my $cl = shift @cls;
+    $txClIdxTbl{$tx}{$cl} = 0;
+  }
+}
+
+
+if ( $debug )
+{
+  print "\nTaxon multiplicity indices\n";
+  print "Taxon\tMult\tcltrID\n";
+  for my $tx ( keys %txClFreqTbl )
+  {
+    my @cls = sort { $txClFreqTbl{$tx}{$b} <=> $txClFreqTbl{$tx}{$a} } keys %{ $txClFreqTbl{$tx} };
+    for my $cl ( @cls )
+    {
+      print "$tx\t$cl\t" . $txClIdxTbl{$tx}{$cl} . "\n";
+    }
+  }
+  print "\n";
+}
+
+
+my $updatedTxFile = "$vicutDir/TDupdated.tx";
+writeTbl2(\%newTxTbl, $updatedTxFile);
+
+my $updatedTxFile2 = "$vicutDir/TDupdated2.tx";
+open OUT, ">$updatedTxFile2" or die "Cannot open $updatedTxFile2 for writing: $OS_ERROR\n";
+for my $tx ( keys %txClFreqTbl )
+{
+  my @cls = sort { $txClFreqTbl{$tx}{$b} <=> $txClFreqTbl{$tx}{$a} } keys %{ $txClFreqTbl{$tx} };
+  for my $cl ( @cls )
+  {
+    my @ids = @{ $txClIDsTbl{$tx}{$cl} };
+    for my $id ( @ids )
+    {
+      print OUT "$id\t$tx\t" . $txClIdxTbl{$tx}{$cl} . "\n";
+    }
+  }
+}
+close OUT;
+
+print "\tUpdated taxonomy  written to $updatedTxFile2\n\n" if $debug;
 
 
 ####################################################################
@@ -291,7 +309,7 @@ sub read2colTbl{
   my $file = shift;
 
   my %tbl;
-  open IN, "$file" or die "Cannot open $file for reading: $OS_ERROR\n";
+  open IN, "$file" or die "Cannot open $file for reading: $OS_ERROR";
   foreach (<IN>)
   {
     chomp;
@@ -310,31 +328,36 @@ sub readCltrTbl
 {
   my $file = shift;
 
-  my %txTbl;     # seqID => taxonomy
-  my %id2clTbl;  # seqID => cltrID
-  my %clTbl;     # cltrID => ref to array of IDs in the given cluster
-  my %clFreqTbl; # cltrID => table of taxon frequencies within the given cluster
-  open IN, "$file" or die "Cannot open $file for reading: $OS_ERROR\n";
+  if ( ! -f $file )
+  {
+    warn "\n\n\tERROR: $file does not exist";
+    print "\n\n";
+    exit 1;
+  }
+
+  my %clTbl;      # seqID => cltrID
+  my %txTbl;      # seqID => taxonomy
+  my %clIDsTbl;   # cltrID => ref to array of IDs in the given cluster
+  open IN, "$file" or die "Cannot open $file for reading: $OS_ERROR";
   my $header = <IN>;
   foreach (<IN>)
   {
     chomp;
     my ($id, $cl, $tx) = split /\s+/,$_;
-    push @{$clTbl{$cl}}, $id;
-    $clFreqTbl{$cl}{$tx}++;
+    push @{$clIDsTbl{$cl}}, $id;
     $txTbl{$id} = $tx;
-    $id2clTbl{$id} = $cl;
+    $clTbl{$id} = $cl;
   }
   close IN;
 
-  return (\%id2clTbl, \%clTbl, \%clFreqTbl, \%txTbl);
+  return (\%clTbl, \%clIDsTbl, \%txTbl);
 }
 
 # write hash table to a file
 sub writeTbl{
   my ($rTbl, $outFile) = @_;
   my %tbl = %{$rTbl};
-  open OUT, ">$outFile" or die "Cannot open $outFile for writing: $OS_ERROR\n";
+  open OUT, ">$outFile" or die "Cannot open $outFile for writing: $OS_ERROR";
   map {print OUT $_ . "\t" . $tbl{$_} . "\n"} keys %tbl;
   close OUT;
 }
@@ -343,7 +366,7 @@ sub writeTbl{
 sub writeTbl2{
   my ($rTbl, $outFile) = @_;
   my %tbl = %{$rTbl};
-  open OUT, ">$outFile" or die "Cannot open $outFile for writing: $OS_ERROR\n";
+  open OUT, ">$outFile" or die "Cannot open $outFile for writing: $OS_ERROR";
   for (keys %tbl)
   {
     if (exists $tbl{$_})
@@ -352,7 +375,8 @@ sub writeTbl2{
     }
     else
     {
-      warn "\n\n\tERROR: $_ does not exist in the table to be printed to $outFile\n\n";
+      warn "\n\n\tERROR: $_ does not exist in the table to be printed to $outFile";
+      print "\n\n";
       exit 1;
     }
   }
