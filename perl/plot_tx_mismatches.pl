@@ -57,8 +57,8 @@ use warnings;
 use Pod::Usage;
 use English qw( -no_match_vars );
 use Getopt::Long qw(:config no_ignore_case no_auto_abbrev pass_through);
-#use File::Basename;
 use Cwd 'abs_path';
+use File::Temp qw/ tempfile /;
 
 $OUTPUT_AUTOFLUSH = 1;
 
@@ -125,6 +125,11 @@ if ( ! -d $grDir )
   print "\n\n";
   exit 1;
 }
+
+my $tmpDir = $grDir . "/temp_dir";
+my $cmd = "mkdir -p $tmpDir";
+print "\tcmd=$cmd\n" if $dryRun || $debug;
+system($cmd) == 0 or die "system($cmd) failed: $?" if !$dryRun;
 
 chdir $grDir;
 print "--- Changed dir to $grDir\n";

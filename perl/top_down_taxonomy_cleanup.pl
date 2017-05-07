@@ -45,6 +45,9 @@
 =item B<--show-trees>
   Show relevant for taxonomy cleanup condensed trees.
 
+=item B<--show-lineage>
+  Print lineage before any taxonomic modifications
+
 =item B<--verbose, -v>
   Prints content of some output files.
 
@@ -84,6 +87,7 @@ use File::Basename;
 use Cwd qw(abs_path);
 use List::Util qw( sum );
 use Data::Dumper;
+use File::Temp qw/ tempfile /;
 
 $OUTPUT_AUTOFLUSH = 1;
 
@@ -107,6 +111,7 @@ GetOptions(
   ##"show-all-trees"      => \my $showAllTrees,
   "do-not-pop-pdfs"     => \my $doNotPopPDFs,
   "show-trees"          => \my $showTrees,
+  "show-lineage"        => \my $showLineage,
   "build-model-data"    => \my $buildModelData,
   "rm-ref-outliers"     => \my $rmRefOutliers,
   "pp-embedding"        => \my $ppEmbedding,
@@ -197,6 +202,7 @@ if ( ! -d $grDir )
   exit 1;
 }
 
+
 ####################################################################
 ##                               MAIN
 ####################################################################
@@ -210,6 +216,11 @@ my $section = qq~
 
 ~;
 print "$section";
+
+my $tmpDir = $grDir . "/temp";
+my $cmd = "mkdir -p $tmpDir";
+print "\tcmd=$cmd\n" if $dryRun || $debug;
+system($cmd) == 0 or die "system($cmd) failed: $?" if !$dryRun;
 
 chdir $grDir;
 print "--- Changed dir to $grDir\n";
@@ -483,7 +494,11 @@ print   "\tNumber of families:   " . scalar( keys %faTbl ) . "\n";
 print   "\tNumber of genera:     " . scalar( keys %geTbl ) . "\n";
 print   "\tNumber of species:    " . scalar( keys %spTbl ) . "\n\n";
 
-printLineage();
+if ( $showLineage )
+{
+  printLineage();
+}
+
 
 ## Taxonomic curation at the family level
 if ( keys %faTbl > 1 ) # this makes sense only for at least 2 families
@@ -499,7 +514,7 @@ if ( keys %faTbl > 1 ) # this makes sense only for at least 2 families
   my @seqIDsWithOGs = keys %fam;
 
   my $faTxFile = $grPrefix . "_family.tx";
-  writeTbl(\%fam, $faTxFile);
+  writeTbl( \%fam, $faTxFile );
 
   ##
   ## Running vicut on family taxonomy
@@ -717,8 +732,12 @@ if ( keys %faTbl > 1 ) # this makes sense only for at least 2 families
     print "\tcmd=$cmd\n" if $dryRun || $debug;
     system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 
-    my $vicutFaTxFile = "$vicutDir/TDupdated.tx";
-    # my %faTx = readTbl($vicutFaTxFile);
+    my $vicutFaTx3File = "$vicutDir/TDupdated2.tx";
+    my %faTx = read_tx3_tbl($vicutFaTx3File);
+
+    $vicutFaTxFile = "$vicutDir/TDupdatedIdx.tx";
+    writeTbl(\%faTx, $vicutFaTxFile);
+
 
     if ( $showTrees )
     {
@@ -1010,25 +1029,24 @@ sub runRscript{
 
   my ($Rscript, $noErrorCheck) = @_;
 
-  my $outFile = "rTmp.R";
-  open OUT, ">$outFile",  or die "cannot write to $outFile: $!";
-  print OUT "$Rscript";
-  close OUT;
+  my ($fh, $inFile) = tempfile("rTmpXXXX", SUFFIX => '.R', OPEN => 1, DIR => $tmpDir);
+  print $fh "$Rscript";
+  close $fh;
 
-  my $cmd = "R CMD BATCH $outFile";
-  system($cmd) == 0 or die "system($cmd) failed with exit code: $?";
+  my $outFile = $inFile . "out";
+  my $cmd = "R CMD BATCH $inFile $outFile";
+  system($cmd) == 0 or die "system($cmd) failed:$?\n";
 
   if (!$noErrorCheck)
   {
-    my $outR = $outFile . "out";
-    open IN, "$outR" or die "Cannot open $outR for reading: $OS_ERROR";
+    open IN, "$outFile" or die "Cannot open $outFile for reading: $OS_ERROR";
     my $exitStatus = 1;
     foreach my $line (<IN>)
     {
       if ( $line =~ /Error/ )
       {
 	print "R script crashed at\n$line";
-	print "check $outR for details\n";
+	print "check $outFile for details\n";
 	$exitStatus = 0;
 	exit 1;
       }
@@ -1433,6 +1451,50 @@ sub readTbl{
     chomp;
     my ($id, $t) = split /\s+/,$_;
     $tbl{$id} = $t;
+  }
+  close IN;
+
+  return %tbl;
+}
+
+
+
+#
+# read 3 column table
+#
+# format
+#
+# S002234001	f_Staphylococcaceae	1
+# S002351864	f_Staphylococcaceae	1
+# S002965910	f_Staphylococcaceae	1
+# S002098342	f_Staphylococcaceae	1
+#
+sub read_tx3_tbl
+{
+
+  my $file = shift;
+
+  if ( ! -f $file )
+  {
+    warn "\n\n\tERROR in readTbl(): $file does not exist";
+    print "\n\n";
+    exit 1;
+  }
+
+  my %tbl;
+  open IN, "$file" or die "Cannot open $file for reading: $OS_ERROR";
+  foreach (<IN>)
+  {
+    chomp;
+    my ($id, $tx, $idx) = split /\s+/,$_;
+    if ( $idx > 0 )
+    {
+      $tbl{$id} = $tx . "_$idx";
+    }
+    else
+    {
+      $tbl{$id} = $tx;
+    }
   }
   close IN;
 

@@ -128,6 +128,11 @@ if ( ! -d $grDir )
   exit 1;
 }
 
+my $tmpDir = $grDir . "/temp_dir";
+my $cmd = "mkdir -p $tmpDir";
+print "\tcmd=$cmd\n" if $dryRun || $debug;
+system($cmd) == 0 or die "system($cmd) failed: $?" if !$dryRun;
+
 chdir $grDir;
 print "--- Changed dir to $grDir\n";
 

@@ -252,6 +252,14 @@ my $cmd = "mkdir -p $outDir";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 
+my $tmpDir = $outDir . "/temp_dir";
+if ( ! -e $tmpDir )
+{
+  my $cmd = "mkdir -p $tmpDir";
+  print "\tcmd=$cmd\n" if $dryRun || $debug;
+  system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
+}
+
 ## main report
 my $vicutCltrReport = $outDir . "/vicut_cltrs_report.txt";
 open my $ROUT, ">$vicutCltrReport" or die "Cannot open $vicutCltrReport for writing: $OS_ERROR";
@@ -1643,17 +1651,15 @@ sub runRscript
 {
   my $Rscript = shift;
 
-  ##my $outFile = "rTmp.R";
-  my ($fh, $outFile) = tempfile("rTmpXXXX", SUFFIX => '.R', OPEN => 1, DIR => $mmDir);
-  #open OUT, ">$outFile",  or die "cannot write to $outFile: $!\n";
+  my ($fh, $inFile) = tempfile("rTmpXXXX", SUFFIX => '.R', OPEN => 1, DIR => $tmpDir);
   print $fh "$Rscript";
   close $fh;
 
-  my $cmd = "R CMD BATCH $outFile";
+  my $outFile = $inFile . "out";
+  my $cmd = "R CMD BATCH $inFile $outFile";
   system($cmd) == 0 or die "system($cmd) failed:$?\n";
 
-  my $outR = $outFile . "out";
-  open IN, "$outR" or die "Cannot open $outR for reading: $OS_ERROR";
+  open IN, "$outFile" or die "Cannot open $outFile for reading: $OS_ERROR";
   my $exitStatus = 1;
 
   foreach my $line (<IN>)
@@ -1661,7 +1667,7 @@ sub runRscript
     if ( $line =~ /Error/ )
     {
       print "R script crashed at\n$line";
-      print "check $outR for details\n";
+      print "check $outFile for details\n";
       $exitStatus = 0;
       exit 1;
     }

@@ -128,13 +128,18 @@ for my $id ( keys %txTbl )
 
 ## Renaming of cluster members strategy
 
-## If a cluster consists of at least one non-NA taxon, all seq's of that cluster
-## are relabeled to the name of that taxon.
+## If a cluster consists of only one taxon, then
 
-## There is only the NA taxon in the cluster (meaning this is a cluster
-## consisting of query seq's). In this case, look at the frequency table of taxon
-## names from before vicut run and pick as the new name of all seq's of that
-## cluster, the name of the most abundant old taxon.
+##   A) If that taxon is non-NA, then all seq's of that taxon keep its taxonomy.
+
+##   B) If it is NA (meaning this is a cluster consisting of query seq's), look
+##      at the frequency table of taxon names from before vicut run and pick as
+##      the new name of all seq's of that cluster, the name of the most abundant
+##      old taxon.
+
+## If a cluster has more than one taxon, then pick the non-NA taxon with the
+## largest number of sequences as a winner and relabel all seq's of that cluster
+## taxonomy to the taxonomy of that taxon.
 
 if ( $debug )
 {

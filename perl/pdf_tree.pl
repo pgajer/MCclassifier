@@ -48,6 +48,7 @@ use Pod::Usage;
 use English qw( -no_match_vars );
 use Getopt::Long qw(:config no_ignore_case no_auto_abbrev pass_through);
 use Cwd qw(abs_path);
+use File::Temp qw/ tempfile /;
 
 $OUTPUT_AUTOFLUSH = 1;
 
@@ -117,6 +118,11 @@ if ( defined $johanna )
 ####################################################################
 ##                               MAIN
 ####################################################################
+
+my $tmpDir = "temp_dir";
+my $cmd = "mkdir -p $tmpDir";
+print "\tcmd=$cmd\n" if $dryRun || $debug;
+system($cmd) == 0 or die "system($cmd) failed: $?" if !$dryRun;
 
 $pdfFile = abs_path($pdfFile);
 
@@ -214,25 +220,24 @@ sub runRscript{
 
   my ($Rscript, $noErrorCheck) = @_;
 
-  my $outFile = "rTmp.R";
-  open OUT, ">$outFile",  or die "cannot write to $outFile: $!\n";
-  print OUT "$Rscript";
-  close OUT;
+  my ($fh, $inFile) = tempfile("rTmpXXXX", SUFFIX => '.R', OPEN => 1, DIR => $tmpDir);
+  print $fh "$Rscript";
+  close $fh;
 
-  my $cmd = "R CMD BATCH $outFile";
+  my $outFile = $inFile . "out";
+  my $cmd = "R CMD BATCH $inFile $outFile";
   system($cmd) == 0 or die "system($cmd) failed:$?\n";
 
   if (!$noErrorCheck)
   {
-    my $outR = $outFile . "out";
-    open IN, "$outR" or die "Cannot open $outR for reading: $OS_ERROR\n";
+    open IN, "$outFile" or die "Cannot open $outFile for reading: $OS_ERROR\n";
     my $exitStatus = 1;
     foreach my $line (<IN>)
     {
       if ( $line =~ /Error/ )
       {
 	print "R script crashed at\n$line";
-	print "check $outR for details\n";
+	print "check $outFile for details\n";
 	$exitStatus = 0;
 	exit 1;
       }
