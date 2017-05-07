@@ -25,6 +25,10 @@
 =item B<--spp-file, -i>
   Maximal number of non-redundant seq's.
 
+=item B<--out-dir, -o>
+  Output directory. Optional parameter. If not specified the output is written to
+  /Users/pgajer/projects/M_and_M/new_16S_classification_data/mm_validate_reports_dir_<timeStamp>.
+
 =item B<--max-no-nr-seqs, -n>
   Maximal number of non-redundant seq's.
 
@@ -93,6 +97,7 @@ my $phyloPartPercThld = 0.1;
 
 GetOptions(
   "spp-file|i=s"             => \my $sppFile,
+  "out-dir|o=s"              => \my $outDir,
   "max-no-nr-seqs|n=i"       => \$maxNumNRseqs,
   "perc-coverage|p=i"        => \$percCoverage,
   "num-proc|m=i"             => \$nProc,
@@ -311,22 +316,39 @@ my @txFiles = map{ $baseDir . $_ } @txFiles0;
 ## Creating output reports directory
 ##
 
-## from http://stackoverflow.com/questions/18532026/how-to-append-system-date-to-a-filename-in-perl
-my @now = localtime();
-my $timeStamp = sprintf("%04d%02d%02d_%02d%02d%02d",
-			$now[5]+1900, $now[4]+1, $now[3],
-			$now[2],      $now[1],   $now[0]);
+if ( !defined $outDir )
+{
+  my @now = localtime();
+  my $timeStamp = sprintf("%04d%02d%02d_%02d%02d%02d",
+			  $now[5]+1900, $now[4]+1, $now[3],
+			  $now[2],      $now[1],   $now[0]);
+  $outDir = $mmDir . "mm_validate_reports_dir_$timeStamp";
+}
 
-my $outDir = $mmDir . "mm_validate_reports_dir_$timeStamp";
-my $cmd = "mkdir -p $outDir";
-print "\tcmd=$cmd\n" if $dryRun || $debug;
-system($cmd) == 0 or die "system($cmd) failed with exit code: $?";# if !$dryRun;
+if ( ! -e $outDir )
+{
+  my $cmd = "mkdir -p $outDir";
+  print "\tcmd=$cmd\n" if $dryRun || $debug;
+  system($cmd) == 0 or die "system($cmd) failed with exit code: $?";# if !$dryRun;
+}
 
 my $treesDir = $outDir . "/trees_dir";
 
-$cmd = "mkdir -p $treesDir";
-print "\tcmd=$cmd\n" if $dryRun || $debug;
-system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
+if ( ! -e $treesDir )
+{
+  my $cmd = "mkdir -p $treesDir";
+  print "\tcmd=$cmd\n" if $dryRun || $debug;
+  system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
+}
+
+my $tmpDir = $outDir . "/temp_dir";
+if ( ! -e $tmpDir )
+{
+  my $cmd = "mkdir -p $tmpDir";
+  print "\tcmd=$cmd\n" if $dryRun || $debug;
+  system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
+}
+
 
 ##
 ## MAIN section
@@ -341,8 +363,6 @@ my ($rspIDsTbl, $rppTbl) = parse_pecan_tbl( $mmPECANfile );
 my %spIDsTbl = %{ $rspIDsTbl };   # sp   => ref of array with seqIDs of seq's classified to sp
 my %ppTbl    = %{ $rppTbl };      # seqID => posterior probability of the best model
 
-
-my $pm = new Parallel::ForkManager( $nProc );
 
 for my $phGr ( keys %phGrSppTbl )
 {
@@ -408,6 +428,9 @@ for my $phGr ( keys %phGrSppTbl )
 
   my @uqSpp = unique($phGrSppTbl{$phGr});
   my @spp = sort { @{$spIDsTbl{$b}} <=> @{$spIDsTbl{$a}} } @uqSpp;
+
+  my $pm = new Parallel::ForkManager( $nProc );
+
   for my $spIdx ( 0..$#spp )
   {
     $pm->start and next; # do the fork
@@ -572,11 +595,10 @@ for my $phGr ( keys %phGrSppTbl )
       printArray(\@tmp, "mothur commands") if ($debug || $verbose);
 
       my $scriptFile = create_mothur_script(\@tmp);
-      $cmd = "$mothur < $scriptFile; rm -f $scriptFile";
+      $cmd = "$mothur < $scriptFile; rm -f $scriptFile mothur.*.logfile";
       print "\tcmd=$cmd\n" if $dryRun || $debug;
       system($cmd) == 0 or die "system($cmd) failed:$?" if !$dryRun;
 
-      ##$cmd = "rm -f $bigAlgnFile; mafft --auto --inputorder $bigFaFile > $bigAlgnFile";
 
       my $mothurAlgnFile = $spNRfaFile; # "$trDir/" . $candBasename . ".align";
       $mothurAlgnFile =~ s/fa$/align/;
@@ -659,7 +681,7 @@ for my $phGr ( keys %phGrSppTbl )
       push @{$vCltrIds{$vCltrTbl{$id}}}, $id;
     }
 
-    ## Identify clusters that contain query sequences
+    ## Identifing clusters that contain query sequences
     my @nrSeqCltrs; # = @vCltrTbl{@nrSeqIDs};
     ##print "\n\nvCltrTbl\n";
     for (@nrSeqIDs)
@@ -851,9 +873,12 @@ for my $phGr ( keys %phGrSppTbl )
     $pm->finish;
 
   } ## end of    for my $spIdx (0..
-} ## end of   for my $phGr ( keys %phGrSppTbl )
 
-$pm->wait_all_children;
+  pm->wait_all_children; # this is so that we do not advance to the next
+			 # phylo-group before all species of that group were
+			 # processed
+
+} ## end of   for my $phGr ( keys %phGrSppTbl )
 
 
 ## report timing
@@ -1422,21 +1447,15 @@ sub runRscript
 {
   my $Rscript = shift;
 
-  #my $outFile = "rTmp.R";
-  my ($fh, $outFile) = tempfile("rTmpXXXX", SUFFIX => '.R', OPEN => 1, DIR => $mmDir);
+  my ($fh, $inFile) = tempfile("rTmpXXXX", SUFFIX => '.R', OPEN => 1, DIR => $tmpDir);
   print $fh "$Rscript";
   close $fh;
 
-  # my (undef, $outFile) = tempfile("rTmpXXXX", SUFFIX => '.R', OPEN => 0, DIR => $mmDir);
-  # open OUT, ">$outFile",  or die "cannot write to $outFile: $!\n";
-  # print OUT "$Rscript";
-  # close OUT;
-
-  my $cmd = "R CMD BATCH $outFile";
+  my $outFile = $inFile . "out";
+  my $cmd = "R CMD BATCH $inFile $outFile";
   system($cmd) == 0 or die "system($cmd) failed:$?\n";
 
-  my $outR = $outFile . "out";
-  open IN, "$outR" or die "Cannot open $outR for reading: $OS_ERROR";
+  open IN, "$outFile" or die "Cannot open $outFile for reading: $OS_ERROR";
   my $exitStatus = 1;
 
   foreach my $line (<IN>)
@@ -1444,7 +1463,7 @@ sub runRscript
     if ( $line =~ /Error/ )
     {
       print "R script crashed at\n$line";
-      print "check $outR for details\n";
+      print "check $outFile for details\n";
       $exitStatus = 0;
       exit 1;
     }
