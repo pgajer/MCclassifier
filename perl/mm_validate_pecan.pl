@@ -363,6 +363,7 @@ my ($rspIDsTbl, $rppTbl) = parse_pecan_tbl( $mmPECANfile );
 my %spIDsTbl = %{ $rspIDsTbl };   # sp   => ref of array with seqIDs of seq's classified to sp
 my %ppTbl    = %{ $rppTbl };      # seqID => posterior probability of the best model
 
+my $forkMgr = new Parallel::ForkManager( $nProc );
 
 for my $phGr ( keys %phGrSppTbl )
 {
@@ -429,11 +430,9 @@ for my $phGr ( keys %phGrSppTbl )
   my @uqSpp = unique($phGrSppTbl{$phGr});
   my @spp = sort { @{$spIDsTbl{$b}} <=> @{$spIDsTbl{$a}} } @uqSpp;
 
-  my $pm = new Parallel::ForkManager( $nProc );
-
   for my $spIdx ( 0..$#spp )
   {
-    $pm->start and next; # do the fork
+    $forkMgr->start and next; # do the fork
 
     my $sp = $spp[$spIdx];
     my @ids = @{$spIDsTbl{$sp}}; # seq IDs of $sp
@@ -870,13 +869,13 @@ for my $phGr ( keys %phGrSppTbl )
 
     close $ROUT;
 
-    $pm->finish;
+    $forkMgr->finish;
 
   } ## end of    for my $spIdx (0..
 
-  pm->wait_all_children; # this is so that we do not advance to the next
-			 # phylo-group before all species of that group were
-			 # processed
+  # $forkMgr->wait_all_children; # this is so that we do not advance to the next
+  # 			 # phylo-group before all species of that group were
+  # 			 # processed
 
 } ## end of   for my $phGr ( keys %phGrSppTbl )
 
