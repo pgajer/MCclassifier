@@ -92,9 +92,9 @@
 
   in ~/projects/M_and_M/new_16S_classification_data
 
-  mm_phylo_classify.pl -o test_outDir
+  mm_phylo_classify.pl --quiet -o phylo_clfy_dir
 
-  mm_phylo_classify.pl --debug --valid-dirs-file valid_dirs.txt --cltr-min-nr-seqs 50 -o test_outDir
+  mm_phylo_classify.pl --debug --valid-dirs-file valid_dirs.txt --cltr-min-nr-seqs 50 -o phylo_clfy_dir
 
 =cut
 
@@ -191,6 +191,13 @@ my $timeStr;
 my $timeMin = int($runTime / 60);
 my $timeSec = $runTime % 60;
 
+# Get the number of species found by the classifier in the M&M dataset
+my $spToPhGrFile = "/Users/pgajer/projects/M_and_M/new_16S_classification_data/mmDir_May5/sp_to_phGr.txt";
+my $wcline = qx/ wc -l $spToPhGrFile /;
+$wcline =~ s/^\s+//;
+my ($nAllSpp, $str) = split /\s+/, $wcline;
+
+
 my @vDirs;
 if ( $vDirsFile )
 {
@@ -203,11 +210,14 @@ else
   ## find . -name "mm_validate_reports_dir_*" -type d -maxdepth 1 -mindepth 1
   ##
   @vDirs = ("mm_validate_reports_dir_20170505_160208",
-	    "mm_validate_reports_dir_20170505_193808",
 	    "mm_validate_reports_dir_20170505_163202",
 	    "mm_validate_reports_dir_20170505_193808",
 	    "mm_validate_reports_dir_20170507_032747",
-	    "mm_validate_reports_dir_20170507_074358");
+	    "mm_validate_reports_dir_20170507_074358",
+	    "mm_validate_reports_dir_20170507_105808",
+	    "mm_validate_reports_dir_20170507_180210",
+	    "mm_validate_reports_dir_20170507_181736",
+	    "mm_validate_reports_dir_20170507_205318");
 
   my $dir = "/Users/pgajer/projects/M_and_M/new_16S_classification_data/";
   @vDirs = map { $dir . $_ } @vDirs;
@@ -230,18 +240,22 @@ if ( ! -e $tmpDir )
 }
 
 
-my %phyloTx;     # phylogeny based taxonomy; seqID => taxonomic assignment to seqID
+my %phyloTx;          # phylogeny based taxonomy; seqID => taxonomic assignment to seqID
 
-my %rmSeqIDs;    # seqID => phylo-group of the sequence
+my %rmSeqIDs;         # seqID => phylo-group of the sequence
 
-my %missingSpp;  # sp => phylo-group of sp; this table is only for species for
-		 # which vicut run data was not found
+my %ipSpp;;           #  sp => phylo-group of sp; table of incompletely processed
+		      #  species. The table is defined on species for which vicut run
+ 		      #  data was not found.
 
-my %gr1sppCltrs; # sp => phylo-group of sp, for species with cluster(s)
-		 # containing more than one species; Generate for them combined
-		 # report and maybe also treeDir with links to their tree files
+my %gr1sppCltrs;      # sp => phylo-group of sp, for species with cluster(s)
+		      # containing more than one species; Generate for them combined
+		      # report and maybe also treeDir with links to their tree files
 
-my %processed;   # sp => 1 upon complection of processing the given species
+my %processed;        # sp => 1 upon complection of processing the given species
+
+my $nMultCltrTxs = 0; # number multiple-cluster taxons (species present in more
+		      # than one cluster containing also query sequences).
 
 for my $vDir ( @vDirs )
 {
@@ -290,10 +304,8 @@ for my $vDir ( @vDirs )
 	    }
 	    else
 	    {
-	      #warn "WARNING: Did not find neither $covSuffix" . "_vicut_dir nor _vicut_dir";
-	      #print "Looks like $sp was not processed\n";
-	      print "WARNING: Did not find neither $covSuffix" . "_vicut_dir nor _vicut_dir\n";
-	      $missingSpp{$sp} = $phGr;
+	      #print "WARNING: Did not find neither $covSuffix" . "_vicut_dir nor _vicut_dir for $sp\n" if !$quiet;
+	      $ipSpp{$sp} = $phGr;
 	      next;
 	    }
 	  }
@@ -301,8 +313,8 @@ for my $vDir ( @vDirs )
 	  my $vicutCltrsFile = $vicutDir . "/minNodeCut.cltrs";
 	  if ( ! -e $vicutCltrsFile )
 	  {
-	    print "WARNING: Did not find $vicutCltrsFile\n";
-	    $missingSpp{$sp} = $phGr;
+	    #print "WARNING: Did not find $vicutCltrsFile\n" if !$quiet;
+	    $ipSpp{$sp} = $phGr;
 	    next;
 	  }
 
@@ -316,18 +328,21 @@ for my $vDir ( @vDirs )
 	  my $vExtTxTblFile = "$vDir/$phGrDir/$spDir/$sp" . $covSuffix . "_ext.tx";
 	  if ( ! -e $vExtTxTblFile )
 	  {
-	    print "WARNING: Did not find $vExtTxTblFile\n";
-	    $missingSpp{$sp} = $phGr;
+	    #print "WARNING: Did not find $vExtTxTblFile\n" if !$quiet;
+	    $ipSpp{$sp} = $phGr;
 	    next;
 	  }
 
 	  ## vicut-cltr/tx frequency table
-	  my %vCltrvTxFreq;
+	  my %vCltrvTxFreq; # $vCltrvTxFreq{cltr}{tx} = # of seq IDs of taxon tx in the cluster cltr
+	  my %txCltrFreq;   # $txCltrFreq{tx}{cltr} = # of seq IDs of taxon tx in the cluster cltr
 	  my %vCltrvTxIds;  # $vCltrvTxIds{cltr}{tx} = ref to seqID of the cluster's, cltr, taxon, tx.
-	  my %vCltrIds;
+	  my %vCltrIds;     # cl => seq IDs within the given cluster
+
 	  for my $id ( keys %vCltrTbl )
 	  {
 	    $vCltrvTxFreq{$vCltrTbl{$id}}{$vTxTbl{$id}}++;
+	    $txCltrFreq{ $vTxTbl{$id} }{ $vCltrTbl{$id} }++;
 	    push @{$vCltrvTxIds{$vCltrTbl{$id}}{$vTxTbl{$id}}}, $id;
 	    push @{$vCltrIds{$vCltrTbl{$id}}}, $id;
 	  }
@@ -382,9 +397,31 @@ for my $vDir ( @vDirs )
 	    }
 	  }
 
-	  #print "\nFrequency table of vicut taxonomic assignments on selected nr seq's of $sp\n";
-	  if (0)
+	  ##
+	  ## The classification section
+	  ##
+
+	  ## determine if there is more than one cluster containing the same species
+	  ## 'genotype' the species if there is a support for it (to be specified)
+
+	  ## if no such thing exists
+	  ## go cluster by cluster and make a decision
+
+	  ## Checking out for species present in more than one cluster
+	  my @txs = keys %txCltrFreq;
+	  my @na = ("NA");
+	  @txs = diff( \@txs, \@na );
+	  for my $tx ( @txs )
 	  {
+	    my @txCtrs = keys %{ $txCltrFreq{$tx} };
+	    my @d = diff( \@txCltrs, \@queryCltrs );
+	    if ( @d > 1 )
+	    {
+	      print "$tx found in more than one cluster with query sequences\n";
+	      $nMultCltrTxs++;
+	    }
+	  }
+
 	  my @querySortedCltrs = sort { $vicutCltrSize{$b} <=> $vicutCltrSize{$a} } @queryCltrs;
 	  for my $cl (@querySortedCltrs)
 	  {
@@ -392,28 +429,26 @@ for my $vDir ( @vDirs )
 
 	    ## Generating a list of species present in $cl sorted by size and with NA
 	    ## at the end (igoring the size of NA when sorting
-	    my @txs = keys %{$vCltrvTxFreq{$cl}};
-	    @txs = sort { $vCltrvTxFreq{$cl}{$b} <=> $vCltrvTxFreq{$cl}{$a} } @txs;
+	    my @clTxs = keys %{$vCltrvTxFreq{$cl}};
+	    @clTxs = sort { $vCltrvTxFreq{$cl}{$b} <=> $vCltrvTxFreq{$cl}{$a} } @clTxs;
 	    ## putting NA at the end
-	    my @na = ("NA");
-	    @txs = diff(\@txs, \@na);
-	    push @txs, "NA";
-	    my %txSizes;
-	    for my $tx ( @txs )
+	    @clTxs = diff(\@clTxs, \@na);
+	    push @clTxs, "NA";
+	    my %clTxsize;
+	    for my $tx ( @clTxs )
 	    {
-	      $txSizes{$tx} = $vCltrvTxFreq{$cl}{$tx};
+	      $clTxsize{$tx} = $vCltrvTxFreq{$cl}{$tx};
 	      #print "\t$tx\t" . $vCltrvTxFreq{$cl}{$tx} . "\n";
 	    }
 	    #print "\n";
 
-	    printFormatedTbl(\%txSizes, \@txs) if !$quiet;
+	    printFormatedTbl(\%clTxsize, \@clTxs) if !$quiet;
 	  }
 	  print "\n" if !$quiet;
-	  }
 
-	  if ( exists $missingSpp{$sp} )
+	  if ( exists $ipSpp{$sp} )
 	  {
-	    delete $missingSpp{$sp};
+	    delete $ipSpp{$sp};
 	  }
 
 	  $processed{$sp} = 1;
@@ -425,30 +460,86 @@ for my $vDir ( @vDirs )
   closedir VDIR;
 }
 
-print "\n\nProcessed " . (keys %processed) . " species\n";
 
-## "/Users/pgajer/projects/M_and_M/new_16S_classification_data/mmDir_May5/sp_to_phGr.txt"
+##
+## Summary stats
+##
 
-print "\n\nSpecies for which no vicut data was found\n";
-my @mSpp = sort { $missingSpp{$a} cmp $missingSpp{$b} } keys %missingSpp;
-printFormatedTbl( \%missingSpp, \@mSpp );
-print "\n\n";
+my $nProcessedSpp = keys %processed;
 
-my $mSppFile = $outDir . "/missing_spp.txt";
-open OUT, ">$mSppFile" or die "Cannot open $mSppFile for writing: $OS_ERROR\n";
-for ( @mSpp )
+my @ipSpp = sort { $ipSpp{$a} cmp $ipSpp{$b} } keys %ipSpp;;
+my $nIPrSpp = @ipSpp;
+
+print "\n\nNumber of species found by the classifier in the M&M dataset: $nAllSpp\n";
+print     "Number processed species:                                     $nProcessedSpp\n";
+print     "Number of species for which no vicut data was found:          $nIPrSpp\n";
+print     "Number of species found in more than one cluster with query sequences: $nMultCltrTxs\n"
+if ( $nIPrSpp )
 {
-  print OUT "$_\t-1\t" . $missingSpp{$_} . "\n";
+  print "\nSpecies for which no vicut data was found\n";
+  printFormatedTbl( \%ipSpp, \@ipSpp );
+  print "\n\n";
+
+  my $ipSppFile = $outDir . "/incompletely_processed_spp.txt";
+  open OUT, ">$ipSppFile" or die "Cannot open $ipSppFile for writing: $OS_ERROR\n";
+  for ( @ipSpp )
+  {
+    print OUT "$_\t-1\t" . $ipSpp{$_} . "\n";
+  }
+  close OUT;
 }
-close OUT;
 
-print "\n\n\tOutput written to $outDir\n\n";
+if ( $nAllSpp > $nProcessedSpp )
+{
+  # write to outDir table of missing species
+  my %spPhGrTbl = parse_pp_phGr_tbl( $spToPhGrFile );
+  my @allSpp = keys %spPhGrTbl;
 
-## print "\n\n\tMissing species table written to $mSppFile\n\n";
+  my @processedSpp = keys %processed;
+
+  my @d = diff( \@allSpp, \@processedSpp );
+
+  my $outFile = $outDir . "/missing_spp.txt";
+  open OUT, ">$outFile" or die "Cannot open $outFile for writing: $OS_ERROR";
+  for ( @d )
+  {
+    print OUT "$_\t-1\t" . $spPhGrTbl{$_} . "\n";
+  }
+  close OUT;
+  print "\nTable of missing species written to $outFile\n";
+}
+
+print "Output written to $outDir\n\n";
+
+## print "\n\n\tMissing species table written to $ipSppFile\n\n";
 
 ####################################################################
 ##                               SUBS
 ####################################################################
+
+sub parse_pp_phGr_tbl
+{
+  my $file = shift;
+
+  if ( ! -f $file )
+  {
+    warn "\n\n\tERROR in readTbl(): $file does not exist";
+    print "\n\n";
+    exit 1;
+  }
+
+  my %tbl;
+  open IN, "$file" or die "Cannot open $file for reading: $OS_ERROR";
+  foreach (<IN>)
+  {
+    chomp;
+    my ($sp, $n, $phGr) = split /\s+/,$_;
+    $tbl{$sp} = $phGr;
+  }
+  close IN;
+
+  return %tbl;
+}
 
 # parse a clstr2 file
 # output table: refId -> number of elements in the corresponding cluster
@@ -598,7 +689,7 @@ sub readCltrsTbl{
   return (\%vCltrTbl, \%txTbl, \%txTbl2);
 }
 
-# read two column table; create a table that assigns
+# read 2 or 3 column table; create a table that assigns
 # elements of the first column to the second column
 sub readTbl{
 
