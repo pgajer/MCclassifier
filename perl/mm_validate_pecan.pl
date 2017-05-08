@@ -318,11 +318,12 @@ my @txFiles = map{ $baseDir . $_ } @txFiles0;
 
 if ( !defined $outDir )
 {
-  my @now = localtime();
-  my $timeStamp = sprintf("%04d%02d%02d_%02d%02d%02d",
-			  $now[5]+1900, $now[4]+1, $now[3],
-			  $now[2],      $now[1],   $now[0]);
-  $outDir = $mmDir . "mm_validate_reports_dir_$timeStamp";
+  # my @now = localtime();
+  # my $timeStamp = sprintf("%04d%02d%02d_%02d%02d%02d",
+  # 			  $now[5]+1900, $now[4]+1, $now[3],
+  # 			  $now[2],      $now[1],   $now[0]);
+  # $outDir = $mmDir . "mm_validate_reports_dir_$timeStamp";
+  $outDir = $mmDir . "mm_validate_reports_dir";
 }
 
 if ( ! -e $outDir )
