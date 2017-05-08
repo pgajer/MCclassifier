@@ -413,9 +413,9 @@ for my $vDir ( @vDirs )
 	  @txs = diff( \@txs, \@na );
 	  for my $tx ( @txs )
 	  {
-	    my @txCtrs = keys %{ $txCltrFreq{$tx} };
-	    my @d = diff( \@txCltrs, \@queryCltrs );
-	    if ( @d > 1 )
+	    my @txCltrs = keys %{ $txCltrFreq{$tx} };
+	    my @c = comm( \@txCltrs, \@queryCltrs );
+	    if ( @c > 1 )
 	    {
 	      print "$tx found in more than one cluster with query sequences\n";
 	      $nMultCltrTxs++;
@@ -473,7 +473,8 @@ my $nIPrSpp = @ipSpp;
 print "\n\nNumber of species found by the classifier in the M&M dataset: $nAllSpp\n";
 print     "Number processed species:                                     $nProcessedSpp\n";
 print     "Number of species for which no vicut data was found:          $nIPrSpp\n";
-print     "Number of species found in more than one cluster with query sequences: $nMultCltrTxs\n"
+print     "Number of species found in more than one cluster with query sequences: $nMultCltrTxs\n";
+
 if ( $nIPrSpp )
 {
   print "\nSpecies for which no vicut data was found\n";
