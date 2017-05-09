@@ -61,6 +61,7 @@ $OUTPUT_AUTOFLUSH = 1;
 GetOptions(
   "input-file|i=s"  => \my $inFile,
   "output-file|o=s" => \my $outFile,
+  "igs"             => \my $igs,
   "verbose|v"       => \my $verbose,
   "debug"           => \my $debug,
   "dry-run"         => \my $dryRun,
@@ -95,11 +96,18 @@ if ( ! -e $inFile )
   exit;
 }
 
+my $trTbl = "/Users/pgajer/projects/M_and_M/new_16S_classification_data/vag_pecan_tr_tbl.txt";
+
+if ($igs)
+{
+  $trTbl = "/usr/local/projects/pgajer/devel/MCextras/data/vag_pecan_tr_tbl.txt";
+}
+
 ####################################################################
 ##                               MAIN
 ####################################################################
 
-my $trTbl = "/Users/pgajer/projects/M_and_M/new_16S_classification_data/vag_pecan_tr_tbl.txt";
+
 my %trTbl = readTbl( $trTbl );
 
 open IN, "$inFile" or die "Cannot open $inFile for reading: $OS_ERROR";
@@ -133,7 +141,7 @@ sub readTbl{
 
   if ( ! -e $file )
   {
-    warn "\n\n\tERROR in read2colTbl(): $file does not exist";
+    warn "\n\n\tERROR in readTbl(): $file does not exist";
     print "\n\n";
     exit 1;
   }
