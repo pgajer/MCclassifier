@@ -117,14 +117,14 @@ my $timeStr;
 my $timeMin = int($runTime / 60);
 my $timeSec = $runTime % 60;
 
-print "--- Creating sample x OTU count table";
+print "--- Creating sample-taxon count table";
 my %sampleTxTbl;
 my %sampleTbl;
 my %txTbl;
 my %rankTbl;# rank table
 my $rcount = 0;
 my $counter = 1;
-open IN, "$txFile" or die "Cannot open $txFile for reading: $OS_ERROR\n";
+open IN, "$txFile" or die "Cannot open $txFile for reading: $OS_ERROR";
 for ( <IN> )
 {
   if ($counter % 500 == 0)
@@ -293,7 +293,7 @@ foreach my $sid (sort keys %sampleTbl)
     {
       $timeStr = "$timeMin:$runTime";
     }
-    my $perc = sprintf("%.1f%%", 100 * $counter / $nStbl);
+    amy $perc = sprintf("%.1f%%", 100 * $counter / $nStbl);
     print "\r$timeStr [$perc]";
   }
   $counter++;
