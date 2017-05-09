@@ -146,6 +146,8 @@ if ( defined $igs )
   $readNewickFile = "/home/pgajer/.Rlocal/read.newick.R";
 }
 
+local $ENV{LD_LIBRARY_PATH} = "/usr/local/packages/readline/lib:/usr/local/packages/gcc-5.3.0/lib64";
+
 my $debugStr = "";
 my $quietStr = "--quiet";
 if ($debug)
