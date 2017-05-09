@@ -137,6 +137,10 @@ my $readNewickFile = "/Users/pgajer/.Rlocal/read.newick.R";
 
 if ( defined $igs )
 {
+  $baseDir        = "/local/projects/pgajer/devel/MCclassifier/data/all_bacteria_V3V4_MC_models_dir";
+  $mmDir          = "/local/scratch/MM/";
+  $mmMasterFaFile = "/local/scratch/MM/MM_all_updated_seqID_no_ctrls.fa";
+  $mmPECANfile    = "/local/scratch/MM/MM_MC_order7_results.txt";
   $mothur         = "/usr/local/packages/mothur-1.36.1/mothur";
   $usearch6       = "/local/projects/pgajer/bin/usearch6.0.203_i86linux32";
   $readNewickFile = "/home/pgajer/.Rlocal/read.newick.R";
