@@ -90,7 +90,7 @@ $OUTPUT_AUTOFLUSH = 1;
 ##                             OPTIONS
 ####################################################################
 
-my $nProc             = 1;
+my $nProc             = 0;
 my $maxNumNRseqs      = 100;
 my $percCoverage      = 80;
 my $phyloPartPercThld = 0.1;
@@ -134,7 +134,7 @@ my $mmPECANfile    = "/Users/pgajer/projects/M_and_M/new_16S_classification_data
 my $mothur         = "/Users/pgajer/bin/mothur";
 my $usearch6       = "/Users/pgajer/bin/usearch6.0.203_i86osx32";
 my $readNewickFile = "/Users/pgajer/.Rlocal/read.newick.R";
-my $quietStr = "--quiet";
+my $quietStr       = "--quiet";
 
 
 if ( defined $igs )
@@ -147,7 +147,7 @@ if ( defined $igs )
   $usearch6       = "/local/projects/pgajer/bin/usearch6.0.203_i86linux32";
   $readNewickFile = "/home/pgajer/.Rlocal/read.newick.R";
   $quietStr = "";
-  
+
 }
 
 local $ENV{LD_LIBRARY_PATH} = "/usr/local/packages/readline/lib:/usr/local/packages/gcc-5.3.0/lib64";
@@ -367,6 +367,21 @@ if ( ! -e $tmpDir )
 print "--- Parsing table of species to be processed\n";
 my %phGrSppTbl = parse_spp_tbl( $sppFile ); # phGr => ref to array of species from that phylo-group
 
+if ( $debug )
+{
+  print "\nphGrSppTbl\n";
+  for my $phGr ( keys %phGrSppTbl )
+  {
+    print "\n$phGr\n";
+    my @spp = @{ $phGrSppTbl{$phGr} };
+    for ( @spp )
+    {
+      print "\t$_\n";
+    }
+  }
+  print "\n";
+}
+
 print "--- Parsing PECAN classification results on M&M's sequences\n";
 my ($rspIDsTbl, $rppTbl) = parse_pecan_tbl( $mmPECANfile );
 
@@ -418,7 +433,8 @@ for my $phGr ( keys %phGrSppTbl )
   ## file with the given phylo-group's outgroup seq's
   my $phGrOGseqIDsFile = $phGrFaFile;
   $phGrOGseqIDsFile =~ s/_final\.fa/_outgroup\.seqIDs/;
-  ## print "phGrOGseqIDsFile: $phGrOGseqIDsFile\n";
+
+  print "--- Reading $phGrOGseqIDsFile\n" if $debug;
 
   my @ogSeqIDs = readArray($phGrOGseqIDsFile);
   print "\nNo. OG seq's: " . scalar(@ogSeqIDs) . "\n";
