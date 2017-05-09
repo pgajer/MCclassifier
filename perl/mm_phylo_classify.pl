@@ -28,11 +28,10 @@
   different versions of spA: spA\_1, ... , spA\_n. Otherwise, assign sequences of
   all these clusters to spA.
 
-  -  If query sequences are in a cluster with more than one species and there
-  are more than 50 non-redundant query sequences in that cluster, then use the
+  - If query sequences are in a cluster with more than one species, then use the
   majority vote to assign to the query sequences the taxonomy of the most
-  abundant species. If the number of non-redundant query sequences is less than
-  50, remove them from the dataset.
+  abundant species. Change the taxonomy of less abundant (<=10) species to the
+  most abundant species.
 
 
 =head1 SYNOPSIS
@@ -49,26 +48,28 @@
 =item B<--valid-dirs-file, -i>
   File with a list of mm_validate_reports_dir directories to be processed.
 
-=item B<--cltr-min-nr-seqs, -n>
-  Minimal number of non-redundant query seq's in cluster with only query
+=item B<--cltr-min-nr-seqs>
+  Minimal number of non-redundant query seq's in a cluster with only query
   sequences or a cluster with more than one species. These are the cases were the
   query sequences will be dropped if their number is below this threshold. Default value: 50.
 
-=item B<--perc-coverage, -p>
-  Percentage coverage: the percentage, say 80%, of the total number of non-redundant sequences
-  Used to reduce the number of non-redundant seq's
+=item B<--cltr-max-nr-seqs>
+  Maximal number of non-redundant query seq's in a cluster to be added to a
+  training set. Default: 500.
 
-=item B<--phylo-part-perc-thld, -t>
-  Percentile threshold for phylo-partitioning specified as a decimal between 0 and 1. Default: 0.1
+=item B<--report-spp-in-mult-cltrs>
+  Print to stdout cluster info for species present in more than 1 cluster with 10
+  or more seq's in 2 or more of them.
 
-=item B<--num-proc, -m>
-  Number of processors to be used. Default value: 8.
+=item B<--sp-mult-thld>
+    We want at least two cluster to have at least spMultThld seq's of that species.
+
+=item B<--min-sp-size>
+  Species in a cluster with multiple species that have $minSpSize or less seq's
+  are renamed to the taxonomy of the most abundant species.
 
 =item B<--quiet>
   Do not print progress messages.
-
-=item B<--run-all>
-  Ignore if ( ! -e ... ) statements.
 
 =item B<--show-tree>
   Open the pdf file with the tree used to do clustering.
@@ -92,7 +93,7 @@
 
   in ~/projects/M_and_M/new_16S_classification_data
 
-  mm_phylo_classify.pl --quiet -o phylo_clfy_dir
+  mm_phylo_classify.pl --quiet -o mm_phylo_clfy_dir
 
   mm_phylo_classify.pl --debug --valid-dirs-file valid_dirs.txt --cltr-min-nr-seqs 50 -o phylo_clfy_dir
 
@@ -107,7 +108,7 @@ use Getopt::Long qw(:config no_ignore_case no_auto_abbrev pass_through);
 use Cwd 'abs_path';
 use List::Util qw( sum min max );
 use File::Temp qw/ tempfile /;
-use Parallel::ForkManager;
+#use Parallel::ForkManager;
 
 $OUTPUT_AUTOFLUSH = 1;
 
@@ -115,20 +116,23 @@ $OUTPUT_AUTOFLUSH = 1;
 ##                             OPTIONS
 ####################################################################
 
-my $nProc             = 1;
-my $minNRQseqs        = 50;
-my $percCoverage      = 80;
-my $phyloPartPercThld = 0.1;
+my $spMultThld = 10; # we want at least two cluster to have at least spMultThld seq's of that species
+my $minSpSize  = 10; # species in a cluster with multiple species that have
+		     # $minSpSize or less seq's are renamed to the taxonomy of
+		     # the most abundant species
+my $minNRQseqs = 50;
+my $maxNRQseqs = 500;
 
 GetOptions(
   "valid-dirs-file|i=s"      => \my $vDirsFile,
   "out-dir|o=s"              => \my $outDir,
-  "cltr-min-nr-seqs|n=i"     => \$minNRQseqs,
-  "perc-coverage|p=i"        => \$percCoverage,
-  "num-proc|m=i"             => \$nProc,
+  "cltr-min-nr-seqs"         => \$minNRQseqs,
+  "cltr-max-nr-seqs"         => \$maxNRQseqs,
+  "report-spp-in-mult-cltrs" => \my $reportSppInMultCltrs,
+  "sp-mult-thld"             => \$spMultThld,
+  "min-sp-size"              => \$minSpSize,
   "quiet"                    => \my $quiet,
   "igs"                      => \my $igs,
-  "run-all"                  => \my $runAll,
   "show-tree"                => \my $showTree,
   "verbose|v"                => \my $verbose,
   "debug"                    => \my $debug,
@@ -197,6 +201,11 @@ my $wcline = qx/ wc -l $spToPhGrFile /;
 $wcline =~ s/^\s+//;
 my ($nAllSpp, $str) = split /\s+/, $wcline;
 
+my %spIdx = getSpIdx( $spToPhGrFile ); # genus => number of _sp species within that genus
+
+# my $tmpSpIdxFile = "tmpSpIdxFile.txt";
+# writeTbl( \%spIdx, $tmpSpIdxFile );
+# exit;
 
 my @vDirs;
 if ( $vDirsFile )
@@ -232,13 +241,12 @@ if ( ! -e $outDir )
 }
 
 my $tmpDir = $outDir . "/temp_dir";
-if ( ! -e $tmpDir )
-{
-  my $cmd = "mkdir -p $tmpDir";
-  print "\tcmd=$cmd\n" if $dryRun || $debug;
-  system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
-}
-
+# if ( ! -e $tmpDir )
+# {
+#   my $cmd = "mkdir -p $tmpDir";
+#   print "\tcmd=$cmd\n" if $dryRun || $debug;
+#   system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
+# }
 
 my %phyloTx;          # phylogeny based taxonomy; seqID => taxonomic assignment to seqID
 
@@ -256,7 +264,47 @@ my %processed;        # sp => 1 upon complection of processing the given species
 
 my $nMultCltrTxs = 0; # number multiple-cluster taxons (species present in more
 		      # than one cluster containing also query sequences).
+my $showCtrs = 0;
 
+
+my $queryTxFile = $outDir . "/query.tx"; # 2 columns; seqID, species; tab
+					 # delimited file of all query sequences
+					 # (redundant) except those who were
+					 # dropped due to presence in a cluster
+					 # with no named species and not being
+					 # abundant enough.
+
+my $trainTxFile = $outDir . "/train.tx"; # columns: seqID, species, phyloGroup, multiplicity
+                                         # multiplicity = size of the 100%
+                                         # identity cluster for query seq's, -1
+                                         # for ref seq's.  ref and query
+                                         # (non-redundant sequences only) are
+                                         # listed here. If more than 500 query
+                                         # sequences are present in a given
+                                         # cluster classified to a species, only
+                                         # the first 500 most abundant are used.
+
+my $chgdRefTxFile = $outDir . "/changed.tx"; # if there are <= 10 seq's of a
+					     # species in a cluster with multiple
+					     # species, its taxonomy is changed
+					     # to that of the most abundant
+					     # species.
+
+my $droppedSeqs = $outDir . "/dropped.seqIDs"; # seqIDs of query sequences
+					       # dropped from the classification
+					       # according to the above rules
+
+my @droppedQuerySeqs;
+
+# my $trainTxFile = $outDir . "/train_weighted.tx"; # weighted version of the
+# trainin set were non-redundant sequences would be in different aboundances
+# based on their presence in the population
+
+open QOUT, ">$queryTxFile" or die "Cannot open $queryTxFile for writing: $OS_ERROR";
+open TOUT, ">$trainTxFile" or die "Cannot open $trainTxFile for writing: $OS_ERROR";
+open ROUT, ">$chgdRefTxFile" or die "Cannot open $chgdRefTxFile for writing: $OS_ERROR";
+
+my $spCounter = 1;
 for my $vDir ( @vDirs )
 {
   #print "vDir: $vDir\n";
@@ -275,6 +323,12 @@ for my $vDir ( @vDirs )
 	{
 	  #print "\nDiscovered $vDir/$phGrDir/$spDir\n";
 	  #print "\nDiscovered $spDir\n";
+
+	  if ( $quiet )
+	  {
+	    printf( "\r%d [%.1f%%]", $spCounter, 100 * $spCounter / $nAllSpp );
+	    $spCounter++;
+	  }
 
 	  ## extracting species name
 	  my ( $sp ) = ( $spDir =~ /(\w+)_dir$/ );
@@ -348,16 +402,22 @@ for my $vDir ( @vDirs )
 	  }
 
 	  ## Extracting seqIDs of non-redundant query sequences
-	  my $nrSeqIDsFile = "$vDir/$phGrDir/$spDir/$sp" . $covSuffix . ".seqIDs";
-	  if ( $covSuffix eq "" )
+	  my $nrSeqIDsFile = "$vDir/$phGrDir/$spDir/$sp" . "_nr.seqIDs";
+	  my @nrAllSeqIDs = readArray( $nrSeqIDsFile );
+
+	  my @nrSeqIDs;
+	  if ( $covSuffix ne "" )
 	  {
-	    $nrSeqIDsFile = "$vDir/$phGrDir/$spDir/$sp" . "_nr.seqIDs";
+	    $nrSeqIDsFile = "$vDir/$phGrDir/$spDir/$sp" . $covSuffix . ".seqIDs";
+	    @nrSeqIDs = readArray( $nrSeqIDsFile );
 	  }
-	  my @nrSeqIDs = readArray( $nrSeqIDsFile );
+	  else
+	  {
+	    @nrSeqIDs = @nrAllSeqIDs;
+	  }
 
 	  ## Identifing clusters that contain query sequences
 	  my @querySeqCltrs;
-	  ##print "\n\nvCltrTbl\n";
 	  for ( @nrSeqIDs )
 	  {
 	    if ( exists $vCltrTbl{$_} )
@@ -397,35 +457,145 @@ for my $vDir ( @vDirs )
 	    }
 	  }
 
+	  my $spClstr2File = "$vDir/$phGrDir/$spDir/$sp" . "_nr.clstr2";
+	  #print "--- Parsing clstr2 file\n";
+	  my %cTbl = parseClstr2($spClstr2File);
+
 	  ##
 	  ## The classification section
 	  ##
+	  my @na = ("NA");
+	  my $winnerTx; # taxonomy of the cluster with the largest number of
+			# query sequences. Used to propagate the taxonomy of the
+			# non-redundant seq's covering 80% of all seq's to the
+	                # remaining 20%.
+	  my $maxNumQuerySeqs = 0;
+	  for my $cl ( @queryCltrs )
+	  {
+	    my %txFreq = %{$vCltrvTxFreq{$cl}};
+	    my @txs    = keys %txFreq;
+	    my $nTxs   = @txs;
 
-	  ## determine if there is more than one cluster containing the same species
-	  ## 'genotype' the species if there is a support for it (to be specified)
+	    my @nrQueryIDs = @{ $vCltrvTxIds{$cl}{"NA"} };
+	    my $newTx;
 
-	  ## if no such thing exists
-	  ## go cluster by cluster and make a decision
+	    if ( $nTxs == 1 ) # only NAs
+	    {
+	      my $tx = shift @txs;
+	      if ( $tx ne "NA" )
+	      {
+		warn "\n\n\tERROR: single taxon cluster (selected from clusters that contain NA) and the 'taxon' is not NA";
+		print "\n\n";
+		exit 1;
+	      }
+
+	      if ( @nrQueryIDs > $minNRQseqs )
+	      {
+		my ($genus, $s) = split /\s+/, $sp;
+		$spIdx{$genus}++;
+		$newTx = $genus . "_sp_" . $spIdx{$genus};
+	      }
+	      else
+	      {
+		for my $refID ( @nrQueryIDs )
+		{
+		  my @qIDs = @{ $cTbl{$refID} };
+		  push @droppedQuerySeqs, @qIDs;
+		}
+		next;
+	      }
+	    }
+	    elsif ( $nTxs == 2 ) # NAs and a named species
+	    {
+	      my @nonNAtx = diff( \@txs, \@na );
+	      $newTx = shift @nonNAtx;
+	    }
+	    else
+	    {
+	      # NAs with more than one species
+	      @txs = diff( \@txs, \@na );
+
+	      # sorting txs w/r to their number in the cluster
+	      @txs = sort { $txFreq{$b} <=> $txFreq{$a} } @txs;
+	      $newTx = shift @txs;
+
+	      ## here <= 10 taxons/species should be renamed to $newTx <= ToDO !!!!!!!
+	      for my $tx ( @txs )
+	      {
+		if ( $tx ne "NA" && $txFreq{$tx} <= $minSpSize )
+		{
+		  print ROUT "$tx\t$newTx\t$phGr\n";
+		}
+	      }
+	    }
+
+	    for my $refID ( @nrQueryIDs )
+	    {
+	      print TOUT "$refID\t$newTx\t$phGr\t" . @{ $cTbl{$refID} } . "\n";
+	      my @qIDs = @{ $cTbl{$refID} };
+	      for ( @qIDs )
+	      {
+		print QOUT "$_\t$newTx\n";
+	      }
+	    }
+
+	    if ( @nrQueryIDs > $maxNumQuerySeqs )
+	    {
+	      $maxNumQuerySeqs = @nrQueryIDs;
+	      $winnerTx = $newTx;
+	    }
+
+	  } # end of for my $cl ( @queryCltrs )
+
+	  ## Propagating the winner taxonomy to the remaining 20% of sequences if
+	  ## we are in the case of 80% coverage situation.
+	  if ( $covSuffix ne "")
+	  {
+	    my @tailIDs = diff( \@nrAllSeqIDs, \@nrSeqIDs );
+
+	    for my $refID ( @tailIDs )
+	    {
+	      my @qIDs = @{ $cTbl{$refID} };
+	      for ( @qIDs )
+	      {
+		print QOUT "$_\t$winnerTx\n";
+	      }
+	    }
+	  }
 
 	  ## Checking out for species present in more than one cluster
-	  my @txs = keys %txCltrFreq;
-	  my @na = ("NA");
-	  @txs = diff( \@txs, \@na );
-	  for my $tx ( @txs )
+	  if ( $reportSppInMultCltrs )
 	  {
-	    my @txCltrs = keys %{ $txCltrFreq{$tx} };
-	    my @c = comm( \@txCltrs, \@queryCltrs );
-	    if ( @c > 1 )
+	    my @txs = keys %txCltrFreq;
+	    @txs = diff( \@txs, \@na );
+	    for my $tx ( @txs )
 	    {
-	      print "$tx found in more than one cluster with query sequences\n";
-	      $nMultCltrTxs++;
+	      my %cltrMult = %{ $txCltrFreq{$tx} }; # cl => # of seq's of tx in cluster cl
+	      my @txCltrs  = keys %cltrMult;
+	      my @c = comm( \@txCltrs, \@queryCltrs );
+	      if ( @c > 1 )
+	      {
+		my $nBigCounts = 0;
+		for my $cl ( @c )
+		{
+		  $nBigCounts++ if $cltrMult{$cl} >= $spMultThld;
+		}
+		if ( $nBigCounts > 1 )
+		{
+		  print "\n-------------------------------------------------------------------------------------\n";
+		  print "$sp  ($phGr)\n";
+		  print "$tx found in more than one cluster with query sequences (with >= $spMultThld seq's there)\n";
+		  $nMultCltrTxs++;
+		  $showCtrs = 1;
+		}
+	      }
 	    }
 	  }
 
 	  my @querySortedCltrs = sort { $vicutCltrSize{$b} <=> $vicutCltrSize{$a} } @queryCltrs;
 	  for my $cl (@querySortedCltrs)
 	  {
-	    print "\nCluster $cl (" . $vicutCltrSize{$cl} . ")\n" if !$quiet;
+	    print "\nCluster $cl (" . $vicutCltrSize{$cl} . ")\n" if !$quiet || $showCtrs;
 
 	    ## Generating a list of species present in $cl sorted by size and with NA
 	    ## at the end (igoring the size of NA when sorting
@@ -442,9 +612,10 @@ for my $vDir ( @vDirs )
 	    }
 	    #print "\n";
 
-	    printFormatedTbl(\%clTxsize, \@clTxs) if !$quiet;
+	    printFormatedTbl(\%clTxsize, \@clTxs) if !$quiet || $showCtrs;
 	  }
-	  print "\n" if !$quiet;
+	  print "\n" if !$quiet || $showCtrs;
+	  $showCtrs = 0;
 
 	  if ( exists $ipSpp{$sp} )
 	  {
@@ -460,6 +631,9 @@ for my $vDir ( @vDirs )
   closedir VDIR;
 }
 
+close QOUT;
+close TOUT;
+close ROUT;
 
 ##
 ## Summary stats
@@ -473,7 +647,12 @@ my $nIPrSpp = @ipSpp;
 print "\n\nNumber of species found by the classifier in the M&M dataset: $nAllSpp\n";
 print     "Number processed species:                                     $nProcessedSpp\n";
 print     "Number of species for which no vicut data was found:          $nIPrSpp\n";
-print     "Number of species found in more than one cluster with query sequences: $nMultCltrTxs\n";
+
+if ( $reportSppInMultCltrs )
+{
+  print     "\nNumber of species found in more than one cluster with query sequences  (with >= $spMultThld seq's there): $nMultCltrTxs\n";
+}
+
 
 if ( $nIPrSpp )
 {
@@ -508,6 +687,11 @@ if ( $nAllSpp > $nProcessedSpp )
   }
   close OUT;
   print "\nTable of missing species written to $outFile\n";
+}
+
+if ( @droppedQuerySeqs )
+{
+  writeArray( \@droppedQuerySeqs, $droppedSeqs );
 }
 
 print "Output written to $outDir\n\n";
@@ -555,8 +739,7 @@ sub parseClstr2
     chomp $rec;
     my @ids = split ",", $rec;
     my $refId = shift @ids;
-    ##$tbl{$refId} = \@ids;
-    $tbl{$refId} = @ids; # we are only interested in the size of the cluseter
+    push @{ $tbl{$refId} }, @ids;
   }
   close IN;
 
@@ -1117,7 +1300,7 @@ sub read_part_tbl
 {
   my $file = shift;
 
-  if ( ! -f $file )
+  if ( ! -e $file )
   {
     warn "\n\n\tERROR: $file does not exist";
     print "\n\n";
@@ -1231,4 +1414,50 @@ sub printArray
   map {print "$_\n"} @{$a};
 }
 
+# parse sp_to_phGr.txt whose format is
+#
+#   Lactobacillus_iners	1227355	Firmicutes_group_6_V3V4
+#   Lactobacillus_helveticus_acidophilus	920798	Firmicutes_group_6_V3V4
+#   Gardnerella_vaginalis	402803	Actinobacteria_group_0_V3V4
+#
+# and generate a table
+# genus => number of _sp species within that genus
+
+sub getSpIdx
+{
+  my $file = shift;
+
+  if ( ! -e $file )
+  {
+    warn "\n\n\tERROR: $file does not exist";
+    print "\n\n";
+    exit 1;
+  }
+
+  my %tbl;
+  open IN, "$file" or die "Cannot open $file for reading: $OS_ERROR\n";
+  for ( <IN> )
+  {
+    my ($sp, $n, $phGr ) = split /\s+/, $_;
+    my ( $ge, $suffix, $idx ) = split "_", $sp;
+
+    if ( $suffix && $suffix eq "sp" )
+    {
+      if ( $idx )
+      {
+	if ( ( exists $tbl{$ge} && $tbl{$ge} < $idx ) || ( !exists $tbl{$ge} ) )
+	{
+	  $tbl{$ge} = $idx;
+	}
+      }
+      else
+      {
+	$tbl{$ge} = 1;
+      }
+    }
+  }
+  close IN;
+
+  return %tbl;
+}
 exit 0;
