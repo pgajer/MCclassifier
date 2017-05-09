@@ -159,7 +159,7 @@ if ( defined $igs )
 {
   $mothur         = "/usr/local/packages/mothur-1.36.1/mothur";
   $usearch6       = "/local/projects/pgajer/bin/usearch6.0.203_i86linux32";
-  $readNewickFile = "/home/pgajer/.Rlocal/read.newick.R";
+  $readNewickFile = "/local/projects/pgajer/devel/MCclassifier/perl/read.newick.R";
 }
 
 if ( !$outDir )
@@ -491,7 +491,7 @@ for my $vDir ( @vDirs )
 
 	      if ( @nrQueryIDs > $minNRQseqs )
 	      {
-		my ($genus, $s) = split /\s+/, $sp;
+		my ($genus, $s) = split "_", $sp;
 		$spIdx{$genus}++;
 		$newTx = $genus . "_sp_" . $spIdx{$genus};
 	      }
