@@ -134,6 +134,8 @@ my $mmPECANfile    = "/Users/pgajer/projects/M_and_M/new_16S_classification_data
 my $mothur         = "/Users/pgajer/bin/mothur";
 my $usearch6       = "/Users/pgajer/bin/usearch6.0.203_i86osx32";
 my $readNewickFile = "/Users/pgajer/.Rlocal/read.newick.R";
+my $quietStr = "--quiet";
+
 
 if ( defined $igs )
 {
@@ -144,12 +146,13 @@ if ( defined $igs )
   $mothur         = "/usr/local/packages/mothur-1.36.1/mothur";
   $usearch6       = "/local/projects/pgajer/bin/usearch6.0.203_i86linux32";
   $readNewickFile = "/home/pgajer/.Rlocal/read.newick.R";
+  $quietStr = "";
+  
 }
 
 local $ENV{LD_LIBRARY_PATH} = "/usr/local/packages/readline/lib:/usr/local/packages/gcc-5.3.0/lib64";
 
 my $debugStr = "";
-my $quietStr = "--quiet";
 if ($debug)
 {
   $debugStr = "--debug";
@@ -392,7 +395,7 @@ for my $phGr ( keys %phGrSppTbl )
   ## Identifying fa finale file of the given phylo-group
   my @f = grep { $_ =~ /$phGr/ } @faFiles;
   my $phGrFaFile = $f[0];
-  ## print "\nphGr: $phGr; phGrFaFile: $phGrFaFile\n";
+  print "\nphGr: $phGr; phGrFaFile: $phGrFaFile\n";
 
   ## Identifying algn file of the given phylo-group
   @f = grep { $_ =~ /$phGr/ } @algnFiles;
