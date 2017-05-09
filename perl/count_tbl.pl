@@ -160,7 +160,6 @@ for ( <IN> )
   else
   {
     warn "\n\n\tERROR: sampleID undef";
-    print "\nreadId: $seqID\n";
     print "id: $id\n\n";
   }
 
