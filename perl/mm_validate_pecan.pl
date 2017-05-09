@@ -137,7 +137,7 @@ my $readNewickFile = "/Users/pgajer/.Rlocal/read.newick.R";
 
 if ( defined $igs )
 {
-  $baseDir        = "/local/scratch/MM/V3V4_unzipped";
+  $baseDir        = "/local/scratch/MM/V3V4_unzipped/";
   $mmDir          = "/local/scratch/MM/";
   $mmMasterFaFile = "/local/scratch/MM/MM_all_updated_seqID_no_ctrls.fa";
   $mmPECANfile    = "/local/scratch/MM/MM_MC_order7_results.txt";
