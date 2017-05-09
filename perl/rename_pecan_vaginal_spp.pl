@@ -144,7 +144,7 @@ for (<IN>)
       $runTime = sprintf("%02d", $runTime);
       $timeStr = "$timeMin:$runTime";
     }
-    amy $perc = sprintf("%.1f%%", 100 * $counter / $nLines);
+    my $perc = sprintf("%.1f%%", 100 * $counter / $nLines);
     print "\r$timeStr [$perc]";
   }
   $counter++;
