@@ -107,13 +107,41 @@ if ($igs)
 ##                               MAIN
 ####################################################################
 
-
+print "--- Parsing translation table\n";
 my %trTbl = readTbl( $trTbl );
 
+my $startRun = time();
+my $endRun = time();
+my $runTime = $endRun - $startRun;
+my $timeStr;
+my $timeMin = int($runTime / 60);
+my $timeSec = $runTime % 60;
+
+print "--- Translating the taxonomy table\n";
 open IN, "$inFile" or die "Cannot open $inFile for reading: $OS_ERROR";
 open OUT, ">$outFile" or die "Cannot open $outFile for writing: $OS_ERROR\n";
+my $counter = 1;
 for (<IN>)
 {
+  if ($counter % 500 == 0)
+  {
+    $endRun = time();
+    $runTime = $endRun - $startRun;
+    if ( $runTime > 60 )
+    {
+      $timeMin = int($runTime / 60);
+      $timeSec = sprintf("%02d", $runTime % 60);
+      $timeStr = "$timeMin:$timeSec";
+    }
+    else
+    {
+      $runTime = sprintf("%02d", $runTime);
+      $timeStr = "$timeMin:$runTime";
+    }
+    print "\r$timeStr";
+  }
+  $counter++;
+
   chomp;
   my ($id, $tx) = split /\s+/, $_;
   if ( exists $trTbl{$tx} )
