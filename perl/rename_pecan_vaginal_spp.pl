@@ -129,7 +129,7 @@ open OUT, ">$outFile" or die "Cannot open $outFile for writing: $OS_ERROR\n";
 my $counter = 1;
 for (<IN>)
 {
-  if ($counter % 500 == 0)
+  if ( $counter % 500 == 0 )
   {
     $endRun = time();
     $runTime = $endRun - $startRun;
@@ -148,6 +148,7 @@ for (<IN>)
     print "\r$timeStr [$perc]";
   }
   $counter++;
+  print "\r$counter";
 
   chomp;
   my ($id, $tx) = split /\s+/, $_;
