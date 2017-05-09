@@ -117,6 +117,12 @@ my $timeStr;
 my $timeMin = int($runTime / 60);
 my $timeSec = $runTime % 60;
 
+print "--- Checking the number of lines in the taxonomy file\n";
+my $wcline = qx/ wc -l $inFile /;
+$wcline =~ s/^\s+//;
+my ($nLines, $str) = split /\s+/, $wcline;
+print "nLines: $nLines\n";
+
 print "--- Translating the taxonomy table\n";
 open IN, "$inFile" or die "Cannot open $inFile for reading: $OS_ERROR";
 open OUT, ">$outFile" or die "Cannot open $outFile for writing: $OS_ERROR\n";
@@ -138,7 +144,8 @@ for (<IN>)
       $runTime = sprintf("%02d", $runTime);
       $timeStr = "$timeMin:$runTime";
     }
-    print "\r$timeStr";
+    amy $perc = sprintf("%.1f%%", 100 * $counter / $nLines);
+    print "\r$timeStr [$perc]";
   }
   $counter++;
 
