@@ -117,19 +117,15 @@ my $timeStr;
 my $timeMin = int($runTime / 60);
 my $timeSec = $runTime % 60;
 
-print "--- Parsing $txFile";
-my %txTbl = read2colTbl($txFile); # <seq Id> => <taxonomy>
-
-print "\r--- Creating sample x OTU count table";
+print "--- Creating sample x OTU count table";
 my %sampleTxTbl;
 my %sampleTbl;
-my %otuTbl;
+my %txTbl;
 my %rankTbl;# rank table
 my $rcount = 0;
 my $counter = 1;
-my $nTx = keys %txTbl;
-##my $newSample = 0;
-for my $readId (keys %txTbl)
+open IN, "$txFile" or die "Cannot open $txFile for reading: $OS_ERROR\n";
+for ( <IN> )
 {
   if ($counter % 500 == 0)
   {
@@ -146,46 +142,36 @@ for my $readId (keys %txTbl)
       $runTime = sprintf("%02d", $runTime);
       $timeStr = "$timeMin:$runTime";
     }
-    my $perc = sprintf("%.1f%%", 100 * $counter / $nTx);
-    print "\r$timeStr [$perc]";
+    print "\r$timeStr";
   }
   $counter++;
 
-  my ($id) = split ":", $readId;
+  my ($id, $tx) = split /\s+/, $_;
   my ($sampleID, $index) = ( $id =~ /(.+)_(\d+$)/ );
 
-  # if ( !exists $sampleTbl{$sampleID} )
-  # {
-  #   $newSample++;
-  #   print "\n\nsample $newSample\treadID: $readId\n";
-  #   print "sampleID: $sampleID\tindex: $index\n";
-  # }
+  $txTbl{$tx} = 0;
+  $rankTbl{$tx}++;
 
-  my $otu = $txTbl{$readId};
-  print "ERROR: otu undefined for $readId\n" if !$otu;
-
-  $otuTbl{$otu} = 0;
-  $rankTbl{$otu}++;
-
-  if ($sampleID)
+  if ( $sampleID )
   {
     $sampleTbl{$sampleID}++;
-    $sampleTxTbl{$sampleID}{$otu}++;
+    $sampleTxTbl{$sampleID}{$tx}++;
   }
   else
   {
-    print "\n\n==== ERROR: in " . __FILE__ . " at line " . __LINE__ . ": $OS_ERROR\n";
-    print "\nreadId: $readId\n";
+    warn "\n\n\tERROR: sampleID undef";
+    print "\nreadId: $seqID\n";
     print "id: $id\n\n";
   }
 
   $rcount++;
 }
+close IN;
 
-## compute column sums for sorting OTUs
-print "\r--- Sorting OTUs by column sums";
+## compute column sums for sorting TXs
+print "\r--- Sorting TXs by column sums";
 my %colSums;
-my @tIds = keys %otuTbl;
+my @tIds = keys %txTbl;
 my $ntIds = @tIds;
 
 my $i = 0;
@@ -203,10 +189,10 @@ foreach my $tid (@tIds)
 print "\r                              \n";
 
 my $nTids = @tIds;
-my @otus = sort { $colSums{$b} <=> $colSums{$a} } @tIds;
+my @txs = sort { $colSums{$b} <=> $colSums{$a} } @tIds;
 
 
-## computing max string length of the first $n elements of @otus
+## computing max string length of the first $n elements of @txs
 
 my $n = 20;
 my $n1 = $n - 1;
@@ -217,11 +203,11 @@ $maximums{"riboID"} = 0;
 $maximums{"count"} = 0;
 $maximums{"perc"} = 0;
 
-my @otusR = @otus[0..$n1];
+my @txsR = @txs[0..$n1];
 
 # calculate the maximum length of the values in each column
 my @fTbl;
-foreach my $rID (@otusR)
+foreach my $rID (@txsR)
 {
   my %row;
   $row{"riboID"} = $rID;
@@ -256,37 +242,37 @@ print "\n\n";
 
 ## print "\r                                     \nRank\tFrequencies\tPercentages\n";
 ## map {print "$_\t" . $rankTbl{$_} . "\t" . (100*$rankTbl{$_}/$rcount) . "\n"} keys %rankTbl;
-## map {print "$_\t" . sprintf("%10s", commify($rankTbl{$_})) . "\t" . sprintf("%10.6f\n", (100*$rankTbl{$_}/$rcount)) } @otus[0..$n1];
+## map {print "$_\t" . sprintf("%10s", commify($rankTbl{$_})) . "\t" . sprintf("%10.6f\n", (100*$rankTbl{$_}/$rcount)) } @txs[0..$n1];
 
-my $nOTUs = @otus;
+my $nTXs = @txs;
 my $nSamp = keys %sampleTbl;
 
 print "\n\tTotal number of seq's: " . sprintf("%10s", commify($rcount)) . "\n";
-print   "\tNumber of phylotypes:  " . sprintf("%10s", commify($nOTUs)) . "\n";
+print   "\tNumber of phylotypes:  " . sprintf("%10s", commify($nTXs)) . "\n";
 print   "\tNumber of samples:     " . sprintf("%10s", commify($nSamp)) . "\n\n";
 
 my $txRkFile = dirname($outFile) . "/taxonRank.txt";
 open OUT, ">$txRkFile" or die "Cannot open $txRkFile for writing: $OS_ERROR\n";
-map {print OUT "$_\t" . $rankTbl{$_} . "\t" . (100*$rankTbl{$_}/$rcount) . "\n"} @otus;
+map {print OUT "$_\t" . $rankTbl{$_} . "\t" . (100*$rankTbl{$_}/$rcount) . "\n"} @txs;
 close OUT;
 
 print "\n\tTaxon frequencies written to $txRkFile\n";
 
-my %otuIdx;
+my %txIdx;
 $i = 0;
-foreach my $g (@otus)
+foreach my $g (@txs)
 {
-    $otuIdx{$g} = $i;
+    $txIdx{$g} = $i;
     $i++;
 }
 
-## print "--- Printing sample x OTU count table to $outFile\n";
+## print "--- Printing sample x TX count table to $outFile\n";
 open OUT, ">$outFile" or die "Cannot open $outFile for writing: $OS_ERROR";
 # header
 print OUT "sampleID";
-foreach my $otu (@otus)
+foreach my $tx (@txs)
 {
-  print OUT "\t$otu";
+  print OUT "\t$tx";
 }
 print OUT "\n";
 
@@ -313,11 +299,11 @@ foreach my $sid (sort keys %sampleTbl)
   }
   $counter++;
 
-  my @counts = (0) x @otus;
+  my @counts = (0) x @txs;
 
-  foreach my $otu (keys %{$sampleTxTbl{$sid}})
+  foreach my $tx (keys %{$sampleTxTbl{$sid}})
   {
-    $counts[$otuIdx{$otu}] = $sampleTxTbl{$sid}->{$otu};
+    $counts[$txIdx{$tx}] = $sampleTxTbl{$sid}->{$tx};
   }
 
   print OUT $sid;
@@ -447,24 +433,5 @@ sub printTbl{
   my $rTbl = shift;
   map {print "$_\t" . $rTbl->{$_} . "\n"} keys %$rTbl;
 }
-
-# format OUT name
-# sub formatOTUname{
-
-#   my $otu = shift;
-
-#   if ($otu =~ /^c/)
-#   {
-#     $otu =~ s/^c/L.otu/;
-#     $otu =~ s/\.\d+/$idx/;
-#     $idx++;
-#   }
-#   else
-#   {
-#     $otu =~ s/\.\d+//;
-#   }
-
-#   return $otu;
-# }
 
 exit 0;
