@@ -453,6 +453,20 @@ for my $phGr ( keys %phGrSppTbl )
     system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
   }
 
+  if ( ! exists $phGrSppTbl{$phGr} )
+  {
+    warn "\n\n\tERROR: $phGr is not a key of phGrSppTbl";
+    print "\n\n";
+    exit;
+  }
+
+  if ( ref( $phGrSppTbl{$phGr} ) ne 'ARRAY'. )
+  {
+    warn "\n\n\tERROR: phGrSppTbl{$phGr} is a referece to ARRAY";
+    print "\n\n";
+    exit;
+  }
+
   my @uqSpp = unique($phGrSppTbl{$phGr});
   my @spp = sort { @{$spIDsTbl{$b}} <=> @{$spIDsTbl{$a}} } @uqSpp;
 
