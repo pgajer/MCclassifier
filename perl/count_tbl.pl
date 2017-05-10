@@ -109,7 +109,6 @@ elsif (!$outFile)
 ##                               MAIN
 ####################################################################
 
-
 my $startRun = time();
 my $endRun = time();
 my $runTime = $endRun - $startRun;
@@ -293,7 +292,7 @@ foreach my $sid (sort keys %sampleTbl)
     {
       $timeStr = "$timeMin:$runTime";
     }
-    amy $perc = sprintf("%.1f%%", 100 * $counter / $nStbl);
+    my $perc = sprintf("%.1f%%", 100 * $counter / $nStbl);
     print "\r$timeStr [$perc]";
   }
   $counter++;
