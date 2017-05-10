@@ -594,9 +594,9 @@ for my $phGr ( keys %phGrSppTbl )
       else
       {
 	my $percCov = 0;
-	for my $i (0..($maxNumNRseqs-1))
+	for my $j (0..($maxNumNRseqs-1))
 	{
-	  $percCov += $clPercs[$i];
+	  $percCov += $clPercs[$j];
 	}
 	#my $perc = 100 *
 
