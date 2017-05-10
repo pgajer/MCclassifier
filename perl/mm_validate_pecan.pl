@@ -460,7 +460,7 @@ for my $phGr ( keys %phGrSppTbl )
     exit;
   }
 
-  if ( ref( $phGrSppTbl{$phGr} ) ne 'ARRAY'. )
+  if ( ref( $phGrSppTbl{$phGr} ) ne 'ARRAY' )
   {
     warn "\n\n\tERROR: phGrSppTbl{$phGr} is a referece to ARRAY";
     print "\n\n";
