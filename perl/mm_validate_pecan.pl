@@ -128,14 +128,13 @@ if ( !$sppFile )
 
 my $baseDir        = "/Users/pgajer/devel/MCextras/data/RDP/rdp_Bacteria_phylum_dir/";
 my $mmDir          = "/Users/pgajer/projects/M_and_M/new_16S_classification_data/";
-my $mmMasterFaFile = "/Users/pgajer/projects/M_and_M/new_16S_classification_data/mm_all_good_seqIDs.fa";
-my $mmPECANfile    = "/Users/pgajer/projects/M_and_M/new_16S_classification_data/mmDir_May5/mm_pecan_may5_no_controls.tx";
+my $mmMasterFaFile = "/Users/pgajer/projects/M_and_M/new_16S_classification_data/MM_all_updated_seqID_no_ctrls.fa";
+my $mmPECANfile    = "/Users/pgajer/projects/M_and_M/new_16S_classification_data/MM_MC_order7_results.txt";
 
 my $mothur         = "/Users/pgajer/bin/mothur";
 my $usearch6       = "/Users/pgajer/bin/usearch6.0.203_i86osx32";
 my $readNewickFile = "/Users/pgajer/.Rlocal/read.newick.R";
 my $quietStr       = "--quiet";
-
 
 if ( defined $igs )
 {
@@ -146,8 +145,7 @@ if ( defined $igs )
   $mothur         = "/usr/local/packages/mothur-1.36.1/mothur";
   $usearch6       = "/local/projects/pgajer/bin/usearch6.0.203_i86linux32";
   $readNewickFile = "/local/projects/pgajer/devel/MCclassifier/perl/read.newick.R";
-  $quietStr = "";
-
+  $quietStr       = "";
 }
 
 local $ENV{LD_LIBRARY_PATH} = "/usr/local/packages/readline/lib:/usr/local/packages/gcc-5.3.0/lib64";
@@ -155,14 +153,14 @@ local $ENV{LD_LIBRARY_PATH} = "/usr/local/packages/readline/lib:/usr/local/packa
 my $debugStr = "";
 if ($debug)
 {
-  $debugStr = "--debug";
-  $quietStr = "";
+  $debugStr  = "--debug";
+  $quietStr  = "";
 }
 
 my $verboseStr = "";
 if ($verbose)
 {
-  $verboseStr = "--verbose";
+  $verboseStr  = "--verbose";
 }
 
 
