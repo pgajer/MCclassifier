@@ -84,6 +84,8 @@ GetOptions(
   "input-file|i=s"  => \my $inFile,
   "tx-file|t=s"     => \my $txFile,
   "output-dir|o=s"  => \my $outDir,
+  "dry-run"         => \my $dryRun,
+  "debug"           => \my $debug,
   "quiet"           => \my $quiet,
   "help|h!"         => \my $help,
   )
@@ -129,7 +131,7 @@ if ( -l $inFile )
 
 if ( -l $txFile )
 {
-   $selsFile = readlink($selsFile);
+   $txFile = readlink($txFile);
 }
 
 
