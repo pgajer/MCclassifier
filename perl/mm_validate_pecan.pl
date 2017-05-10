@@ -989,9 +989,15 @@ sub parse_pecan_tbl
   my %ppTbl;
   ##my %sp2phGrSppTbl;
   open IN, "$file" or die "Cannot open $file for reading: $OS_ERROR";
+  my $count = 1;
   foreach (<IN>)
   {
     next if /^$/;
+    if ( $count % 500 == 0 )
+    {
+      print "\r$count" if $debug;
+    }
+    $count++;
     chomp;
     my ($id, $sp, $pp) = split /\s+/,$_;
     push @{$spIDsTbl{$sp}}, $id;
@@ -1033,15 +1039,9 @@ sub parse_spp_tbl
 
   my %phGrSppTbl;
   open IN, "$file" or die "Cannot open $file for reading: $OS_ERROR";
-  my $count = 1;
   foreach (<IN>)
   {
     next if /^$/;
-    if ( $count % 500 == 0 )
-    {
-      print "\r$count" if $debug;
-    }
-    $count++;
     chomp;
     my ($sp, $size, $gr) = split /\s+/,$_;
     push @{$phGrSppTbl{$gr}}, $sp;
