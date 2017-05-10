@@ -82,7 +82,7 @@ use Getopt::Long qw(:config no_ignore_case no_auto_abbrev pass_through);
 use Cwd 'abs_path';
 use List::Util qw( sum min max );
 use File::Temp qw/ tempfile /;
-use Parallel::ForkManager;
+#use Parallel::ForkManager;
 
 $OUTPUT_AUTOFLUSH = 1;
 
@@ -386,7 +386,7 @@ my ($rspIDsTbl, $rppTbl) = parse_pecan_tbl( $mmPECANfile );
 my %spIDsTbl = %{ $rspIDsTbl };   # sp   => ref of array with seqIDs of seq's classified to sp
 my %ppTbl    = %{ $rppTbl };      # seqID => posterior probability of the best model
 
-my $forkMgr = new Parallel::ForkManager( $nProc );
+#my $forkMgr = new Parallel::ForkManager( $nProc );
 
 for my $phGr ( keys %phGrSppTbl )
 {
@@ -470,7 +470,7 @@ for my $phGr ( keys %phGrSppTbl )
 
   for my $spIdx ( 0..$#spp )
   {
-    $forkMgr->start and next; # do the fork
+    #$forkMgr->start and next; # do the fork
 
     my $sp = $spp[$spIdx];
     my @ids = @{$spIDsTbl{$sp}}; # seq IDs of $sp
@@ -907,7 +907,7 @@ for my $phGr ( keys %phGrSppTbl )
 
     close $ROUT;
 
-    $forkMgr->finish;
+    #$forkMgr->finish;
 
   } ## end of    for my $spIdx (0..
 
