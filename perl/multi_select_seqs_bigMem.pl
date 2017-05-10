@@ -205,7 +205,7 @@ for my $sp ( keys %spIDsTbl )
   $perc = sprintf("%.1f%%", 100 * $spCount / $nSpp );
   print "\r$spCount $timeStr [$perc]";
 
-  my $outFile = $outDir . "/" . $txTbl{$id} . ".fa";
+  my $outFile = $outDir . "/" . $sp . ".fa";
   open OUT, ">$outFile" or die "Cannot open $outFile for reading: $OS_ERROR\n";
   for ( @{ $spIDsTbl{$sp} } )
   {
