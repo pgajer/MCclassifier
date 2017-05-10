@@ -204,6 +204,7 @@ for my $sp ( keys %spIDsTbl )
   }
   $perc = sprintf("%.1f%%", 100 * $spCount / $nSpp );
   print "\r" . commify($spCount) . " $timeStr [$perc]";
+  $spCount++;
 
   my $outFile = $outDir . "/" . $sp . ".fa";
   open OUT, ">$outFile" or die "Cannot open $outFile for reading: $OS_ERROR\n";
