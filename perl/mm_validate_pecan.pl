@@ -993,7 +993,7 @@ sub parse_pecan_tbl
   foreach (<IN>)
   {
     next if /^$/;
-    #if ( $count % 500 == 0 )
+    if ( $count % 500 == 0 )
     {
       print "\r$count" if $debug;
     }
