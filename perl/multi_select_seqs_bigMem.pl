@@ -161,7 +161,7 @@ if ( $debug )
   print "\nNumber of species in the taxon table: $nSpp\n\n";
 }
 
-print "--- Parsing big fat fasta file\n";
+print "\t--- Parsing big fat fasta file\n";
 my %faTbl; # seqID => its sequence
 my $count = 0;
 my $selCount = 0;
@@ -185,7 +185,7 @@ while (<FASTA>)
 close FASTA;
 
 
-print "--- Writing species fasta files to outDir\n";
+print "\r--- Writing species fasta files to outDir\n";
 my $spCount = 1;
 my $perc;
 for my $sp ( keys %spIDsTbl )
@@ -203,7 +203,7 @@ for my $sp ( keys %spIDsTbl )
     $timeStr = "$timeMin:$runTime";
   }
   $perc = sprintf("%.1f%%", 100 * $spCount / $nSpp );
-  print "\r$spCount $timeStr [$perc]";
+  print "\r" . commify($spCount) . " $timeStr [$perc]";
 
   my $outFile = $outDir . "/" . $sp . ".fa";
   open OUT, ">$outFile" or die "Cannot open $outFile for reading: $OS_ERROR\n";
@@ -256,7 +256,19 @@ sub parse_tx_tbl
     next if /^$/;
     if ( $count % 500 == 0 )
     {
-      print "\r$count" if $debug;
+      $endRun = time();
+      $runTime = $endRun - $startRun;
+      if ( $runTime > 60 )
+      {
+	$timeMin = int($runTime / 60);
+	$timeSec = sprintf("%02d", $runTime % 60);
+	$timeStr = "$timeMin:$timeSec";
+      }
+      else
+      {
+	$timeStr = "$timeMin:$runTime";
+      }
+      print "\r" . commify($spCount) . " $timeStr";
     }
     $count++;
     chomp;
@@ -297,18 +309,32 @@ sub readArray
 }
 
 # print elements of a hash table
-sub printTbl{
-
+sub printTbl
+{
   my $rTbl = shift;
   map {print "|$_|\t|" . $rTbl->{$_} . "|\n"} keys %$rTbl;
 }
 
 # print n keys of a hash table
-sub printKeys{
-
+sub printKeys
+{
   my ($rTbl, $n) = @_;
   my $i = 0;
   map {$i++; print "$_\n" if $i < $n} keys %$rTbl;
+}
+
+## put commas in numbers for better readability
+## lifted from
+## http://www.perlmonks.org/?node_id=2145
+sub commify
+{
+   local $_  = shift;
+   s{(?<!\d|\.)(\d{4,})}
+    {my $n = $1;
+     $n=~s/(?<=.)(?=(?:.{3})+$)/,/g;
+     $n;
+    }eg;
+   return $_;
 }
 
 exit 0;

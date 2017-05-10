@@ -43,7 +43,7 @@
 
 =head1  EXAMPLES
 
-    multi_select_seqs.pl -t
+  multi_select_seqs.pl --debug -t /local/scratch/MM/MM_MC_order7_results.txt -i /local/scratch/MM/MM_all_updated_seqID_no_ctrls.fa -o mm_spp_dir
 
 =cut
 
@@ -139,6 +139,12 @@ if ( -l $txFile )
 ##                               MAIN
 ####################################################################
 
+my $startRun = time();
+my $endRun = time();
+my $runTime = $endRun - $startRun;
+my $timeStr;
+my $timeMin = int($runTime / 60);
+my $timeSec = $runTime % 60;
 
 if ( ! -e $outDir )
 {
@@ -152,7 +158,7 @@ print "--- Parsing taxon file\n";
 my %txTbl = parse_tx_tbl( $txFile ); # seqID => species
 
 
-print "--- Parsing big fat fasta file\n";
+print "\r--- Parsing big fat fasta file\n";
 my $count = 0;
 my $selCount = 0;
 open (FASTA, "<$inFile") or die "Cannot open $inFile for reading: $OS_ERROR\n";
@@ -163,7 +169,19 @@ while (<FASTA>)
   chomp;
   if ( $count % 500 == 0 )
   {
-    print "\r$count" if $debug;
+    $endRun = time();
+    $runTime = $endRun - $startRun;
+    if ( $runTime > 60 )
+    {
+      $timeMin = int($runTime / 60);
+      $timeSec = sprintf("%02d", $runTime % 60);
+      $timeStr = "$timeMin:$timeSec";
+    }
+    else
+    {
+      $timeStr = "$timeMin:$runTime";
+    }
+    print "\r" . commify($spCount) . " $timeStr";
   }
   $count++;
 
@@ -231,7 +249,19 @@ sub parse_tx_tbl
     next if /^$/;
     if ( $count % 500 == 0 )
     {
-      print "\r$count" if $debug;
+      $endRun = time();
+      $runTime = $endRun - $startRun;
+      if ( $runTime > 60 )
+      {
+	$timeMin = int($runTime / 60);
+	$timeSec = sprintf("%02d", $runTime % 60);
+	$timeStr = "$timeMin:$timeSec";
+      }
+      else
+      {
+	$timeStr = "$timeMin:$runTime";
+      }
+      print "\r" . commify($spCount) . " $timeStr";
     }
     $count++;
     chomp;
@@ -285,6 +315,20 @@ sub printKeys{
   my ($rTbl, $n) = @_;
   my $i = 0;
   map {$i++; print "$_\n" if $i < $n} keys %$rTbl;
+}
+
+## put commas in numbers for better readability
+## lifted from
+## http://www.perlmonks.org/?node_id=2145
+sub commify
+{
+   local $_  = shift;
+   s{(?<!\d|\.)(\d{4,})}
+    {my $n = $1;
+     $n=~s/(?<=.)(?=(?:.{3})+$)/,/g;
+     $n;
+    }eg;
+   return $_;
 }
 
 exit 0;
