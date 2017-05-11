@@ -638,13 +638,17 @@ for my $phGr ( keys %phGrSppTbl )
       open(my $OLDOUT, '<', $spNRfaFile) or die "Could not open file '$spNRfaFile' $!";
       chomp(my @old = <$OLDOUT>);
       close $OLDOUT;
+      
+      my @good;
         
       foreach my $l (@old)
       {
           my @spNRfaFileFIX = split(/;/, $l);
-          print $GOODOUT, $spNRfaFileFIX[0]."\n";
+          push @good, $spNRfaFileFIX[0]."\n";
           
       }
+      
+      print $GOODOUT, @good;
       close $GOODOUT;
         #$cmd = "awk -F  ';' '{print $1}' $spNRfaFile > $spNRfaFileGOOD";
         #print "\tcmd=$cmd\n" if $dryRun || $debug;
