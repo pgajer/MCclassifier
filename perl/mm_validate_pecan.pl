@@ -635,8 +635,8 @@ for my $phGr ( keys %phGrSppTbl )
         
         
       
-      open(my OLDOUT, '<', $spNRfaFile) or die "Could not open file '$spNRfaFile' $!";
-      chomp(my @old = <OLDOUT>);
+      open(my $OLDOUT, '<', $spNRfaFile) or die "Could not open file '$spNRfaFile' $!";
+      chomp(my @old = <$OLDOUT>);
       close $OLDOUT;
       
       my @good;
