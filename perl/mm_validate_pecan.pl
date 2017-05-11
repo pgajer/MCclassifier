@@ -128,9 +128,9 @@ if ( !$sppFile )
 
 my $baseDir        = "/Users/pgajer/devel/MCextras/data/RDP/rdp_Bacteria_phylum_dir/";
 my $mmDir          = "/Users/pgajer/projects/M_and_M/new_16S_classification_data/";
-my $mmMasterFaFile = "/Users/pgajer/projects/M_and_M/new_16S_classification_data/MM_all_updated_seqID_no_ctrls.fa";
-my $mmPECANfile    = "/Users/pgajer/projects/M_and_M/new_16S_classification_data/MM_MC_order7_results.txt";
+my $mmSppDir       = "/home/pgajer/projects/M_and_M/new_16S_classification_data/mm_spp_dir";
 
+my $R              = "R";
 my $mothur         = "/Users/pgajer/bin/mothur";
 my $usearch6       = "/Users/pgajer/bin/usearch6.0.203_i86osx32";
 my $readNewickFile = "/Users/pgajer/.Rlocal/read.newick.R";
@@ -138,10 +138,12 @@ my $quietStr       = "--quiet";
 
 if ( defined $igs )
 {
-  $baseDir        = "/local/scratch/MM/V3V4_unzipped/";
+  #$baseDir        = "/local/scratch/MM/V3V4_unzipped/";
+  $baseDir        = "/usr/local/projects/pgajer/devel/MCextras/data/RDP/V3V4_v2/";
   $mmDir          = "/local/scratch/MM/";
-  $mmMasterFaFile = "/local/scratch/MM/MM_all_updated_seqID_no_ctrls.fa";
-  $mmPECANfile    = "/local/scratch/MM/MM_MC_order7_results.txt";
+  $mmSppDir       = "/home/pgajer/projects/M_and_M/new_16S_classification_data/mm_spp_dir";
+
+  $R              = "/home/pgajer/bin/R";
   $mothur         = "/usr/local/packages/mothur-1.36.1/mothur";
   $usearch6       = "/local/projects/pgajer/bin/usearch6.0.203_i86linux32";
   $readNewickFile = "/local/projects/pgajer/devel/MCclassifier/perl/read.newick.R";
@@ -168,152 +170,153 @@ if ($verbose)
 ##                               MAIN
 ####################################################################
 
-my $startRun = time();
-my $endRun = time();
-my $runTime = $endRun - $startRun;
+my $startRun     = time();
+my $initStartRun = $startRun;
+my $endRun       = time();
+my $runTime      = $endRun - $startRun;
 my $timeStr;
-my $timeMin = int($runTime / 60);
-my $timeSec = $runTime % 60;
+my $timeMin      = int($runTime / 60);
+my $timeSec      = $runTime % 60;
 
 
-my @faFiles0 = ("Actinobacteria_dir/Actinobacteria_group_0_V3V4_dir/Actinobacteria_group_0_V3V4_final.fa",
-		"Actinobacteria_dir/Actinobacteria_group_1_V3V4_dir/Actinobacteria_group_1_V3V4_final.fa",
-		"Actinobacteria_dir/Actinobacteria_group_2_V3V4_dir/Actinobacteria_group_2_V3V4_final.fa",
-		"Actinobacteria_dir/Actinobacteria_group_3_V3V4_dir/Actinobacteria_group_3_V3V4_final.fa",
-		"Actinobacteria_dir/Actinobacteria_group_4_V3V4_dir/Actinobacteria_group_4_V3V4_final.fa",
-		"Actinobacteria_dir/Actinobacteria_group_5_V3V4_dir/Actinobacteria_group_5_V3V4_final.fa",
-		"Bacteroidetes_dir/Bacteroidetes_group_0_V3V4_dir/Bacteroidetes_group_0_V3V4_final.fa",
-		"Bacteroidetes_dir/Bacteroidetes_group_1_V3V4_dir/Bacteroidetes_group_1_V3V4_final.fa",
-		"Bacteroidetes_dir/Bacteroidetes_group_2_V3V4_dir/Bacteroidetes_group_2_V3V4_final.fa",
-		"Bacteroidetes_dir/Bacteroidetes_group_3_V3V4_dir/Bacteroidetes_group_3_V3V4_final.fa",
-		"final_small_phyla_V3V4/Chloroflexi_V3V4_dir/Chloroflexi_V3V4_final.fa",
-		"final_small_phyla_V3V4/Deinococcus_Thermus_V3V4_dir/Deinococcus_Thermus_V3V4_final.fa",
-		"final_small_phyla_V3V4/Fusobacteria_V3V4_dir/Fusobacteria_V3V4_final.fa",
-		"final_small_phyla_V3V4/Nitrospirae_V3V4_dir/Nitrospirae_V3V4_final.fa",
-		"final_small_phyla_V3V4/Planctomycetes_V3V4_dir/Planctomycetes_V3V4_final.fa",
-		"final_small_phyla_V3V4/Spirochaetes_V3V4_dir/Spirochaetes_V3V4_final.fa",
-		"final_small_phyla_V3V4/Tenericutes_V3V4_dir/Tenericutes_V3V4_final.fa",
-		"final_small_phyla_V3V4/Verrucomicrobia_V3V4_dir/Verrucomicrobia_V3V4_final.fa",
-		"final_small_phyla_V3V4/phyla_lessthen_1k_wOG_V3V4_dir/phyla_lessthen_1k_wOG_V3V4_final.fa",
-		"Firmicutes_dir/Firmicutes_group_0_V3V4_dir/Firmicutes_group_0_V3V4_final.fa",
-		"Firmicutes_dir/Firmicutes_group_1_V3V4_dir/Firmicutes_group_1_V3V4_final.fa",
-		"Firmicutes_dir/Firmicutes_group_2_V3V4_dir/Firmicutes_group_2_V3V4_final.fa",
-		"Firmicutes_dir/Firmicutes_group_3_V3V4_dir/Firmicutes_group_3_V3V4_final.fa",
-		"Firmicutes_dir/Firmicutes_group_4_V3V4_dir/Firmicutes_group_4_V3V4_final.fa",
-		"Firmicutes_dir/Firmicutes_group_5_V3V4_dir/Firmicutes_group_5_V3V4_final.fa",
-		"Firmicutes_dir/Firmicutes_group_6_V3V4_dir/Firmicutes_group_6_V3V4_final.fa",
-		"Proteobacteria_dir/Proteobacteria_group_0_V3V4_dir/Proteobacteria_group_0_V3V4_final.fa",
-		"Proteobacteria_dir/Proteobacteria_group_10_V3V4_dir/Proteobacteria_group_10_V3V4_final.fa",
-		"Proteobacteria_dir/Proteobacteria_group_11_V3V4_dir/Proteobacteria_group_11_V3V4_final.fa",
-		"Proteobacteria_dir/Proteobacteria_group_12_V3V4_dir/Proteobacteria_group_12_V3V4_final.fa",
-		"Proteobacteria_dir/Proteobacteria_group_13_V3V4_dir/Proteobacteria_group_13_V3V4_final.fa",
-		"Proteobacteria_dir/Proteobacteria_group_14_V3V4_dir/Proteobacteria_group_14_V3V4_final.fa",
-		"Proteobacteria_dir/Proteobacteria_group_15_V3V4_dir/Proteobacteria_group_15_V3V4_final.fa",
-		"Proteobacteria_dir/Proteobacteria_group_17_V3V4_dir/Proteobacteria_group_17_V3V4_final.fa",
-		"Proteobacteria_dir/Proteobacteria_group_1_V3V4_dir/Proteobacteria_group_1_V3V4_final.fa",
-		"Proteobacteria_dir/Proteobacteria_group_2_V3V4_dir/Proteobacteria_group_2_V3V4_final.fa",
-		"Proteobacteria_dir/Proteobacteria_group_3_V3V4_dir/Proteobacteria_group_3_V3V4_final.fa",
-		"Proteobacteria_dir/Proteobacteria_group_4_V3V4_dir/Proteobacteria_group_4_V3V4_final.fa",
-		"Proteobacteria_dir/Proteobacteria_group_5_V3V4_dir/Proteobacteria_group_5_V3V4_final.fa",
-		"Proteobacteria_dir/Proteobacteria_group_6_V3V4_dir/Proteobacteria_group_6_V3V4_final.fa",
-		"Proteobacteria_dir/Proteobacteria_group_7_V3V4_dir/Proteobacteria_group_7_V3V4_final.fa",
-		"Proteobacteria_dir/Proteobacteria_group_8_V3V4_dir/Proteobacteria_group_8_V3V4_final.fa",
-		"Proteobacteria_dir/Proteobacteria_group_9_V3V4_dir/Proteobacteria_group_9_V3V4_final.fa");
+my @faFiles0 = ("Actinobacteria_group_0_V3V4_dir/Actinobacteria_group_0_V3V4_final.fa",
+		"Actinobacteria_group_1_V3V4_dir/Actinobacteria_group_1_V3V4_final.fa",
+		"Actinobacteria_group_2_V3V4_dir/Actinobacteria_group_2_V3V4_final.fa",
+		"Actinobacteria_group_3_V3V4_dir/Actinobacteria_group_3_V3V4_final.fa",
+		"Actinobacteria_group_4_V3V4_dir/Actinobacteria_group_4_V3V4_final.fa",
+		"Actinobacteria_group_5_V3V4_dir/Actinobacteria_group_5_V3V4_final.fa",
+		"Bacteroidetes_group_0_V3V4_dir/Bacteroidetes_group_0_V3V4_final.fa",
+		"Bacteroidetes_group_1_V3V4_dir/Bacteroidetes_group_1_V3V4_final.fa",
+		"Bacteroidetes_group_2_V3V4_dir/Bacteroidetes_group_2_V3V4_final.fa",
+		"Bacteroidetes_group_3_V3V4_dir/Bacteroidetes_group_3_V3V4_final.fa",
+		"Chloroflexi_V3V4_dir/Chloroflexi_V3V4_final.fa",
+		"Deinococcus_Thermus_V3V4_dir/Deinococcus_Thermus_V3V4_final.fa",
+		"Fusobacteria_V3V4_dir/Fusobacteria_V3V4_final.fa",
+		"Nitrospirae_V3V4_dir/Nitrospirae_V3V4_final.fa",
+		"Planctomycetes_V3V4_dir/Planctomycetes_V3V4_final.fa",
+		"Spirochaetes_V3V4_dir/Spirochaetes_V3V4_final.fa",
+		"Tenericutes_V3V4_dir/Tenericutes_V3V4_final.fa",
+		"Verrucomicrobia_V3V4_dir/Verrucomicrobia_V3V4_final.fa",
+		"phyla_lessthen_1k_wOG_V3V4_dir/phyla_lessthen_1k_wOG_V3V4_final.fa",
+		"Firmicutes_group_0_V3V4_dir/Firmicutes_group_0_V3V4_final.fa",
+		"Firmicutes_group_1_V3V4_dir/Firmicutes_group_1_V3V4_final.fa",
+		"Firmicutes_group_2_V3V4_dir/Firmicutes_group_2_V3V4_final.fa",
+		"Firmicutes_group_3_V3V4_dir/Firmicutes_group_3_V3V4_final.fa",
+		"Firmicutes_group_4_V3V4_dir/Firmicutes_group_4_V3V4_final.fa",
+		"Firmicutes_group_5_V3V4_dir/Firmicutes_group_5_V3V4_final.fa",
+		"Firmicutes_group_6_V3V4_dir/Firmicutes_group_6_V3V4_final.fa",
+		"Proteobacteria_group_0_V3V4_dir/Proteobacteria_group_0_V3V4_final.fa",
+		"Proteobacteria_group_10_V3V4_dir/Proteobacteria_group_10_V3V4_final.fa",
+		"Proteobacteria_group_11_V3V4_dir/Proteobacteria_group_11_V3V4_final.fa",
+		"Proteobacteria_group_12_V3V4_dir/Proteobacteria_group_12_V3V4_final.fa",
+		"Proteobacteria_group_13_V3V4_dir/Proteobacteria_group_13_V3V4_final.fa",
+		"Proteobacteria_group_14_V3V4_dir/Proteobacteria_group_14_V3V4_final.fa",
+		"Proteobacteria_group_15_V3V4_dir/Proteobacteria_group_15_V3V4_final.fa",
+		"Proteobacteria_group_17_V3V4_dir/Proteobacteria_group_17_V3V4_final.fa",
+		"Proteobacteria_group_1_V3V4_dir/Proteobacteria_group_1_V3V4_final.fa",
+		"Proteobacteria_group_2_V3V4_dir/Proteobacteria_group_2_V3V4_final.fa",
+		"Proteobacteria_group_3_V3V4_dir/Proteobacteria_group_3_V3V4_final.fa",
+		"Proteobacteria_group_4_V3V4_dir/Proteobacteria_group_4_V3V4_final.fa",
+		"Proteobacteria_group_5_V3V4_dir/Proteobacteria_group_5_V3V4_final.fa",
+		"Proteobacteria_group_6_V3V4_dir/Proteobacteria_group_6_V3V4_final.fa",
+		"Proteobacteria_group_7_V3V4_dir/Proteobacteria_group_7_V3V4_final.fa",
+		"Proteobacteria_group_8_V3V4_dir/Proteobacteria_group_8_V3V4_final.fa",
+		"Proteobacteria_group_9_V3V4_dir/Proteobacteria_group_9_V3V4_final.fa");
 
-my @faFiles = map{ $_ = $baseDir . $_ } @faFiles0;
+my @faFiles = map{ $baseDir . $_ } @faFiles0;
 ## print "faFiles: @faFiles\n";
 
-my @algnFiles0 = ("Actinobacteria_dir/Actinobacteria_group_0_V3V4_dir/Actinobacteria_group_0_V3V4_algn_trimmed_final.fa",
-		  "Actinobacteria_dir/Actinobacteria_group_1_V3V4_dir/Actinobacteria_group_1_V3V4_algn_trimmed_final.fa",
-		  "Actinobacteria_dir/Actinobacteria_group_2_V3V4_dir/Actinobacteria_group_2_V3V4_algn_trimmed_final.fa",
-		  "Actinobacteria_dir/Actinobacteria_group_3_V3V4_dir/Actinobacteria_group_3_V3V4_algn_trimmed_final.fa",
-		  "Actinobacteria_dir/Actinobacteria_group_4_V3V4_dir/Actinobacteria_group_4_V3V4_algn_trimmed_final.fa",
-		  "Actinobacteria_dir/Actinobacteria_group_5_V3V4_dir/Actinobacteria_group_5_V3V4_algn_trimmed_final.fa",
-		  "Bacteroidetes_dir/Bacteroidetes_group_0_V3V4_dir/Bacteroidetes_group_0_V3V4_algn_trimmed_final.fa",
-		  "Bacteroidetes_dir/Bacteroidetes_group_1_V3V4_dir/Bacteroidetes_group_1_V3V4_algn_trimmed_final.fa",
-		  "Bacteroidetes_dir/Bacteroidetes_group_2_V3V4_dir/Bacteroidetes_group_2_V3V4_algn_trimmed_final.fa",
-		  "Bacteroidetes_dir/Bacteroidetes_group_3_V3V4_dir/Bacteroidetes_group_3_V3V4_algn_trimmed_final.fa",
-		  "final_small_phyla_V3V4/Chloroflexi_V3V4_dir/Chloroflexi_V3V4_algn_trimmed_final.fa",
-		  "final_small_phyla_V3V4/Deinococcus_Thermus_V3V4_dir/Deinococcus_Thermus_V3V4_algn_trimmed_final.fa",
-		  "final_small_phyla_V3V4/Fusobacteria_V3V4_dir/Fusobacteria_V3V4_algn_trimmed_final.fa",
-		  "final_small_phyla_V3V4/Nitrospirae_V3V4_dir/Nitrospirae_V3V4_algn_trimmed_final.fa",
-		  "final_small_phyla_V3V4/Planctomycetes_V3V4_dir/Planctomycetes_V3V4_algn_trimmed_final.fa",
-		  "final_small_phyla_V3V4/Spirochaetes_V3V4_dir/Spirochaetes_V3V4_algn_trimmed_final.fa",
-		  "final_small_phyla_V3V4/Tenericutes_V3V4_dir/Tenericutes_V3V4_algn_trimmed_final.fa",
-		  "final_small_phyla_V3V4/Verrucomicrobia_V3V4_dir/Verrucomicrobia_V3V4_algn_trimmed_final.fa",
-		  "final_small_phyla_V3V4/phyla_lessthen_1k_wOG_V3V4_dir/phyla_lessthen_1k_wOG_V3V4_algn_trimmed_final.fa",
-		  "Firmicutes_dir/Firmicutes_group_0_V3V4_dir/Firmicutes_group_0_V3V4_algn_trimmed_final.fa",
-		  "Firmicutes_dir/Firmicutes_group_1_V3V4_dir/Firmicutes_group_1_V3V4_algn_trimmed_final.fa",
-		  "Firmicutes_dir/Firmicutes_group_2_V3V4_dir/Firmicutes_group_2_V3V4_algn_trimmed_final.fa",
-		  "Firmicutes_dir/Firmicutes_group_3_V3V4_dir/Firmicutes_group_3_V3V4_algn_trimmed_final.fa",
-		  "Firmicutes_dir/Firmicutes_group_4_V3V4_dir/Firmicutes_group_4_V3V4_algn_trimmed_final.fa",
-		  "Firmicutes_dir/Firmicutes_group_5_V3V4_dir/Firmicutes_group_5_V3V4_algn_trimmed_final.fa",
-		  "Firmicutes_dir/Firmicutes_group_6_V3V4_dir/Firmicutes_group_6_V3V4_algn_trimmed_final.fa",
-		  "Proteobacteria_dir/Proteobacteria_group_0_V3V4_dir/Proteobacteria_group_0_V3V4_algn_trimmed_final.fa",
-		  "Proteobacteria_dir/Proteobacteria_group_10_V3V4_dir/Proteobacteria_group_10_V3V4_algn_trimmed_final.fa",
-		  "Proteobacteria_dir/Proteobacteria_group_11_V3V4_dir/Proteobacteria_group_11_V3V4_algn_trimmed_final.fa",
-		  "Proteobacteria_dir/Proteobacteria_group_12_V3V4_dir/Proteobacteria_group_12_V3V4_algn_trimmed_final.fa",
-		  "Proteobacteria_dir/Proteobacteria_group_13_V3V4_dir/Proteobacteria_group_13_V3V4_algn_trimmed_final.fa",
-		  "Proteobacteria_dir/Proteobacteria_group_14_V3V4_dir/Proteobacteria_group_14_V3V4_algn_trimmed_final.fa",
-		  "Proteobacteria_dir/Proteobacteria_group_15_V3V4_dir/Proteobacteria_group_15_V3V4_algn_trimmed_final.fa",
-		  "Proteobacteria_dir/Proteobacteria_group_17_V3V4_dir/Proteobacteria_group_17_V3V4_algn_trimmed_final.fa",
-		  "Proteobacteria_dir/Proteobacteria_group_1_V3V4_dir/Proteobacteria_group_1_V3V4_algn_trimmed_final.fa",
-		  "Proteobacteria_dir/Proteobacteria_group_2_V3V4_dir/Proteobacteria_group_2_V3V4_algn_trimmed_final.fa",
-		  "Proteobacteria_dir/Proteobacteria_group_3_V3V4_dir/Proteobacteria_group_3_V3V4_algn_trimmed_final.fa",
-		  "Proteobacteria_dir/Proteobacteria_group_4_V3V4_dir/Proteobacteria_group_4_V3V4_algn_trimmed_final.fa",
-		  "Proteobacteria_dir/Proteobacteria_group_5_V3V4_dir/Proteobacteria_group_5_V3V4_algn_trimmed_final.fa",
-		  "Proteobacteria_dir/Proteobacteria_group_6_V3V4_dir/Proteobacteria_group_6_V3V4_algn_trimmed_final.fa",
-		  "Proteobacteria_dir/Proteobacteria_group_7_V3V4_dir/Proteobacteria_group_7_V3V4_algn_trimmed_final.fa",
-		  "Proteobacteria_dir/Proteobacteria_group_8_V3V4_dir/Proteobacteria_group_8_V3V4_algn_trimmed_final.fa",
-		  "Proteobacteria_dir/Proteobacteria_group_9_V3V4_dir/Proteobacteria_group_9_V3V4_algn_trimmed_final.fa");
+my @algnFiles0 = ("Actinobacteria_group_0_V3V4_dir/Actinobacteria_group_0_V3V4_algn_trimmed_final.fa",
+		  "Actinobacteria_group_1_V3V4_dir/Actinobacteria_group_1_V3V4_algn_trimmed_final.fa",
+		  "Actinobacteria_group_2_V3V4_dir/Actinobacteria_group_2_V3V4_algn_trimmed_final.fa",
+		  "Actinobacteria_group_3_V3V4_dir/Actinobacteria_group_3_V3V4_algn_trimmed_final.fa",
+		  "Actinobacteria_group_4_V3V4_dir/Actinobacteria_group_4_V3V4_algn_trimmed_final.fa",
+		  "Actinobacteria_group_5_V3V4_dir/Actinobacteria_group_5_V3V4_algn_trimmed_final.fa",
+		  "Bacteroidetes_group_0_V3V4_dir/Bacteroidetes_group_0_V3V4_algn_trimmed_final.fa",
+		  "Bacteroidetes_group_1_V3V4_dir/Bacteroidetes_group_1_V3V4_algn_trimmed_final.fa",
+		  "Bacteroidetes_group_2_V3V4_dir/Bacteroidetes_group_2_V3V4_algn_trimmed_final.fa",
+		  "Bacteroidetes_group_3_V3V4_dir/Bacteroidetes_group_3_V3V4_algn_trimmed_final.fa",
+		  "Chloroflexi_V3V4_dir/Chloroflexi_V3V4_algn_trimmed_final.fa",
+		  "Deinococcus_Thermus_V3V4_dir/Deinococcus_Thermus_V3V4_algn_trimmed_final.fa",
+		  "Fusobacteria_V3V4_dir/Fusobacteria_V3V4_algn_trimmed_final.fa",
+		  "Nitrospirae_V3V4_dir/Nitrospirae_V3V4_algn_trimmed_final.fa",
+		  "Planctomycetes_V3V4_dir/Planctomycetes_V3V4_algn_trimmed_final.fa",
+		  "Spirochaetes_V3V4_dir/Spirochaetes_V3V4_algn_trimmed_final.fa",
+		  "Tenericutes_V3V4_dir/Tenericutes_V3V4_algn_trimmed_final.fa",
+		  "Verrucomicrobia_V3V4_dir/Verrucomicrobia_V3V4_algn_trimmed_final.fa",
+		  "phyla_lessthen_1k_wOG_V3V4_dir/phyla_lessthen_1k_wOG_V3V4_algn_trimmed_final.fa",
+		  "Firmicutes_group_0_V3V4_dir/Firmicutes_group_0_V3V4_algn_trimmed_final.fa",
+		  "Firmicutes_group_1_V3V4_dir/Firmicutes_group_1_V3V4_algn_trimmed_final.fa",
+		  "Firmicutes_group_2_V3V4_dir/Firmicutes_group_2_V3V4_algn_trimmed_final.fa",
+		  "Firmicutes_group_3_V3V4_dir/Firmicutes_group_3_V3V4_algn_trimmed_final.fa",
+		  "Firmicutes_group_4_V3V4_dir/Firmicutes_group_4_V3V4_algn_trimmed_final.fa",
+		  "Firmicutes_group_5_V3V4_dir/Firmicutes_group_5_V3V4_algn_trimmed_final.fa",
+		  "Firmicutes_group_6_V3V4_dir/Firmicutes_group_6_V3V4_algn_trimmed_final.fa",
+		  "Proteobacteria_group_0_V3V4_dir/Proteobacteria_group_0_V3V4_algn_trimmed_final.fa",
+		  "Proteobacteria_group_10_V3V4_dir/Proteobacteria_group_10_V3V4_algn_trimmed_final.fa",
+		  "Proteobacteria_group_11_V3V4_dir/Proteobacteria_group_11_V3V4_algn_trimmed_final.fa",
+		  "Proteobacteria_group_12_V3V4_dir/Proteobacteria_group_12_V3V4_algn_trimmed_final.fa",
+		  "Proteobacteria_group_13_V3V4_dir/Proteobacteria_group_13_V3V4_algn_trimmed_final.fa",
+		  "Proteobacteria_group_14_V3V4_dir/Proteobacteria_group_14_V3V4_algn_trimmed_final.fa",
+		  "Proteobacteria_group_15_V3V4_dir/Proteobacteria_group_15_V3V4_algn_trimmed_final.fa",
+		  "Proteobacteria_group_17_V3V4_dir/Proteobacteria_group_17_V3V4_algn_trimmed_final.fa",
+		  "Proteobacteria_group_1_V3V4_dir/Proteobacteria_group_1_V3V4_algn_trimmed_final.fa",
+		  "Proteobacteria_group_2_V3V4_dir/Proteobacteria_group_2_V3V4_algn_trimmed_final.fa",
+		  "Proteobacteria_group_3_V3V4_dir/Proteobacteria_group_3_V3V4_algn_trimmed_final.fa",
+		  "Proteobacteria_group_4_V3V4_dir/Proteobacteria_group_4_V3V4_algn_trimmed_final.fa",
+		  "Proteobacteria_group_5_V3V4_dir/Proteobacteria_group_5_V3V4_algn_trimmed_final.fa",
+		  "Proteobacteria_group_6_V3V4_dir/Proteobacteria_group_6_V3V4_algn_trimmed_final.fa",
+		  "Proteobacteria_group_7_V3V4_dir/Proteobacteria_group_7_V3V4_algn_trimmed_final.fa",
+		  "Proteobacteria_group_8_V3V4_dir/Proteobacteria_group_8_V3V4_algn_trimmed_final.fa",
+		  "Proteobacteria_group_9_V3V4_dir/Proteobacteria_group_9_V3V4_algn_trimmed_final.fa");
 
-my @algnFiles = map{ $_ = $baseDir . $_ } @algnFiles0;
+my @algnFiles = map{ $baseDir . $_ } @algnFiles0;
 ## print "algnFiles: @algnFiles\n";
 
 
-my @txFiles0 = ("Actinobacteria_dir/Actinobacteria_group_0_V3V4_dir/Actinobacteria_group_0_V3V4_final.tx",
-		"Actinobacteria_dir/Actinobacteria_group_1_V3V4_dir/Actinobacteria_group_1_V3V4_final.tx",
-		"Actinobacteria_dir/Actinobacteria_group_2_V3V4_dir/Actinobacteria_group_2_V3V4_final.tx",
-		"Actinobacteria_dir/Actinobacteria_group_3_V3V4_dir/Actinobacteria_group_3_V3V4_final.tx",
-		"Actinobacteria_dir/Actinobacteria_group_4_V3V4_dir/Actinobacteria_group_4_V3V4_final.tx",
-		"Actinobacteria_dir/Actinobacteria_group_5_V3V4_dir/Actinobacteria_group_5_V3V4_final.tx",
-		"Bacteroidetes_dir/Bacteroidetes_group_0_V3V4_dir/Bacteroidetes_group_0_V3V4_final.tx",
-		"Bacteroidetes_dir/Bacteroidetes_group_1_V3V4_dir/Bacteroidetes_group_1_V3V4_final.tx",
-		"Bacteroidetes_dir/Bacteroidetes_group_2_V3V4_dir/Bacteroidetes_group_2_V3V4_final.tx",
-		"Bacteroidetes_dir/Bacteroidetes_group_3_V3V4_dir/Bacteroidetes_group_3_V3V4_final.tx",
-		"final_small_phyla_V3V4/Chloroflexi_V3V4_dir/Chloroflexi_V3V4_final.tx",
-		"final_small_phyla_V3V4/Deinococcus_Thermus_V3V4_dir/Deinococcus_Thermus_V3V4_final.tx",
-		"final_small_phyla_V3V4/Fusobacteria_V3V4_dir/Fusobacteria_V3V4_final.tx",
-		"final_small_phyla_V3V4/Nitrospirae_V3V4_dir/Nitrospirae_V3V4_final.tx",
-		"final_small_phyla_V3V4/Planctomycetes_V3V4_dir/Planctomycetes_V3V4_final.tx",
-		"final_small_phyla_V3V4/Spirochaetes_V3V4_dir/Spirochaetes_V3V4_final.tx",
-		"final_small_phyla_V3V4/Tenericutes_V3V4_dir/Tenericutes_V3V4_final.tx",
-		"final_small_phyla_V3V4/Verrucomicrobia_V3V4_dir/Verrucomicrobia_V3V4_final.tx",
-		"final_small_phyla_V3V4/phyla_lessthen_1k_wOG_V3V4_dir/phyla_lessthen_1k_wOG_V3V4_final.tx",
-		"Firmicutes_dir/Firmicutes_group_0_V3V4_dir/Firmicutes_group_0_V3V4_final.tx",
-		"Firmicutes_dir/Firmicutes_group_1_V3V4_dir/Firmicutes_group_1_V3V4_final.tx",
-		"Firmicutes_dir/Firmicutes_group_2_V3V4_dir/Firmicutes_group_2_V3V4_final.tx",
-		"Firmicutes_dir/Firmicutes_group_3_V3V4_dir/Firmicutes_group_3_V3V4_final.tx",
-		"Firmicutes_dir/Firmicutes_group_4_V3V4_dir/Firmicutes_group_4_V3V4_final.tx",
-		"Firmicutes_dir/Firmicutes_group_5_V3V4_dir/Firmicutes_group_5_V3V4_final.tx",
-		"Firmicutes_dir/Firmicutes_group_6_V3V4_dir/Firmicutes_group_6_V3V4_final.tx",
-		"Proteobacteria_dir/Proteobacteria_group_0_V3V4_dir/Proteobacteria_group_0_V3V4_final.tx",
-		"Proteobacteria_dir/Proteobacteria_group_10_V3V4_dir/Proteobacteria_group_10_V3V4_final.tx",
-		"Proteobacteria_dir/Proteobacteria_group_11_V3V4_dir/Proteobacteria_group_11_V3V4_final.tx",
-		"Proteobacteria_dir/Proteobacteria_group_12_V3V4_dir/Proteobacteria_group_12_V3V4_final.tx",
-		"Proteobacteria_dir/Proteobacteria_group_13_V3V4_dir/Proteobacteria_group_13_V3V4_final.tx",
-		"Proteobacteria_dir/Proteobacteria_group_14_V3V4_dir/Proteobacteria_group_14_V3V4_final.tx",
-		"Proteobacteria_dir/Proteobacteria_group_15_V3V4_dir/Proteobacteria_group_15_V3V4_final.tx",
-		"Proteobacteria_dir/Proteobacteria_group_17_V3V4_dir/Proteobacteria_group_17_V3V4_final.tx",
-		"Proteobacteria_dir/Proteobacteria_group_1_V3V4_dir/Proteobacteria_group_1_V3V4_final.tx",
-		"Proteobacteria_dir/Proteobacteria_group_2_V3V4_dir/Proteobacteria_group_2_V3V4_final.tx",
-		"Proteobacteria_dir/Proteobacteria_group_3_V3V4_dir/Proteobacteria_group_3_V3V4_final.tx",
-		"Proteobacteria_dir/Proteobacteria_group_4_V3V4_dir/Proteobacteria_group_4_V3V4_final.tx",
-		"Proteobacteria_dir/Proteobacteria_group_5_V3V4_dir/Proteobacteria_group_5_V3V4_final.tx",
-		"Proteobacteria_dir/Proteobacteria_group_6_V3V4_dir/Proteobacteria_group_6_V3V4_final.tx",
-		"Proteobacteria_dir/Proteobacteria_group_7_V3V4_dir/Proteobacteria_group_7_V3V4_final.tx",
-		"Proteobacteria_dir/Proteobacteria_group_8_V3V4_dir/Proteobacteria_group_8_V3V4_final.tx",
-		"Proteobacteria_dir/Proteobacteria_group_9_V3V4_dir/Proteobacteria_group_9_V3V4_final.tx");
+my @txFiles0 = ("Actinobacteria_group_0_V3V4_dir/Actinobacteria_group_0_V3V4_final.tx",
+		"Actinobacteria_group_1_V3V4_dir/Actinobacteria_group_1_V3V4_final.tx",
+		"Actinobacteria_group_2_V3V4_dir/Actinobacteria_group_2_V3V4_final.tx",
+		"Actinobacteria_group_3_V3V4_dir/Actinobacteria_group_3_V3V4_final.tx",
+		"Actinobacteria_group_4_V3V4_dir/Actinobacteria_group_4_V3V4_final.tx",
+		"Actinobacteria_group_5_V3V4_dir/Actinobacteria_group_5_V3V4_final.tx",
+		"Bacteroidetes_group_0_V3V4_dir/Bacteroidetes_group_0_V3V4_final.tx",
+		"Bacteroidetes_group_1_V3V4_dir/Bacteroidetes_group_1_V3V4_final.tx",
+		"Bacteroidetes_group_2_V3V4_dir/Bacteroidetes_group_2_V3V4_final.tx",
+		"Bacteroidetes_group_3_V3V4_dir/Bacteroidetes_group_3_V3V4_final.tx",
+		"Chloroflexi_V3V4_dir/Chloroflexi_V3V4_final.tx",
+		"Deinococcus_Thermus_V3V4_dir/Deinococcus_Thermus_V3V4_final.tx",
+		"Fusobacteria_V3V4_dir/Fusobacteria_V3V4_final.tx",
+		"Nitrospirae_V3V4_dir/Nitrospirae_V3V4_final.tx",
+		"Planctomycetes_V3V4_dir/Planctomycetes_V3V4_final.tx",
+		"Spirochaetes_V3V4_dir/Spirochaetes_V3V4_final.tx",
+		"Tenericutes_V3V4_dir/Tenericutes_V3V4_final.tx",
+		"Verrucomicrobia_V3V4_dir/Verrucomicrobia_V3V4_final.tx",
+		"phyla_lessthen_1k_wOG_V3V4_dir/phyla_lessthen_1k_wOG_V3V4_final.tx",
+		"Firmicutes_group_0_V3V4_dir/Firmicutes_group_0_V3V4_final.tx",
+		"Firmicutes_group_1_V3V4_dir/Firmicutes_group_1_V3V4_final.tx",
+		"Firmicutes_group_2_V3V4_dir/Firmicutes_group_2_V3V4_final.tx",
+		"Firmicutes_group_3_V3V4_dir/Firmicutes_group_3_V3V4_final.tx",
+		"Firmicutes_group_4_V3V4_dir/Firmicutes_group_4_V3V4_final.tx",
+		"Firmicutes_group_5_V3V4_dir/Firmicutes_group_5_V3V4_final.tx",
+		"Firmicutes_group_6_V3V4_dir/Firmicutes_group_6_V3V4_final.tx",
+		"Proteobacteria_group_0_V3V4_dir/Proteobacteria_group_0_V3V4_final.tx",
+		"Proteobacteria_group_10_V3V4_dir/Proteobacteria_group_10_V3V4_final.tx",
+		"Proteobacteria_group_11_V3V4_dir/Proteobacteria_group_11_V3V4_final.tx",
+		"Proteobacteria_group_12_V3V4_dir/Proteobacteria_group_12_V3V4_final.tx",
+		"Proteobacteria_group_13_V3V4_dir/Proteobacteria_group_13_V3V4_final.tx",
+		"Proteobacteria_group_14_V3V4_dir/Proteobacteria_group_14_V3V4_final.tx",
+		"Proteobacteria_group_15_V3V4_dir/Proteobacteria_group_15_V3V4_final.tx",
+		"Proteobacteria_group_17_V3V4_dir/Proteobacteria_group_17_V3V4_final.tx",
+		"Proteobacteria_group_1_V3V4_dir/Proteobacteria_group_1_V3V4_final.tx",
+		"Proteobacteria_group_2_V3V4_dir/Proteobacteria_group_2_V3V4_final.tx",
+		"Proteobacteria_group_3_V3V4_dir/Proteobacteria_group_3_V3V4_final.tx",
+		"Proteobacteria_group_4_V3V4_dir/Proteobacteria_group_4_V3V4_final.tx",
+		"Proteobacteria_group_5_V3V4_dir/Proteobacteria_group_5_V3V4_final.tx",
+		"Proteobacteria_group_6_V3V4_dir/Proteobacteria_group_6_V3V4_final.tx",
+		"Proteobacteria_group_7_V3V4_dir/Proteobacteria_group_7_V3V4_final.tx",
+		"Proteobacteria_group_8_V3V4_dir/Proteobacteria_group_8_V3V4_final.tx",
+		"Proteobacteria_group_9_V3V4_dir/Proteobacteria_group_9_V3V4_final.tx");
 
 my @txFiles = map{ $baseDir . $_ } @txFiles0;
 # print "txFile: @txFiles\n"; exit;
@@ -330,7 +333,7 @@ if ( !defined $outDir )
   # 			  $now[5]+1900, $now[4]+1, $now[3],
   # 			  $now[2],      $now[1],   $now[0]);
   # $outDir = $mmDir . "mm_validate_reports_dir_$timeStamp";
-  $outDir = $mmDir . "mm_validate_reports_dir";
+  $outDir = $mmDir . "mm_validate_pecan_dir";
 }
 
 if ( ! -e $outDir )
@@ -380,21 +383,12 @@ if ( $debug )
   print "\n";
 }
 
-print "--- Parsing PECAN classification results on M&M's sequences\n";
-my ($rspIDsTbl, $rppTbl) = parse_pecan_tbl( $mmPECANfile );
-
-my %spIDsTbl = %{ $rspIDsTbl };   # sp   => ref of array with seqIDs of seq's classified to sp
-my %ppTbl    = %{ $rppTbl };      # seqID => posterior probability of the best model
-
-#my $forkMgr = new Parallel::ForkManager( $nProc );
-
+##
+## main loop
+##
 for my $phGr ( keys %phGrSppTbl )
 {
   print "\r--- Processing $phGr species                                    \n";
-
-  # print $ROUT "================================================\n";
-  # print $ROUT "\t$phGr\n";
-  # print $ROUT "================================================\n\n";
 
   ## create mm phylo-group dir
   my $phGrDir = $outDir . "/mm_" . $phGr . "_dir/";
@@ -408,18 +402,26 @@ for my $phGr ( keys %phGrSppTbl )
   ## Identifying fa finale file of the given phylo-group
   my @f = grep { $_ =~ /$phGr/ } @faFiles;
   my $phGrFaFile = $f[0];
-  print "\nphGr: $phGr; phGrFaFile: $phGrFaFile\n";
+  print "\nphGr: $phGr; phGrFaFile: $phGrFaFile\n" if $debug;
 
   ## Identifying algn file of the given phylo-group
   @f = grep { $_ =~ /$phGr/ } @algnFiles;
   my $phGrAlgnFile = $f[0];
 
-  if ( -l $phGrAlgnFile )
-  {
-    $phGrAlgnFile = readlink( $phGrAlgnFile );
-  }
-  ## print "\nphGr: $phGr; phGrAlgnFile: $phGrAlgnFile\n";
+  # if ( -l $phGrAlgnFile )
+  # {
+  #   $phGrAlgnFile = readlink( $phGrAlgnFile );
+  # }
+
+  print "phGrAlgnFile: $phGrAlgnFile\n" if $debug;
   ## Final alignment has OG seq's !!!!
+
+  if ( ! -e $phGrAlgnFile )
+  {
+    warn "\n\n\tERROR: $phGrAlgnFile does not exist";
+    print "\n\n";
+    exit 1;
+  }
 
   ## Identifying tx finale file of the given phylo-group
   @f = grep { $_ =~ /$phGr/ } @txFiles;
@@ -465,18 +467,26 @@ for my $phGr ( keys %phGrSppTbl )
     exit;
   }
 
-  my @uqSpp = unique($phGrSppTbl{$phGr});
-  my @spp = sort { @{$spIDsTbl{$b}} <=> @{$spIDsTbl{$a}} } @uqSpp;
+  my @spp = @{ $phGrSppTbl{$phGr} };
 
+  ##
+  ## species loop
+  ##
   for my $spIdx ( 0..$#spp )
   {
-    #$forkMgr->start and next; # do the fork
+    $startRun = time();
 
     my $sp = $spp[$spIdx];
-    my @ids = @{$spIDsTbl{$sp}}; # seq IDs of $sp
-    my $nSp = scalar(@ids); # number of sequences of the given species
 
-    print "\n--- Processing $sp (n=" . commify($nSp) . ")                                    \n";
+    my $spFaFile = "$mmSppDir/$sp" . ".fa";
+    if ( ! -e $spFaFile )
+    {
+      warn "\n\n\tERROR: $sp fasta file $spFaFile does not exist";
+      print "\n\n";
+      exit 1;
+    }
+
+    print "\n--- Processing $sp  ($phGr)\n";
 
     my $spDir = $phGrDir . $sp . "_dir";
     my $cmd = "mkdir -p $spDir";
@@ -485,18 +495,6 @@ for my $phGr ( keys %phGrSppTbl )
 
     my $spReport = $spDir . "/report.txt";
     open my $ROUT, ">$spReport" or die "Cannot open $spReport for writing: $OS_ERROR";
-
-    my $spSeqsFile = "$spDir/$sp" . ".seqIDs";
-    writeArray(\@ids, $spSeqsFile);
-
-    my $spFaFile = "$spDir/$sp" . ".fa";
-    if ( ! -e $spFaFile || $runAll )
-    {
-      print "\r\t\tCreating sp fa file                  ";
-      $cmd = "select_seqs.pl $quietStr -s $spSeqsFile -i $mmMasterFaFile -o $spFaFile";
-      print "\tcmd=$cmd\n" if $dryRun || $debug;
-      system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
-    }
 
     my $spNRfaFile  = "$spDir/$sp" . "_nr.fa";
     my $spUCfile    = "$spDir/$sp" . ".uc";
@@ -523,11 +521,6 @@ for my $phGr ( keys %phGrSppTbl )
     my $nnrSp = @nrSeqIDs;
     print "\nNo. nr seq IDs: " . commify($nnrSp) . "\n";
 
-    print $ROUT "------------------------------------------------\n\n";
-    print $ROUT "$sp\n\n";
-    print $ROUT "n:     " . commify($nSp) . "\n";
-    print $ROUT "n(nr): " . commify($nnrSp) . "\n";
-
     my $spClstr2File = "$spDir/$sp" . "_nr.clstr2";
     if ( ! -e $spClstr2File || $runAll )
     {
@@ -547,11 +540,16 @@ for my $phGr ( keys %phGrSppTbl )
     # map { print "\t$_\t$cTbl{$_}\n" } @nrSeqIDs[0..10];
 
     my @clSizes = map { $cTbl{$_} } @nrSeqIDs;
-    my $total   = sum (@clSizes); # total number of sequences
-    my @clPercs = map { 100.0*$_/$total } @clSizes;
+    my $nSp   = sum (@clSizes); # total number of sequences
+    my @clPercs = map { 100.0*$_/$nSp } @clSizes;
 
     my %clSizeTbl = map { $_ => $cTbl{$_} } @nrSeqIDs;
-    my %clPercsTbl = map{ $_ => 100.0 * $clSizeTbl{$_} / $total } @nrSeqIDs;
+    my %clPercsTbl = map{ $_ => 100.0 * $clSizeTbl{$_} / $nSp } @nrSeqIDs;
+
+    print $ROUT "------------------------------------------------\n\n";
+    print $ROUT "$sp   ($phGr)\n\n";
+    print $ROUT "n:     " . commify($nSp) . "\n";
+    print $ROUT "n(nr): " . commify($nnrSp) . "\n";
 
     ## for validation of the above calculations and getting a sense what the thld for cumulative percentage to choose
     # my $outDir = "/Users/pgajer/projects/M_and_M/new_16S_classification_data/mm_speciation_validation_data/";
@@ -797,26 +795,31 @@ for my $phGr ( keys %phGrSppTbl )
       my %clNRidsTbl = map { $_ => 1 } @clNRids;
       my @sizeRanks = grep { exists $clNRidsTbl{$nrSeqIDs[$_ - 1]}  } 1..($#nrSeqIDs+1);
       my @sizeRanks0 = grep { exists $clNRidsTbl{$nrSeqIDs[$_]}  } 0..$#nrSeqIDs;
-      print "Size ranks: @sizeRanks\n";
-      print $ROUT "Size ranks: @sizeRanks\n";
 
       ## Size percentage
       my @clSizePercs = @clPercsTbl{ @nrSeqIDs[ @sizeRanks0 ] };
       @clSizePercs = map { sprintf("%.2f", $_) } @clSizePercs;
-      print "Size %'s: @clSizePercs\n";
-      print $ROUT "Size %'s: @clSizePercs\n";
 
-      ## pp's
-      my @pps = @ppTbl{ @nrSeqIDs };
-      @pps = @pps[ @sizeRanks0 ];
-      print "pp's: @pps\n";
-      print $ROUT "pp's: @pps\n";
+      my $maxSize = 15; # there is no need to see more than the first 15 sizes and ranks
+      if ( @sizeRanks < $maxSize )
+      {
+	print "Size ranks: @sizeRanks\n";
+	print "Size %'s: @clSizePercs\n";
 
-      ## range(pp)
-        #my $minpp = min @pps;
-        #my $maxpp = max @pps;
-        #print "range(pp): [$minpp, $maxpp]\n";
-        #print $ROUT "range(pp): [$minpp, $maxpp]\n";
+	print $ROUT "Size ranks: @sizeRanks\n";
+	print $ROUT "Size %'s: @clSizePercs\n";
+      }
+      else
+      {
+	my @trSizeRanks   = @sizeRanks[0..($maxSize-1)];
+	my @trClSizePercs = @clSizePercs[0..($maxSize-1)];
+
+	print "Size ranks: @trSizeRanks ...\n";
+	print "Size %'s: @trClSizePercs ...\n";
+
+	print $ROUT "Size ranks: @trSizeRanks ...\n";
+	print $ROUT "Size %'s: @trClSizePercs ...\n";
+      }
     }
     print "\n";
     print $ROUT "\n";
@@ -891,11 +894,18 @@ for my $phGr ( keys %phGrSppTbl )
     ## vicut taxonomy agrees with PECAN's or to dir with spp for which there is
     ## a disagreement.
 
-    my $pdfTreeFile = $treesDir . "/$sp" . "_tree.pdf";
+    my $pdfTreeFile = "$spDir/$sp" .  $covSuffix . "_tree.pdf";
     if ( ! -e $pdfTreeFile || $runAll )
     {
+      print "\r\t\tGenerating pdf of the condensed tree";
       my $treeAbsPath = abs_path( $condTreeFile2 );
-        #plot_tree($treeAbsPath, $pdfTreeFile, $sp);
+      plot_tree($treeAbsPath, $pdfTreeFile, $sp);
+
+      my $pdfTreeLink = $treesDir . "/$sp" . $covSuffix . "__$phGr" . "__tree.pdf";
+      my $ap = abs_path( $pdfTreeFile );
+      $cmd = "rm -f $pdfTreeLink; ln -s $ap $pdfTreeLink";
+      print "\tcmd=$cmd\n" if $dryRun || $debug;
+      system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
     }
 
     if ( $showTree && $OSNAME eq "darwin")
@@ -905,22 +915,30 @@ for my $phGr ( keys %phGrSppTbl )
       system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
     }
 
+    $endRun = time();
+    $runTime = $endRun - $startRun;
+    if ( $runTime > 60 )
+    {
+      $timeMin = int($runTime / 60);
+      $timeSec = sprintf("%02d", $runTime % 60);
+      print "\rCompleted processing of $sp in $timeMin:$timeSec\n";
+      print $ROUT "\rCompleted processing of $sp in $timeMin:$timeSec\n";
+    }
+    else
+    {
+      print "\rCompleted  processing of $sp in $runTime seconds\n";
+      print $ROUT "\rCompleted  processing of $sp in $runTime seconds\n";
+    }
+
     close $ROUT;
 
-    #$forkMgr->finish;
-
   } ## end of    for my $spIdx (0..
-
-  # $forkMgr->wait_all_children; # this is so that we do not advance to the next
-  # 			 # phylo-group before all species of that group were
-  # 			 # processed
-
 } ## end of   for my $phGr ( keys %phGrSppTbl )
 
 
 ## report timing
 $endRun = time();
-$runTime = $endRun - $startRun;
+$runTime = $endRun - $initStartRun;
 if ( $runTime > 60 )
 {
   $timeMin = int($runTime / 60);
@@ -1494,7 +1512,7 @@ sub runRscript
   close $fh;
 
   my $outFile = $inFile . "out";
-  my $cmd = "R CMD BATCH $inFile $outFile";
+  my $cmd = "$R CMD BATCH $inFile $outFile";
   system($cmd) == 0 or die "system($cmd) failed:$?\n";
 
   open IN, "$outFile" or die "Cannot open $outFile for reading: $OS_ERROR";
