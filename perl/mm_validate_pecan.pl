@@ -635,7 +635,11 @@ for my $phGr ( keys %phGrSppTbl )
         
         
       open(my $GOODOUT, '>', $spNRfaFileGOOD) or die "Could not open file '$spNRfaFileGOOD' $!";
-      foreach my $l (@spNRfaFile)
+      open(my $OLDOUT, '<', $spNRfaFile) or die "Could not open file '$spNRfaFileGOOD' $!";
+      chomp(my @old = <$OLDOUT>);
+      close $OLDOUT;
+        
+      foreach my $l (@old)
       {
           my @spNRfaFileFIX = split(/;/, $spNRfaFile);
           print $GOODOUT, "$spNRfaFileFIX[0]"."\n";
