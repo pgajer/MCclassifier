@@ -785,7 +785,7 @@ for my $phGr ( keys %phGrSppTbl )
 
       ## Coverage: percentage of seq's of the 100% identity clusters of NAs
       ## within all NAs' clusters
-      my @clNRids = @{$vCltrvTxIds{$cl}{"NA"}};
+      my @clNRids = @{$vCltrvTxIds{$cl}->{"NA"}};
       my $nCov = sum( @cTbl{ @clNRids } );
       my $pCov = sprintf( "%.1f%%", 100.0 * $nCov/ $nSp );
       print "Coverage: $pCov (" . commify($nCov) . " out of " . commify($nSp) . " seq's)\n";
