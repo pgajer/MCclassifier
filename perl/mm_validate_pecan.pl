@@ -1392,7 +1392,6 @@ sub plot_tree
 
 source(\"$readNewickFile\")
 require(phytools)
-library(ade4)
 
 tr <- read.newick(file=\"$treeFile\")
 tr <- collapse.singles(tr)
