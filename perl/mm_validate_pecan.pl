@@ -147,7 +147,7 @@ if ( defined $igs )
   $mmDir          = "/local/scratch/MM/";
   $mmSppDir       = "/home/pgajer/projects/M_and_M/new_16S_classification_data/mm_spp_dir";
 
-  $R              = "/home/pgajer/bin/R";
+  $R              = "/usr/local/bin/R";
   $mothur         = "/usr/local/packages/mothur-1.39.3/mothur";
   $usearch6       = "/local/projects/pgajer/bin/usearch6.0.203_i86linux32";
   $vicut          = "/usr/local/projects/pgajer/bin/vicut";
@@ -954,7 +954,7 @@ for my $phGr ( keys %phGrSppTbl )
     {
       print "\r\t\tGenerating pdf of the condensed tree";
       my $treeAbsPath = abs_path( $condTreeFile2 );
-        #plot_tree($treeAbsPath, $pdfTreeFile, $sp);
+        plot_tree($treeAbsPath, $pdfTreeFile, $sp);
 
       my $pdfTreeLink = $treesDir . "/$sp" . $covSuffix . "__$phGr" . "__tree.pdf";
       my $ap = abs_path( $pdfTreeFile );
