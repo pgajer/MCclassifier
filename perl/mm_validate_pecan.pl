@@ -133,7 +133,9 @@ my $mmSppDir       = "/home/pgajer/projects/M_and_M/new_16S_classification_data/
 my $R              = "R";
 my $mothur         = "/Users/pgajer/bin/mothur";
 my $usearch6       = "/Users/pgajer/bin/usearch6.0.203_i86osx32";
+my $vicut          = "/Users/pgajer/devel/vicut/bin/vicut";
 my $readNewickFile = "/Users/pgajer/.Rlocal/read.newick.R";
+
 my $quietStr       = "--quiet";
 
 if ( defined $igs )
@@ -146,7 +148,9 @@ if ( defined $igs )
   $R              = "/home/pgajer/bin/R";
   $mothur         = "/usr/local/packages/mothur-1.36.1/mothur";
   $usearch6       = "/local/projects/pgajer/bin/usearch6.0.203_i86linux32";
+  $vicut          = "/usr/local/projects/pgajer/bin/vicut";
   $readNewickFile = "/local/projects/pgajer/devel/MCclassifier/perl/read.newick.R";
+
   $quietStr       = "";
 }
 
@@ -687,7 +691,7 @@ for my $phGr ( keys %phGrSppTbl )
     if ( ! -e $vicutCltrsFile || $runAll )
     {
       print "\r\t\tRunning vicut                                                              ";
-      $cmd = "vicut $quietStr -t $bigTreeFile -a $annFile -q $queryFile -o $vicutDir";
+      $cmd = "$vicut $quietStr -t $bigTreeFile -a $annFile -q $queryFile -o $vicutDir";
       print "\tcmd=$cmd\n" if $dryRun || $debug;
       system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
     }
