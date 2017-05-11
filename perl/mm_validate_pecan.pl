@@ -511,7 +511,7 @@ for my $phGr ( keys %phGrSppTbl )
       if ($igs)
       {
         print "\r\t\tDereplicating species fasta file";
-        $cmd = "$vsearchSORT--sortbylength $spFaFile --output $spSORTfaFile --fasta_width 0; $vsearch --derep_full $spSORTfaFile --output $spNRfaFile --sizeout --fasta_width 0 --uc $spUCfile";
+        $cmd = "$vsearchSORT --sortbylength $spFaFile --output $spSORTfaFile --fasta_width 0; $vsearch --derep_full $spSORTfaFile --output $spNRfaFile --sizeout --fasta_width 0 --uc $spUCfile";
         print "\tcmd=$cmd\n" if $dryRun || $debug;
         system($cmd) == 0 or die "system($cmd) failed:$?" if !$dryRun;
       }
