@@ -150,7 +150,8 @@ if ( defined $igs )
   $usearch6       = "/local/projects/pgajer/bin/usearch6.0.203_i86linux32";
   $vicut          = "/usr/local/projects/pgajer/bin/vicut";
   $readNewickFile = "/local/projects/pgajer/devel/MCclassifier/perl/read.newick.R";
-
+  $vsearchSORT    = "/usr/local/packages/vsearch/bin/vsearch";
+  $vsearch        = "/usr/local/bin/vsearch";
   $quietStr       = "";
 }
 
@@ -504,10 +505,20 @@ for my $phGr ( keys %phGrSppTbl )
     my $spUCfilelog = "$spDir/$sp" . "_uc.log";
     if ( ! -e $spNRfaFile || $runAll )
     {
-      print "\r\t\tDereplicating species fasta file                   ";
-      $cmd = "$usearch6 -cluster_fast $spFaFile -id 1.0 -uc $spUCfile -centroids $spNRfaFile";
-      print "\tcmd=$cmd\n" if $dryRun || $debug;
-      system($cmd) == 0 or die "system($cmd) failed:$?" if !$dryRun;
+      if ($igs)
+      {
+        print "\r\t\tDereplicating species fasta file";
+        $cmd = "$vsearchSORT--sortbylength $spFaFile --output $spSORTfaFile --fasta_width 0; $vsearch --derep_full $spSORTfaFile --output $spNRfaFile --sizeout --fasta_width 0 --uc $spUCfile;
+        print "\tcmd=$cmd\n" if $dryRun || $debug;
+        system($cmd) == 0 or die "system($cmd) failed:$?" if !$dryRun;
+      }
+      else
+      {
+        print "\r\t\tDereplicating species fasta file";
+        $cmd = "$usearch6 -cluster_fast $spFaFile -id 1.0 -uc $spUCfile -centroids $spNRfaFile";
+        print "\tcmd=$cmd\n" if $dryRun || $debug;
+        system($cmd) == 0 or die "system($cmd) failed:$?" if !$dryRun;
+      }
     }
 
     my $nrSeqIDsFile = "$spDir/$sp" . "_nr.seqIDs";
