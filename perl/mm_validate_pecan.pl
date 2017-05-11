@@ -155,11 +155,10 @@ if ( defined $igs )
   $vsearchSORT    = "/usr/local/packages/vsearch/bin/vsearch";
   $vsearch        = "/usr/local/bin/vsearch";
   $quietStr       = "";
-  local $ENV{LD_LIBRARY_PATH} = "/usr/local/packages/readline/lib:/usr/local/packages/gcc-5.3.0/lib64";
 
 }
 
-local $ENV{LD_LIBRARY_PATH} = "/usr/local/packages/readline/lib:/usr/local/packages/gcc-5.3.0/lib64";
+local $ENV{LD_LIBRARY_PATH} = "/usr/local/packages/readline/lib:/usr/lib64";
 
 my $debugStr = "";
 if ($debug)
