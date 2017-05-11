@@ -813,10 +813,10 @@ for my $phGr ( keys %phGrSppTbl )
       print $ROUT "pp's: @pps\n";
 
       ## range(pp)
-      my $minpp = min @pps;
-      my $maxpp = max @pps;
-      print "range(pp): [$minpp, $maxpp]\n";
-      print $ROUT "range(pp): [$minpp, $maxpp]\n";
+        #my $minpp = min @pps;
+        #my $maxpp = max @pps;
+        #print "range(pp): [$minpp, $maxpp]\n";
+        #print $ROUT "range(pp): [$minpp, $maxpp]\n";
     }
     print "\n";
     print $ROUT "\n";
@@ -895,7 +895,7 @@ for my $phGr ( keys %phGrSppTbl )
     if ( ! -e $pdfTreeFile || $runAll )
     {
       my $treeAbsPath = abs_path( $condTreeFile2 );
-      plot_tree($treeAbsPath, $pdfTreeFile, $sp);
+        #plot_tree($treeAbsPath, $pdfTreeFile, $sp);
     }
 
     if ( $showTree && $OSNAME eq "darwin")
