@@ -158,7 +158,7 @@ if ( defined $igs )
 
 }
 
-local $ENV{LD_LIBRARY_PATH} = "/usr/local/packages/gcc/lib64:$LD_LIBRARY_PATH";
+#local $ENV{LD_LIBRARY_PATH} = "/usr/local/packages/gcc/lib64:$LD_LIBRARY_PATH";
 
 my $debugStr = "";
 if ($debug)
