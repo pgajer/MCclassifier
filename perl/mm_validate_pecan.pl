@@ -128,7 +128,7 @@ if ( !$sppFile )
 
 my $baseDir        = "/Users/pgajer/devel/MCextras/data/RDP/rdp_Bacteria_phylum_dir/";
 my $mmDir          = "/Users/pgajer/projects/M_and_M/new_16S_classification_data/";
-my $mmSppDir       = "/home/pgajer/projects/M_and_M/new_16S_classification_data/mm_spp_dir";
+my $mmSppDir       = "/Users/pgajer/projects/M_and_M/new_16S_classification_data/mm_spp_dir";
 
 my $R              = "R";
 my $mothur         = "/Users/pgajer/bin/mothur";
@@ -793,7 +793,7 @@ for my $phGr ( keys %phGrSppTbl )
       {
 	warn "\n\n\tERROR: NA is not a key of vCltrvTxIds{$cl}";
 
-	my @k = keys %{ vCltrvTxIds{$cl} };
+	my @k = keys %{ $vCltrvTxIds{$cl} };
 	printArray(\@k, "keys vCltrvTxIds{$cl}\n");
 	print "\n";
 
