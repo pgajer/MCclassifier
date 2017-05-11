@@ -137,6 +137,8 @@ my $vicut          = "/Users/pgajer/devel/vicut/bin/vicut";
 my $readNewickFile = "/Users/pgajer/.Rlocal/read.newick.R";
 
 my $quietStr       = "--quiet";
+my $vsearchSORT;
+my $vsearch;
 
 if ( defined $igs )
 {
@@ -150,8 +152,8 @@ if ( defined $igs )
   $usearch6       = "/local/projects/pgajer/bin/usearch6.0.203_i86linux32";
   $vicut          = "/usr/local/projects/pgajer/bin/vicut";
   $readNewickFile = "/local/projects/pgajer/devel/MCclassifier/perl/read.newick.R";
-  my $vsearchSORT    = "/usr/local/packages/vsearch/bin/vsearch";
-  my $vsearch        = "/usr/local/bin/vsearch";
+  $vsearchSORT    = "/usr/local/packages/vsearch/bin/vsearch";
+  $vsearch        = "/usr/local/bin/vsearch";
   $quietStr       = "";
 }
 
