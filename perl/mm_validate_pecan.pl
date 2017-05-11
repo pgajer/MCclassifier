@@ -790,7 +790,8 @@ for my $phGr ( keys %phGrSppTbl )
 	warn "\n\n\tERROR: NA is not a key of vCltrvTxIds{$cl}";
 
 	my @k = keys %{ vCltrvTxIds{$cl} };
-	printArray(\@k, "\nkeys vCltrvTxIds{$cl}\n");
+	printArray(\@k, "keys vCltrvTxIds{$cl}\n");
+	print "\n";
 
 	if ( exists $vCltrvTxIds{$cl}->{"NA"} )
 	{
