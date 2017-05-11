@@ -627,7 +627,7 @@ for my $phGr ( keys %phGrSppTbl )
       writeArray(\@nrSeqIDs, $nrSeqIDsFile);
 
       ## Restricting nr fa file to only nr ref seq's covering $percCoverage of all seq's
-      my $spNRfaFileGOOD = "$spNRfaFile_good.fa";
+      my $spNRfaFileGOOD = $spNRfaFile . "_good.fa";
       my $spNRfaFile2 = "$spDir/$sp" . $covSuffix . ".fa";
       print "\r\t\tCreating restricted $sp fa file                  ";
       $cmd = "awk -F  ';' '{print $1}' $spNRfaFile > $spNRfaFileGOOD; select_seqs.pl $quietStr -s $nrSeqIDsFile -i $spNRfaFileGOOD -o $spNRfaFile2";
