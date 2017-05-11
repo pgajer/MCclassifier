@@ -793,11 +793,6 @@ for my $phGr ( keys %phGrSppTbl )
 	printArray(\@k, "keys vCltrvTxIds{$cl}\n");
 	print "\n";
 
-	if ( exists $vCltrvTxIds{$cl}->{"NA"} )
-	{
-	  print "Things are good for vCltrvTxIds{$cl}->{NA}\n";
-	}
-
 	exit 1;
       }
       my @clNRids = @{$vCltrvTxIds{$cl}{"NA"}};
