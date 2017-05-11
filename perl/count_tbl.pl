@@ -324,11 +324,11 @@ if (0)
   {
     $timeMin = int($runTime / 60);
     $timeSec = sprintf("%02d", $runTime % 60);
-    print "\rCompleted in $timeMin:$timeSec\n"
+    print "\rCompleted in $timeMin:$timeSec\n";
   }
   else
   {
-    print "\rCompleted in $runTime seconds\n"
+    print "\rCompleted in $runTime seconds\n";
   }
 }
 
