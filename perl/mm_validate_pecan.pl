@@ -633,8 +633,7 @@ for my $phGr ( keys %phGrSppTbl )
       print "\r\t\tCleaning sequence headers and                    ";
       print "\r\t\tCreating restricted $sp fa file                  ";
         
-        
-        $cmd = "awk -FS=';' '{print $1}' $spNRfaFile > $spNRfaFileGOOD";
+        $cmd = "awk 'BEGIN { FS=';' } /1/ { print $1 }' $spNRfaFile > $spNRfaFileGOOD";
         print "\tcmd=$cmd\n" if $dryRun || $debug;
         system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
         
