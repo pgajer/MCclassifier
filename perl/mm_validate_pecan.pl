@@ -160,7 +160,7 @@ if ( defined $igs )
 
 ## Export LD_LIBRARY_PATH=/usr/local/packages/readline/lib:/usr/local/packages/gcc-5.3.0/lib64
 
-local $ENV{LD_LIBRARY_PATH} = "/usr/local/packages/gcc/lib64:$LD_LIBRARY_PATH";
+local $ENV{LD_LIBRARY_PATH} = "/usr/local/packages/gcc/lib64";
 
 
 my $debugStr = "";
