@@ -634,9 +634,9 @@ for my $phGr ( keys %phGrSppTbl )
       print "\r\t\tCreating restricted $sp fa file                  ";
         
         
-      open(my $GOODOUT, '>', $spNRfaFileGOOD) or die "Could not open file '$spNRfaFileGOOD' $!";
-      open(my $OLDOUT, '<', $spNRfaFile) or die "Could not open file '$spNRfaFile' $!";
-      chomp(my @old = <$OLDOUT>);
+      
+      open(my OLDOUT, '<', $spNRfaFile) or die "Could not open file '$spNRfaFile' $!";
+      chomp(my @old = <OLDOUT>);
       close $OLDOUT;
       
       my @good;
@@ -647,9 +647,9 @@ for my $phGr ( keys %phGrSppTbl )
           push @good, $spNRfaFileFIX[0]."\n";
           
       }
-      
-      print $GOODOUT @good;
-      close $GOODOUT;
+      open(GOODOUT, '>', $spNRfaFileGOOD) or die "Could not open file '$spNRfaFileGOOD' $!";
+      print GOODOUT @good;
+      close GOODOUT;
         #$cmd = "awk -F  ';' '{print $1}' $spNRfaFile > $spNRfaFileGOOD";
         #print "\tcmd=$cmd\n" if $dryRun || $debug;
         #system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
