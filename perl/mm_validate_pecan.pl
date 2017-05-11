@@ -785,7 +785,21 @@ for my $phGr ( keys %phGrSppTbl )
 
       ## Coverage: percentage of seq's of the 100% identity clusters of NAs
       ## within all NAs' clusters
-      my @clNRids = @{$vCltrvTxIds{$cl}->{"NA"}};
+      if ( ! exists $vCltrvTxIds{$cl}{"NA"} )
+      {
+	warn "\n\n\tERROR: NA is not a key of vCltrvTxIds{$cl}";
+
+	my @k = keys %{ vCltrvTxIds{$cl} };
+	printArray(\@k, "\nkeys vCltrvTxIds{$cl}\n");
+
+	if ( exists $vCltrvTxIds{$cl}->{"NA"} )
+	{
+	  print "Things are good for vCltrvTxIds{$cl}->{NA}\n";
+	}
+
+	exit 1;
+      }
+      my @clNRids = @{$vCltrvTxIds{$cl}{"NA"}};
       my $nCov = sum( @cTbl{ @clNRids } );
       my $pCov = sprintf( "%.1f%%", 100.0 * $nCov/ $nSp );
       print "Coverage: $pCov (" . commify($nCov) . " out of " . commify($nSp) . " seq's)\n";
