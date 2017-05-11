@@ -648,7 +648,7 @@ for my $phGr ( keys %phGrSppTbl )
           
       }
       
-      print $GOODOUT, @good;
+      print $GOODOUT @good;
       close $GOODOUT;
         #$cmd = "awk -F  ';' '{print $1}' $spNRfaFile > $spNRfaFileGOOD";
         #print "\tcmd=$cmd\n" if $dryRun || $debug;
