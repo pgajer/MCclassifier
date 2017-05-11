@@ -148,7 +148,7 @@ if ( defined $igs )
   $mmSppDir       = "/home/pgajer/projects/M_and_M/new_16S_classification_data/mm_spp_dir";
 
   $R              = "/home/pgajer/bin/R";
-  $mothur         = "/usr/local/packages/mothur-1.36.1/mothur";
+  $mothur         = "/usr/local/packages/mothur-1.39.3/mothur";
   $usearch6       = "/local/projects/pgajer/bin/usearch6.0.203_i86linux32";
   $vicut          = "/usr/local/projects/pgajer/bin/vicut";
   $readNewickFile = "/local/projects/pgajer/devel/MCclassifier/perl/read.newick.R";
@@ -158,7 +158,10 @@ if ( defined $igs )
 
 }
 
-#local $ENV{LD_LIBRARY_PATH} = "/usr/local/packages/gcc/lib64:$LD_LIBRARY_PATH";
+## Export LD_LIBRARY_PATH=/usr/local/packages/readline/lib:/usr/local/packages/gcc-5.3.0/lib64
+
+local $ENV{LD_LIBRARY_PATH} = "/usr/local/packages/gcc/lib64:$LD_LIBRARY_PATH";
+
 
 my $debugStr = "";
 if ($debug)
