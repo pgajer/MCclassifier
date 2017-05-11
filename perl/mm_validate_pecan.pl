@@ -807,10 +807,10 @@ for my $phGr ( keys %phGrSppTbl )
       print $ROUT "Size %'s: @clSizePercs\n";
 
       ## pp's
-      my @pps = @ppTbl{ @nrSeqIDs };
-      @pps = @pps[ @sizeRanks0 ];
-      print "pp's: @pps\n";
-      print $ROUT "pp's: @pps\n";
+        #my @pps = @ppTbl{ @nrSeqIDs };
+        #@pps = @pps[ @sizeRanks0 ];
+        #print "pp's: @pps\n";
+        #print $ROUT "pp's: @pps\n";
 
       ## range(pp)
         #my $minpp = min @pps;
