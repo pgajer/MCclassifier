@@ -142,8 +142,8 @@ my $vsearch;
 
 if ( defined $igs )
 {
-  #$baseDir        = "/local/scratch/MM/V3V4_unzipped/";
-  $baseDir        = "/usr/local/projects/pgajer/devel/MCextras/data/RDP/V3V4_v2/";
+  $baseDir        = "/local/scratch/MM/V3V4_unzipped/";
+    #$baseDir        = "/usr/local/projects/pgajer/devel/MCextras/data/RDP/V3V4_v2/";
   $mmDir          = "/local/scratch/MM/";
   $mmSppDir       = "/home/pgajer/projects/M_and_M/new_16S_classification_data/mm_spp_dir";
 
