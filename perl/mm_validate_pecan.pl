@@ -500,6 +500,7 @@ for my $phGr ( keys %phGrSppTbl )
     my $spReport = $spDir . "/report.txt";
     open my $ROUT, ">$spReport" or die "Cannot open $spReport for writing: $OS_ERROR";
 
+    my $spSORTfaFile= "$spDir/$sp" . "_sort.fa";
     my $spNRfaFile  = "$spDir/$sp" . "_nr.fa";
     my $spUCfile    = "$spDir/$sp" . ".uc";
     my $spUCfilelog = "$spDir/$sp" . "_uc.log";
@@ -508,7 +509,7 @@ for my $phGr ( keys %phGrSppTbl )
       if ($igs)
       {
         print "\r\t\tDereplicating species fasta file";
-        $cmd = "$vsearchSORT--sortbylength $spFaFile --output $spSORTfaFile --fasta_width 0; $vsearch --derep_full $spSORTfaFile --output $spNRfaFile --sizeout --fasta_width 0 --uc $spUCfile;
+        $cmd = "$vsearchSORT--sortbylength $spFaFile --output $spSORTfaFile --fasta_width 0; $vsearch --derep_full $spSORTfaFile --output $spNRfaFile --sizeout --fasta_width 0 --uc $spUCfile";
         print "\tcmd=$cmd\n" if $dryRun || $debug;
         system($cmd) == 0 or die "system($cmd) failed:$?" if !$dryRun;
       }
