@@ -627,11 +627,12 @@ for my $phGr ( keys %phGrSppTbl )
       writeArray(\@nrSeqIDs, $nrSeqIDsFile);
 
       ## Restricting nr fa file to only nr ref seq's covering $percCoverage of all seq's
-      my $spNRfaFileGOOD = "$spDir/$sp" . "_nr_good.fa"";
+      my $spNRfaFileGOOD = "$spDir/$sp" . "_nr_good.fa";
       my $spNRfaFile2 = "$spDir/$sp" . $covSuffix . ".fa";
       
       print "\r\t\tCleaning sequence headers and                    ";
       print "\r\t\tCreating restricted $sp fa file                  ";
+        
       $cmd = "awk -F  ';' '{print $1}' $spNRfaFile > $spNRfaFileGOOD";
       print "\tcmd=$cmd\n" if $dryRun || $debug;
       system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
