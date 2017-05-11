@@ -635,7 +635,7 @@ for my $phGr ( keys %phGrSppTbl )
         
         
       my @spNRfaFileFIX = split(/;/, $spNRfaFile);
-      foreach $l (@spNRfaFileFIX)
+      foreach my $l (@spNRfaFileFIX)
       {
         print $spNRfaFileGOOD, $l[0]."\n";
           
