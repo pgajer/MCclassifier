@@ -634,7 +634,8 @@ for my $phGr ( keys %phGrSppTbl )
       print "\r\t\tCreating restricted $sp fa file                  ";
         
         
-      
+      ## Alter sequence headers to remove cluster sizes added by vsearch. Thus, select_seq.pl
+        ## would not recognize the seqIDs provided if .fa not altered.
       open(my $OLDOUT, '<', $spNRfaFile) or die "Could not open file '$spNRfaFile' $!";
       chomp(my @old = <$OLDOUT>);
       close $OLDOUT;
@@ -650,10 +651,8 @@ for my $phGr ( keys %phGrSppTbl )
       open(GOODOUT, '>', $spNRfaFileGOOD) or die "Could not open file '$spNRfaFileGOOD' $!";
       print GOODOUT @good;
       close GOODOUT;
-        #$cmd = "awk -F  ';' '{print $1}' $spNRfaFile > $spNRfaFileGOOD";
-        #print "\tcmd=$cmd\n" if $dryRun || $debug;
-        #system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
         
+      ## Obtain NR seq's from source file (with altered seqIDs)
       $cmd = "select_seqs.pl $quietStr -s $nrSeqIDsFile -i $spNRfaFileGOOD -o $spNRfaFile2";
       print "\tcmd=$cmd\n" if $dryRun || $debug;
       system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
@@ -955,7 +954,7 @@ for my $phGr ( keys %phGrSppTbl )
     {
       print "\r\t\tGenerating pdf of the condensed tree";
       my $treeAbsPath = abs_path( $condTreeFile2 );
-      plot_tree($treeAbsPath, $pdfTreeFile, $sp);
+        #plot_tree($treeAbsPath, $pdfTreeFile, $sp);
 
       my $pdfTreeLink = $treesDir . "/$sp" . $covSuffix . "__$phGr" . "__tree.pdf";
       my $ap = abs_path( $pdfTreeFile );
