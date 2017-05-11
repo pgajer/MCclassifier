@@ -633,9 +633,18 @@ for my $phGr ( keys %phGrSppTbl )
       print "\r\t\tCleaning sequence headers and                    ";
       print "\r\t\tCreating restricted $sp fa file                  ";
         
-        $cmd = "awk 'BEGIN { FS=';' } /1/ { print $1 }' $spNRfaFile > $spNRfaFileGOOD";
-        print "\tcmd=$cmd\n" if $dryRun || $debug;
-        system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
+        
+      open(my $GOODOUT, '>', $spNRfaFileGOOD) or die "Could not open file '$spNRfaFileGOOD' $!";
+      foreach my $l (@spNRfaFile)
+      {
+          my @spNRfaFileFIX = split(/;/, $spNRfaFile);
+          print $GOODOUT, "$spNRfaFileFIX[0]"."\n";
+          
+      }
+      close $GOODOUT;
+        #$cmd = "awk -F  ';' '{print $1}' $spNRfaFile > $spNRfaFileGOOD";
+        #print "\tcmd=$cmd\n" if $dryRun || $debug;
+        #system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
         
       $cmd = "select_seqs.pl $quietStr -s $nrSeqIDsFile -i $spNRfaFileGOOD -o $spNRfaFile2";
       print "\tcmd=$cmd\n" if $dryRun || $debug;
