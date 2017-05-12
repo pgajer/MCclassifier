@@ -125,7 +125,7 @@ close SOURCE;
 print "Here's the first line of the source lineage: ". $source[1] . "\n\n";
 
 my %ot = readTbl($origTx);
-print Dumper \%ot;
+#print Dumper \%ot;
 
 my @outLineage;
 open (IN, "<$tx") or die "Cannot open $tx for reading: $OS_ERROR\n";
