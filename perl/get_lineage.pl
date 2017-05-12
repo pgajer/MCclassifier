@@ -103,13 +103,16 @@ my $timeSec = $runTime % 60;
 
 ## From a list of sequences get the full taxonomic lineage from the source file.
 my @source;
+my @lineage;
+
 open (SOURCE, "<$sourceLineage") or die "Cannot open $sourceLineage for reading: $OS_ERROR\n";
 while (<SOURCE>)
 {
-    @source = split /[\t;]/, $_;
-    print "Here's the first line of the source lineage: ". $source[1] . "\n\n";
+    @lineage = split /[\t]/, $_;
+    push @source, $lineage[1];
 }
 close SOURCE;
+print "Here's the first line of the source lineage: ". $source[1] . "\n\n";
 
 my @outLineage;
 open (IN, "<$tx") or die "Cannot open $tx for reading: $OS_ERROR\n";
