@@ -113,7 +113,7 @@ my @source;
 my @lineage;
 my @tx;
 my @level;
-my @match
+my @match;
 
 open (SOURCE, "<$sourceLineage") or die "Cannot open $sourceLineage for reading: $OS_ERROR\n";
 while (<SOURCE>)
