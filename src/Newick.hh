@@ -72,8 +72,6 @@ public:
   ~NewickTree_t();
 
   bool loadTree(const char *file);
-  void loadFullTxTree(const char *file);
-  void loadFullTxTree2(const char *file);
 
   void rmNodesWith1child();
   void rmLeaf( string &s );
