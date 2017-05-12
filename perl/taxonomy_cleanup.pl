@@ -341,7 +341,7 @@ if ($debug)
 print "--- Testing if $treeFile is consistent with $trimmedAlgnFile\n";
 ## extracting leaves' IDs
 my $treeLeavesFile = $grPrefix . "_tree.leaves";
-my $cmd = "nw_labels -I $treeFile > $treeLeavesFile";
+$cmd = "nw_labels -I $treeFile > $treeLeavesFile";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 
@@ -480,6 +480,19 @@ my %ogSpp;
 my %ogSpTbl;
 for my $id ( keys %ogLineageTbl )
 {
+  if ( ! exists $ogLineageTbl{$id} )
+  {
+    warn "\n\n\tERROR: $id does not exist in ogLineageTbl";
+    print "\n\nogLineageTbl\n";
+    for ( keys %ogLineageTbl )
+    {
+      print "$_\t" . $ogLineageTbl{$_} . "\n";
+    }
+    print "\n";
+    print "lineageFile: $lineageFile\n\n";
+
+    exit 1;
+  }
   my $lineage = $ogLineageTbl{$id};
   my @f = split ";", $lineage;
   my $sp = pop @f;
@@ -606,6 +619,8 @@ if ( ! -e $ginsiAlgnFile )
   print "\tcmd=$cmd\n" if $dryRun || $debug;
   system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 }
+
+$rrPrunedGinsiTreeFile = $treeFile;
 
 if ( ! -e $rrPrunedGinsiTreeFile )
 {
@@ -5284,15 +5299,15 @@ sub printLineageToFile2
 
 
 # print elements of a hash table
-sub printTbl{
-
+sub printTbl
+{
   my $rTbl = shift;
   map {print "$_\t" . $rTbl->{$_} . "\n"} keys %$rTbl;
 }
 
 # print elements of a hash table so that arguments are aligned
-sub printFormatedTbl{
-
+sub printFormatedTbl
+{
   my ($rTbl, $rSub) = @_; # the second argument is a subarray of the keys of the table
 
   my @args;
@@ -5323,8 +5338,8 @@ sub printFormatedTbl{
 
 # print elements of a hash table whose values are reference to a hash table so
 # that sizes of the value hash tables are aligned
-sub printFormatedTableValuedTbl{
-
+sub printFormatedTableValuedTbl
+{
   my ($rTbl, $rSub) = @_; # the second argument is a subarray of the keys of the table
 
   my @args;
@@ -5356,8 +5371,8 @@ sub printFormatedTableValuedTbl{
 
 
 # print elements of a hash table whose values are reference to a hash table so
-sub printTableValuedTbl{
-
+sub printTableValuedTbl
+{
   my ($rTbl, $rSub) = @_; # the second argument is a subarray of the keys of the table
 
   my @args;
@@ -5384,8 +5399,8 @@ sub printTableValuedTbl{
 
 # print elements of a hash table whose values are reference to an array so
 # that indents of the value array elements are the same
-sub printFormatedArrayValuedTbl{
-
+sub printFormatedArrayValuedTbl
+{
   my ($rTbl, $rSub) = @_; # the second argument is a subarray of the keys of the table
 
   my @args;
@@ -5410,8 +5425,8 @@ sub printFormatedArrayValuedTbl{
 }
 
 # print elements of a hash table so that arguments are aligned
-sub printFormatedTblToFile{
-
+sub printFormatedTblToFile
+{
   my ($rTbl, $rSub, $fh, $msg) = @_; # the second argument is a subarray of the keys of the table
 
   print $fh "\n$msg\n";
@@ -5443,8 +5458,8 @@ sub printFormatedTblToFile{
 }
 
 # common part of two arrays
-sub comm{
-
+sub comm
+{
   my ($a1, $a2) = @_;
 
   my @c; # common array
@@ -5461,8 +5476,8 @@ sub comm{
 }
 
 # difference of two arrays
-sub diff{
-
+sub diff
+{
   my ($a1, $a2) = @_;
 
   my (%aa1, %aa2);
@@ -5481,8 +5496,8 @@ sub diff{
 }
 
 # extract unique elements from an array
-sub unique{
-
+sub unique
+{
   my $a = shift;
   my %saw;
   my @out = grep(!$saw{$_}++, @{$a});
@@ -5491,8 +5506,8 @@ sub unique{
 }
 
 # read table with one column
-sub readArray{
-
+sub readArray
+{
   my ($file, $hasHeader) = @_;
   my @rows;
 
@@ -5530,11 +5545,11 @@ sub writeTbl
 
 # read two column table; create a table that assigns
 # elements of the first column to the second column
-sub readTbl{
-
+sub readTbl
+{
   my $file = shift;
 
-  if ( ! -f $file )
+  if ( ! -e $file )
   {
     warn "\n\n\tERROR in readTbl(): $file does not exist";
     print "\n\n";
@@ -5556,11 +5571,11 @@ sub readTbl{
 
 
 # read taxon table excluding outgroup seq ID and any seqID with OUTGROUP.* type label
-sub readTxTbl{
-
+sub readTxTbl
+{
   my ($file, $outgroupSeqID) = @_;
 
-  if ( ! -f $file )
+  if ( ! -e $file )
   {
     warn "\n\n\tERROR in readTxTbl(): $file does not exist";
     print "\n\n";
@@ -5601,8 +5616,8 @@ sub readTxTbl{
 }
 
 
-sub createCommandTxt{
-
+sub createCommandTxt
+{
     my (@arr) = @{$_[0]};
     my $file = "mothur_script.txt"; ##tmpnam();
     open OUT, ">$file" or die "Cannot open file $file to write: $!";
@@ -6366,6 +6381,8 @@ sub check_parent_consistency
 	print "\t\t$_\n";
       }
       print "\n\n";
+
+      print "Attempting to fix the problem. Going with more abundant lineage\n";
     }
   }
 
@@ -6390,13 +6407,16 @@ sub setequal
     print "\tNumber of elements in the second array: " . @b . "\n";
     print "\tNumber of common elements: " . @c . "\n";
 
-    print "\na: ";
-    map {print "$_ "} @a;
-    print "\n\n";
+    if ( @a < 10 && @b < 10 )
+    {
+      print "\na: ";
+      map {print "$_ "} @a;
+      print "\n\n";
 
-    print "b: ";
-    map {print "$_ "} @b;
-    print "\n\n";
+      print "b: ";
+      map {print "$_ "} @b;
+      print "\n\n";
+    }
 
     # writeArray(\@a, "a.txt");
     # writeArray(\@b, "b.txt");
