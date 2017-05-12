@@ -145,7 +145,7 @@ else
   print "\rCompleted in $runTime seconds\n"
 }
 
-print "Lineages for sequences in $SeqID written to $seqLineage.\n\n";
+print "Lineages for sequences in $tx written to $newLineage.\n\n";
 
 
 
