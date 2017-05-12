@@ -102,11 +102,11 @@ my $timeSec = $runTime % 60;
 #my $Seq = basename($SeqID, ".seqID");
 
 ## From a list of sequences get the full taxonomic lineage from the source file.
-
+my @source;
 open (SOURCE, "<$sourceLineage") or die "Cannot open $sourceLineage for reading: $OS_ERROR\n";
 while (<SOURCE>)
 {
-    my @source = split /[\t;]/, $_;
+    @source = split /[\t;]/, $_;
 }
 close SOURCE;
 
