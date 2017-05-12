@@ -142,24 +142,26 @@ my $vsearch;
 
 if ( defined $igs )
 {
-  #$baseDir        = "/local/scratch/MM/V3V4_unzipped/";
+    #$baseDir        = "/local/scratch/MM/V3V4_unzipped/";
   $baseDir        = "/usr/local/projects/pgajer/devel/MCextras/data/RDP/V3V4_v2/";
   $mmDir          = "/local/scratch/MM/";
   $mmSppDir       = "/home/pgajer/projects/M_and_M/new_16S_classification_data/mm_spp_dir";
 
-  $R              = "/home/pgajer/bin/R";
-  $mothur         = "/usr/local/packages/mothur-1.36.1/mothur";
+  $R              = "/usr/local/bin/R";
+  $mothur         = "/usr/local/packages/mothur-1.39.3/mothur";
   $usearch6       = "/local/projects/pgajer/bin/usearch6.0.203_i86linux32";
   $vicut          = "/usr/local/projects/pgajer/bin/vicut";
   $readNewickFile = "/local/projects/pgajer/devel/MCclassifier/perl/read.newick.R";
   $vsearchSORT    = "/usr/local/packages/vsearch/bin/vsearch";
   $vsearch        = "/usr/local/bin/vsearch";
   $quietStr       = "";
-  local $ENV{LD_LIBRARY_PATH} = "/usr/local/packages/readline/lib:/usr/local/packages/gcc-5.3.0/lib64";
 
 }
 
-local $ENV{LD_LIBRARY_PATH} = "/usr/local/packages/readline/lib:/usr/local/packages/gcc-5.3.0/lib64";
+## Export LD_LIBRARY_PATH=/usr/local/packages/readline/lib:/usr/local/packages/gcc-5.3.0/lib64
+
+local $ENV{LD_LIBRARY_PATH} = "/usr/local/packages/gcc/lib64";
+
 
 my $debugStr = "";
 if ($debug)
@@ -625,9 +627,33 @@ for my $phGr ( keys %phGrSppTbl )
       writeArray(\@nrSeqIDs, $nrSeqIDsFile);
 
       ## Restricting nr fa file to only nr ref seq's covering $percCoverage of all seq's
+      my $spNRfaFileGOOD = "$spDir/$sp" . "_nr_good.fa";
       my $spNRfaFile2 = "$spDir/$sp" . $covSuffix . ".fa";
+      
+      print "\r\t\tCleaning sequence headers and                    ";
       print "\r\t\tCreating restricted $sp fa file                  ";
-      $cmd = "select_seqs.pl $quietStr -s $nrSeqIDsFile -i $spNRfaFile -o $spNRfaFile2";
+        
+        
+      ## Alter sequence headers to remove cluster sizes added by vsearch. Thus, select_seq.pl
+        ## would not recognize the seqIDs provided if .fa not altered.
+      open(my $OLDOUT, '<', $spNRfaFile) or die "Could not open file '$spNRfaFile' $!";
+      chomp(my @old = <$OLDOUT>);
+      close $OLDOUT;
+      
+      my @good;
+        
+      foreach my $l (@old)
+      {
+          my @spNRfaFileFIX = split(/;/, $l);
+          push @good, $spNRfaFileFIX[0]."\n";
+          
+      }
+      open(GOODOUT, '>', $spNRfaFileGOOD) or die "Could not open file '$spNRfaFileGOOD' $!";
+      print GOODOUT @good;
+      close GOODOUT;
+        
+      ## Obtain NR seq's from source file (with altered seqIDs)
+      $cmd = "select_seqs.pl $quietStr -s $nrSeqIDsFile -i $spNRfaFileGOOD -o $spNRfaFile2";
       print "\tcmd=$cmd\n" if $dryRun || $debug;
       system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 
@@ -928,7 +954,7 @@ for my $phGr ( keys %phGrSppTbl )
     {
       print "\r\t\tGenerating pdf of the condensed tree";
       my $treeAbsPath = abs_path( $condTreeFile2 );
-      plot_tree($treeAbsPath, $pdfTreeFile, $sp);
+        plot_tree($treeAbsPath, $pdfTreeFile, $sp);
 
       my $pdfTreeLink = $treesDir . "/$sp" . $covSuffix . "__$phGr" . "__tree.pdf";
       my $ap = abs_path( $pdfTreeFile );
