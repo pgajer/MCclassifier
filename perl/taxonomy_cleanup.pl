@@ -6374,7 +6374,7 @@ sub check_parent_consistency
     if ( $nPrts > 1 )
     {
       $ret = 1;
-      print "\n\n\tERROR: $tx has more than one parent";
+      warn "\n\n\tERROR: $tx has more than one parent";
       print "\n\t$tx parents\n";
       for (keys %{$prt{$tx}})
       {
@@ -6382,7 +6382,10 @@ sub check_parent_consistency
       }
       print "\n\n";
 
-      print "Attempting to fix the problem. Going with more abundant lineage\n";
+      #print "Attempting to fix the problem. Going with more abundant lineage\n";
+      my $liFile = $grPrefix . "_tmp.lineage";
+      writeTbl( \%lineageTbl, $liFile );
+      print "\tLineage file written to $grDir/$liFile\n\n";
     }
   }
 
@@ -6399,7 +6402,7 @@ sub setequal
   my @c = comm(\@a, \@b);
 
   my $ret = 1;
-
+  my $maxPrintItems = 10;
   if (@c != @a || @c != @b)
   {
     warn "\n\n\tERROR: Elements of the two arrays do not match";
@@ -6407,7 +6410,7 @@ sub setequal
     print "\tNumber of elements in the second array: " . @b . "\n";
     print "\tNumber of common elements: " . @c . "\n";
 
-    if ( @a < 10 && @b < 10 )
+    if ( @a < $maxPrintItems && @b < $maxPrintItems )
     {
       print "\na: ";
       map {print "$_ "} @a;
@@ -6425,10 +6428,12 @@ sub setequal
     if (@a > @b)
     {
       my @d = diff(\@a, \@b);
-      print "\nElements in a, but not b:\n";
+      print "\nFirst $maxPrintItems elements in a, but not b:\n";
+      my $i = 0;
       for (@d)
       {
 	print "\t$_\n";
+	last if $i > $maxPrintItems;
       }
       print "\n\n";
     }
@@ -6436,10 +6441,12 @@ sub setequal
     if (@b > @a)
     {
       my @d = diff(\@b, \@a);
-      print "\nElements in b that are not in a:\n";
+      print "\nFirst $maxPrintItems elements in b that are not in a:\n";
+      my $i = 0;
       for (@d)
       {
 	print "\t$_\n";
+	last if $i > $maxPrintItems;
       }
       print "\n\n";
     }
