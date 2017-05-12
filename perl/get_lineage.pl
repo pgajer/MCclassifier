@@ -122,14 +122,11 @@ while (<IN>)
 		push @outLineage, $t[0]."\t".$source[1].";".$source[2].";".$source[3].";".$source[4].";".$source[5].";".$source[6].";".$source[7].";".$t[1]."\n";
 		#print "$_ found in $sourceLineage and lineage is: ".$source{$_}."\n";
 		}
-	else {
-		print "Error: $t[1] not found in $sourceLineage.\n";
-		}
 }
 close IN;
 
 
-my $newLineage = $tx."_new.lineage";
+my $newLineage = "new.lineage";
 open (OUT, ">$newLineage") or die "Cannot open $newLineage for reading: $OS_ERROR\n";
 print OUT @outLineage;
 close OUT;
