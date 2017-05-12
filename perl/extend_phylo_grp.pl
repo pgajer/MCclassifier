@@ -2,7 +2,7 @@
 
 =head1 NAME
 
-  old_vag_refs_2_phylo_grps.pl
+  extend_phylo_grp.pl
 
 =head1 DESCRIPTION
 
@@ -10,7 +10,7 @@
 
 =head1 SYNOPSIS
 
-  old_vag_refs_2_phylo_grps.pl [-j <file of phGr's> | -i <phGr>] -o <out dir> [Options]
+  extend_phylo_grp.pl [-j <file of phGr's> | -i <phGr>] -o <out dir> [Options]
 
 =head1 OPTIONS
 
@@ -44,7 +44,7 @@
 
   cd /Users/pgajer/devel/MCextras/data/vaginal_old_vs_PECAN_May11_2017
 
-  old_vag_refs_2_phylo_grps.pl -o vag_expanded_V3V4_phylo_groups_dir
+  extend_phylo_grp.pl --debug -i Bacteroidetes_group_2_V3V4 -o vag_expanded_V3V4_phylo_groups_dir
 
 =cut
 
@@ -307,7 +307,7 @@ for my $origSp ( keys %tx2phGr )
 
 print "--- Parsing old ref's species lineage table\n";
 my $oSppLiFile = "/Users/pgajer/projects/16S_rRNA_pipeline/vaginal_species_oct18_2013/vaginal_319_806_v2.fullTx";
-my %spLi = parse_spp_li_tbl( $oRefSppLiFile ); # sp => the species' lineage string
+my %spLi = parse_spp_li_tbl( $oSppLiFile ); # sp => the species' lineage string derived from the sequence lineage table of old vag ref seq's
 
 if ( $verbose )
 {
@@ -401,9 +401,9 @@ for my $phGr ( @phGrs )
     exit 1;
   }
 
-  my $baseName = $phGrAlgnFile;
-  $baseName =~ s/_ginsi_algn.fa//;
-  print "\nbaseName: $baseName\n" if $debug;
+  my $phGrBaseName = $phGrAlgnFile;
+  $phGrBaseName =~ s/_ginsi_algn.fa//;
+  print "\nphGrBaseName: $phGrBaseName\n" if $debug;
 
 
   ##
@@ -452,7 +452,7 @@ for my $phGr ( @phGrs )
   my @tmp;
   push (@tmp,"align.seqs(candidate=$faFile, template=$phGrAlgnFile, processors=8, flip=T)");
 
-  printArray(\@tmp, "mothur commands") if ($debug || $verbose);
+  print_array(\@tmp, "mothur commands") if ($debug || $verbose);
 
   my $scriptFile = create_mothur_script(\@tmp);
   $cmd = "mothur < $scriptFile; rm -f $scriptFile mothur.*.logfile";
@@ -472,7 +472,7 @@ for my $phGr ( @phGrs )
 
   ##
   print "\tCopying the original outgroup file\n";
-  my $ogFile = $baseName . "_outgroup.seqIDs";
+  my $ogFile = $phGrBaseName . "_outgroup.seqIDs";
   print "ogFile: $ogFile\n" if $debug;
 
   my $extOGfile = $phGrDir . "/$phGr" . "_outgroup.seqIDs";
@@ -481,18 +481,6 @@ for my $phGr ( @phGrs )
   system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 
   my @ogSeqs = read_array( $extOGfile );
-
-  ##
-  print "\tGenerating old vag refs lineage file\n";
-  my $oLiFile = $phGrDir . "/$phGr" . "_vag_refs.lineage";
-  open OUT, ">$oLiFile" or die "Cannot open $oLiFile for writing: $OS_ERROR";
-  for my $id ( @oSeqIDs )
-  {
-    my $sp = $oTx{$id};
-    print OUT "$id\t" . $oRefSppLi{$sp} . "\n";
-  }
-  close OUT;
-
 
   ## Extended lineage file
 
@@ -505,32 +493,77 @@ for my $phGr ( @phGrs )
   # reading that file, the species lineage table of the old ref and this
   # phylotype are 100% consistent.
 
+  # collecting for each species its lineage from the genus level
+  # and building frequency table phGrGeLiFreq
+  # ge => freq table of ge lineages
+  # where ge is the genus part of the species name
+
+
   my $extLiFile = $phGrDir . "/$phGr" . ".lineage";
   open OUT, ">$extLiFile" or die "Cannot open $extLiFile for writing: $OS_ERROR\n";
 
-  my $liFile = $baseName . ".lineage";
-  print "liFile: $liFile\n" if $debug;
-  open IN, "$liFile" or die "Cannot open $liFile for reading: $OS_ERROR\n";
+  my $phGrLiFile = $phGrBaseName . ".lineage";
+  print "phGrLiFile: $phGrLiFile\n" if $debug;
+  open IN, "$phGrLiFile" or die "Cannot open $phGrLiFile for reading: $OS_ERROR\n";
+  my %phGrGeLiFreq; # phylo-group's species lineage tbl
   for ( <IN> )
   {
+    print OUT $_;
     chomp;
     my ($id, $liStr) = split /\s+/;
-    print "line: $_\n";
-    print "id: $id\n";
-    print "liStr: $liStr\n";
-    exit;
-
     my @li = split ";", $liStr;
     my $sp = pop @li;
-    $spLi{$sp} = $liStr;
+    my $noSpLiStr = join ";", @li;
+    my @f = split "_", $sp;
+    my $spGe = shift @f;
+    $phGrGeLiFreq{$spGe}{$noSpLiStr}++;
   }
   close IN;
+
+  print "\tTesting for phGr lineage inconsistencies\n";
+  my %phGrSpLi; # phylo-group's species lineage tbl
+  my %phGrGeLi; # phylo-group's genus lineage tbl
+  for my $ge ( keys %phGrGeLiFreq )
+  {
+    my %liFreq = %{ $phGrGeLiFreq{$ge} };
+    if ( keys %liFreq > 1 )
+    {
+      print "\n\n\tWARNING: Discovered lineage inconsistency in $phGr\n";
+      print "$ge has the following lineages\n";
+      my @lis = sort { $liFreq{$b} <=> $liFreq{$a} } keys %liFreq;
+      printFormatedTbl( \%liFreq, \@lis );
+
+      ## Picking the most frequent lineage
+      my $liStr = shift @lis;
+      print "Assigning to $ge the lineage\n$liStr\n\n";
+      $phGrGeLi{$ge} = $liStr;
+    }
+    else
+    {
+      my @lis = keys %liFreq;
+      my $liStr = shift @lis;
+      $phGrGeLi{$ge} = $liStr;
+    }
+  }
 
   for my $id ( @oSeqIDs )
   {
     my $sp = $oTx{$id};
-    my $liStr = $spLi{$sp}
+    my @f = split "_", $sp;
+    my $spGe = shift @f;
+    #print "\n\nDetected $sp\n" if $sp eq "Eubacterium_siraeum";
+    my $liStr;
+    if ( exists $phGrGeLi{$spGe} )
+    {
+      $liStr = $phGrGeLi{$spGe} . ";" . $sp;
+    }
+    else
+    {
+      $liStr = $spLi{$sp};
+    }
     print OUT "$id\t$liStr\n";
+    #print "$id\t$liStr\n" if $sp eq "Eubacterium_siraeum";
+    #exit if $sp eq "Eubacterium_siraeum";
   }
   close OUT;
 
@@ -547,7 +580,7 @@ for my $phGr ( @phGrs )
 
   ##
   print "\tGenerating extended taxon file\n";
-  my $txFile = $baseName . ".tx";
+  my $txFile = $phGrBaseName . ".tx";
   print "txFile: $txFile\n" if $debug;
 
   my $extTxFile = $phGrDir . "/$phGr" . ".tx";
@@ -859,7 +892,7 @@ sub write_array
 }
 
 # print array to stdout
-sub printArray
+sub print_array
 {
   my ($a, $header) = @_;
   print "\n$header\n" if $header;
