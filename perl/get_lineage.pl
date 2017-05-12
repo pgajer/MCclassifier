@@ -12,7 +12,7 @@
   
 =head1 SYNOPSIS
 
-  get_lineage.pl -a <taxonomic annotation file> -s <source lineage file> [Options]
+  get_lineage.pl -a <taxonomic annotation file> -s <source lineage file> -t <original taxonomy file> [Options]
 
 =head1 OPTIONS
 
@@ -58,12 +58,13 @@ $OUTPUT_AUTOFLUSH = 1;
 GetOptions(
   "annotation-file|a=s"   => \my $tx,
   "source-lineage|s=s"    => \my $sourceLineage,
+  "orig-tx|t=s"        => \my $origTx,
   "igs"                => \my $igs,
-  "verbose|v"            => \my $verbose,
-  "debug"               => \my $debug,
-  "debug2"              => \my $debug2,## file name debug
-  "dry-run"             => \my $dryRun,
-  "help|h!"             => \my $help,
+  "verbose|v"           => \my $verbose,
+  "debug"              => \my $debug,
+  "debug2"             => \my $debug2,## file name debug
+  "dry-run"            => \my $dryRun,
+  "help|h!"            => \my $help,
   )
   or pod2usage(verbose => 0,exitstatus => 1);
 
@@ -84,6 +85,12 @@ elsif (!$sourceLineage)
   print "\n\nERROR: Missing source lineage file.\n\n\n";
   pod2usage(verbose => 2,exitstatus => 0);
   exit;
+}
+elsif (!$origTx)
+{
+    print "\n\nERROR: Missing original taxonomy file.\n\n\n";
+    pod2usage(verbose => 2,exitstatus => 0);
+    exit;
 }
 
 
@@ -113,6 +120,16 @@ while (<SOURCE>)
 }
 close SOURCE;
 print "Here's the first line of the source lineage: ". $source[1] . "\n\n";
+
+open (TX, "<$origTx") or die "Cannot open $origTx for reading: $OS_ERROR\n";
+while (<TX>)
+{
+    chomp;
+    push @tx, $_;
+}
+close TX;
+print "Here's the first line of the original taxonomy file: ". $tx[1] . "\n\n";
+
 
 my @outLineage;
 open (IN, "<$tx") or die "Cannot open $tx for reading: $OS_ERROR\n";
