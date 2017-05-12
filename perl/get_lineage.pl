@@ -108,7 +108,6 @@ my @outLineage;
 open (IN, "<$tx") or die "Cannot open $tx for reading: $OS_ERROR\n";
 while (<IN>)
 {
-	chomp;
     my @t = split "\t", $_;
 	#print "Searching for $_ in $sourceLineage\n";
 	if (exists ($source{$t[1]}) )
@@ -118,7 +117,6 @@ while (<IN>)
 		}
 	else {
 		print "Error: $t[0] not found in $sourceLineage.\n";
-		exit;
 		}
 }
 close IN;
