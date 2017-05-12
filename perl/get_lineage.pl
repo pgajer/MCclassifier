@@ -7,8 +7,8 @@
 =head1 DESCRIPTION
 
   Given a taxonomy file (for example, PECAN output columns 1 & 2), and a source lineage file, 
-  obtain the full taxonomic lineage for the given taxon, and print out a new lineage file with
-  sequence ID in column 1, and lineage in column 2.
+  use the taxon to search for the matching full taxonomic lineage, and print out a new lineage 
+  file with sequence ID in column 1, and lineage in column 2.
   
 =head1 SYNOPSIS
 
@@ -103,17 +103,23 @@ my $timeSec = $runTime % 60;
 
 ## From a list of sequences get the full taxonomic lineage from the source file.
 
-my %source = readTbl($sourceLineage); 
+open (SOURCE, <$sourceLineage) or die "Cannot open $sourceLineage for reading: $OS_ERROR\n";
+while (<SOURCE>)
+{
+    my @source = split /[\t;]/, $_;
+}
+close SOURCE;
+
 my @outLineage;
 open (IN, "<$tx") or die "Cannot open $tx for reading: $OS_ERROR\n";
 while (<IN>)
 {
-    print "Searching for $_ in $sourceLineage\n";
-    my @t = split /[\t_]/, $_;
+    my @t = split /[\t]/, $_;
     
-    if (exists ($source{$t[1]}) )
-	{ 
-		push @outLineage, $t[0]."\t".$source{$_}."\n";
+    #if (exists ($source{$t[1]}) )
+	for ($t[1] =~ $source[8])
+    {
+		push @outLineage, $t[0]."\t".$source[1].";".$source[2].";".$source[3].";".$source[4].";".$source[5].";".$source[6].";".$source[7].";".$t[1]."\n";
 		#print "$_ found in $sourceLineage and lineage is: ".$source{$_}."\n";
 		}
 	else {
