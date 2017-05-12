@@ -158,6 +158,7 @@ if ( ! -d $grDir )
 }
 
 my $faGrFile        = $grPrefix . ".fa";
+my $treeFile        = $grPrefix . ".tree";
 my $lineageFile     = $grPrefix . ".lineage";
 my $txGrFile        = $grPrefix . ".tx";
 my $txSummaryGrFile = $grPrefix . ".txSummary";
@@ -173,6 +174,8 @@ my %lineageTbl = read2colTbl($lineageFile);
 
 print "--- Reading OG sequence IDs\n" if !$quiet;
 my @ogSeqIDs = readArray($ogSeqIDsFile);
+
+#my %ogInd = map { $_ => 1 } @ogSeqIDs;
 
 printArrayByRow(\@ogSeqIDs, "ogSeqIDs") if $debug;
 
@@ -201,11 +204,44 @@ print "\tNumber of non-OG seq's: " . @noOGseqIDs . "\n\n" if !$quiet;
 print "--- Parsing phylo spp_seqIDs tree to test if OG seq's form one or more clusters\n" if !$quiet;
 
 my $sppSeqIdTreeFile = $grPrefix . "_sppSeqIDs.tree";
-if ( ! -e $sppSeqIdTreeFile )
+#if ( ! -e $sppSeqIdTreeFile )
 {
-  warn "ERROR: $sppSeqIdTreeFile does not exist";
-  touchFile( $errorFile );
-  exit 1;
+  warn "WARNING: $sppSeqIdTreeFile does not exist";
+  #touchFile( $errorFile );
+
+  ## creating this tree
+
+  ## changing taxonomy of OG seq's to OG
+  my %txTbl = read2colTbl( $txGrFile );
+
+  my $txFile = $grPrefix . "_OG_modified.tx";
+  open OUT, ">$txFile" or die "Cannot open $txFile for writing: $OS_ERROR\n";
+  for my $id ( keys %txTbl )
+  {
+    print OUT "$id\t" . $txTbl{$id} . "\n";
+  }
+  for my $id ( @ogSeqIDs )
+  {
+    print OUT "$id\tOG\n";
+  }
+  close OUT;
+
+  print "--- Generating tree with <species name>_<seqID> labels at leaves\n";
+  my $sppSeqIDsFile = "$grPrefix" . "_spp.seqIDs";
+  my $cmd = "awk '{print \$1\"\\t\"\$2\"__\"\$1}' $txFile > $sppSeqIDsFile";
+  print "\tcmd=$cmd\n" if $dryRun || $debug;
+  system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
+
+  ##my $sppSeqIdTreeFile = "$grPrefix" . "_sppSeqIDs.tree";
+  $cmd = "rm -f $sppSeqIdTreeFile; nw_rename $treeFile $sppSeqIDsFile | nw_order -c n  -  > $sppSeqIdTreeFile";
+  print "\tcmd=$cmd\n" if $dryRun || $debug;
+  system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
+
+  # print "--- Generating a condensed tree with species clades collapsed to a single node \n";
+  # my $condSppTreeFile = abs_path( $grPrefix . "_spp_condensed.tree" );
+  # $cmd = "rm -f $condSppTreeFile; nw_condense $sppTreeFile > $condSppTreeFile";
+  # print "\tcmd=$cmd\n" if $dryRun || $debug;
+  # system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 }
 
 print "--- Extracting leaves\n" if !$quiet;
@@ -215,13 +251,13 @@ print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 
 print "--- Reading leaves\n" if !$quiet;
-my @leaves = readArray($sppSeqIdTreeLeavesFile);
+my @leaves = readArray( $sppSeqIdTreeLeavesFile );
 
 print "--- Checking the number of clusters formed by OG seqs\n" if !$quiet;
 my @ogIdx;
 for my $i (0..$#leaves)
 {
-  push @ogIdx, $i if ( $leaves[$i] =~ /_OG_/ );
+  push @ogIdx, $i if ( $leaves[$i] =~ /OG_/ );
 }
 
 printArray(\@ogIdx, "\nPositions of OG seq's") if ($debug);
@@ -568,19 +604,22 @@ if (@rangeSize>1)
   my $tmpTrimmedAlgnFile = $grPrefix . "_tmp_algn_trimmed.fa";
 
   ## fa
-  print "--- Pruning $faGrFile\n" if !$quiet;
-  $cmd = "select_seqs.pl --quiet -s $seqIDsFile -i $faGrFile -o $tmpfaGrFile";
-  print "\tcmd=$cmd\n" if $dryRun || $debug;
-  system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+  if ( -e $faGrFile )
+  {
+    print "--- Pruning $faGrFile\n" if !$quiet;
+    $cmd = "select_seqs.pl --quiet -s $seqIDsFile -i $faGrFile -o $tmpfaGrFile";
+    print "\tcmd=$cmd\n" if $dryRun || $debug;
+    system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 
-  ## save the original fa in $origDataDir
-  $cmd = "mv $faGrFile $origDataDir";
-  print "\tcmd=$cmd\n" if $dryRun || $debug;
-  system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun && !$keepTmpFiles;
+    ## save the original fa in $origDataDir
+    $cmd = "mv $faGrFile $origDataDir";
+    print "\tcmd=$cmd\n" if $dryRun || $debug;
+    system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun && !$keepTmpFiles;
 
-  $cmd = "mv $tmpfaGrFile $faGrFile";
-  print "\tcmd=$cmd\n" if $dryRun || $debug;
-  system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun && !$keepTmpFiles;
+    $cmd = "mv $tmpfaGrFile $faGrFile";
+    print "\tcmd=$cmd\n" if $dryRun || $debug;
+    system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun && !$keepTmpFiles;
+  }
 
 
   ## algn
