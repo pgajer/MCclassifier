@@ -112,11 +112,11 @@ while (<IN>)
 	#print "Searching for $_ in $sourceLineage\n";
 	if (exists ($source{$t[1]}) )
 	{ 
-		push @outLineage, $t[0]."\t".$source{$t[0]}."\n";
+		push @outLineage, $t[0]."\t".$source{$_}."\n";
 		#print "$_ found in $sourceLineage and lineage is: ".$source{$_}."\n";
 		}
 	else {
-		print "Error: $t[0] not found in $sourceLineage.\n";
+		print "Error: $t[1] not found in $sourceLineage.\n";
 		}
 }
 close IN;
