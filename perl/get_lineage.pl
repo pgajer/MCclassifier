@@ -113,6 +113,7 @@ my @source;
 my @lineage;
 my @tx;
 my @level;
+my @match
 
 open (SOURCE, "<$sourceLineage") or die "Cannot open $sourceLineage for reading: $OS_ERROR\n";
 while (<SOURCE>)
@@ -131,13 +132,10 @@ open (IN, "<$tx") or die "Cannot open $tx for reading: $OS_ERROR\n";
 while (<IN>) ##while reading through the classified taxonomy
 {
     my @t = split /[\t]/, $_; ## split the line by tab
+    @match = grep /$t[1]/, @source;
+    @level = split /;/, $match;
+    push @outLineage, $t[0]."\t".$level[1].";".$level[2].";".$level[3].";".$level[4].";".$level[5].";".$level[6].";".$level[7].";".$ot{$t[0]}."\n";
     
-    if ($source eq /$t[1]/) ## and if the second column (taxonomy) matches anything in the source
-    {
-        @level = split /;/, $_;
-        push @outLineage, $t[0]."\t".$level[1].";".$level[2].";".$level[3].";".$level[4].";".$level[5].";".$level[6].";".$level[7].";".$ot{$t[0]}."\n";
-        ##print "$_ found in $sourceLineage and lineage is: ".$source{$_}."\n";
-		}
 }
 close IN;
 
