@@ -107,6 +107,7 @@ open (SOURCE, "<$sourceLineage") or die "Cannot open $sourceLineage for reading:
 while (<SOURCE>)
 {
     @source = split /[\t;]/, $_;
+    print "Here's the first line of the source lineage: ". $source[1] . "\n\n";
 }
 close SOURCE;
 
@@ -120,7 +121,7 @@ while (<IN>)
 	for ($t[1] =~ $source[8])
     {
 		push @outLineage, $t[0]."\t".$source[1].";".$source[2].";".$source[3].";".$source[4].";".$source[5].";".$source[6].";".$source[7].";".$t[1]."\n";
-		#print "$_ found in $sourceLineage and lineage is: ".$source{$_}."\n";
+		print "$_ found in $sourceLineage and lineage is: ".$source{$_}."\n";
 		}
 }
 close IN;
