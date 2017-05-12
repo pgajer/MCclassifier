@@ -98,8 +98,8 @@ my $timeStr;
 my $timeMin = int($runTime / 60);
 my $timeSec = $runTime % 60;
 
-my @suffixes = (".seqID",".txt");
-my $Seq = basename($SeqID, ".seqID");
+#my @suffixes = (".seqID",".txt");
+#my $Seq = basename($SeqID, ".seqID");
 
 ## From a list of sequences get the full taxonomic lineage from the source file.
 
