@@ -133,8 +133,8 @@ while (<IN>) ##while reading through the classified taxonomy
 {
     my @t = split /[\t]/, $_; ## split the line by tab
     @match = grep /$t[1]/, @source;
-    chomp @match;
-    @level = split /;/, $match;
+    chomp $match[1];
+    @level = split /;/, $match[1];
     push @outLineage, $t[0]."\t".$level[1].";".$level[2].";".$level[3].";".$level[4].";".$level[5].";".$level[6].";".$level[7].";".$ot{$t[0]}."\n";
 
     
