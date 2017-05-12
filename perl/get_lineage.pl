@@ -131,9 +131,10 @@ while (<IN>) ##while reading through the classified taxonomy
 {
     my @t = split /[\t]/, $_; ## split the line by tab
     
-    for ($source eq /$t[1]/) ## and if the second column (taxonomy) matches anything in the source
+    if ($source eq /$t[1]/) ## and if the second column (taxonomy) matches anything in the source
     {
-        push @outLineage, $t[0]."\t".$source[1].";".$source[2].";".$source[3].";".$source[4].";".$source[5].";".$source[6].";".$source[7].";".$ot{$t[0]}."\n";
+        @level = split /;/, $_;
+        push @outLineage, $t[0]."\t".$level[1].";".$level[2].";".$level[3].";".$level[4].";".$level[5].";".$level[6].";".$level[7].";".$ot{$t[0]}."\n";
         ##print "$_ found in $sourceLineage and lineage is: ".$source{$_}."\n";
 		}
 }
