@@ -120,7 +120,7 @@ while (<SOURCE>)
     push @source, $lineage[1];
 }
 close SOURCE;
-print "Here's the first line of the source lineage: ". $source[1] . "\n\n";
+print "Here's the first and eigth lines of the source lineage: 1st: ". $source[1] . "8th:" . $source[8] . "\n\n";
 
 open (TX, "<$origTx") or die "Cannot open $origTx for reading: $OS_ERROR\n";
 while (<TX>)
@@ -130,7 +130,6 @@ while (<TX>)
 }
 close TX;
 print "Here's the first line of the original taxonomy file: ". $tx[1] . "\n\n";
-
 
 my @outLineage;
 open (IN, "<$tx") or die "Cannot open $tx for reading: $OS_ERROR\n";
