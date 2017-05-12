@@ -319,8 +319,8 @@ print "--- Generating extended alignment, tree, lineage and taxon files\n";
 ## main loop
 ##
 
-#my $phGr = "Actinobacteria_group_0_V3V4";
-for my $phGr ( keys %phGr2oTx )
+my $phGr = "Bacteroidetes_group_2_V3V4";
+#for my $phGr ( keys %phGr2oTx )
 {
   print "Processing $phGr\n";
 
@@ -594,12 +594,86 @@ sub parse_spp_li_tbl
   {
     next if /^$/;
     my ($sp, $ge, $fa, $or, $cl, $ph, $do) = split /\s+/, $_;
-    $ge =~ s/g_//;
-    $fa =~ s/f_//;
-    $or =~ s/o_//;
-    $cl =~ s/c_//;
-    $ph =~ s/p_//;
-    $do =~ s/d_//;
+
+    if ( !$do )
+    {
+      warn "\n\n\tERROR: do undefined; probably wrong number of level in the lineage line $_";
+      print "\n\n";
+      print "lineage file: $file\n\n";
+      exit 1;
+    }
+
+    if ( $ge =~ /g_/ )
+    {
+      $ge =~ s/g_//;
+    }
+    else
+    {
+      warn "\n\n\tERROR: genus does not have g_ prefix in $_";
+      print "\n\n";
+      print "lineage file: $file\n\n";
+      exit 1;
+    }
+
+    if ( $fa =~ /f_/ )
+    {
+      $fa =~ s/f_//;
+    }
+    else
+    {
+      warn "\n\n\tERROR: family does not have f_ prefix in $_";
+      print "\n\n";
+      print "lineage file: $file\n\n";
+      exit 1;
+    }
+
+    if ( $or =~ /o_/ )
+    {
+      $or =~ s/o_//;
+    }
+    else
+    {
+      warn "\n\n\tERROR: order does not have o_ prefix in $_";
+      print "\n\n";
+      print "lineage file: $file\n\n";
+      exit 1;
+    }
+
+    if ( $cl =~ /c_/ )
+    {
+      $cl =~ s/c_//;
+    }
+    else
+    {
+      warn "\n\n\tERROR: class does not have c_ prefix in $_";
+      print "\n\n";
+      print "lineage file: $file\n\n";
+      exit 1;
+    }
+
+    if ( $ph =~ /p_/ )
+    {
+      $ph =~ s/p_//;
+    }
+    else
+    {
+      warn "\n\n\tERROR: phylum does not have p_ prefix in $_";
+      print "\n\n";
+      print "lineage file: $file\n\n";
+      exit 1;
+    }
+
+    if ( $do =~ /d_/ )
+    {
+      $do =~ s/d_//;
+    }
+    else
+    {
+      warn "\n\n\tERROR: domain does not have d_ prefix in $_";
+      print "\n\n";
+      print "lineage file: $file\n\n";
+      exit 1;
+    }
 
     $tbl{$sp} = "Root;$do;$ph;$cl;$or;$fa;$ge;$sp";
   }
