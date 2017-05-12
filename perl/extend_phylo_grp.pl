@@ -314,6 +314,7 @@ if ( $verbose )
   print "\nOld ref species lineage table\n";
   print_tbl( \%spLi );
   print "\n\n";
+  exit;
 }
 
 
@@ -675,6 +676,9 @@ sub parse_spp_li_tbl
     next if /^$/;
     my ($sp, $ge, $fa, $or, $cl, $ph, $do) = split /\s+/, $_;
 
+    $sp =~ s/\.//;
+    $sp =~ s/_type_\d+//;
+
     if ( !$do )
     {
       warn "\n\n\tERROR: do undefined; probably wrong number of level in the lineage line $_";
@@ -686,6 +690,7 @@ sub parse_spp_li_tbl
     if ( $ge =~ /g_/ )
     {
       $ge =~ s/g_//;
+      $ge =~ s/_//g;
     }
     else
     {
@@ -698,6 +703,7 @@ sub parse_spp_li_tbl
     if ( $fa =~ /f_/ )
     {
       $fa =~ s/f_//;
+      $fa =~ s/_//g;
     }
     else
     {
@@ -710,6 +716,7 @@ sub parse_spp_li_tbl
     if ( $or =~ /o_/ )
     {
       $or =~ s/o_//;
+      $or =~ s/_//g;
     }
     else
     {
@@ -722,6 +729,7 @@ sub parse_spp_li_tbl
     if ( $cl =~ /c_/ )
     {
       $cl =~ s/c_//;
+      $cl =~ s/_//g;
     }
     else
     {
@@ -734,6 +742,7 @@ sub parse_spp_li_tbl
     if ( $ph =~ /p_/ )
     {
       $ph =~ s/p_//;
+      $ph =~ s/_//g;
     }
     else
     {
