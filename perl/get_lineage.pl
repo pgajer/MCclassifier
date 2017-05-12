@@ -108,8 +108,8 @@ my @outLineage;
 open (IN, "<$tx") or die "Cannot open $tx for reading: $OS_ERROR\n";
 while (<IN>)
 {
+    print "Searching for $_ in $sourceLineage\n";
     my @t = split "\t", $_;
-	#print "Searching for $_ in $sourceLineage\n";
 	if (exists ($source{$t[1]}) )
 	{ 
 		push @outLineage, $t[0]."\t".$source{$_}."\n";
