@@ -111,6 +111,7 @@ my $timeSec = $runTime % 60;
 ## From a list of sequences get the full taxonomic lineage from the source file.
 my @source;
 my @lineage;
+my @tx;
 
 open (SOURCE, "<$sourceLineage") or die "Cannot open $sourceLineage for reading: $OS_ERROR\n";
 while (<SOURCE>)
