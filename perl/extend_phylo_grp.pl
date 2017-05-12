@@ -10,11 +10,17 @@
 
 =head1 SYNOPSIS
 
-  old_vag_refs_2_phylo_grps.pl -o <out dir> [Options]
+  old_vag_refs_2_phylo_grps.pl [-j <file of phGr's> | -i <phGr>] -o <out dir> [Options]
 
 =head1 OPTIONS
 
 =over
+
+=item B<--phGr-file, -j>
+  File listing phylo-groups to process.
+
+=item B<--phGr, -i>
+  A single phylo-group to be process.
 
 =item B<--out-dir, -o>
   Output directory.
@@ -56,6 +62,8 @@ $OUTPUT_AUTOFLUSH = 1;
 ####################################################################
 
 GetOptions(
+  "phGr-file|j=s"   => \my $phGrFile,
+  "phGr|i=s"        => \my $inPhGr,
   "out-dir|o=s"     => \my $outDir,
   "verbose|v"       => \my $verbose,
   "debug"           => \my $debug,
@@ -160,23 +168,23 @@ my @algnFiles = map{ $baseDir . $_ } @algnFiles0;
 ## $ time classify -v --skip-err-thld -d /Users/pgajer/devel/MCextras/data/RDP/rdp_Bacteria_phylum_dir/all_bacteria_V3V4_MC_models_dir -i vaginal_319_806_v2.fa -o vaginal_319_806_v2_pecan_dir
 
 print "--- Parsing PECAN tx table of old ref seq's\n";
-my $oRefPeTxFile = "/Users/pgajer/projects/16S_rRNA_pipeline/vaginal_species_oct18_2013/vaginal_319_806_v2_pecan_dir/MC_order7_results.txt";
-my %oRefPeTx = read_tbl( $oRefPeTxFile );
+my $oPeTxFile = "/Users/pgajer/projects/16S_rRNA_pipeline/vaginal_species_oct18_2013/vaginal_319_806_v2_pecan_dir/MC_order7_results.txt";
+my %oPeTx     = read_tbl( $oPeTxFile );
 
 print "--- Parsing the origninal tx table of old ref seq's\n";
-my $oRefTxFile = "/Users/pgajer/projects/16S_rRNA_pipeline/vaginal_species_oct18_2013/vaginal_319_806_v2.tx";
-my %oRefTx = read_tbl( $oRefTxFile );
+my $oTxFile = "/Users/pgajer/projects/16S_rRNA_pipeline/vaginal_species_oct18_2013/vaginal_319_806_v2.tx";
+my %oTx     = read_tbl( $oTxFile );
 
 my %oTxIDs; # sp => ref to array of seq IDs of the old ref seq's of that species
-for my $id ( keys %oRefTx )
+for my $id ( keys %oTx )
 {
-  push @{ $oTxIDs{$oRefTx{$id}} }, $id;
+  push @{ $oTxIDs{$oTx{$id}} }, $id;
 }
 
 
 print "--- Parsing species => phGr table\n";
 my $sp2phGrFile = "/Users/pgajer/projects/M_and_M/new_16S_classification_data/mmDir_May5/master_sp_to_phGr.txt";
-my %sp2phGr = parse_sp_2_phGr_tbl( $sp2phGrFile );
+my %sp2phGr     = parse_sp_2_phGr_tbl( $sp2phGrFile );
 
 ## use classifiers results to map  <old ref's> => <phylo-group>
 
@@ -186,9 +194,9 @@ my %phGr2oPeTx; # phGr => freq table of PECAN classifications
 my %phGr2oTx;   # phGr => freq table the original taxonomy
 my %tx2pe;      # original taxonomy => freq table of PECAN classifications
 my %tx2phGr;    # original taxonomy => freq tbl of phGr's
-for my $id ( keys %oRefPeTx )
+for my $id ( keys %oPeTx )
 {
-  my $sp = $oRefPeTx{$id};
+  my $sp = $oPeTx{$id};
   if ( !exists $sp2phGr{$sp} )
   {
     warn "\n\n\tERROR: $sp does not exist in sp2phGr";
@@ -199,7 +207,7 @@ for my $id ( keys %oRefPeTx )
   push @{ $phGr2oRefs{$phGr} }, $id;
   $phGr2oPeTx{$phGr}{$sp}++;
 
-  my $origSp = $oRefTx{$id};
+  my $origSp = $oTx{$id};
   $phGr2oTx{$phGr}{$origSp}++;
   $tx2pe{$origSp}{$sp}++;
   $tx2phGr{$origSp}{$phGr}++;
@@ -291,20 +299,20 @@ for my $origSp ( keys %tx2phGr )
 #  Pseudomonas_aeruginosa	g_Pseudomonas	f_Pseudomonadaceae	o_Pseudomonadales	c_Gammaproteobacteria	p_Proteobacteria	d_Bacteria
 #  Acinetobacter_baumannii	g_Acinetobacter	f_Moraxellaceae	o_Pseudomonadales	c_Gammaproteobacteria	p_Proteobacteria	d_Bacteria
 
-## to create old ref lineage table of the form
+## to create a species lineage table of the form
 
-# S001125253	Root;Bacteria;Firmicutes;Erysipelotrichia;Erysipelotrichales;Erysipelotrichaceae;Kandleria;Kandleria_sp
-# S002739411	Root;Bacteria;Firmicutes;Negativicutes;Selenomonadales;Veillonellaceae;Veillonella;Veillonella_parvula
-# S002945661	Root;Bacteria;Firmicutes;Thermolithobacteria;Thermolithobacterales;Thermolithobacteraceae;Thermolithobacter;Thermolithobacter_sp
+# Kandleria_sp	Root;Bacteria;Firmicutes;Erysipelotrichia;Erysipelotrichales;Erysipelotrichaceae;Kandleria;Kandleria_sp
+# Veillonella_parvula	Root;Bacteria;Firmicutes;Negativicutes;Selenomonadales;Veillonellaceae;Veillonella;Veillonella_parvula
+# Thermolithobacter_sp	Root;Bacteria;Firmicutes;Thermolithobacteria;Thermolithobacterales;Thermolithobacteraceae;Thermolithobacter;Thermolithobacter_sp
 
 print "--- Parsing old ref's species lineage table\n";
-my $oRefSppLiFile = "/Users/pgajer/projects/16S_rRNA_pipeline/vaginal_species_oct18_2013/vaginal_319_806_v2.fullTx";
-my %oRefSppLi = parse_spp_li_tbl( $oRefSppLiFile );
+my $oSppLiFile = "/Users/pgajer/projects/16S_rRNA_pipeline/vaginal_species_oct18_2013/vaginal_319_806_v2.fullTx";
+my %spLi = parse_spp_li_tbl( $oRefSppLiFile ); # sp => the species' lineage string
 
 if ( $verbose )
 {
   print "\nOld ref species lineage table\n";
-  print_tbl( \%oRefSppLi );
+  print_tbl( \%spLi );
   print "\n\n";
 }
 
@@ -319,8 +327,21 @@ print "--- Generating extended alignment, tree, lineage and taxon files\n";
 ## main loop
 ##
 
-my $phGr = "Bacteroidetes_group_2_V3V4";
-#for my $phGr ( keys %phGr2oTx )
+my @phGrs; # array of phylo-groups to be processed
+if ( $phGrFile )
+{
+  @phGrs = read_array( $phGrFile );
+}
+elsif ( $inPhGr )
+{
+  @phGrs = ($inPhGr);
+}
+else
+{
+  @phGrs = keys %phGr2oTx;
+}
+
+for my $phGr ( @phGrs )
 {
   print "Processing $phGr\n";
 
@@ -336,17 +357,13 @@ my $phGr = "Bacteroidetes_group_2_V3V4";
   ##
   print "\tCreating phylo-group dir\n";
   my $phGrDir = $outDir . "/" . $phGr . "_dir";
-  ## print "\n\nphGrDir: $phGrDir\n"; exit;
-
-  #next if -e $phGrDir;
-  #next if $phGr eq "Actinobacteria_group_0_V3V4";
-
   my $cmd = "mkdir -p $phGrDir";
   print "\tcmd=$cmd\n" if $dryRun || $debug;
   system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 
   my $logFile = $phGrDir . "/log_file.txt";
   open LOUT, ">$logFile" or die "Cannot open $logFile for writing: $OS_ERROR\n";
+  print LOUT "$phGr\n";
 
   ##
   print "\tGetting seq IDs of old ref's that were assigned to the given phGr\n";
@@ -407,8 +424,8 @@ my $phGr = "Bacteroidetes_group_2_V3V4";
     print LOUT "Old vag ref sequences detected in the current phylo-group\n";
     for ( @c )
     {
-      print LOUT "$_\t" . $oRefTx{$_} . "\n";
-      print "$_\t" . $oRefTx{$_} . "\n";
+      print LOUT "$_\t" . $oTx{$_} . "\n";
+      print "$_\t" . $oTx{$_} . "\n";
     }
     print LOUT "\n";
     print "\n";
@@ -471,21 +488,51 @@ my $phGr = "Bacteroidetes_group_2_V3V4";
   open OUT, ">$oLiFile" or die "Cannot open $oLiFile for writing: $OS_ERROR";
   for my $id ( @oSeqIDs )
   {
-    my $sp = $oRefTx{$id};
+    my $sp = $oTx{$id};
     print OUT "$id\t" . $oRefSppLi{$sp} . "\n";
   }
   close OUT;
 
-  ##
+
+  ## Extended lineage file
+
   print "\tGenerating extended lineage file\n";
-  my $liFile = $baseName . ".lineage";
-  print "liFile: $liFile\n" if $debug;
+  #print "\tUpdating species lineage table using this phylo-groups' sequence lineage table\n";
+
+  # here we read phGr's seq's lineage table and write with no alteration the
+  # entries of that table to the file with the extanded lineage. At the same
+  # time, though, we update the species lineage table, so that at the end of
+  # reading that file, the species lineage table of the old ref and this
+  # phylotype are 100% consistent.
 
   my $extLiFile = $phGrDir . "/$phGr" . ".lineage";
-  $cmd = "rm -f $extLiFile; cat $oLiFile $liFile > $extLiFile";
-  print "\tcmd=$cmd\n" if $dryRun || $debug;
-  system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+  open OUT, ">$extLiFile" or die "Cannot open $extLiFile for writing: $OS_ERROR\n";
 
+  my $liFile = $baseName . ".lineage";
+  print "liFile: $liFile\n" if $debug;
+  open IN, "$liFile" or die "Cannot open $liFile for reading: $OS_ERROR\n";
+  for ( <IN> )
+  {
+    chomp;
+    my ($id, $liStr) = split /\s+/;
+    print "line: $_\n";
+    print "id: $id\n";
+    print "liStr: $liStr\n";
+    exit;
+
+    my @li = split ";", $liStr;
+    my $sp = pop @li;
+    $spLi{$sp} = $liStr;
+  }
+  close IN;
+
+  for my $id ( @oSeqIDs )
+  {
+    my $sp = $oTx{$id};
+    my $liStr = $spLi{$sp}
+    print OUT "$id\t$liStr\n";
+  }
+  close OUT;
 
   ##
   print "\tGenerating old vag refs taxon file\n";
@@ -493,7 +540,7 @@ my $phGr = "Bacteroidetes_group_2_V3V4";
   open OUT, ">$oTxFile" or die "Cannot open $oTxFile for writing: $OS_ERROR";
   for my $id ( @oSeqIDs )
   {
-    my $sp = $oRefTx{$id};
+    my $sp = $oTx{$id};
     print OUT "$id\t$sp\n";
   }
   close OUT;
