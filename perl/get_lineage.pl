@@ -120,27 +120,20 @@ while (<SOURCE>)
     push @source, $lineage[1];
 }
 close SOURCE;
-print "Here's the first and eigth lines of the source lineage: 1st: ". $source[1] . "8th:" . $source[8] . "\n\n";
+print "Here's the first line of the source lineage: ". $source[1] . "\n\n";
 
-open (TX, "<$origTx") or die "Cannot open $origTx for reading: $OS_ERROR\n";
-while (<TX>)
-{
-    chomp;
-    push @tx, $_;
-}
-close TX;
-print "Here's the first line of the original taxonomy file: ". $tx[1] . "\n\n";
+my %ot = readTbl($origTx);
+print Dumper \%ot;
 
 my @outLineage;
 open (IN, "<$tx") or die "Cannot open $tx for reading: $OS_ERROR\n";
-while (<IN>)
+while (<IN>) ##while reading through the classified taxonomy
 {
-    my @t = split /[\t]/, $_;
+    my @t = split /[\t]/, $_; ## split the line by tab
     
-    #if (exists ($source{$t[1]}) )
-	for ($t[1] =~ $source[8])
+    if ($t[1] =~ $source) ## and if the second column (taxonomy) matches anything in the source
     {
-		push @outLineage, $t[0]."\t".$source[1].";".$source[2].";".$source[3].";".$source[4].";".$source[5].";".$source[6].";".$source[7].";".$t[1]."\n";
+        push @outLineage, $t[0]."\t".$source[1].";".$source[2].";".$source[3].";".$source[4].";".$source[5].";".$source[6].";".$source[7].";".$ot{$t[0]}."\n";
         ##print "$_ found in $sourceLineage and lineage is: ".$source{$_}."\n";
 		}
 }
