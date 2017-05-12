@@ -132,7 +132,7 @@ open (IN, "<$tx") or die "Cannot open $tx for reading: $OS_ERROR\n";
 while (<IN>) ##while reading through the classified taxonomy
 {
     my @t = split /[\t]/, $_; ## split the line by tab
-    @match = grep /$t[1]/ @source;
+    @match = grep /$t[1]/, @source;
         for my $i (@match)
         {
             @level = split /;/, $i;
