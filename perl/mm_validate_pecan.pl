@@ -137,9 +137,9 @@ my $nw_condense        = "nw_condense";
 my $nw_rename          = "nw_rename";
 my $nw_prune           = "nw_prune";
 my $nw_reroot          = "nw_reroot";
-my $uc2clstr2.pl       = "uc2clstr2.pl";
-my $extract_seq_IDs.pl = "extract_seq_IDs.pl";
-my $select_seqs.pl     = "select_seqs.pl";
+my $uc2clstr2          = "uc2clstr2.pl";
+my $extract_seq_IDs    = "extract_seq_IDs.pl";
+my $select_seqs        = "select_seqs.pl";
 my $rmGaps             = "rmGaps";
 my $FastTree           = "FastTree";
 my $R                  = "R";
@@ -165,9 +165,9 @@ if ( defined $igs )
   $nw_rename          = "/usr/local/projects/pgajer/bin/nw_rename";
   $nw_prune           = "/usr/local/projects/pgajer/bin/nw_prune";
   $nw_reroot          = "/usr/local/projects/pgajer/bin/nw_reroot";
-  $uc2clstr2.pl       = "/usr/local/projects/pgajer/bin/uc2clstr2.pl";
-  $extract_seq_IDs.pl = "/home/pgajer/devel/MCclassifier/perl/extract_seq_IDs.pl";
-  $select_seqs.pl     = "/home/pgajer/devel/MCclassifier/perl/select_seqs.pl";
+  $uc2clstr2          = "/usr/local/projects/pgajer/bin/uc2clstr2.pl";
+  $extract_seq_IDs    = "/home/pgajer/devel/MCclassifier/perl/extract_seq_IDs.pl";
+  $select_seqs        = "/home/pgajer/devel/MCclassifier/perl/select_seqs.pl";
   $rmGaps             = "/usr/local/projects/pgajer/bin/rmGaps";
   $FastTree           = "/home/pgajer/bin/FastTree_no_openMP";
   #$R                 = "/usr/local/bin/R";
@@ -492,7 +492,7 @@ for my $phGr ( keys %phGrSppTbl )
     }
 
     print "--- Generating fa file of outgroup seq's of $phGr       ";
-    $cmd = "$select_seqs.pl $quietStr -s $phGrOGseqIDsFile -i $phGrBigFaFile -o $phGrOGfaFile";
+    $cmd = "$select_seqs $quietStr -s $phGrOGseqIDsFile -i $phGrBigFaFile -o $phGrOGfaFile";
     print "\tcmd=$cmd\n" if $dryRun || $debug;
     system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
   }
@@ -566,7 +566,7 @@ for my $phGr ( keys %phGrSppTbl )
     {
       print "\r\t\tExtracting non-redundant seq IDs               ";
       ## extracting seq IDs from the alignment file and selecting those IDs from the taxon file
-      $cmd = "$extract_seq_IDs.pl -i $spNRfaFile -o $nrSeqIDsFile";
+      $cmd = "$extract_seq_IDs -i $spNRfaFile -o $nrSeqIDsFile";
       print "\tcmd=$cmd\n" if $dryRun || $debug;
       system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
     }
@@ -579,7 +579,7 @@ for my $phGr ( keys %phGrSppTbl )
     if ( ! -e $spClstr2File || $runAll )
     {
       print "\r\t\tCreating clstr2 file                               ";
-      $cmd = "$uc2clstr2.pl -i $spUCfile -o $spClstr2File";
+      $cmd = "$uc2clstr2 -i $spUCfile -o $spClstr2File";
       print "cmd=$cmd\n" if $dryRun || $debug;
       system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
     }
@@ -686,7 +686,7 @@ for my $phGr ( keys %phGrSppTbl )
       close GOODOUT;
 
       ## Obtain NR seq's from source file (with altered seqIDs)
-      $cmd = "$select_seqs.pl $quietStr -s $nrSeqIDsFile -i $spNRfaFileGOOD -o $spNRfaFile2";
+      $cmd = "$select_seqs $quietStr -s $nrSeqIDsFile -i $spNRfaFileGOOD -o $spNRfaFile2";
       print "\tcmd=$cmd\n" if $dryRun || $debug;
       system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 
