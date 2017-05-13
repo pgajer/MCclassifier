@@ -112,150 +112,339 @@ if ($ppEmbedding)
 
 ## Gather final lineage, fasta (ungapped) and taxon files for all phylo-groups
 
+my $baseDirExt = "/Users/pgajer/devel/MCextras/data/vaginal_old_vs_PECAN_May11_2017/vag_expanded_V3V4_phylo_groups_dir/";
+
+my @faFilesExt0 = ("Actinobacteria_group_0_V3V4_dir/Actinobacteria_group_0_V3V4_final.fa",
+		   "Actinobacteria_group_1_V3V4_dir/Actinobacteria_group_1_V3V4_final.fa",
+		   "Actinobacteria_group_2_V3V4_dir/Actinobacteria_group_2_V3V4_final.fa",
+		   "Bacteroidetes_group_2_V3V4_dir/Bacteroidetes_group_2_V3V4_final.fa",
+		   "Firmicutes_group_0_V3V4_dir/Firmicutes_group_0_V3V4_final.fa",
+		   "Firmicutes_group_1_V3V4_dir/Firmicutes_group_1_V3V4_final.fa",
+		   "Firmicutes_group_2_V3V4_dir/Firmicutes_group_2_V3V4_final.fa",
+		   "Firmicutes_group_3_V3V4_dir/Firmicutes_group_3_V3V4_final.fa",
+		   "Firmicutes_group_4_V3V4_dir/Firmicutes_group_4_V3V4_final.fa",
+		   "Firmicutes_group_5_V3V4_dir/Firmicutes_group_5_V3V4_final.fa",
+		   "Firmicutes_group_6_V3V4_dir/Firmicutes_group_6_V3V4_final.fa",
+		   "Fusobacteria_V3V4_dir/Fusobacteria_V3V4_final.fa",
+		   "phyla_lessthen_1k_wOG_V3V4_dir/phyla_lessthen_1k_wOG_V3V4_final.fa",
+		   "Proteobacteria_group_10_V3V4_dir/Proteobacteria_group_10_V3V4_final.fa",
+		   "Proteobacteria_group_15_V3V4_dir/Proteobacteria_group_15_V3V4_final.fa",
+		   "Proteobacteria_group_17_V3V4_dir/Proteobacteria_group_17_V3V4_final.fa",
+		   "Proteobacteria_group_3_V3V4_dir/Proteobacteria_group_3_V3V4_final.fa",
+		   "Proteobacteria_group_9_V3V4_dir/Proteobacteria_group_9_V3V4_final.fa",
+		   "Tenericutes_V3V4_dir/Tenericutes_V3V4_final.fa");
+
+my @faFilesExt1 = map{ $_ = $baseDirExt . $_ } @faFilesExt0;
+
+
+
+my @txFilesExt0 = ("Actinobacteria_group_0_V3V4_dir/Actinobacteria_group_0_V3V4_final.tx",
+		   "Actinobacteria_group_1_V3V4_dir/Actinobacteria_group_1_V3V4_final.tx",
+		   "Actinobacteria_group_2_V3V4_dir/Actinobacteria_group_2_V3V4_final.tx",
+		   "Bacteroidetes_group_2_V3V4_dir/Bacteroidetes_group_2_V3V4_final.tx",
+		   "Firmicutes_group_0_V3V4_dir/Firmicutes_group_0_V3V4_final.tx",
+		   "Firmicutes_group_1_V3V4_dir/Firmicutes_group_1_V3V4_final.tx",
+		   "Firmicutes_group_2_V3V4_dir/Firmicutes_group_2_V3V4_final.tx",
+		   "Firmicutes_group_3_V3V4_dir/Firmicutes_group_3_V3V4_final.tx",
+		   "Firmicutes_group_4_V3V4_dir/Firmicutes_group_4_V3V4_final.tx",
+		   "Firmicutes_group_5_V3V4_dir/Firmicutes_group_5_V3V4_final.tx",
+		   "Firmicutes_group_6_V3V4_dir/Firmicutes_group_6_V3V4_final.tx",
+		   "Fusobacteria_V3V4_dir/Fusobacteria_V3V4_final.tx",
+		   "phyla_lessthen_1k_wOG_V3V4_dir/phyla_lessthen_1k_wOG_V3V4_final.tx",
+		   "Proteobacteria_group_10_V3V4_dir/Proteobacteria_group_10_V3V4_final.tx",
+		   "Proteobacteria_group_15_V3V4_dir/Proteobacteria_group_15_V3V4_final.tx",
+		   "Proteobacteria_group_17_V3V4_dir/Proteobacteria_group_17_V3V4_final.tx",
+		   "Proteobacteria_group_3_V3V4_dir/Proteobacteria_group_3_V3V4_final.tx",
+		   "Proteobacteria_group_9_V3V4_dir/Proteobacteria_group_9_V3V4_final.tx",
+		   "Tenericutes_V3V4_dir/Tenericutes_V3V4_final.tx");
+
+my @txFilesExt1 = map{ $_ = $baseDirExt . $_ } @txFilesExt0;
+
+my @spLiFilesExt0 = ("Actinobacteria_group_0_V3V4_dir/Actinobacteria_group_0_V3V4_final.spLineage",
+			  "Actinobacteria_group_1_V3V4_dir/Actinobacteria_group_1_V3V4_final.spLineage",
+			  "Actinobacteria_group_2_V3V4_dir/Actinobacteria_group_2_V3V4_final.spLineage",
+			  "Bacteroidetes_group_2_V3V4_dir/Bacteroidetes_group_2_V3V4_final.spLineage",
+			  "Firmicutes_group_0_V3V4_dir/Firmicutes_group_0_V3V4_final.spLineage",
+			  "Firmicutes_group_1_V3V4_dir/Firmicutes_group_1_V3V4_final.spLineage",
+			  "Firmicutes_group_2_V3V4_dir/Firmicutes_group_2_V3V4_final.spLineage",
+			  "Firmicutes_group_3_V3V4_dir/Firmicutes_group_3_V3V4_final.spLineage",
+			  "Firmicutes_group_4_V3V4_dir/Firmicutes_group_4_V3V4_final.spLineage",
+			  "Firmicutes_group_5_V3V4_dir/Firmicutes_group_5_V3V4_final.spLineage",
+			  "Firmicutes_group_6_V3V4_dir/Firmicutes_group_6_V3V4_final.spLineage",
+			  "Fusobacteria_V3V4_dir/Fusobacteria_V3V4_final.spLineage",
+			  "phyla_lessthen_1k_wOG_V3V4_dir/phyla_lessthen_1k_wOG_V3V4_final.spLineage",
+			  "Proteobacteria_group_10_V3V4_dir/Proteobacteria_group_10_V3V4_final.spLineage",
+			  "Proteobacteria_group_15_V3V4_dir/Proteobacteria_group_15_V3V4_final.spLineage",
+			  "Proteobacteria_group_17_V3V4_dir/Proteobacteria_group_17_V3V4_final.spLineage",
+			  "Proteobacteria_group_3_V3V4_dir/Proteobacteria_group_3_V3V4_final.spLineage",
+			  "Proteobacteria_group_9_V3V4_dir/Proteobacteria_group_9_V3V4_final.spLineage",
+			  "Tenericutes_V3V4_dir/Tenericutes_V3V4_final.spLineage");
+
+my @spLiFilesExt1 = map{ $_ = $baseDirExt . $_ } @spLiFilesExt0;
+
+
+my @extPhGrs = ("Actinobacteria_group_0_V3V4",
+		"Actinobacteria_group_1_V3V4",
+		"Actinobacteria_group_2_V3V4",
+		"Bacteroidetes_group_2_V3V4",
+		"Firmicutes_group_0_V3V4",
+		"Firmicutes_group_1_V3V4",
+		"Firmicutes_group_2_V3V4",
+		"Firmicutes_group_3_V3V4",
+		"Firmicutes_group_4_V3V4",
+		"Firmicutes_group_5_V3V4",
+		"Firmicutes_group_6_V3V4",
+		"Fusobacteria_V3V4",
+		"phyla_lessthen_1k_wOG_V3V4",
+		"Proteobacteria_group_10_V3V4",
+		"Proteobacteria_group_15_V3V4",
+		"Proteobacteria_group_17_V3V4",
+		"Proteobacteria_group_3_V3V4",
+		"Proteobacteria_group_9_V3V4",
+		"Tenericutes_V3V4");
+
+my %faExtTbl;
+my %txExtTbl;
+my %spLiExtTbl;
+for my $i ( 0..$#extPhGrs )
+{
+  $faExtTbl{$extPhGrs[$i]}   = $faFilesExt1[$i];
+  $txExtTbl{$extPhGrs[$i]}   = $txFilesExt1[$i];
+  $spLiExtTbl{$extPhGrs[$i]} = $spLiFilesExt1[$i];
+}
+
+
 my $baseDir = "/Users/pgajer/devel/MCextras/data/RDP/rdp_Bacteria_phylum_dir/";
 
 my @faFiles0 = ("Actinobacteria_dir/Actinobacteria_group_0_V3V4_dir/Actinobacteria_group_0_V3V4_final.fa",
-               "Actinobacteria_dir/Actinobacteria_group_1_V3V4_dir/Actinobacteria_group_1_V3V4_final.fa",
-               "Actinobacteria_dir/Actinobacteria_group_2_V3V4_dir/Actinobacteria_group_2_V3V4_final.fa",
-               "Actinobacteria_dir/Actinobacteria_group_3_V3V4_dir/Actinobacteria_group_3_V3V4_final.fa",
-               "Actinobacteria_dir/Actinobacteria_group_4_V3V4_dir/Actinobacteria_group_4_V3V4_final.fa",
-               "Actinobacteria_dir/Actinobacteria_group_5_V3V4_dir/Actinobacteria_group_5_V3V4_final.fa",
-               "Bacteroidetes_dir/Bacteroidetes_group_0_V3V4_dir/Bacteroidetes_group_0_V3V4_final.fa",
-               "Bacteroidetes_dir/Bacteroidetes_group_1_V3V4_dir/Bacteroidetes_group_1_V3V4_final.fa",
-               "Bacteroidetes_dir/Bacteroidetes_group_2_V3V4_dir/Bacteroidetes_group_2_V3V4_final.fa",
-               "Bacteroidetes_dir/Bacteroidetes_group_3_V3V4_dir/Bacteroidetes_group_3_V3V4_final.fa",
-               "final_small_phyla_V3V4/Chloroflexi_V3V4_dir/Chloroflexi_V3V4_final.fa",
-               "final_small_phyla_V3V4/Deinococcus_Thermus_V3V4_dir/Deinococcus_Thermus_V3V4_final.fa",
-               "final_small_phyla_V3V4/Fusobacteria_V3V4_dir/Fusobacteria_V3V4_final.fa",
-               "final_small_phyla_V3V4/Nitrospirae_V3V4_dir/Nitrospirae_V3V4_final.fa",
-               "final_small_phyla_V3V4/Planctomycetes_V3V4_dir/Planctomycetes_V3V4_final.fa",
-               "final_small_phyla_V3V4/Spirochaetes_V3V4_dir/Spirochaetes_V3V4_final.fa",
-               "final_small_phyla_V3V4/Tenericutes_V3V4_dir/Tenericutes_V3V4_final.fa",
-               "final_small_phyla_V3V4/Verrucomicrobia_V3V4_dir/Verrucomicrobia_V3V4_final.fa",
-               "final_small_phyla_V3V4/phyla_lessthen_1k_wOG_V3V4_dir/phyla_lessthen_1k_wOG_V3V4_final.fa",
-               "Firmicutes_dir/Firmicutes_group_0_V3V4_dir/Firmicutes_group_0_V3V4_final.fa",
-               "Firmicutes_dir/Firmicutes_group_1_V3V4_dir/Firmicutes_group_1_V3V4_final.fa",
-               "Firmicutes_dir/Firmicutes_group_2_V3V4_dir/Firmicutes_group_2_V3V4_final.fa",
-               "Firmicutes_dir/Firmicutes_group_3_V3V4_dir/Firmicutes_group_3_V3V4_final.fa",
-               "Firmicutes_dir/Firmicutes_group_4_V3V4_dir/Firmicutes_group_4_V3V4_final.fa",
-               "Firmicutes_dir/Firmicutes_group_5_V3V4_dir/Firmicutes_group_5_V3V4_final.fa",
-               "Firmicutes_dir/Firmicutes_group_6_V3V4_dir/Firmicutes_group_6_V3V4_final.fa",
-               "Proteobacteria_dir/Proteobacteria_group_0_V3V4_dir/Proteobacteria_group_0_V3V4_final.fa",
-               "Proteobacteria_dir/Proteobacteria_group_10_V3V4_dir/Proteobacteria_group_10_V3V4_final.fa",
-               "Proteobacteria_dir/Proteobacteria_group_11_V3V4_dir/Proteobacteria_group_11_V3V4_final.fa",
-               "Proteobacteria_dir/Proteobacteria_group_12_V3V4_dir/Proteobacteria_group_12_V3V4_final.fa",
-               "Proteobacteria_dir/Proteobacteria_group_13_V3V4_dir/Proteobacteria_group_13_V3V4_final.fa",
-               "Proteobacteria_dir/Proteobacteria_group_14_V3V4_dir/Proteobacteria_group_14_V3V4_final.fa",
-               "Proteobacteria_dir/Proteobacteria_group_15_V3V4_dir/Proteobacteria_group_15_V3V4_final.fa",
-               "Proteobacteria_dir/Proteobacteria_group_17_V3V4_dir/Proteobacteria_group_17_V3V4_final.fa",
-               "Proteobacteria_dir/Proteobacteria_group_1_V3V4_dir/Proteobacteria_group_1_V3V4_final.fa",
-               "Proteobacteria_dir/Proteobacteria_group_2_V3V4_dir/Proteobacteria_group_2_V3V4_final.fa",
-               "Proteobacteria_dir/Proteobacteria_group_3_V3V4_dir/Proteobacteria_group_3_V3V4_final.fa",
-               "Proteobacteria_dir/Proteobacteria_group_4_V3V4_dir/Proteobacteria_group_4_V3V4_final.fa",
-               "Proteobacteria_dir/Proteobacteria_group_5_V3V4_dir/Proteobacteria_group_5_V3V4_final.fa",
-               "Proteobacteria_dir/Proteobacteria_group_6_V3V4_dir/Proteobacteria_group_6_V3V4_final.fa",
-               "Proteobacteria_dir/Proteobacteria_group_7_V3V4_dir/Proteobacteria_group_7_V3V4_final.fa",
-               "Proteobacteria_dir/Proteobacteria_group_8_V3V4_dir/Proteobacteria_group_8_V3V4_final.fa",
-               "Proteobacteria_dir/Proteobacteria_group_9_V3V4_dir/Proteobacteria_group_9_V3V4_final.fa");
+		"Actinobacteria_dir/Actinobacteria_group_1_V3V4_dir/Actinobacteria_group_1_V3V4_final.fa",
+		"Actinobacteria_dir/Actinobacteria_group_2_V3V4_dir/Actinobacteria_group_2_V3V4_final.fa",
+		"Actinobacteria_dir/Actinobacteria_group_3_V3V4_dir/Actinobacteria_group_3_V3V4_final.fa",
+		"Actinobacteria_dir/Actinobacteria_group_4_V3V4_dir/Actinobacteria_group_4_V3V4_final.fa",
+		"Actinobacteria_dir/Actinobacteria_group_5_V3V4_dir/Actinobacteria_group_5_V3V4_final.fa",
+		"Bacteroidetes_dir/Bacteroidetes_group_0_V3V4_dir/Bacteroidetes_group_0_V3V4_final.fa",
+		"Bacteroidetes_dir/Bacteroidetes_group_1_V3V4_dir/Bacteroidetes_group_1_V3V4_final.fa",
+		"Bacteroidetes_dir/Bacteroidetes_group_2_V3V4_dir/Bacteroidetes_group_2_V3V4_final.fa",
+		"Bacteroidetes_dir/Bacteroidetes_group_3_V3V4_dir/Bacteroidetes_group_3_V3V4_final.fa",
+		"final_small_phyla_V3V4/Chloroflexi_V3V4_dir/Chloroflexi_V3V4_final.fa",
+		"final_small_phyla_V3V4/Deinococcus_Thermus_V3V4_dir/Deinococcus_Thermus_V3V4_final.fa",
+		"final_small_phyla_V3V4/Fusobacteria_V3V4_dir/Fusobacteria_V3V4_final.fa",
+		"final_small_phyla_V3V4/Nitrospirae_V3V4_dir/Nitrospirae_V3V4_final.fa",
+		"final_small_phyla_V3V4/Planctomycetes_V3V4_dir/Planctomycetes_V3V4_final.fa",
+		"final_small_phyla_V3V4/Spirochaetes_V3V4_dir/Spirochaetes_V3V4_final.fa",
+		"final_small_phyla_V3V4/Tenericutes_V3V4_dir/Tenericutes_V3V4_final.fa",
+		"final_small_phyla_V3V4/Verrucomicrobia_V3V4_dir/Verrucomicrobia_V3V4_final.fa",
+		"final_small_phyla_V3V4/phyla_lessthen_1k_wOG_V3V4_dir/phyla_lessthen_1k_wOG_V3V4_final.fa",
+		"Firmicutes_dir/Firmicutes_group_0_V3V4_dir/Firmicutes_group_0_V3V4_final.fa",
+		"Firmicutes_dir/Firmicutes_group_1_V3V4_dir/Firmicutes_group_1_V3V4_final.fa",
+		"Firmicutes_dir/Firmicutes_group_2_V3V4_dir/Firmicutes_group_2_V3V4_final.fa",
+		"Firmicutes_dir/Firmicutes_group_3_V3V4_dir/Firmicutes_group_3_V3V4_final.fa",
+		"Firmicutes_dir/Firmicutes_group_4_V3V4_dir/Firmicutes_group_4_V3V4_final.fa",
+		"Firmicutes_dir/Firmicutes_group_5_V3V4_dir/Firmicutes_group_5_V3V4_final.fa",
+		"Firmicutes_dir/Firmicutes_group_6_V3V4_dir/Firmicutes_group_6_V3V4_final.fa",
+		"Proteobacteria_dir/Proteobacteria_group_0_V3V4_dir/Proteobacteria_group_0_V3V4_final.fa",
+		"Proteobacteria_dir/Proteobacteria_group_10_V3V4_dir/Proteobacteria_group_10_V3V4_final.fa",
+		"Proteobacteria_dir/Proteobacteria_group_11_V3V4_dir/Proteobacteria_group_11_V3V4_final.fa",
+		"Proteobacteria_dir/Proteobacteria_group_12_V3V4_dir/Proteobacteria_group_12_V3V4_final.fa",
+		"Proteobacteria_dir/Proteobacteria_group_13_V3V4_dir/Proteobacteria_group_13_V3V4_final.fa",
+		"Proteobacteria_dir/Proteobacteria_group_14_V3V4_dir/Proteobacteria_group_14_V3V4_final.fa",
+		"Proteobacteria_dir/Proteobacteria_group_15_V3V4_dir/Proteobacteria_group_15_V3V4_final.fa",
+		"Proteobacteria_dir/Proteobacteria_group_17_V3V4_dir/Proteobacteria_group_17_V3V4_final.fa",
+		"Proteobacteria_dir/Proteobacteria_group_1_V3V4_dir/Proteobacteria_group_1_V3V4_final.fa",
+		"Proteobacteria_dir/Proteobacteria_group_2_V3V4_dir/Proteobacteria_group_2_V3V4_final.fa",
+		"Proteobacteria_dir/Proteobacteria_group_3_V3V4_dir/Proteobacteria_group_3_V3V4_final.fa",
+		"Proteobacteria_dir/Proteobacteria_group_4_V3V4_dir/Proteobacteria_group_4_V3V4_final.fa",
+		"Proteobacteria_dir/Proteobacteria_group_5_V3V4_dir/Proteobacteria_group_5_V3V4_final.fa",
+		"Proteobacteria_dir/Proteobacteria_group_6_V3V4_dir/Proteobacteria_group_6_V3V4_final.fa",
+		"Proteobacteria_dir/Proteobacteria_group_7_V3V4_dir/Proteobacteria_group_7_V3V4_final.fa",
+		"Proteobacteria_dir/Proteobacteria_group_8_V3V4_dir/Proteobacteria_group_8_V3V4_final.fa",
+		"Proteobacteria_dir/Proteobacteria_group_9_V3V4_dir/Proteobacteria_group_9_V3V4_final.fa");
 
-my @faFiles = map{ $_ = $baseDir . $_ } @faFiles0;
+my @faFiles1 = map{ $_ = $baseDir . $_ } @faFiles0;
 ## print "faFiles: @faFiles\n";
 
+my @spLiFiles0 = ("Actinobacteria_dir/Actinobacteria_group_0_V3V4_dir/Actinobacteria_group_0_V3V4_final.spLineage",
+		  "Actinobacteria_dir/Actinobacteria_group_1_V3V4_dir/Actinobacteria_group_1_V3V4_final.spLineage",
+		  "Actinobacteria_dir/Actinobacteria_group_2_V3V4_dir/Actinobacteria_group_2_V3V4_final.spLineage",
+		  "Actinobacteria_dir/Actinobacteria_group_3_V3V4_dir/Actinobacteria_group_3_V3V4_final.spLineage",
+		  "Actinobacteria_dir/Actinobacteria_group_4_V3V4_dir/Actinobacteria_group_4_V3V4_final.spLineage",
+		  "Actinobacteria_dir/Actinobacteria_group_5_V3V4_dir/Actinobacteria_group_5_V3V4_final.spLineage",
+		  "Bacteroidetes_dir/Bacteroidetes_group_0_V3V4_dir/Bacteroidetes_group_0_V3V4_final.spLineage",
+		  "Bacteroidetes_dir/Bacteroidetes_group_1_V3V4_dir/Bacteroidetes_group_1_V3V4_final.spLineage",
+		  "Bacteroidetes_dir/Bacteroidetes_group_2_V3V4_dir/Bacteroidetes_group_2_V3V4_final.spLineage",
+		  "Bacteroidetes_dir/Bacteroidetes_group_3_V3V4_dir/Bacteroidetes_group_3_V3V4_final.spLineage",
+		  "final_small_phyla_V3V4/Chloroflexi_V3V4_dir/Chloroflexi_V3V4_final.spLineage",
+		  "final_small_phyla_V3V4/Deinococcus_Thermus_V3V4_dir/Deinococcus_Thermus_V3V4_final.spLineage",
+		  "final_small_phyla_V3V4/Fusobacteria_V3V4_dir/Fusobacteria_V3V4_final.spLineage",
+		  "final_small_phyla_V3V4/Nitrospirae_V3V4_dir/Nitrospirae_V3V4_final.spLineage",
+		  "final_small_phyla_V3V4/Planctomycetes_V3V4_dir/Planctomycetes_V3V4_final.spLineage",
+		  "final_small_phyla_V3V4/Spirochaetes_V3V4_dir/Spirochaetes_V3V4_final.spLineage",
+		  "final_small_phyla_V3V4/Tenericutes_V3V4_dir/Tenericutes_V3V4_final.spLineage",
+		  "final_small_phyla_V3V4/Verrucomicrobia_V3V4_dir/Verrucomicrobia_V3V4_final.spLineage",
+		  "final_small_phyla_V3V4/phyla_lessthen_1k_wOG_V3V4_dir/phyla_lessthen_1k_wOG_V3V4_final.spLineage",
+		  "Firmicutes_dir/Firmicutes_group_0_V3V4_dir/Firmicutes_group_0_V3V4_final.spLineage",
+		  "Firmicutes_dir/Firmicutes_group_1_V3V4_dir/Firmicutes_group_1_V3V4_final.spLineage",
+		  "Firmicutes_dir/Firmicutes_group_2_V3V4_dir/Firmicutes_group_2_V3V4_final.spLineage",
+		  "Firmicutes_dir/Firmicutes_group_3_V3V4_dir/Firmicutes_group_3_V3V4_final.spLineage",
+		  "Firmicutes_dir/Firmicutes_group_4_V3V4_dir/Firmicutes_group_4_V3V4_final.spLineage",
+		  "Firmicutes_dir/Firmicutes_group_5_V3V4_dir/Firmicutes_group_5_V3V4_final.spLineage",
+		  "Firmicutes_dir/Firmicutes_group_6_V3V4_dir/Firmicutes_group_6_V3V4_final.spLineage",
+		  "Proteobacteria_dir/Proteobacteria_group_0_V3V4_dir/Proteobacteria_group_0_V3V4_final.spLineage",
+		  "Proteobacteria_dir/Proteobacteria_group_10_V3V4_dir/Proteobacteria_group_10_V3V4_final.spLineage",
+		  "Proteobacteria_dir/Proteobacteria_group_11_V3V4_dir/Proteobacteria_group_11_V3V4_final.spLineage",
+		  "Proteobacteria_dir/Proteobacteria_group_12_V3V4_dir/Proteobacteria_group_12_V3V4_final.spLineage",
+		  "Proteobacteria_dir/Proteobacteria_group_13_V3V4_dir/Proteobacteria_group_13_V3V4_final.spLineage",
+		  "Proteobacteria_dir/Proteobacteria_group_14_V3V4_dir/Proteobacteria_group_14_V3V4_final.spLineage",
+		  "Proteobacteria_dir/Proteobacteria_group_15_V3V4_dir/Proteobacteria_group_15_V3V4_final.spLineage",
+		  "Proteobacteria_dir/Proteobacteria_group_17_V3V4_dir/Proteobacteria_group_17_V3V4_final.spLineage",
+		  "Proteobacteria_dir/Proteobacteria_group_1_V3V4_dir/Proteobacteria_group_1_V3V4_final.spLineage",
+		  "Proteobacteria_dir/Proteobacteria_group_2_V3V4_dir/Proteobacteria_group_2_V3V4_final.spLineage",
+		  "Proteobacteria_dir/Proteobacteria_group_3_V3V4_dir/Proteobacteria_group_3_V3V4_final.spLineage",
+		  "Proteobacteria_dir/Proteobacteria_group_4_V3V4_dir/Proteobacteria_group_4_V3V4_final.spLineage",
+		  "Proteobacteria_dir/Proteobacteria_group_5_V3V4_dir/Proteobacteria_group_5_V3V4_final.spLineage",
+		  "Proteobacteria_dir/Proteobacteria_group_6_V3V4_dir/Proteobacteria_group_6_V3V4_final.spLineage",
+		  "Proteobacteria_dir/Proteobacteria_group_7_V3V4_dir/Proteobacteria_group_7_V3V4_final.spLineage",
+		  "Proteobacteria_dir/Proteobacteria_group_8_V3V4_dir/Proteobacteria_group_8_V3V4_final.spLineage",
+		  "Proteobacteria_dir/Proteobacteria_group_9_V3V4_dir/Proteobacteria_group_9_V3V4_final.spLineage");
 
-my @spLineageFiles0 = ("Actinobacteria_dir/Actinobacteria_group_0_V3V4_dir/Actinobacteria_group_0_V3V4_final.spLineage",
-		     "Actinobacteria_dir/Actinobacteria_group_1_V3V4_dir/Actinobacteria_group_1_V3V4_final.spLineage",
-		     "Actinobacteria_dir/Actinobacteria_group_2_V3V4_dir/Actinobacteria_group_2_V3V4_final.spLineage",
-		     "Actinobacteria_dir/Actinobacteria_group_3_V3V4_dir/Actinobacteria_group_3_V3V4_final.spLineage",
-		     "Actinobacteria_dir/Actinobacteria_group_4_V3V4_dir/Actinobacteria_group_4_V3V4_final.spLineage",
-		     "Actinobacteria_dir/Actinobacteria_group_5_V3V4_dir/Actinobacteria_group_5_V3V4_final.spLineage",
-		     "Bacteroidetes_dir/Bacteroidetes_group_0_V3V4_dir/Bacteroidetes_group_0_V3V4_final.spLineage",
-		     "Bacteroidetes_dir/Bacteroidetes_group_1_V3V4_dir/Bacteroidetes_group_1_V3V4_final.spLineage",
-		     "Bacteroidetes_dir/Bacteroidetes_group_2_V3V4_dir/Bacteroidetes_group_2_V3V4_final.spLineage",
-		     "Bacteroidetes_dir/Bacteroidetes_group_3_V3V4_dir/Bacteroidetes_group_3_V3V4_final.spLineage",
-		     "final_small_phyla_V3V4/Chloroflexi_V3V4_dir/Chloroflexi_V3V4_final.spLineage",
-		     "final_small_phyla_V3V4/Deinococcus_Thermus_V3V4_dir/Deinococcus_Thermus_V3V4_final.spLineage",
-		     "final_small_phyla_V3V4/Fusobacteria_V3V4_dir/Fusobacteria_V3V4_final.spLineage",
-		     "final_small_phyla_V3V4/Nitrospirae_V3V4_dir/Nitrospirae_V3V4_final.spLineage",
-		     "final_small_phyla_V3V4/Planctomycetes_V3V4_dir/Planctomycetes_V3V4_final.spLineage",
-		     "final_small_phyla_V3V4/Spirochaetes_V3V4_dir/Spirochaetes_V3V4_final.spLineage",
-		     "final_small_phyla_V3V4/Tenericutes_V3V4_dir/Tenericutes_V3V4_final.spLineage",
-		     "final_small_phyla_V3V4/Verrucomicrobia_V3V4_dir/Verrucomicrobia_V3V4_final.spLineage",
-		     "final_small_phyla_V3V4/phyla_lessthen_1k_wOG_V3V4_dir/phyla_lessthen_1k_wOG_V3V4_final.spLineage",
-		     "Firmicutes_dir/Firmicutes_group_0_V3V4_dir/Firmicutes_group_0_V3V4_final.spLineage",
-		     "Firmicutes_dir/Firmicutes_group_1_V3V4_dir/Firmicutes_group_1_V3V4_final.spLineage",
-		     "Firmicutes_dir/Firmicutes_group_2_V3V4_dir/Firmicutes_group_2_V3V4_final.spLineage",
-		     "Firmicutes_dir/Firmicutes_group_3_V3V4_dir/Firmicutes_group_3_V3V4_final.spLineage",
-		     "Firmicutes_dir/Firmicutes_group_4_V3V4_dir/Firmicutes_group_4_V3V4_final.spLineage",
-		     "Firmicutes_dir/Firmicutes_group_5_V3V4_dir/Firmicutes_group_5_V3V4_final.spLineage",
-		     "Firmicutes_dir/Firmicutes_group_6_V3V4_dir/Firmicutes_group_6_V3V4_final.spLineage",
-		     "Proteobacteria_dir/Proteobacteria_group_0_V3V4_dir/Proteobacteria_group_0_V3V4_final.spLineage",
-		     "Proteobacteria_dir/Proteobacteria_group_10_V3V4_dir/Proteobacteria_group_10_V3V4_final.spLineage",
-		     "Proteobacteria_dir/Proteobacteria_group_11_V3V4_dir/Proteobacteria_group_11_V3V4_final.spLineage",
-		     "Proteobacteria_dir/Proteobacteria_group_12_V3V4_dir/Proteobacteria_group_12_V3V4_final.spLineage",
-		     "Proteobacteria_dir/Proteobacteria_group_13_V3V4_dir/Proteobacteria_group_13_V3V4_final.spLineage",
-		     "Proteobacteria_dir/Proteobacteria_group_14_V3V4_dir/Proteobacteria_group_14_V3V4_final.spLineage",
-		     "Proteobacteria_dir/Proteobacteria_group_15_V3V4_dir/Proteobacteria_group_15_V3V4_final.spLineage",
-		     "Proteobacteria_dir/Proteobacteria_group_17_V3V4_dir/Proteobacteria_group_17_V3V4_final.spLineage",
-		     "Proteobacteria_dir/Proteobacteria_group_1_V3V4_dir/Proteobacteria_group_1_V3V4_final.spLineage",
-		     "Proteobacteria_dir/Proteobacteria_group_2_V3V4_dir/Proteobacteria_group_2_V3V4_final.spLineage",
-		     "Proteobacteria_dir/Proteobacteria_group_3_V3V4_dir/Proteobacteria_group_3_V3V4_final.spLineage",
-		     "Proteobacteria_dir/Proteobacteria_group_4_V3V4_dir/Proteobacteria_group_4_V3V4_final.spLineage",
-		     "Proteobacteria_dir/Proteobacteria_group_5_V3V4_dir/Proteobacteria_group_5_V3V4_final.spLineage",
-		     "Proteobacteria_dir/Proteobacteria_group_6_V3V4_dir/Proteobacteria_group_6_V3V4_final.spLineage",
-		     "Proteobacteria_dir/Proteobacteria_group_7_V3V4_dir/Proteobacteria_group_7_V3V4_final.spLineage",
-		     "Proteobacteria_dir/Proteobacteria_group_8_V3V4_dir/Proteobacteria_group_8_V3V4_final.spLineage",
-		     "Proteobacteria_dir/Proteobacteria_group_9_V3V4_dir/Proteobacteria_group_9_V3V4_final.spLineage");
-
-my @spLineageFiles = map{ $_ = $baseDir . $_ } @spLineageFiles0;
-## print "spLineageFile: @spLineageFiles\n";
+my @spLiFiles1 = map{ $_ = $baseDir . $_ } @spLiFiles0;
+## print "spLineageFile: @spLiFiles\n";
 
 
 my @txFiles0 = ("Actinobacteria_dir/Actinobacteria_group_0_V3V4_dir/Actinobacteria_group_0_V3V4_final.tx",
-		     "Actinobacteria_dir/Actinobacteria_group_1_V3V4_dir/Actinobacteria_group_1_V3V4_final.tx",
-		     "Actinobacteria_dir/Actinobacteria_group_2_V3V4_dir/Actinobacteria_group_2_V3V4_final.tx",
-		     "Actinobacteria_dir/Actinobacteria_group_3_V3V4_dir/Actinobacteria_group_3_V3V4_final.tx",
-		     "Actinobacteria_dir/Actinobacteria_group_4_V3V4_dir/Actinobacteria_group_4_V3V4_final.tx",
-		     "Actinobacteria_dir/Actinobacteria_group_5_V3V4_dir/Actinobacteria_group_5_V3V4_final.tx",
-		     "Bacteroidetes_dir/Bacteroidetes_group_0_V3V4_dir/Bacteroidetes_group_0_V3V4_final.tx",
-		     "Bacteroidetes_dir/Bacteroidetes_group_1_V3V4_dir/Bacteroidetes_group_1_V3V4_final.tx",
-		     "Bacteroidetes_dir/Bacteroidetes_group_2_V3V4_dir/Bacteroidetes_group_2_V3V4_final.tx",
-		     "Bacteroidetes_dir/Bacteroidetes_group_3_V3V4_dir/Bacteroidetes_group_3_V3V4_final.tx",
-		     "final_small_phyla_V3V4/Chloroflexi_V3V4_dir/Chloroflexi_V3V4_final.tx",
-		     "final_small_phyla_V3V4/Deinococcus_Thermus_V3V4_dir/Deinococcus_Thermus_V3V4_final.tx",
-		     "final_small_phyla_V3V4/Fusobacteria_V3V4_dir/Fusobacteria_V3V4_final.tx",
-		     "final_small_phyla_V3V4/Nitrospirae_V3V4_dir/Nitrospirae_V3V4_final.tx",
-		     "final_small_phyla_V3V4/Planctomycetes_V3V4_dir/Planctomycetes_V3V4_final.tx",
-		     "final_small_phyla_V3V4/Spirochaetes_V3V4_dir/Spirochaetes_V3V4_final.tx",
-		     "final_small_phyla_V3V4/Tenericutes_V3V4_dir/Tenericutes_V3V4_final.tx",
-		     "final_small_phyla_V3V4/Verrucomicrobia_V3V4_dir/Verrucomicrobia_V3V4_final.tx",
-		     "final_small_phyla_V3V4/phyla_lessthen_1k_wOG_V3V4_dir/phyla_lessthen_1k_wOG_V3V4_final.tx",
-		     "Firmicutes_dir/Firmicutes_group_0_V3V4_dir/Firmicutes_group_0_V3V4_final.tx",
-		     "Firmicutes_dir/Firmicutes_group_1_V3V4_dir/Firmicutes_group_1_V3V4_final.tx",
-		     "Firmicutes_dir/Firmicutes_group_2_V3V4_dir/Firmicutes_group_2_V3V4_final.tx",
-		     "Firmicutes_dir/Firmicutes_group_3_V3V4_dir/Firmicutes_group_3_V3V4_final.tx",
-		     "Firmicutes_dir/Firmicutes_group_4_V3V4_dir/Firmicutes_group_4_V3V4_final.tx",
-		     "Firmicutes_dir/Firmicutes_group_5_V3V4_dir/Firmicutes_group_5_V3V4_final.tx",
-		     "Firmicutes_dir/Firmicutes_group_6_V3V4_dir/Firmicutes_group_6_V3V4_final.tx",
-		     "Proteobacteria_dir/Proteobacteria_group_0_V3V4_dir/Proteobacteria_group_0_V3V4_final.tx",
-		     "Proteobacteria_dir/Proteobacteria_group_10_V3V4_dir/Proteobacteria_group_10_V3V4_final.tx",
-		     "Proteobacteria_dir/Proteobacteria_group_11_V3V4_dir/Proteobacteria_group_11_V3V4_final.tx",
-		     "Proteobacteria_dir/Proteobacteria_group_12_V3V4_dir/Proteobacteria_group_12_V3V4_final.tx",
-		     "Proteobacteria_dir/Proteobacteria_group_13_V3V4_dir/Proteobacteria_group_13_V3V4_final.tx",
-		     "Proteobacteria_dir/Proteobacteria_group_14_V3V4_dir/Proteobacteria_group_14_V3V4_final.tx",
-		     "Proteobacteria_dir/Proteobacteria_group_15_V3V4_dir/Proteobacteria_group_15_V3V4_final.tx",
-		     "Proteobacteria_dir/Proteobacteria_group_17_V3V4_dir/Proteobacteria_group_17_V3V4_final.tx",
-		     "Proteobacteria_dir/Proteobacteria_group_1_V3V4_dir/Proteobacteria_group_1_V3V4_final.tx",
-		     "Proteobacteria_dir/Proteobacteria_group_2_V3V4_dir/Proteobacteria_group_2_V3V4_final.tx",
-		     "Proteobacteria_dir/Proteobacteria_group_3_V3V4_dir/Proteobacteria_group_3_V3V4_final.tx",
-		     "Proteobacteria_dir/Proteobacteria_group_4_V3V4_dir/Proteobacteria_group_4_V3V4_final.tx",
-		     "Proteobacteria_dir/Proteobacteria_group_5_V3V4_dir/Proteobacteria_group_5_V3V4_final.tx",
-		     "Proteobacteria_dir/Proteobacteria_group_6_V3V4_dir/Proteobacteria_group_6_V3V4_final.tx",
-		     "Proteobacteria_dir/Proteobacteria_group_7_V3V4_dir/Proteobacteria_group_7_V3V4_final.tx",
-		     "Proteobacteria_dir/Proteobacteria_group_8_V3V4_dir/Proteobacteria_group_8_V3V4_final.tx",
-		     "Proteobacteria_dir/Proteobacteria_group_9_V3V4_dir/Proteobacteria_group_9_V3V4_final.tx");
+		"Actinobacteria_dir/Actinobacteria_group_1_V3V4_dir/Actinobacteria_group_1_V3V4_final.tx",
+		"Actinobacteria_dir/Actinobacteria_group_2_V3V4_dir/Actinobacteria_group_2_V3V4_final.tx",
+		"Actinobacteria_dir/Actinobacteria_group_3_V3V4_dir/Actinobacteria_group_3_V3V4_final.tx",
+		"Actinobacteria_dir/Actinobacteria_group_4_V3V4_dir/Actinobacteria_group_4_V3V4_final.tx",
+		"Actinobacteria_dir/Actinobacteria_group_5_V3V4_dir/Actinobacteria_group_5_V3V4_final.tx",
+		"Bacteroidetes_dir/Bacteroidetes_group_0_V3V4_dir/Bacteroidetes_group_0_V3V4_final.tx",
+		"Bacteroidetes_dir/Bacteroidetes_group_1_V3V4_dir/Bacteroidetes_group_1_V3V4_final.tx",
+		"Bacteroidetes_dir/Bacteroidetes_group_2_V3V4_dir/Bacteroidetes_group_2_V3V4_final.tx",
+		"Bacteroidetes_dir/Bacteroidetes_group_3_V3V4_dir/Bacteroidetes_group_3_V3V4_final.tx",
+		"final_small_phyla_V3V4/Chloroflexi_V3V4_dir/Chloroflexi_V3V4_final.tx",
+		"final_small_phyla_V3V4/Deinococcus_Thermus_V3V4_dir/Deinococcus_Thermus_V3V4_final.tx",
+		"final_small_phyla_V3V4/Fusobacteria_V3V4_dir/Fusobacteria_V3V4_final.tx",
+		"final_small_phyla_V3V4/Nitrospirae_V3V4_dir/Nitrospirae_V3V4_final.tx",
+		"final_small_phyla_V3V4/Planctomycetes_V3V4_dir/Planctomycetes_V3V4_final.tx",
+		"final_small_phyla_V3V4/Spirochaetes_V3V4_dir/Spirochaetes_V3V4_final.tx",
+		"final_small_phyla_V3V4/Tenericutes_V3V4_dir/Tenericutes_V3V4_final.tx",
+		"final_small_phyla_V3V4/Verrucomicrobia_V3V4_dir/Verrucomicrobia_V3V4_final.tx",
+		"final_small_phyla_V3V4/phyla_lessthen_1k_wOG_V3V4_dir/phyla_lessthen_1k_wOG_V3V4_final.tx",
+		"Firmicutes_dir/Firmicutes_group_0_V3V4_dir/Firmicutes_group_0_V3V4_final.tx",
+		"Firmicutes_dir/Firmicutes_group_1_V3V4_dir/Firmicutes_group_1_V3V4_final.tx",
+		"Firmicutes_dir/Firmicutes_group_2_V3V4_dir/Firmicutes_group_2_V3V4_final.tx",
+		"Firmicutes_dir/Firmicutes_group_3_V3V4_dir/Firmicutes_group_3_V3V4_final.tx",
+		"Firmicutes_dir/Firmicutes_group_4_V3V4_dir/Firmicutes_group_4_V3V4_final.tx",
+		"Firmicutes_dir/Firmicutes_group_5_V3V4_dir/Firmicutes_group_5_V3V4_final.tx",
+		"Firmicutes_dir/Firmicutes_group_6_V3V4_dir/Firmicutes_group_6_V3V4_final.tx",
+		"Proteobacteria_dir/Proteobacteria_group_0_V3V4_dir/Proteobacteria_group_0_V3V4_final.tx",
+		"Proteobacteria_dir/Proteobacteria_group_10_V3V4_dir/Proteobacteria_group_10_V3V4_final.tx",
+		"Proteobacteria_dir/Proteobacteria_group_11_V3V4_dir/Proteobacteria_group_11_V3V4_final.tx",
+		"Proteobacteria_dir/Proteobacteria_group_12_V3V4_dir/Proteobacteria_group_12_V3V4_final.tx",
+		"Proteobacteria_dir/Proteobacteria_group_13_V3V4_dir/Proteobacteria_group_13_V3V4_final.tx",
+		"Proteobacteria_dir/Proteobacteria_group_14_V3V4_dir/Proteobacteria_group_14_V3V4_final.tx",
+		"Proteobacteria_dir/Proteobacteria_group_15_V3V4_dir/Proteobacteria_group_15_V3V4_final.tx",
+		"Proteobacteria_dir/Proteobacteria_group_17_V3V4_dir/Proteobacteria_group_17_V3V4_final.tx",
+		"Proteobacteria_dir/Proteobacteria_group_1_V3V4_dir/Proteobacteria_group_1_V3V4_final.tx",
+		"Proteobacteria_dir/Proteobacteria_group_2_V3V4_dir/Proteobacteria_group_2_V3V4_final.tx",
+		"Proteobacteria_dir/Proteobacteria_group_3_V3V4_dir/Proteobacteria_group_3_V3V4_final.tx",
+		"Proteobacteria_dir/Proteobacteria_group_4_V3V4_dir/Proteobacteria_group_4_V3V4_final.tx",
+		"Proteobacteria_dir/Proteobacteria_group_5_V3V4_dir/Proteobacteria_group_5_V3V4_final.tx",
+		"Proteobacteria_dir/Proteobacteria_group_6_V3V4_dir/Proteobacteria_group_6_V3V4_final.tx",
+		"Proteobacteria_dir/Proteobacteria_group_7_V3V4_dir/Proteobacteria_group_7_V3V4_final.tx",
+		"Proteobacteria_dir/Proteobacteria_group_8_V3V4_dir/Proteobacteria_group_8_V3V4_final.tx",
+		"Proteobacteria_dir/Proteobacteria_group_9_V3V4_dir/Proteobacteria_group_9_V3V4_final.tx");
 
-my @txFiles = map{ $_ = $baseDir . $_ } @txFiles0;
+my @txFiles1 = map{ $_ = $baseDir . $_ } @txFiles0;
 ## print "txFile: @txFiles\n";
+
+my @allPhGrs = ("Actinobacteria_group_0_V3V4",
+		"Actinobacteria_group_1_V3V4",
+		"Actinobacteria_group_2_V3V4",
+		"Actinobacteria_group_3_V3V4",
+		"Actinobacteria_group_4_V3V4",
+		"Actinobacteria_group_5_V3V4",
+		"Bacteroidetes_group_0_V3V4",
+		"Bacteroidetes_group_1_V3V4",
+		"Bacteroidetes_group_2_V3V4",
+		"Bacteroidetes_group_3_V3V4",
+		"Chloroflexi_V3V4",
+		"Deinococcus_Thermus_V3V4",
+		"Fusobacteria_V3V4",
+		"Nitrospirae_V3V4",
+		"Planctomycetes_V3V4",
+		"Spirochaetes_V3V4",
+		"Tenericutes_V3V4",
+		"Verrucomicrobia_V3V4",
+		"phyla_lessthen_1k_wOG_V3V4",
+		"Firmicutes_group_0_V3V4",
+		"Firmicutes_group_1_V3V4",
+		"Firmicutes_group_2_V3V4",
+		"Firmicutes_group_3_V3V4",
+		"Firmicutes_group_4_V3V4",
+		"Firmicutes_group_5_V3V4",
+		"Firmicutes_group_6_V3V4",
+		"Proteobacteria_group_0_V3V4",
+		"Proteobacteria_group_10_V3V4",
+		"Proteobacteria_group_11_V3V4",
+		"Proteobacteria_group_12_V3V4",
+		"Proteobacteria_group_13_V3V4",
+		"Proteobacteria_group_14_V3V4",
+		"Proteobacteria_group_15_V3V4",
+		"Proteobacteria_group_17_V3V4",
+		"Proteobacteria_group_1_V3V4",
+		"Proteobacteria_group_2_V3V4",
+		"Proteobacteria_group_3_V3V4",
+		"Proteobacteria_group_4_V3V4",
+		"Proteobacteria_group_5_V3V4",
+		"Proteobacteria_group_6_V3V4",
+		"Proteobacteria_group_7_V3V4",
+		"Proteobacteria_group_8_V3V4",
+		"Proteobacteria_group_9_V3V4");
+
+my %faTbl;
+my %txTbl;
+my %spLiTbl;
+for my $i ( 0..$#allPhGrs )
+{
+  $faTbl{$allPhGrs[$i]}   = $faFiles1[$i];
+  $txTbl{$allPhGrs[$i]}   = $txFiles1[$i];
+  $spLiTbl{$allPhGrs[$i]} = $spLiFiles1[$i];
+}
+
+my @faFiles;
+my @txFiles;
+my @spLiFiles;
+for ( @allPhGrs )
+{
+  if ( exists $faExtTbl{$_} )
+  {
+    push @faFiles,   $faExtTbl{$_};
+    push @txFiles,   $txExtTbl{$_};
+    push @spLiFiles, $spLiExtTbl{$_};
+  }
+  else
+  {
+    push @faFiles,   $faTbl{$_};
+    push @txFiles,   $txTbl{$_};
+    push @spLiFiles, $spLiTbl{$_};
+  }
+}
+
+
+if ( $debug )
+{
+  print_array( \@faFiles, "\nfaFiles" );
+  print "\n\n";
+
+  print_array( \@txFiles, "\ntxFiles" );
+  print "\n\n";
+
+  print_array( \@spLiFiles, "\nspLiFiles" );
+  print "\n\n";
+
+  exit;
+}
 
 
 ## checking that each taxon and fasta files have the same sequence IDs
@@ -327,7 +516,7 @@ my %clTbl;
 my %phTbl;
 
 ##my %spLineage; # species => lineage of the species (recorded as a string) with the corresponding phyo-group name at the end
-foreach $file (@spLineageFiles)
+foreach $file (@spLiFiles)
 {
   print "\rProcessing $file        ";
   my @tokens = split "/", $file;
@@ -513,7 +702,7 @@ if (0)
 ##  %phTbl;
 
 my %spLineage; # species => lineage of the species (recorded as a string) with the corresponding phyo-group name at the end
-foreach $file (@spLineageFiles)
+foreach $file (@spLiFiles)
 {
   my @tokens = split "/", $file;
   my $phGr = $tokens[9];
@@ -623,5 +812,18 @@ print "\n\t fasta file written to $faFile\n";
 print "\t taxon file written to $txFile\n";
 print "\t spLineage written to $spLineageFile\n\n";
 
+
+####################################################################
+##                               SUBS
+####################################################################
+
+
+# print array to stdout
+sub print_array
+{
+  my ($a, $header) = @_;
+  print "\n$header\n" if $header;
+  map {print "$_\n"} @{$a};
+}
 
 exit 0;
