@@ -155,6 +155,7 @@ my $quietStr           = "--quiet";
 my $vsearchSORT;
 my $vsearch;
 
+my $igsStr = "";
 if ( defined $igs )
 {
     #$baseDir         = "/local/scratch/MM/V3V4_unzipped/";
@@ -183,7 +184,7 @@ if ( defined $igs )
   $vsearchSORT        = "/usr/local/packages/vsearch/bin/vsearch";
   $vsearch            = "/usr/local/bin/vsearch";
   $quietStr           = "";
-
+  $igsStr             = "--igs";
 }
 
 ## Export LD_LIBRARY_PATH=/usr/local/packages/readline/lib:/usr/local/packages/gcc-5.3.0/lib64
@@ -203,6 +204,7 @@ if ($verbose)
 {
   $verboseStr  = "--verbose";
 }
+
 
 ####################################################################
 ##                               MAIN
@@ -583,7 +585,7 @@ for my $phGr ( keys %phGrSppTbl )
     if ( ! -e $spClstr2File || $runAll )
     {
       print "\r\t\tCreating clstr2 file                               ";
-      $cmd = "$uc2clstr2 -i $spUCfile -o $spClstr2File";
+      $cmd = "$uc2clstr2 $igsStr -i $spUCfile -o $spClstr2File";
       print "cmd=$cmd\n" if $dryRun || $debug;
       system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
     }
