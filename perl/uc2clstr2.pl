@@ -88,7 +88,7 @@ my $clstr_to_clstr2 = "clstr_to_clstr2.pl";
 if ( defined $igs )
 {
   $usearch4        = "/usr/local/projects/pgajer/bin/usearch4";
-  $clstr_to_clstr2 = "clstr_to_clstr2.pl";
+  $clstr_to_clstr2 = "/home/pgajer/devel/MCclassifier/perl/clstr_to_clstr2.pl";
 }
 
 ####################################################################

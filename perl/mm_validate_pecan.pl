@@ -169,7 +169,7 @@ if ( defined $igs )
   $nw_rename          = "/usr/local/projects/pgajer/bin/nw_rename";
   $nw_prune           = "/usr/local/projects/pgajer/bin/nw_prune";
   $nw_reroot          = "/usr/local/projects/pgajer/bin/nw_reroot";
-  $uc2clstr2          = "/usr/local/projects/pgajer/bin/uc2clstr2.pl";
+  $uc2clstr2          = "/home/pgajer/devel/MCclassifier/perl/uc2clstr2.pl";
   $extract_seq_IDs    = "/home/pgajer/devel/MCclassifier/perl/extract_seq_IDs.pl";
   $select_seqs        = "/home/pgajer/devel/MCclassifier/perl/select_seqs.pl";
   $rmGaps             = "/usr/local/projects/pgajer/bin/rmGaps";
