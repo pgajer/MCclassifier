@@ -148,7 +148,8 @@ if ( defined $igs )
   $mmSppDir       = "/local/scratch/MM/MM_spp_dir";
 
   $R              = "/usr/local/bin/R";
-  $mothur         = "/usr/local/packages/mothur-1.39.3/mothur";
+  #$mothur         = "/usr/local/packages/mothur-1.39.3/mothur";
+  $mothur         = "/usr/local/projects/pgajer/bin/mothur";
   $usearch6       = "/local/projects/pgajer/bin/usearch6.0.203_i86linux32";
   $vicut          = "/usr/local/projects/pgajer/bin/vicut";
   $readNewickFile = "/local/projects/pgajer/devel/MCclassifier/perl/read.newick.R";
@@ -684,7 +685,8 @@ for my $phGr ( keys %phGrSppTbl )
       printArray(\@tmp, "mothur commands") if ($debug || $verbose);
 
       my $scriptFile = create_mothur_script(\@tmp);
-      $cmd = "$mothur < $scriptFile; rm -f $scriptFile mothur.*.logfile";
+      #$cmd = "$mothur < $scriptFile; rm -f $scriptFile mothur.*.logfile";
+      $cmd = "$mothur < $scriptFile";
       print "\tcmd=$cmd\n" if $dryRun || $debug;
       system($cmd) == 0 or die "system($cmd) failed:$?" if !$dryRun;
 
