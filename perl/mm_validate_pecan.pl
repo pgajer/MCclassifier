@@ -39,6 +39,9 @@
 =item B<--phylo-part-perc-thld, -t>
   Percentile threshold for phylo-partitioning specified as a decimal between 0 and 1. Default: 0.1
 
+=item B<--use-vsearch>
+  Use vsearch instead of usearch. When activated plot_tree() is disabled
+
 =item B<--num-proc, -m>
   Number of processors to be used. Default value: 8.
 
@@ -99,7 +102,7 @@ GetOptions(
   "spp-file|i=s"             => \my $sppFile,
   "out-dir|o=s"              => \my $outDir,
   "max-no-nr-seqs|n=i"       => \$maxNumNRseqs,
-  "run-vsearch"              => \my $runVsearch,
+  "use-vsearch"              => \my $useVsearch,
   "perc-coverage|p=i"        => \$percCoverage,
   "num-proc|m=i"             => \$nProc,
   "igs"                      => \my $igs,
@@ -547,7 +550,7 @@ for my $phGr ( keys %phGrSppTbl )
     if ( ! -e $spNRfaFile || $runAll )
     {
       print "\r\t\tDereplicating species fasta file";
-      if ( $runVsearch )
+      if ( $useVsearch )
       {
 	$cmd = "$vsearchSORT --sortbylength $spFaFile --output $spSORTfaFile --fasta_width 0; $vsearch --derep_full $spSORTfaFile --output $spNRfaFile --sizeout --fasta_width 0 --uc $spUCfile";
 	print "\tcmd=$cmd\n" if $dryRun || $debug;
@@ -920,7 +923,7 @@ for my $phGr ( keys %phGrSppTbl )
 
     print "\r\t\tGenerating a condensed tree of ref seq's species and vicut tx clades collapsed to a single node  ";
     my $condTreeFile2 = "$spDir/$sp" . $covSuffix . "_spp_cond2.tree";
-    if ( (! $runVsearch && ! -e $condTreeFile2) || $runAll )
+    if ( (! $useVsearch && ! -e $condTreeFile2) || $runAll )
     {
       print "\r\t\tGenerating a tree with species names at leaves ";
       my $sppTreeFile = "$spDir/$sp" . $covSuffix . "_spp.tree";
