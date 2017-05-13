@@ -456,6 +456,16 @@ for my $phGr ( keys %phGrSppTbl )
   my $phGrOGfaFile = $phGrDir . "og.fa";
   if ( ! -e $phGrOGfaFile || $runAll )
   {
+    if ( ! -e $phGrBigFaFile )
+    {
+      print "--- $phGrBigFaFile was not found - creating it from the ginsi_algn file\n";
+      my $ginsiFile = $phGrFaFile;
+      $ginsiFile =~ s/_final/_ginsi_algn/;
+      $cmd = "rmGaps -i $ginsiFile -o $phGrBigFaFile";
+      print "\tcmd=$cmd\n" if $dryRun || $debug;
+      system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
+    }
+
     print "--- Generating fa file of outgroup seq's of $phGr       ";
     $cmd = "select_seqs.pl $quietStr -s $phGrOGseqIDsFile -i $phGrBigFaFile -o $phGrOGfaFile";
     print "\tcmd=$cmd\n" if $dryRun || $debug;
