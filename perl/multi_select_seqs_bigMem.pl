@@ -269,7 +269,7 @@ sub parse_tx_tbl
       {
 	$timeStr = "$timeMin:$runTime";
       }
-      print "\r" . commify($spCount) . " $timeStr";
+      print "\r" . commify($count) . " $timeStr";
     }
     $count++;
     chomp;
