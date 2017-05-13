@@ -746,7 +746,7 @@ for my $phGr ( keys %phGrSppTbl )
     if ( ! -e $bigTreeWithOGsFile || $runAll )
     {
       print "\r\t\tRerooting the tree using outgroup sequences                          ";
-      $cmd = "rm -f $bigTreeWithOGsFile; $nw_reroot $bigNotRootedTreeFile @ogSeqIDs | nw_order -  > $bigTreeWithOGsFile";
+      $cmd = "rm -f $bigTreeWithOGsFile; $nw_reroot $bigNotRootedTreeFile @ogSeqIDs | $nw_order -  > $bigTreeWithOGsFile";
       print "\tcmd=$cmd\n" if $dryRun || $debug;
       system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
     }
@@ -756,7 +756,7 @@ for my $phGr ( keys %phGrSppTbl )
     if ( ! -e $bigTreeFile || $runAll )
     {
       print "\r\t\tPruning the tree from OG seq's                                          ";
-      $cmd = "rm -f $bigTreeFile; $nw_prune $bigTreeWithOGsFile @ogSeqIDs | nw_order -  > $bigTreeFile";
+      $cmd = "rm -f $bigTreeFile; $nw_prune $bigTreeWithOGsFile @ogSeqIDs | $nw_order -  > $bigTreeFile";
       print "\tcmd=$cmd\n" if $dryRun || $debug;
       system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
     }
