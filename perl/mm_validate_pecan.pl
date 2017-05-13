@@ -131,6 +131,7 @@ my $baseDir        = "/Users/pgajer/devel/MCextras/data/RDP/rdp_Bacteria_phylum_
 my $mmDir          = "/Users/pgajer/projects/M_and_M/new_16S_classification_data/";
 my $mmSppDir       = "/Users/pgajer/projects/M_and_M/new_16S_classification_data/mm_spp_dir";
 
+my $FastTree       = "FastTree";
 my $R              = "R";
 my $mothur         = "/Users/pgajer/bin/mothur";
 my $usearch6       = "/Users/pgajer/bin/usearch6.0.203_i86osx32";
@@ -148,6 +149,7 @@ if ( defined $igs )
   $mmDir          = "/local/scratch/MM/";
   $mmSppDir       = "/local/scratch/MM/MM_spp_dir";
 
+  $FastTree       = "/home/pgajer/bin/FastTree_no_openMP";
   #$R              = "/usr/local/bin/R";
   $R              = "/home/pgajer/bin/R";
   #$mothur         = "/usr/local/packages/mothur-1.39.3/mothur";
@@ -708,7 +710,7 @@ for my $phGr ( keys %phGrSppTbl )
     if ( ! -e $bigNotRootedTreeFile || $runAll )
     {
       print "\r\t\tGenerating phylo tree of the above alignment                                    ";
-      $cmd = "rm -f $bigNotRootedTreeFile; FastTree -nt $bigAlgnFile > $bigNotRootedTreeFile";
+      $cmd = "rm -f $bigNotRootedTreeFile; $FastTree -nt $bigAlgnFile > $bigNotRootedTreeFile";
       print "\tcmd=$cmd\n" if $dryRun || $debug;
       system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
     }
