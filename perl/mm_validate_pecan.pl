@@ -629,29 +629,29 @@ for my $phGr ( keys %phGrSppTbl )
       ## Restricting nr fa file to only nr ref seq's covering $percCoverage of all seq's
       my $spNRfaFileGOOD = "$spDir/$sp" . "_nr_good.fa";
       my $spNRfaFile2 = "$spDir/$sp" . $covSuffix . ".fa";
-      
+
       print "\r\t\tCleaning sequence headers and                    ";
       print "\r\t\tCreating restricted $sp fa file                  ";
-        
-        
+
+
       ## Alter sequence headers to remove cluster sizes added by vsearch. Thus, select_seq.pl
         ## would not recognize the seqIDs provided if .fa not altered.
       open(my $OLDOUT, '<', $spNRfaFile) or die "Could not open file '$spNRfaFile' $!";
       chomp(my @old = <$OLDOUT>);
       close $OLDOUT;
-      
+
       my @good;
-        
+
       foreach my $l (@old)
       {
           my @spNRfaFileFIX = split(/;/, $l);
           push @good, $spNRfaFileFIX[0]."\n";
-          
+
       }
       open(GOODOUT, '>', $spNRfaFileGOOD) or die "Could not open file '$spNRfaFileGOOD' $!";
       print GOODOUT @good;
       close GOODOUT;
-        
+
       ## Obtain NR seq's from source file (with altered seqIDs)
       $cmd = "select_seqs.pl $quietStr -s $nrSeqIDsFile -i $spNRfaFileGOOD -o $spNRfaFile2";
       print "\tcmd=$cmd\n" if $dryRun || $debug;
