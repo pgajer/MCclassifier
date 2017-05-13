@@ -23,11 +23,11 @@
 =over
 
 =item B<--spp-file, -i>
-  Maximal number of non-redundant seq's.
+  Two columns: <species> <phylo-group> file
 
 =item B<--out-dir, -o>
   Output directory. Optional parameter. If not specified the output is written to
-  /Users/pgajer/projects/M_and_M/new_16S_classification_data/mm_validate_reports_dir_<timeStamp>.
+  /Users/pgajer/projects/M_and_M/new_16S_classification_data/mm_validate_reports_dir.
 
 =item B<--max-no-nr-seqs, -n>
   Maximal number of non-redundant seq's.
@@ -67,9 +67,9 @@
 
   in ~/projects/M_and_M/new_16S_classification_data
 
-  mm_validate_pecan.pl --spp-file mm_valid_spp_part_1.txt --max-no-nr-seqs 500 --perc-coverage 80
+  mm_validate_pecan.pl --spp-file mm_valid_spp_part_1.txt -o mm_may12_validate_pecan_dir
 
-  mm_validate_pecan.pl --num-proc 8 --spp-file spp_missing_record.txt --max-no-nr-seqs 500 --perc-coverage 80
+  mm_validate_pecan.pl --spp-file spp_missing_record.txt --max-no-nr-seqs 500 --perc-coverage 80
 
 =cut
 
@@ -143,7 +143,7 @@ my $vsearch;
 if ( defined $igs )
 {
     #$baseDir        = "/local/scratch/MM/V3V4_unzipped/";
-  $baseDir        = "/usr/local/projects/pgajer/devel/MCextras/data/RDP/V3V4_v2/";
+  $baseDir        = "/usr/local/projects/pgajer/devel/MCextras/data/RDP/V3V4/";
   $mmDir          = "/local/scratch/MM/";
   $mmSppDir       = "/home/pgajer/projects/M_and_M/new_16S_classification_data/mm_spp_dir";
 
@@ -175,7 +175,6 @@ if ($verbose)
 {
   $verboseStr  = "--verbose";
 }
-
 
 ####################################################################
 ##                               MAIN
@@ -1083,21 +1082,16 @@ sub parse_pecan_tbl
 
 
 ##
-## parse 3 column species table
+## parse 2 column species table
 ##
 
 # file format
 
-#   Akkermansia_muciniphila	2413	Verrucomicrobia_V3V4
-#   Akkermansia_sp_5	14	Verrucomicrobia_V3V4
-#   Akkermansia_sp_7	13	Verrucomicrobia_V3V4
-#   Coraliomargarita_akajimensis	2	Verrucomicrobia_V3V4
-#   Akkermansia_sp_4	1	Verrucomicrobia_V3V4
-#   Fibrobacter_sp	51504	phyla_lessthen_1k_wOG_V3V4
-#   Jonquetella_anthropi	1299	phyla_lessthen_1k_wOG_V3V4
-#   Chlamydia_trachomatis	128	phyla_lessthen_1k_wOG_V3V4
-#   Pyramidobacter_piscolens	62	phyla_lessthen_1k_wOG_V3V4
-#   Cloacibacillus_evryensis	37	phyla_lessthen_1k_wOG_V3V4
+# Segniliparus_rotundus Actinobacteria_group_0_V3V4
+# Streptomyces_radiopugnans_4 Actinobacteria_group_5_V3V4
+# Azospirillum_sp_1 Proteobacteria_group_6_V3V4
+# Burkholderia_sp_6 Proteobacteria_group_4_V3V4
+# Eubacterium_sp_17 Firmicutes_group_1_V3V4
 
 sub parse_spp_tbl
 {
@@ -1116,7 +1110,7 @@ sub parse_spp_tbl
   {
     next if /^$/;
     chomp;
-    my ($sp, $size, $gr) = split /\s+/,$_;
+    my ($sp, $gr) = split /\s+/,$_;
     push @{$phGrSppTbl{$gr}}, $sp;
   }
   close IN;
