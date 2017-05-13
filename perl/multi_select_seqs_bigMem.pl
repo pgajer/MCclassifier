@@ -173,7 +173,7 @@ while (<FASTA>)
   chomp;
   if ( $count % 500 == 0 )
   {
-    print "\r$count" if $debug;
+    print "\r" . commify($count)  if $debug;
   }
   $count++;
 
