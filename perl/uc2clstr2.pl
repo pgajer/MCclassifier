@@ -106,7 +106,7 @@ my $startRun = time();
 
 print "--- Generating clstr file\n";
 my $file = tmpnam();
-my $cmd = "usearch4 --uc2clstr $inFile --output $file";
+my $cmd = "$usearch4 --uc2clstr $inFile --output $file";
 print "cmd=$cmd\n" if $dryRun;
 system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 
