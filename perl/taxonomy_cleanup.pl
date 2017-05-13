@@ -2984,12 +2984,20 @@ if ( $nGeParent != $nGeTreeLeaves )
   }
 }
 
-my $genusFamilyFile = $grPrefix . "_genus.familyTx";
-$cmd = "cluster_taxons.pl $quietStr $igsStr $johannaStr $debugStr $showAllTreesStr -i $finalCondGenusTreeFile -p 0.1 -f $geParentFile -t genus -o $genusFamilyFile";
-print "\tcmd=$cmd\n" if $dryRun || $debug;
-system($cmd) == 0 or die "\n\n\tsystem($cmd) failed with exit value: $?" if !$dryRun;
+my %genusFamily;
+if ( $nGeParent > 1 )
+{
+  my $genusFamilyFile = $grPrefix . "_genus.familyTx";
+  $cmd = "cluster_taxons.pl $quietStr $igsStr $johannaStr $debugStr $showAllTreesStr -i $finalCondGenusTreeFile -p 0.1 -f $geParentFile -t genus -o $genusFamilyFile";
+  print "\tcmd=$cmd\n" if $dryRun || $debug;
+  system($cmd) == 0 or die "\n\n\tsystem($cmd) failed with exit value: $?" if !$dryRun;
 
-my %genusFamily = readTbl($genusFamilyFile);
+  %genusFamily = readTbl($genusFamilyFile);
+}
+else
+{
+  %genusFamily = %geParent;
+}
 
 if ($debug)
 {
