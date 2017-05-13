@@ -131,6 +131,7 @@ my $baseDir        = "/Users/pgajer/devel/MCextras/data/RDP/rdp_Bacteria_phylum_
 my $mmDir          = "/Users/pgajer/projects/M_and_M/new_16S_classification_data/";
 my $mmSppDir       = "/Users/pgajer/projects/M_and_M/new_16S_classification_data/mm_spp_dir";
 
+my $rmGaps         = "rmGaps";
 my $FastTree       = "FastTree";
 my $R              = "R";
 my $mothur         = "/Users/pgajer/bin/mothur";
@@ -149,6 +150,7 @@ if ( defined $igs )
   $mmDir          = "/local/scratch/MM/";
   $mmSppDir       = "/local/scratch/MM/MM_spp_dir";
 
+  $rmGaps         = "/usr/local/projects/pgajer/bin/rmGaps";
   $FastTree       = "/home/pgajer/bin/FastTree_no_openMP";
   #$R              = "/usr/local/bin/R";
   $R              = "/home/pgajer/bin/R";
