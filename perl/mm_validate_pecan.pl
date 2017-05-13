@@ -99,6 +99,7 @@ GetOptions(
   "spp-file|i=s"             => \my $sppFile,
   "out-dir|o=s"              => \my $outDir,
   "max-no-nr-seqs|n=i"       => \$maxNumNRseqs,
+  "run-vsearch"              => \my $runVsearch,
   "perc-coverage|p=i"        => \$percCoverage,
   "num-proc|m=i"             => \$nProc,
   "igs"                      => \my $igs,
@@ -523,16 +524,15 @@ for my $phGr ( keys %phGrSppTbl )
     my $spUCfilelog = "$spDir/$sp" . "_uc.log";
     if ( ! -e $spNRfaFile || $runAll )
     {
-      if ($igs)
+      print "\r\t\tDereplicating species fasta file";
+      if ( $runVsearch )
       {
-        print "\r\t\tDereplicating species fasta file";
-        $cmd = "$vsearchSORT --sortbylength $spFaFile --output $spSORTfaFile --fasta_width 0; $vsearch --derep_full $spSORTfaFile --output $spNRfaFile --sizeout --fasta_width 0 --uc $spUCfile";
-        print "\tcmd=$cmd\n" if $dryRun || $debug;
-        system($cmd) == 0 or die "system($cmd) failed:$?" if !$dryRun;
+	$cmd = "$vsearchSORT --sortbylength $spFaFile --output $spSORTfaFile --fasta_width 0; $vsearch --derep_full $spSORTfaFile --output $spNRfaFile --sizeout --fasta_width 0 --uc $spUCfile";
+	print "\tcmd=$cmd\n" if $dryRun || $debug;
+	system($cmd) == 0 or die "system($cmd) failed:$?" if !$dryRun;
       }
       else
       {
-        print "\r\t\tDereplicating species fasta file";
         $cmd = "$usearch6 -cluster_fast $spFaFile -id 1.0 -uc $spUCfile -centroids $spNRfaFile";
         print "\tcmd=$cmd\n" if $dryRun || $debug;
         system($cmd) == 0 or die "system($cmd) failed:$?" if !$dryRun;
@@ -898,7 +898,7 @@ for my $phGr ( keys %phGrSppTbl )
 
     print "\r\t\tGenerating a condensed tree of ref seq's species and vicut tx clades collapsed to a single node  ";
     my $condTreeFile2 = "$spDir/$sp" . $covSuffix . "_spp_cond2.tree";
-    if ( ! -e $condTreeFile2 || $runAll )
+    if ( (! $runVsearch && ! -e $condTreeFile2) || $runAll )
     {
       print "\r\t\tGenerating a tree with species names at leaves ";
       my $sppTreeFile = "$spDir/$sp" . $covSuffix . "_spp.tree";
