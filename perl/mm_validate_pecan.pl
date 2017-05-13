@@ -147,8 +147,8 @@ if ( defined $igs )
   $mmDir          = "/local/scratch/MM/";
   $mmSppDir       = "/local/scratch/MM/MM_spp_dir";
 
-  #$R              = "/usr/local/bin/R";
-  $R              = "/home/pgajer/bin/R";
+  $R              = "/usr/local/bin/R";
+  #$R              = "/home/pgajer/bin/R";
   #$mothur         = "/usr/local/packages/mothur-1.39.3/mothur";
   $mothur         = "/usr/local/projects/pgajer/bin/mothur";
   $usearch6       = "/local/projects/pgajer/bin/usearch6.0.203_i86linux32";
