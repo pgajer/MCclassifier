@@ -127,41 +127,59 @@ if ( !$sppFile )
   exit 1;
 }
 
-my $baseDir        = "/Users/pgajer/devel/MCextras/data/RDP/rdp_Bacteria_phylum_dir/";
-my $mmDir          = "/Users/pgajer/projects/M_and_M/new_16S_classification_data/";
-my $mmSppDir       = "/Users/pgajer/projects/M_and_M/new_16S_classification_data/mm_spp_dir";
+my $baseDir            = "/Users/pgajer/devel/MCextras/data/RDP/rdp_Bacteria_phylum_dir/";
+my $mmDir              = "/Users/pgajer/projects/M_and_M/new_16S_classification_data/";
+my $mmSppDir           = "/Users/pgajer/projects/M_and_M/new_16S_classification_data/mm_spp_dir";
 
-my $rmGaps         = "rmGaps";
-my $FastTree       = "FastTree";
-my $R              = "R";
-my $mothur         = "/Users/pgajer/bin/mothur";
-my $usearch6       = "/Users/pgajer/bin/usearch6.0.203_i86osx32";
-my $vicut          = "/Users/pgajer/devel/vicut/bin/vicut";
-my $readNewickFile = "/Users/pgajer/.Rlocal/read.newick.R";
+my $nw_labels          = "nw_labels";
+my $nw_order           = "nw_order";
+my $nw_condense        = "nw_condense";
+my $nw_rename          = "nw_rename";
+my $nw_prune           = "nw_prune";
+my $nw_reroot          = "nw_reroot";
+my $uc2clstr2.pl       = "uc2clstr2.pl";
+my $extract_seq_IDs.pl = "extract_seq_IDs.pl";
+my $select_seqs.pl     = "select_seqs.pl";
+my $rmGaps             = "rmGaps";
+my $FastTree           = "FastTree";
+my $R                  = "R";
+my $mothur             = "/Users/pgajer/bin/mothur";
+my $usearch6           = "/Users/pgajer/bin/usearch6.0.203_i86osx32";
+my $vicut              = "/Users/pgajer/devel/vicut/bin/vicut";
+my $readNewickFile     = "/Users/pgajer/.Rlocal/read.newick.R";
 
-my $quietStr       = "--quiet";
+my $quietStr           = "--quiet";
 my $vsearchSORT;
 my $vsearch;
 
 if ( defined $igs )
 {
-    #$baseDir        = "/local/scratch/MM/V3V4_unzipped/";
-  $baseDir        = "/usr/local/projects/pgajer/devel/MCextras/data/RDP/V3V4/";
-  $mmDir          = "/local/scratch/MM/";
-  $mmSppDir       = "/local/scratch/MM/MM_spp_dir";
+    #$baseDir         = "/local/scratch/MM/V3V4_unzipped/";
+  $baseDir            = "/usr/local/projects/pgajer/devel/MCextras/data/RDP/V3V4/";
+  $mmDir              = "/local/scratch/MM/";
+  $mmSppDir           = "/local/scratch/MM/MM_spp_dir";
 
-  $rmGaps         = "/usr/local/projects/pgajer/bin/rmGaps";
-  $FastTree       = "/home/pgajer/bin/FastTree_no_openMP";
-  #$R              = "/usr/local/bin/R";
-  $R              = "/home/pgajer/bin/R";
-  #$mothur         = "/usr/local/packages/mothur-1.39.3/mothur";
-  $mothur         = "/usr/local/projects/pgajer/bin/mothur";
-  $usearch6       = "/local/projects/pgajer/bin/usearch6.0.203_i86linux32";
-  $vicut          = "/usr/local/projects/pgajer/bin/vicut";
-  $readNewickFile = "/local/projects/pgajer/devel/MCclassifier/perl/read.newick.R";
-  $vsearchSORT    = "/usr/local/packages/vsearch/bin/vsearch";
-  $vsearch        = "/usr/local/bin/vsearch";
-  $quietStr       = "";
+  $nw_labels          = "/usr/local/projects/pgajer/bin/nw_labels";
+  $nw_order           = "/usr/local/projects/pgajer/bin/nw_order";
+  $nw_condense        = "/usr/local/projects/pgajer/bin/nw_condense";
+  $nw_rename          = "/usr/local/projects/pgajer/bin/nw_rename";
+  $nw_prune           = "/usr/local/projects/pgajer/bin/nw_prune";
+  $nw_reroot          = "/usr/local/projects/pgajer/bin/nw_reroot";
+  $uc2clstr2.pl       = "/usr/local/projects/pgajer/bin/uc2clstr2.pl";
+  $extract_seq_IDs.pl = "/home/pgajer/devel/MCclassifier/perl/extract_seq_IDs.pl";
+  $select_seqs.pl     = "/home/pgajer/devel/MCclassifier/perl/select_seqs.pl";
+  $rmGaps             = "/usr/local/projects/pgajer/bin/rmGaps";
+  $FastTree           = "/home/pgajer/bin/FastTree_no_openMP";
+  #$R                 = "/usr/local/bin/R";
+  $R                  = "/home/pgajer/bin/R";
+  #$mothur            = "/usr/local/packages/mothur-1.39.3/mothur";
+  $mothur             = "/usr/local/projects/pgajer/bin/mothur";
+  $usearch6           = "/local/projects/pgajer/bin/usearch6.0.203_i86linux32";
+  $vicut              = "/usr/local/projects/pgajer/bin/vicut";
+  $readNewickFile     = "/local/projects/pgajer/devel/MCclassifier/perl/read.newick.R";
+  $vsearchSORT        = "/usr/local/packages/vsearch/bin/vsearch";
+  $vsearch            = "/usr/local/bin/vsearch";
+  $quietStr           = "";
 
 }
 
@@ -468,13 +486,13 @@ for my $phGr ( keys %phGrSppTbl )
       print "--- $phGrBigFaFile was not found - creating it from the ginsi_algn file\n";
       my $ginsiFile = $phGrFaFile;
       $ginsiFile =~ s/_final/_ginsi_algn/;
-      $cmd = "rmGaps -i $ginsiFile -o $phGrBigFaFile";
+      $cmd = "$rmGaps -i $ginsiFile -o $phGrBigFaFile";
       print "\tcmd=$cmd\n" if $dryRun || $debug;
       system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
     }
 
     print "--- Generating fa file of outgroup seq's of $phGr       ";
-    $cmd = "select_seqs.pl $quietStr -s $phGrOGseqIDsFile -i $phGrBigFaFile -o $phGrOGfaFile";
+    $cmd = "$select_seqs.pl $quietStr -s $phGrOGseqIDsFile -i $phGrBigFaFile -o $phGrOGfaFile";
     print "\tcmd=$cmd\n" if $dryRun || $debug;
     system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
   }
@@ -548,7 +566,7 @@ for my $phGr ( keys %phGrSppTbl )
     {
       print "\r\t\tExtracting non-redundant seq IDs               ";
       ## extracting seq IDs from the alignment file and selecting those IDs from the taxon file
-      $cmd = "extract_seq_IDs.pl -i $spNRfaFile -o $nrSeqIDsFile";
+      $cmd = "$extract_seq_IDs.pl -i $spNRfaFile -o $nrSeqIDsFile";
       print "\tcmd=$cmd\n" if $dryRun || $debug;
       system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
     }
@@ -561,7 +579,7 @@ for my $phGr ( keys %phGrSppTbl )
     if ( ! -e $spClstr2File || $runAll )
     {
       print "\r\t\tCreating clstr2 file                               ";
-      $cmd = "uc2clstr2.pl -i $spUCfile -o $spClstr2File";
+      $cmd = "$uc2clstr2.pl -i $spUCfile -o $spClstr2File";
       print "cmd=$cmd\n" if $dryRun || $debug;
       system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
     }
@@ -668,7 +686,7 @@ for my $phGr ( keys %phGrSppTbl )
       close GOODOUT;
 
       ## Obtain NR seq's from source file (with altered seqIDs)
-      $cmd = "select_seqs.pl $quietStr -s $nrSeqIDsFile -i $spNRfaFileGOOD -o $spNRfaFile2";
+      $cmd = "$select_seqs.pl $quietStr -s $nrSeqIDsFile -i $spNRfaFileGOOD -o $spNRfaFile2";
       print "\tcmd=$cmd\n" if $dryRun || $debug;
       system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 
@@ -722,7 +740,7 @@ for my $phGr ( keys %phGrSppTbl )
     if ( ! -e $bigTreeWithOGsFile || $runAll )
     {
       print "\r\t\tRerooting the tree using outgroup sequences                          ";
-      $cmd = "rm -f $bigTreeWithOGsFile; nw_reroot $bigNotRootedTreeFile @ogSeqIDs | nw_order -  > $bigTreeWithOGsFile";
+      $cmd = "rm -f $bigTreeWithOGsFile; $nw_reroot $bigNotRootedTreeFile @ogSeqIDs | nw_order -  > $bigTreeWithOGsFile";
       print "\tcmd=$cmd\n" if $dryRun || $debug;
       system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
     }
@@ -732,7 +750,7 @@ for my $phGr ( keys %phGrSppTbl )
     if ( ! -e $bigTreeFile || $runAll )
     {
       print "\r\t\tPruning the tree from OG seq's                                          ";
-      $cmd = "rm -f $bigTreeFile; nw_prune $bigTreeWithOGsFile @ogSeqIDs | nw_order -  > $bigTreeFile";
+      $cmd = "rm -f $bigTreeFile; $nw_prune $bigTreeWithOGsFile @ogSeqIDs | nw_order -  > $bigTreeFile";
       print "\tcmd=$cmd\n" if $dryRun || $debug;
       system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
     }
@@ -906,19 +924,19 @@ for my $phGr ( keys %phGrSppTbl )
     {
       print "\r\t\tGenerating a tree with species names at leaves ";
       my $sppTreeFile = "$spDir/$sp" . $covSuffix . "_spp.tree";
-      $cmd = "rm -f $sppTreeFile; nw_rename $bigTreeFile $vExtTxTblFile | nw_order -c n  - > $sppTreeFile";
+      $cmd = "rm -f $sppTreeFile; $nw_rename $bigTreeFile $vExtTxTblFile | $nw_order -c n  - > $sppTreeFile";
       print "\tcmd=$cmd\n" if $dryRun || $debug;
       system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 
       my $condTreeFile = "$spDir/$sp" . $covSuffix . "_spp_cond1.tree";
-      $cmd = "rm -f $condTreeFile; nw_condense $sppTreeFile > $condTreeFile";
+      $cmd = "rm -f $condTreeFile; $nw_condense $sppTreeFile > $condTreeFile";
       print "\tcmd=$cmd\n" if $dryRun || $debug;
       system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 
       ## Relabeling tree so that only $sp and vicut tx taxonomy is left
 
       my $condSppLeavesFile = "$spDir/$sp" . $covSuffix . "_cond_spp.leaves";
-      $cmd = "rm -f $condSppLeavesFile; nw_labels -I $condTreeFile > $condSppLeavesFile";
+      $cmd = "rm -f $condSppLeavesFile; $nw_labels -I $condTreeFile > $condSppLeavesFile";
       print "\tcmd=$cmd\n" if $dryRun || $debug;
       system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 
@@ -956,7 +974,7 @@ for my $phGr ( keys %phGrSppTbl )
       my $condSppLeavesFile2 = "$spDir/$sp" . $covSuffix . "_spp_cond.leaves2";
       writeTbl(\%newLeafNames, $condSppLeavesFile2);
 
-      $cmd = "rm -f $sppTreeFile; nw_rename $condTreeFile $condSppLeavesFile2 | nw_order -c n  - > $condTreeFile2";
+      $cmd = "rm -f $sppTreeFile; $nw_rename $condTreeFile $condSppLeavesFile2 | $nw_order -c n  - > $condTreeFile2";
       print "\tcmd=$cmd\n" if $dryRun || $debug;
       system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
     }
