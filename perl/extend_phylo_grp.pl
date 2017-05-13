@@ -171,6 +171,8 @@ print "--- Parsing PECAN tx table of old ref seq's\n";
 my $oPeTxFile = "/Users/pgajer/projects/16S_rRNA_pipeline/vaginal_species_oct18_2013/vaginal_319_806_v2_pecan_dir/MC_order7_results.txt";
 my %oPeTx     = read_tbl( $oPeTxFile );
 
+## print "\n\nPECAN taxonomic classification of DQ666092: " . $oPeTx{"DQ666092"} . "\n\n"; exit;
+
 print "--- Parsing the origninal tx table of old ref seq's\n";
 my $oTxFile = "/Users/pgajer/projects/16S_rRNA_pipeline/vaginal_species_oct18_2013/vaginal_319_806_v2.tx";
 my %oTx     = read_tbl( $oTxFile );
@@ -309,6 +311,50 @@ print "--- Parsing old ref's species lineage table\n";
 my $oSppLiFile = "/Users/pgajer/projects/16S_rRNA_pipeline/vaginal_species_oct18_2013/vaginal_319_806_v2.fullTx";
 my %spLi = parse_spp_li_tbl( $oSppLiFile ); # sp => the species' lineage string derived from the sequence lineage table of old vag ref seq's
 
+## changing
+## Root;Bacteria;Proteobacteria;Alphaproteobacteria;Rhizobiales;Rhizobiaceae;Rhizobium;Agrobacterium_tumefaciens
+## to
+## Root;Bacteria;Proteobacteria;Alphaproteobacteria;Rhizobiales;Rhizobiaceae;Agrobacterium;Agrobacterium_tumefaciens
+if ( exists $spLi{"Agrobacterium_tumefaciens"} )
+{
+  $spLi{"Agrobacterium_tumefaciens"} = "Root;Bacteria;Proteobacteria;Alphaproteobacteria;Rhizobiales;Rhizobiaceae;Agrobacterium;Agrobacterium_tumefaciens";
+}
+
+# changing
+# 	Root;Bacteria;Aquificae;Aquificae;Aquificales;Aquificales_incertae_sedis;Thermosulfidibacter;Thermosulfidibacter_sp
+# to
+# 	Root;Bacteria;Thermodesulfobacteria;Thermodesulfobacteria;Thermodesulfobacteriales;Thermodesulfobacteriaceae;Thermosulfidibacter;Thermosulfidibacter_sp
+
+if ( exists $spLi{"Thermosulfidibacter_sp"} )
+{
+  $spLi{"Thermosulfidibacter_sp"} = "Root;Bacteria;Thermodesulfobacteria;Thermodesulfobacteria;Thermodesulfobacteriales;Thermodesulfobacteriaceae;Thermosulfidibacter;Thermosulfidibacter_sp";
+}
+
+# changing
+# 	Root;Bacteria;Thermotogae;Thermotogae;Thermotogales;Thermotogales_incertae_sedis;Oceanotoga;Oceanotoga_sp
+# to
+# 	Root;Bacteria;Thermotogae;Thermotogae;Thermotogales;Thermotogaceae;Oceanotoga;Oceanotoga_sp
+if ( exists $spLi{"Oceanotoga_sp"} )
+{
+  $spLi{"Oceanotoga_sp"} = "Root;Bacteria;Thermotogae;Thermotogae;Thermotogales;Thermotogaceae;Oceanotoga;Oceanotoga_sp";
+}
+
+# changing Candidate_Division_TM7_vaginal's lineage to
+## Root;Bacteria;CandidatusSaccharibacteria;CandidatusSaccharibacteria;CandidatusSaccharibacteria;CandidatusSaccharibacteria;CandidatusSaccharibacteria;CandidatusSaccharibacteria_sp
+
+if ( exists $spLi{"Candidate_Division_TM7_vaginal"} )
+{
+  $spLi{"CandidatusSaccharibacteria_sp"} = "Root;Bacteria;CandidatusSaccharibacteria;CandidatusSaccharibacteria;CandidatusSaccharibacteria;CandidatusSaccharibacteria;CandidatusSaccharibacteria;CandidatusSaccharibacteria_sp";
+  delete $spLi{"Candidate_Division_TM7_vaginal"};
+  for ( keys %oTx )
+  {
+    if ( $oTx{$_} eq "Candidate_Division_TM7_vaginal" )
+    {
+      $oTx{$_} = "CandidatusSaccharibacteria_sp";
+    }
+  }
+}
+
 if ( $verbose )
 {
   print "\nOld ref species lineage table\n";
@@ -316,7 +362,6 @@ if ( $verbose )
   print "\n\n";
   exit;
 }
-
 
 ## generate alignment of old ref's to final algn of the phGr
 
@@ -552,6 +597,11 @@ for my $phGr ( @phGrs )
     my $sp = $oTx{$id};
     my @f = split "_", $sp;
     my $spGe = shift @f;
+    # if ( $id eq "DQ666092" )
+    # {
+    #   print "Found DQ666092: sp: $sp\tspLi{sp}: " . $spLi{$sp} . "\tspGe: $spGe\n";
+    #   exit;
+    # }
     #print "\n\nDetected $sp\n" if $sp eq "Eubacterium_siraeum";
     my $liStr;
     if ( exists $phGrGeLi{$spGe} )
@@ -609,6 +659,9 @@ for my $phGr ( @phGrs )
   system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 
   my @ogClade = read_array( $ogCladeTreeLeavesFile );
+
+  print "\n\n\tNumber of OG seq's: " . @ogSeqs . "\n";
+  print "\tNumber of seq's in the OG clade: " . @ogClade . "\n\n";
 
   ## setting these seq's to be outgroup seq's
   @ogSeqs = @ogClade;
