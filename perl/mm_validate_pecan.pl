@@ -713,9 +713,8 @@ for my $phGr ( keys %phGrSppTbl )
 
       printArray(\@tmp, "mothur commands") if ($debug || $verbose);
 
-      my $scriptFile = create_mothur_script(\@tmp);
-      #$cmd = "$mothur < $scriptFile; rm -f $scriptFile mothur.*.logfile";
-      $cmd = "$mothur < $scriptFile";
+      my $scriptFile = create_mothur_script( \@tmp );
+      $cmd = "$mothur < $scriptFile; rm -f $scriptFile mothur.*.logfile";
       print "\tcmd=$cmd\n" if $dryRun || $debug;
       system($cmd) == 0 or die "system($cmd) failed:$?" if !$dryRun;
 
@@ -1719,17 +1718,19 @@ sub setEqual
   return $ret;
 }
 
-sub create_mothur_script{
-
+sub create_mothur_script
+{
     my (@arr) = @{$_[0]};
-    my $file = "mothur_script.txt"; ##tmpnam();
-    open OUT, ">$file" or die "Cannot open file $file to write: $!\n";
-    foreach my $c (@arr){
-        print OUT $c . "\n";
-    }
-    print OUT "quit()\n";
 
-    return $file;
+    my ($fh, $inFile) = tempfile("rTmpXXXX", SUFFIX => '.R', OPEN => 1, DIR => $tmpDir);
+    foreach my $c (@arr)
+    {
+        print $fh $c . "\n";
+    }
+    print $fh "quit()\n";
+    close $fh;
+
+    return $inFile;
 }
 
 # print array to stdout

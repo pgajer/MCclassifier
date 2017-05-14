@@ -241,12 +241,12 @@ if ( ! -e $outDir )
 }
 
 my $tmpDir = $outDir . "/temp_dir";
-# if ( ! -e $tmpDir )
-# {
-#   my $cmd = "mkdir -p $tmpDir";
-#   print "\tcmd=$cmd\n" if $dryRun || $debug;
-#   system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
-# }
+if ( ! -e $tmpDir )
+{
+  my $cmd = "mkdir -p $tmpDir";
+  print "\tcmd=$cmd\n" if $dryRun || $debug;
+  system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
+}
 
 my %phyloTx;          # phylogeny based taxonomy; seqID => taxonomic assignment to seqID
 
@@ -1393,17 +1393,19 @@ sub setEqual
   return $ret;
 }
 
-sub create_mothur_script{
-
+sub create_mothur_script
+{
     my (@arr) = @{$_[0]};
-    my $file = "mothur_script.txt"; ##tmpnam();
-    open OUT, ">$file" or die "Cannot open file $file to write: $!\n";
-    foreach my $c (@arr){
-        print OUT $c . "\n";
-    }
-    print OUT "quit()\n";
 
-    return $file;
+    my ($fh, $inFile) = tempfile("rTmpXXXX", SUFFIX => '.R', OPEN => 1, DIR => $tmpDir);
+    foreach my $c (@arr)
+    {
+        print $fh $c . "\n";
+    }
+    print $fh "quit()\n";
+    close $fh;
+
+    return $inFile;
 }
 
 # print array to stdout

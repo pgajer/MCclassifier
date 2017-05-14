@@ -158,16 +158,28 @@ my $faPrefix = basename($seqFile, @suffixes);
 
 my $grPrefix = $faPrefix;
 
-if (!$outDir)
+if ( !$outDir )
 {
   $outDir = $grPrefix . "_dir";
   print ""
 }
 
-my $cmd = "mkdir -p $outDir";
-print "\tcmd=$cmd\n" if $dryRun || $debug; # || $debug;
-system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
-##chdir $outDir;
+if ( ! -e $outDir )
+{
+  my $cmd = "mkdir -p $outDir";
+  print "\tcmd=$cmd\n" if $dryRun || $debug; # || $debug;
+  system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+  ##chdir $outDir;
+}
+
+my $tmpDir = $outDir . "/temp_dir";
+if ( ! -e $tmpDir )
+{
+  my $cmd = "mkdir -p $tmpDir";
+  print "\tcmd=$cmd\n" if $dryRun || $debug;
+  system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
+}
+
 
 $grPrefix = "$outDir/$grPrefix";
 
@@ -207,7 +219,7 @@ else
 
 ## Combine this with the input fasta file
 print "--- Concatenating outgroup & input sequences\n";
-$cmd = "cat $ogFaFile $seqFile > $newFaFile";
+my $cmd = "cat $ogFaFile $seqFile > $newFaFile";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 
@@ -263,9 +275,8 @@ if (1)
   push (@tmp,"summary.seqs(fasta=$newAlgnFile)");
   printArray(\@tmp, "mothur commands") if ($debug || $verbose);
 
-  my $scriptFile = createCommandTxt(\@tmp);
-  $cmd = "rm -f mothur.log; $mothur < $scriptFile > mothur.log 2>&1; rm -f $scriptFile";
-  #$cmd = "$mothur < $scriptFile; rm -f $scriptFile";
+  my $scriptFile = create_mothur_script( \@tmp );
+  $cmd = "mothur < $scriptFile; rm -f $scriptFile mothur.*.logfile";
   print "\tcmd=$cmd\n" if $dryRun || $debug;
   system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 
@@ -478,17 +489,19 @@ sub readArray{
   return @rows;
 }
 
-sub createCommandTxt{
-
+sub create_mothur_script
+{
     my (@arr) = @{$_[0]};
-    my $file = "mothur_script.txt"; ##tmpnam();
-    open OUT, ">$file" or die "Cannot open file $file to write: $!\n";
-    foreach my $c (@arr){
-        print OUT $c . "\n";
-    }
-    print OUT "quit()\n";
 
-    return $file;
+    my ($fh, $inFile) = tempfile("rTmpXXXX", SUFFIX => '.R', OPEN => 1, DIR => $tmpDir);
+    foreach my $c (@arr)
+    {
+        print $fh $c . "\n";
+    }
+    print $fh "quit()\n";
+    close $fh;
+
+    return $inFile;
 }
 
 exit 0;
