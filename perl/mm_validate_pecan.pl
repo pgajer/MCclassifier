@@ -484,9 +484,9 @@ for my $phGr ( keys %phGrSppTbl )
   ## print "phGrBigFaFile: $phGrBigFaFile\n";
 
   my $phGrOGfaFile = $phGrDir . "og.fa";
-  if ( ! -e $phGrOGfaFile || $runAll )
+  if ( ! -e $phGrOGfaFile || ! -s $phGrOGfaFile || $runAll ) # checking not only if the file exists, but also if it has non-empty size (-s)
   {
-    if ( ! -e $phGrBigFaFile )
+    if ( ! -e $phGrBigFaFile || ! -s $phGrBigFaFile )
     {
       print "--- $phGrBigFaFile was not found - creating it from the ginsi_algn file\n";
       my $ginsiFile = $phGrFaFile;
@@ -549,7 +549,7 @@ for my $phGr ( keys %phGrSppTbl )
     my $spNRfaFile  = "$spDir/$sp" . "_nr.fa";
     my $spUCfile    = "$spDir/$sp" . ".uc";
     my $spUCfilelog = "$spDir/$sp" . "_uc.log";
-    if ( ! -e $spNRfaFile || $runAll )
+    if ( ! -e $spNRfaFile || ! -s $spNRfaFile || $runAll )
     {
       print "\r\t\tDereplicating species fasta file";
       if ( $useVsearch )
@@ -568,7 +568,7 @@ for my $phGr ( keys %phGrSppTbl )
     }
 
     my $nrSeqIDsFile = "$spDir/$sp" . "_nr.seqIDs";
-    if ( ! -e $nrSeqIDsFile || $runAll )
+    if ( ! -e $nrSeqIDsFile || ! -s $nrSeqIDsFile || $runAll )
     {
       print "\r\t\tExtracting non-redundant seq IDs               ";
       ## extracting seq IDs from the alignment file and selecting those IDs from the taxon file
@@ -582,7 +582,7 @@ for my $phGr ( keys %phGrSppTbl )
     print "\nNo. nr seq IDs: " . commify($nnrSp) . "\n";
 
     my $spClstr2File = "$spDir/$sp" . "_nr.clstr2";
-    if ( ! -e $spClstr2File || $runAll )
+    if ( ! -e $spClstr2File || ! -s $spClstr2File || $runAll )
     {
       print "\r\t\tCreating clstr2 file                               ";
       $cmd = "$uc2clstr2 $igsStr -i $spUCfile -o $spClstr2File";
@@ -704,7 +704,7 @@ for my $phGr ( keys %phGrSppTbl )
     ## 2. Generate alignment
     ##
     my $bigAlgnFile = "$spDir/$sp" .  $covSuffix . "_algn.fa";
-    if ( ! -e $bigAlgnFile || $runAll )
+    if ( ! -e $bigAlgnFile || ! -s $bigAlgnFile || $runAll )
     {
       print "\r\t\tAligning phGr ref seq's (includeing OG seq's) and the selected seq's of $sp           ";
 
@@ -732,7 +732,7 @@ for my $phGr ( keys %phGrSppTbl )
     ## 3. Generate phylo tree
     ##
     my $bigNotRootedTreeFile = "$spDir/$sp" . $covSuffix . "_not_rooted_with_OGs.tree";
-    if ( ! -e $bigNotRootedTreeFile || $runAll )
+    if ( ! -e $bigNotRootedTreeFile || ! -s $bigNotRootedTreeFile || $runAll )
     {
       print "\r\t\tGenerating phylo tree of the above alignment                                    ";
       $cmd = "rm -f $bigNotRootedTreeFile; $FastTree -nt $bigAlgnFile > $bigNotRootedTreeFile";
@@ -742,7 +742,7 @@ for my $phGr ( keys %phGrSppTbl )
 
     ## Rerooting the tree
     my $bigTreeWithOGsFile = "$spDir/$sp" . $covSuffix . "_with_OGs.tree";
-    if ( ! -e $bigTreeWithOGsFile || $runAll )
+    if ( ! -e $bigTreeWithOGsFile || ! -s $bigTreeWithOGsFile || $runAll )
     {
       print "\r\t\tRerooting the tree using outgroup sequences                          ";
       $cmd = "rm -f $bigTreeWithOGsFile; $nw_reroot $bigNotRootedTreeFile @ogSeqIDs | $nw_order -  > $bigTreeWithOGsFile";
@@ -752,7 +752,7 @@ for my $phGr ( keys %phGrSppTbl )
 
     ## Pruning tree froom OG seq's
     my $bigTreeFile = "$spDir/$sp" . $covSuffix . ".tree";
-    if ( ! -e $bigTreeFile || $runAll )
+    if ( ! -e $bigTreeFile || ! -s $bigTreeFile || $runAll )
     {
       print "\r\t\tPruning the tree from OG seq's                                          ";
       $cmd = "rm -f $bigTreeFile; $nw_prune $bigTreeWithOGsFile @ogSeqIDs | $nw_order -  > $bigTreeFile";
@@ -768,7 +768,7 @@ for my $phGr ( keys %phGrSppTbl )
     my $queryFile   = $nrSeqIDsFile;
     ##my $vicutTxFile = $vicutDir . "/minNodeCut_NAge1_TXge1_querySeqs.taxonomy"; # minNodeCut.cltrs
     my $vicutCltrsFile = $vicutDir . "/minNodeCut.cltrs";
-    if ( ! -e $vicutCltrsFile || $runAll )
+    if ( ! -e $vicutCltrsFile || ! -s $vicutCltrsFile || $runAll )
     {
       print "\r\t\tRunning vicut                                                              ";
       $cmd = "$vicut $quietStr -t $bigTreeFile -a $annFile -q $queryFile -o $vicutDir";
@@ -989,7 +989,7 @@ for my $phGr ( keys %phGrSppTbl )
     ## a disagreement.
 
     my $pdfTreeFile = "$spDir/$sp" .  $covSuffix . "_tree.pdf";
-    if ( ! -e $pdfTreeFile || $runAll )
+    if ( ! -e $pdfTreeFile || ! -s $pdfTreeFile || $runAll )
     {
       print "\r\t\tGenerating pdf of the condensed tree";
       my $treeAbsPath = abs_path( $condTreeFile2 );
