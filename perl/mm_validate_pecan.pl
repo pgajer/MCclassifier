@@ -1520,7 +1520,7 @@ par(op)
 dev.off()
 ~;
 
-  runRscript( $Rscript );
+  run_R_script( $Rscript );
 }
 
 sub plot_tree2
@@ -1587,12 +1587,12 @@ par(op)
 dev.off()
 ~;
 
-  runRscript( $Rscript );
+  run_R_script( $Rscript );
 }
 
 
 # execute an R-script
-sub runRscript
+sub run_R_script
 {
   my $Rscript = shift;
 
@@ -1601,7 +1601,7 @@ sub runRscript
   close $fh;
 
   my $outFile = $inFile . "out";
-  my $cmd = "$R CMD BATCH $inFile $outFile";
+  my $cmd = "$R CMD BATCH --no-save --no-restore-data $inFile $outFile";
   system($cmd) == 0 or die "system($cmd) failed:$?\n";
 
   open IN, "$outFile" or die "Cannot open $outFile for reading: $OS_ERROR";

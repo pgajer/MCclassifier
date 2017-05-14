@@ -212,12 +212,12 @@ par(op)
 dev.off()
 ~;
 
-  runRscript( $Rscript );
+  run_R_script( $Rscript );
 }
 
   # execute an R-script
-sub runRscript{
-
+sub run_R_script
+{
   my ($Rscript, $noErrorCheck) = @_;
 
   my ($fh, $inFile) = tempfile("rTmpXXXX", SUFFIX => '.R', OPEN => 1, DIR => $tmpDir);
@@ -225,7 +225,7 @@ sub runRscript{
   close $fh;
 
   my $outFile = $inFile . "out";
-  my $cmd = "R CMD BATCH $inFile $outFile";
+  my $cmd = "$R CMD BATCH --no-save --no-restore-data $inFile $outFile";
   system($cmd) == 0 or die "system($cmd) failed:$?\n";
 
   if (!$noErrorCheck)

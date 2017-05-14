@@ -226,12 +226,12 @@ dev.off()
 
 ~;
 
-  runRscript( $Rscript, $rscriptFile );
+  run_R_script( $Rscript, $rscriptFile );
 }
 
 # execute an R-script
-sub runRscript{
-
+sub run_R_script
+{
   my ($Rscript, $inFile, $noErrorCheck) = @_;
 
   open OUT, ">$inFile",  or die "cannot write to $inFile: $!\n";
@@ -239,7 +239,7 @@ sub runRscript{
   close OUT;
 
   my $outFile = $inFile . "out";
-  my $cmd = "R CMD BATCH $inFile $outFile";
+  my $cmd = "$R CMD BATCH --no-save --no-restore-data $inFile $outFile";
   system($cmd) == 0 or die "system($cmd) failed with exit code: $?";
 
   if (!$noErrorCheck)

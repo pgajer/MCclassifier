@@ -787,7 +787,7 @@ rug(x.ref, col)
 dev.off()
 ~;
 
-  runRscript( $Rscript, $rFile, "noErrorCheck" );
+  run_R_script( $Rscript, $rFile, "noErrorCheck" );
 }
 
 ## plot pp density and histogram of edge lengths. Read edge length p-values and
@@ -965,11 +965,11 @@ par(op)
 dev.off()
 ~;
 
-  runRscript( $Rscript, $rFile, "noErrorCheck" );
+  run_R_script( $Rscript, $rFile, "noErrorCheck" );
 }
 
 # execute an R-script
-sub runRscript{
+sub run_R_script{
 
   my ($Rscript, $inFile, $noErrorCheck) = @_;
 
@@ -978,7 +978,7 @@ sub runRscript{
   close OUT;
 
   my $outFile = $inFile . "out";
-  my $cmd = "R CMD BATCH $inFile $outFile";
+  my $cmd = "$R CMD BATCH --no-save --no-restore-data $inFile $outFile";
   system($cmd) == 0 or die "system($cmd) failed with exit code: $OS_ERROR";
 
   if (!$noErrorCheck)
@@ -1080,7 +1080,7 @@ par(op)
 dev.off()
 ~;
 
-  runRscript( $Rscript, $rTreeFile );
+  run_R_script( $Rscript, $rTreeFile );
 }
 
 # write hash table to a file

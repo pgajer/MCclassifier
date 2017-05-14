@@ -913,7 +913,7 @@ par(op)
 dev.off()
 ~;
 
-  runRscript( $Rscript );
+  run_R_script( $Rscript );
 }
 
 sub plot_tree
@@ -980,7 +980,7 @@ par(op)
 dev.off()
 ~;
 
-  runRscript( $Rscript );
+  run_R_script( $Rscript );
 }
 
 
@@ -1021,11 +1021,11 @@ par(op)
 dev.off()
 ~;
 
-  runRscript( $Rscript );
+  run_R_script( $Rscript );
 }
 
-  # execute an R-script
-sub runRscript{
+# execute an R-script
+sub run_R_script{
 
   my ($Rscript, $noErrorCheck) = @_;
 
@@ -1034,7 +1034,7 @@ sub runRscript{
   close $fh;
 
   my $outFile = $inFile . "out";
-  my $cmd = "R CMD BATCH $inFile $outFile";
+  my $cmd = "$R CMD BATCH --no-save --no-restore-data $inFile $outFile";
   system($cmd) == 0 or die "system($cmd) failed:$?\n";
 
   if (!$noErrorCheck)
@@ -2262,7 +2262,7 @@ dev.off()
 
   ~;
 
-  runRscript( $Rscript, "noErrorCheck" );
+  run_R_script( $Rscript, "noErrorCheck" );
 }
 
 ## check if each node of the lineage structure has only one parent

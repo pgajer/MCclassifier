@@ -153,6 +153,14 @@ if ( defined $igs )
   $mothur = "/usr/local/packages/mothur-1.36.1/mothur";
 }
 
+my $tmpDir = "temp_dir";
+if ( ! -e $tmpDir )
+{
+  my $cmd = "mkdir -p $tmpDir";
+  print "\tcmd=$cmd\n" if $dryRun || $debug;
+  system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
+}
+
 local $ENV{LD_LIBRARY_PATH} = "/usr/local/packages/readline/lib:/usr/local/packages/gcc-5.3.0/lib64";
 
 ####################################################################
@@ -457,9 +465,9 @@ for my $sp ( sort{ scalar(@{$spTbl{$a}}) <=> scalar(@{$spTbl{$b}}) } keys %spTbl
 
     printArray(\@tmp, "mothur commands") if ($debug || $verbose);
 
-    my $scriptFile = createCommandTxt(\@tmp);
-    $cmd = "rm -f mothur.log; $mothur < $scriptFile > mothur.log 2>&1; rm -f $scriptFile";
-    ##$cmd = "$mothur < $scriptFile; rm -f $scriptFile";
+    my $scriptFile = create_mothur_script( \@tmp );
+    $cmd = "$mothur < $scriptFile; rm -f $scriptFile mothur.*.logfile";
+    #$cmd = "rm -f mothur.log; $mothur < $scriptFile > mothur.log 2>&1; rm -f $scriptFile";
     print "\tcmd=$cmd\n" if $dryRun || $debug;
     system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun && !$skipMafftSp;
 
@@ -537,9 +545,8 @@ for my $sp ( sort{ scalar(@{$spTbl{$a}}) <=> scalar(@{$spTbl{$b}}) } keys %spTbl
       push (@tmp,"summary.seqs(fasta=$spAlgnFile)");
       printArray(\@tmp, "mothur commands") if ($debug || $verbose);
 
-      my $scriptFile = createCommandTxt(\@tmp);
-      $cmd = "rm -f mothur.log; $mothur < $scriptFile > mothur.log 2>&1; rm -f $scriptFile";
-      ##$cmd = "$mothur < $scriptFile; rm -f $scriptFile";
+      my $scriptFile = create_mothur_script( \@tmp );
+      $cmd = "$mothur < $scriptFile; rm -f $scriptFile mothur.*.logfile";
       print "\tcmd=$cmd\n" if $dryRun || $debug;
       system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun && !$skipMafftSp;
 
@@ -631,9 +638,8 @@ for my $sp ( sort{ scalar(@{$spTbl{$a}}) <=> scalar(@{$spTbl{$b}}) } keys %spTbl
       ##push (@tmp,"dist.seqs(fasta=$spTrNrAlgnFile, calc=onegap)");
       printArray(\@tmp, "mothur commands") if ($debug || $verbose);
 
-      $scriptFile = createCommandTxt(\@tmp);
-      $cmd = "rm -f mothur3.log; $mothur < $scriptFile > mothur3.log 2>&1; rm -f $scriptFile";
-      ##$cmd = "$mothur < $scriptFile; rm -f $scriptFile";
+      my $scriptFile = create_mothur_script( \@tmp );
+      $cmd = "$mothur < $scriptFile; rm -f $scriptFile mothur.*.logfile";
       print "\tcmd=$cmd\n" if $dryRun || $debug;
       system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun && !$skipMafftSp;
 
@@ -1309,9 +1315,9 @@ for my $idx (keys %group)
   my @tmp;
   push (@tmp,"summary.seqs(fasta=$grAlgnFile)");
   printArray(\@tmp, "mothur commands") if ($debug || $verbose);
-  my $scriptFile = createCommandTxt(\@tmp);
-  $cmd = "rm -f mothur.log; $mothur < $scriptFile > mothur.log 2>&1; rm -f $scriptFile";
-  #$cmd = "$mothur < $scriptFile; rm -f $scriptFile";
+
+  my $scriptFile = create_mothur_script( \@tmp );
+  $cmd = "$mothur < $scriptFile; rm -f $scriptFile mothur.*.logfile";
   print "\tcmd=$cmd\n" if $dryRun || $debug;
   system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 
@@ -2079,17 +2085,19 @@ sub readTbl{
   return %idTbl;
 }
 
-sub createCommandTxt{
-
+sub create_mothur_script
+{
     my (@arr) = @{$_[0]};
-    my $file = "mothur_script.txt"; ##tmpnam();
-    open OUT, ">$file" or die "Cannot open file $file to write: $!\n";
-    foreach my $c (@arr){
-        print OUT $c . "\n";
-    }
-    print OUT "quit()\n";
 
-    return $file;
+    my ($fh, $inFile) = tempfile("rTmpXXXX", SUFFIX => '.R', OPEN => 1, DIR => $tmpDir);
+    foreach my $c (@arr)
+    {
+        print $fh $c . "\n";
+    }
+    print $fh "quit()\n";
+    close $fh;
+
+    return $inFile;
 }
 
 # print array to stdout
