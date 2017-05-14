@@ -493,7 +493,7 @@ sub create_mothur_script
 {
     my (@arr) = @{$_[0]};
 
-    my ($fh, $inFile) = tempfile("rTmpXXXX", SUFFIX => '.R', OPEN => 1, DIR => $tmpDir);
+    my ($fh, $inFile) = tempfile("mothur.XXXX", SUFFIX => '', OPEN => 1, DIR => $tmpDir);
     foreach my $c (@arr)
     {
         print $fh $c . "\n";
