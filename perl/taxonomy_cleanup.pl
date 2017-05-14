@@ -145,13 +145,11 @@ if ( !$grPrefix )
   exit 1;
 }
 
-my $mothur = "/Users/pgajer/bin/mothur";
 my $readNewickFile = "/Users/pgajer/.Rlocal/read.newick.R";
 
 my $igsStr = "";
 if ( defined $igs )
 {
-  $mothur = "/usr/local/packages/mothur-1.36.1/mothur";
   $igsStr = "--igs";
   $readNewickFile = "??";
 }
@@ -159,7 +157,6 @@ if ( defined $igs )
 my $johannaStr = "";
 if ( defined $johanna )
 {
-  $mothur = "/Users/pgajer/bin/mothur";
   $johannaStr = "--johanna";
   $readNewickFile = "/Users/jholm/MCclassifier/perl/read.newick.R";
 }
@@ -5623,19 +5620,6 @@ sub readTxTbl
   return %tbl;
 }
 
-
-sub createCommandTxt
-{
-    my (@arr) = @{$_[0]};
-    my $file = "mothur_script.txt"; ##tmpnam();
-    open OUT, ">$file" or die "Cannot open file $file to write: $!";
-    foreach my $c (@arr){
-        print OUT $c . "\n";
-    }
-    print OUT "quit()\n";
-
-    return $file;
-}
 
 # print array to stdout
 sub printArray
