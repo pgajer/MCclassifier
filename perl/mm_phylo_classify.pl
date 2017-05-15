@@ -730,6 +730,12 @@ if ( $nAllSpp > $nProcessedSpp )
   open OUT, ">$outFile" or die "Cannot open $outFile for writing: $OS_ERROR";
   for ( @d )
   {
+    if ( !exists $spPhGrTbl{$_} )
+    {
+      warn "\n\n\tERROR: $_ does not exist in spPhGrTbl";
+      print "\n\n";
+      exit;
+    }
     print OUT "$_\t-1\t" . $spPhGrTbl{$_} . "\n";
   }
   close OUT;
