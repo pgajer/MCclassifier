@@ -343,7 +343,7 @@ for my $vDir ( @vDirs )
   while( defined (my $phGrDir = readdir(VDIR)))
   {
     next if $phGrDir =~ /^..?$/;     # skip . and ..
-    #print "phGrDir: $phGrDir\n";
+    print "phGrDir: $phGrDir\n";
     if ( $phGrDir =~ /^mm_*_dir$/ && -d "$vDir/$phGrDir" )
     {
       opendir PGDIR, "$vDir/$phGrDir" or die "Error in opening $vDir/$phGrDir: $OS_ERROR";
