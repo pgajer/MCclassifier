@@ -577,7 +577,7 @@ for my $phGr ( keys %phGrSppTbl )
       system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
     }
 
-    my @nrSeqIDs = readArray($nrSeqIDsFile);
+    my @nrSeqIDs = read_NR_array( $nrSeqIDsFile );
     my $nnrSp = @nrSeqIDs;
     print "\nNo. nr seq IDs: " . commify($nnrSp) . "\n";
 
@@ -672,31 +672,11 @@ for my $phGr ( keys %phGrSppTbl )
       print "\r\t\tCleaning sequence headers and                    ";
       print "\r\t\tCreating restricted $sp fa file                  ";
 
-
       ## Alter sequence headers to remove cluster sizes added by vsearch. Thus, select_seq.pl
-        ## would not recognize the seqIDs provided if .fa not altered.
+      ## would not recognize the seqIDs provided if .fa not altered.
       open(my $OLDOUT, '<', $spNRfaFile) or die "Could not open file '$spNRfaFile' $!";
       chomp(my @old = <$OLDOUT>);
       close $OLDOUT;
-
-      my @good;
-
-      foreach my $l (@old)
-      {
-          my @spNRfaFileFIX = split(/;/, $l);
-          push @good, $spNRfaFileFIX[0]."\n";
-
-      }
-      open(GOODOUT, '>', $spNRfaFileGOOD) or die "Could not open file '$spNRfaFileGOOD' $!";
-      print GOODOUT @good;
-      close GOODOUT;
-
-      ## Obtain NR seq's from source file (with altered seqIDs)
-      $cmd = "$select_seqs $quietStr -s $nrSeqIDsFile -i $spNRfaFileGOOD -o $spNRfaFile2";
-      print "\tcmd=$cmd\n" if $dryRun || $debug;
-      system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
-
-      $spNRfaFile = $spNRfaFile2;
 
     } # end of      if ( @nrSeqIDs > $maxNumNRseqs )
 
@@ -1739,6 +1719,35 @@ sub printArray
   my ($a, $header) = @_;
   print "\n$header\n" if $header;
   map {print "$_\n"} @{$a};
+}
+
+# read array of non-redundant seqIDs
+sub read_NR_array{
+
+  my ($file, $hasHeader) = @_;
+  my @rows;
+
+  if ( ! -f $file )
+  {
+    warn "\n\n\tERROR in read_array(): $file does not exist";
+    print "\n\n";
+    exit 1;
+  }
+
+  open IN, "$file" or die "Cannot open $file for reading: $OS_ERROR";
+  if ( defined $hasHeader )
+  {
+    <IN>;
+  }
+  foreach (<IN>)
+  {
+    chomp;
+    s/;size=\d+;//;
+    push @rows, $_;
+  }
+  close IN;
+
+  return @rows;
 }
 
 exit 0;
