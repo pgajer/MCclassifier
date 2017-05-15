@@ -350,6 +350,7 @@ for my $vDir ( @vDirs )
       while( defined (my $spDir = readdir(PGDIR)))
       {
 	next if $spDir =~ /^..?$/;     # skip . and ..
+	print "spDir: $spDir\n";
 	if ( $spDir =~ /_dir$/ && -d "$vDir/$phGrDir/$spDir" )
 	{
 	  #print "\nDiscovered $vDir/$phGrDir/$spDir\n";
