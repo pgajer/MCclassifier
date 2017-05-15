@@ -106,7 +106,7 @@
 
 use strict;
 use warnings;
-use diagnostics;
+#use diagnostics;
 use Pod::Usage;
 use English qw( -no_match_vars );
 use Getopt::Long qw(:config no_ignore_case no_auto_abbrev pass_through);
