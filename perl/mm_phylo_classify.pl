@@ -719,7 +719,7 @@ if ( $nIPrSpp )
 if ( $nAllSpp > $nProcessedSpp )
 {
   # write to outDir table of missing species
-  my %spPhGrTbl = parse_pp_phGr_tbl( $spToPhGrFile );
+  my %spPhGrTbl = parse_phGr_tbl( $spToPhGrFile );
   my @allSpp = keys %spPhGrTbl;
 
   my @processedSpp = keys %processed;
@@ -756,7 +756,7 @@ print "Output written to $outDir\n\n";
 ##                               SUBS
 ####################################################################
 
-sub parse_pp_phGr_tbl
+sub parse_phGr_tbl
 {
   my $file = shift;
 
@@ -772,7 +772,7 @@ sub parse_pp_phGr_tbl
   foreach (<IN>)
   {
     chomp;
-    my ($sp, $n, $phGr) = split /\s+/,$_;
+    my ($sp, $phGr) = split /\s+/,$_;
     $tbl{$sp} = $phGr;
   }
   close IN;
