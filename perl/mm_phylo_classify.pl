@@ -106,7 +106,7 @@
 
 use strict;
 use warnings;
-#use diagnostics;
+use diagnostics;
 use Pod::Usage;
 use English qw( -no_match_vars );
 use Getopt::Long qw(:config no_ignore_case no_auto_abbrev pass_through);
@@ -737,6 +737,7 @@ if ( $nAllSpp > $nProcessedSpp )
       exit;
     }
     print OUT "$_\t-1\t" . $spPhGrTbl{$_} . "\n";
+    print "$_\t-1\t" . $spPhGrTbl{$_} . "\n";
   }
   close OUT;
   print "\nTable of missing species written to $outFile\n";
