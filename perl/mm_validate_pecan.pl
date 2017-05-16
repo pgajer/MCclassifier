@@ -724,7 +724,7 @@ for my $phGr ( keys %phGrSppTbl )
     ## 2. Generate alignment
     ##
     my $bigAlgnFile = "$spDir/$sp" .  $covSuffix . "_algn.fa";
-    if ( ! -e $bigAlgnFile || ! -s $bigAlgnFile || $runAll )
+    if ( ! -e $bigAlgnFile || ! -s $bigAlgnFile || $runAll || $buildTree )
     {
       print "\r\t\tAligning phGr ref seq's (includeing OG seq's) and the selected seq's of $sp           ";
 
