@@ -681,7 +681,9 @@ for my $phGr ( keys %phGrSppTbl )
       $percCovIdx = 0 if $percCovIdx < 0;
 
       if ( $percCovIdx < ($maxNumNRseqs-1) && ($maxNumNRseqs-1) <= $#clPercs )
+      {
 	$percCovIdx = $maxNumNRseqs-1;
+      }
 
       print "\npercCovIdx: $percCovIdx\n" if $debug;
 
