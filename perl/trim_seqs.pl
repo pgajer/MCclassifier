@@ -310,5 +310,30 @@ $cmd = "rm -f $trAlgnFileNR; select_seqs.pl -s $nrSeqIDs -i $trAlgnFile -o $trAl
 print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed:$?" if !$dryRun;
 
+####################################################################
+##                               SUBS
+####################################################################
+
+sub createCommandTxt{
+
+    my (@arr) = @{$_[0]};
+    my $file = "mothur_script.txt"; ##tmpnam();
+    open OUT, ">$file" or die "Cannot open file $file to write: $!\n";
+    foreach my $c (@arr){
+        print OUT $c . "\n";
+    }
+    print OUT "quit()\n";
+
+    return $file;
+}
+
+# print array to stdout
+sub printArray
+{
+  my ($a, $header) = @_;
+  print "\n$header\n" if $header;
+  map {print "$_\n"} @{$a};
+}
+
 exit;
 
