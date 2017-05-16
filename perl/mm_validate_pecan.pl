@@ -581,7 +581,7 @@ for my $phGr ( keys %phGrSppTbl )
 	# NOTE that the _nr.fa file will have seq headers of the form >seqID;size=\d+;
 	# This should be fixed here, so the seq headers are of the form >seqID size=\d+
 	#
-	$cmd = "$fix_size_str_in_fasta -i $spNRfaFile0 -o $spNRfaFile; rm -f $spNRfaFile0";
+	$cmd = "$fix_fasta_headers -i $spNRfaFile0 -o $spNRfaFile; rm -f $spNRfaFile0";
 	print "\tcmd=$cmd\n" if $dryRun || $debug;
 	system($cmd) == 0 or die "system($cmd) failed:$?" if !$dryRun;
 
@@ -602,7 +602,7 @@ for my $phGr ( keys %phGrSppTbl )
     # tenatively fixing size str here
     #
     my $spNRfaFileTmp  = "$spDir/$sp" . "_nrTmp.fa";
-    $cmd = "$fix_size_str_in_fasta -i $spNRfaFile -o $spNRfaFileTmp; mv $spNRfaFileTmp $spNRfaFile";
+    $cmd = "$fix_fasta_headers -i $spNRfaFile -o $spNRfaFileTmp; mv $spNRfaFileTmp $spNRfaFile";
     print "\tcmd=$cmd\n" if $dryRun || $debug;
     system($cmd) == 0 or die "system($cmd) failed:$?" if !$dryRun;
 
