@@ -699,7 +699,7 @@ for my $phGr ( keys %phGrSppTbl )
 	print "percCovIdx changed to $percCovIdx\ncumPerc: $cumPerc\n" if $debug;
       }
 
-      #my @nrSeqIDsMax = @nrSeqIDs[0..($maxNumNRseqs-1)];
+      ## updating @nrSeqIDs !!!
       @nrSeqIDs = @nrSeqIDs[0..$percCovIdx];
 
       $cumPerc = sprintf( "%d", int($cumPerc) );
