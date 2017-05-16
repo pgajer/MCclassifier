@@ -42,6 +42,9 @@
 =item B<--use-vsearch>
   Use vsearch instead of usearch. When activated plot_tree() is disabled
 
+=item B<--build-tree>
+  Forces build of a tree, even if one already has been build.
+
 =item B<--num-proc, -m>
   Number of processors to be used. Default value: 8.
 
@@ -107,6 +110,7 @@ GetOptions(
   "out-dir|o=s"              => \my $outDir,
   "max-no-nr-seqs|n=i"       => \$maxNumNRseqs,
   "max-no-cov-seqs|m=i"      => \$maxNumCovSeqs,
+  "build-tree"               => \my $buildTree,
   "use-vsearch"              => \my $useVsearch,
   "perc-coverage|p=i"        => \$percCoverage,
   "num-proc|m=i"             => \$nProc,
@@ -639,16 +643,16 @@ for my $phGr ( keys %phGrSppTbl )
     # print "\n\nFirst 10 ref seq's and the corresponding cluster sizes\n";
     # map { print "\t$_\t$cTbl{$_}\n" } @nrSeqIDs[0..10];
 
-    my @clSizes = map { $cTbl{$_} } @nrSeqIDs;
-    my $nSp   = sum (@clSizes); # total number of sequences
-    my @clPercs = map { 100.0*$_/$nSp } @clSizes;
+    my @clSizes    = map { $cTbl{$_} } @nrSeqIDs;
+    my $nAllSpSeqs = sum ( @clSizes ); # total number of sequences
+    my @clPercs    = map { 100.0 * $_ / $nAllSpSeqs } @clSizes;
 
-    my %clSizeTbl = map { $_ => $cTbl{$_} } @nrSeqIDs;
-    my %clPercsTbl = map{ $_ => 100.0 * $clSizeTbl{$_} / $nSp } @nrSeqIDs;
+    my %clSizeTbl  = map { $_ => $cTbl{$_} } @nrSeqIDs;
+    my %clPercsTbl = map { $_ => 100.0 * $clSizeTbl{$_} / $nAllSpSeqs } @nrSeqIDs;
 
     print $ROUT "------------------------------------------------\n\n";
     print $ROUT "$sp   ($phGr)\n\n";
-    print $ROUT "n:     " . commify($nSp) . "\n";
+    print $ROUT "n:     " . commify($nAllSpSeqs) . "\n";
     print $ROUT "n(nr): " . commify($nnrSp) . "\n";
 
     my $covSuffix = "";
@@ -748,7 +752,7 @@ for my $phGr ( keys %phGrSppTbl )
     ## 3. Generate phylo tree
     ##
     my $bigNotRootedTreeFile = "$spDir/$sp" . $covSuffix . "_not_rooted_with_OGs.tree";
-    if ( ! -e $bigNotRootedTreeFile || ! -s $bigNotRootedTreeFile || $runAll )
+    if ( ! -e $bigNotRootedTreeFile || ! -s $bigNotRootedTreeFile || $runAll || $buildTree )
     {
       print "\r\t\tGenerating phylo tree of the above alignment                                    ";
       $cmd = "rm -f $bigNotRootedTreeFile; $FastTree -nt $bigAlgnFile > $bigNotRootedTreeFile";
@@ -758,7 +762,7 @@ for my $phGr ( keys %phGrSppTbl )
 
     ## Rerooting the tree
     my $bigTreeWithOGsFile = "$spDir/$sp" . $covSuffix . "_with_OGs.tree";
-    if ( ! -e $bigTreeWithOGsFile || ! -s $bigTreeWithOGsFile || $runAll )
+    if ( ! -e $bigTreeWithOGsFile || ! -s $bigTreeWithOGsFile || $runAll || $buildTree )
     {
       print "\r\t\tRerooting the tree using outgroup sequences                          ";
       $cmd = "rm -f $bigTreeWithOGsFile; $nw_reroot $bigNotRootedTreeFile @ogSeqIDs | $nw_order -  > $bigTreeWithOGsFile";
@@ -768,7 +772,7 @@ for my $phGr ( keys %phGrSppTbl )
 
     ## Pruning tree froom OG seq's
     my $bigTreeFile = "$spDir/$sp" . $covSuffix . ".tree";
-    if ( ! -e $bigTreeFile || ! -s $bigTreeFile || $runAll )
+    if ( ! -e $bigTreeFile || ! -s $bigTreeFile || $runAll || $buildTree )
     {
       print "\r\t\tPruning the tree from OG seq's                                          ";
       $cmd = "rm -f $bigTreeFile; $nw_prune $bigTreeWithOGsFile @ogSeqIDs | $nw_order -  > $bigTreeFile";
@@ -784,9 +788,29 @@ for my $phGr ( keys %phGrSppTbl )
     my $queryFile   = $nrSeqIDsFile;
     ##my $vicutTxFile = $vicutDir . "/minNodeCut_NAge1_TXge1_querySeqs.taxonomy"; # minNodeCut.cltrs
     my $vicutCltrsFile = $vicutDir . "/minNodeCut.cltrs";
-    if ( ! -e $vicutCltrsFile || ! -s $vicutCltrsFile || $runAll )
+    if ( ! -e $vicutCltrsFile || ! -s $vicutCltrsFile || $runAll || $buildTree )
     {
       print "\r\t\tRunning vicut                                                              ";
+
+      if ( $debug )
+      {
+	my $wcline = qx/ wc -l $nrSeqIDsFile /;
+	$wcline =~ s/^\s+//;
+	my ($nQseqs, $qstr) = split /\s+/, $wcline;
+
+	$wcline = qx/ wc -l $phGrTxFile /;
+	$wcline =~ s/^\s+//;
+	my ($nAnnSeqs, $astr) = split /\s+/, $wcline;
+
+
+	my @leaves = get_leaves( $bigTreeFile );
+
+	print "\n\n";
+	print "Number of query seq's:        $nQseqs\n";
+	print "Number of annotation seq's:   $nAnnSeqs\n";
+	print "Number of leaves in the tree: ". @leaves . "\n\n";
+      }
+
       $cmd = "$vicut $quietStr -t $bigTreeFile -a $annFile -q $queryFile -o $vicutDir";
       print "\tcmd=$cmd\n" if $dryRun || $debug;
       system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
@@ -897,9 +921,9 @@ for my $phGr ( keys %phGrSppTbl )
       }
       my @clNRids = @{$vCltrvTxIds{$cl}{"NA"}};
       my $nCov = sum( @cTbl{ @clNRids } );
-      my $pCov = sprintf( "%.1f%%", 100.0 * $nCov/ $nSp );
-      print "Coverage: $pCov (" . commify($nCov) . " out of " . commify($nSp) . " seq's)\n";
-      print $ROUT "Coverage: $pCov (" . commify($nCov) . " out of " . commify($nSp) . " seq's)\n";
+      my $pCov = sprintf( "%.1f%%", 100.0 * $nCov/ $nAllSpSeqs );
+      print "Coverage: $pCov (" . commify($nCov) . " out of " . commify($nAllSpSeqs) . " seq's)\n";
+      print $ROUT "Coverage: $pCov (" . commify($nCov) . " out of " . commify($nAllSpSeqs) . " seq's)\n";
 
       ## Size ranks
       my %clNRidsTbl = map { $_ => 1 } @clNRids;
@@ -1784,6 +1808,20 @@ sub read_NR_array{
   close IN;
 
   return @rows;
+}
+
+sub get_leaves
+{
+  my $treeFile = shift;
+
+  my ($fh, $leavesFile) = tempfile("leaves.XXXX", SUFFIX => '', OPEN => 0, DIR => $tmpDir);
+  my $cmd = "$nw_labels -I $treeFile > $leavesFile";
+  print "\tcmd=$cmd\n" if $dryRun || $debug;
+  system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
+
+  my @a = readArray($leavesFile);
+
+  return @a;
 }
 
 exit 0;
