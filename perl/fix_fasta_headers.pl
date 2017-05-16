@@ -2,7 +2,7 @@
 
 =head1 NAME
 
-  fix_size_str_in_fasta.pl
+  fix_fasta_headers.pl
 
 =head1 DESCRIPTION
 
@@ -14,7 +14,7 @@
 
 =head1 SYNOPSIS
 
-  fix_size_str_in_fasta.pl -i <input file> -o <output file> [Options]
+  fix_fasta_headers.pl -i <input file> -o <output file> [Options]
 
 =head1 OPTIONS
 
@@ -35,7 +35,7 @@
 
 =head1 EXAMPLE
 
-  fix_size_str_in_fasta.pl -i test.fa -o test_fixed.fa
+  fix_fasta_headers.pl -i test.fa -o test_fixed.fa
 
 =cut
 
