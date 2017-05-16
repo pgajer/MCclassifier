@@ -45,9 +45,6 @@
 =item B<--build-tree>
   Forces build of a tree, even if one already has been build.
 
-=item B<--num-proc, -m>
-  Number of processors to be used. Default value: 8.
-
 =item B<--run-all>
   Ignore if ( ! -e ... ) statements.
 
@@ -96,7 +93,6 @@ $OUTPUT_AUTOFLUSH = 1;
 ##                             OPTIONS
 ####################################################################
 
-my $nProc             = 0;
 my $percCoverage      = 80;
 my $maxNumNRseqs      = 100;  # when the number of non-redundant seq's is more
 			      # than maxNumNRseqs selecte x number of largest
@@ -113,7 +109,6 @@ GetOptions(
   "build-tree"               => \my $buildTree,
   "use-vsearch"              => \my $useVsearch,
   "perc-coverage|p=i"        => \$percCoverage,
-  "num-proc|m=i"             => \$nProc,
   "igs"                      => \my $igs,
   "run-all"                  => \my $runAll,
   "show-tree"                => \my $showTree,
