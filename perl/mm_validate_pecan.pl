@@ -151,7 +151,7 @@ my $select_seqs           = "select_seqs.pl";
 my $rmGaps                = "rmGaps";
 my $FastTree              = "FastTree";
 my $R                     = "R";
-my $fix_size_str_in_fasta = "fix_size_str_in_fasta.pl";
+my $fix_fasta_headers     = "fix_fasta_headers.pl";
 my $mothur                = "/Users/pgajer/bin/mothur";
 my $usearch6              = "/Users/pgajer/bin/usearch6.0.203_i86osx32";
 my $vicut                 = "/Users/pgajer/devel/vicut/bin/vicut";
@@ -168,7 +168,7 @@ if ( defined $igs )
   $mmDir                 = "/local/scratch/MM/";
   $mmSppDir              = "/local/scratch/MM/MM_spp_dir";
 
-  $fix_size_str_in_fasta = "/home/pgajer/devel/MCclassifier/perl/fix_size_str_in_fasta.pl";
+  $fix_fasta_headers     = "/home/pgajer/devel/MCclassifier/perl/fix_fasta_headers.pl";
   $nw_labels             = "/usr/local/projects/pgajer/bin/nw_labels";
   $nw_order              = "/usr/local/projects/pgajer/bin/nw_order";
   $nw_condense           = "/usr/local/projects/pgajer/bin/nw_condense";
