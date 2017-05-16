@@ -178,7 +178,7 @@ if ( ! -e $trRefFile )
 
 print "--- Aligning $seqFile to $trRefFile file\n" if !$quiet;
 my @tmp;
-push (@tmp,"align.seqs(template=$trRefFile, candidate=$seqFile, processors=4, flip=T)");
+push (@tmp,"align.seqs(candidate=$trRefFile, template=$seqFile, processors=4, flip=T)");
 printArray(\@tmp, "mothur commands") if ($debug || $verbose);
 my $scriptFile = createCommandTxt(\@tmp);
 
