@@ -94,14 +94,19 @@ $OUTPUT_AUTOFLUSH = 1;
 ####################################################################
 
 my $nProc             = 0;
-my $maxNumNRseqs      = 100;
 my $percCoverage      = 80;
-my $phyloPartPercThld = 0.1;
+my $maxNumNRseqs      = 100;  # when the number of non-redundant seq's is more
+			      # than maxNumNRseqs selecte x number of largest
+			      # cluster non-redundant seq's such that the sum of
+			      # their cluster sizes covers percCoverage% of all
+			      # seq's classified to the given species
+my $maxNumCovSeqs     = 2000; # x (as def above) cannot be greater than maxNumCovSeqs
 
 GetOptions(
   "spp-file|i=s"             => \my $sppFile,
   "out-dir|o=s"              => \my $outDir,
   "max-no-nr-seqs|n=i"       => \$maxNumNRseqs,
+  "max-no-cov-seqs|m=i"      => \$maxNumCovSeqs,
   "use-vsearch"              => \my $useVsearch,
   "perc-coverage|p=i"        => \$percCoverage,
   "num-proc|m=i"             => \$nProc,
@@ -130,61 +135,60 @@ if ( !$sppFile )
   exit 1;
 }
 
-my $baseDir            = "/Users/pgajer/devel/MCextras/data/RDP/rdp_Bacteria_phylum_dir/";
-my $mmDir              = "/Users/pgajer/projects/M_and_M/new_16S_classification_data/";
-my $mmSppDir           = "/Users/pgajer/projects/M_and_M/new_16S_classification_data/mm_spp_dir";
+my $baseDir               = "/Users/pgajer/devel/MCextras/data/RDP/rdp_Bacteria_phylum_dir/";
+my $mmDir                 = "/Users/pgajer/projects/M_and_M/new_16S_classification_data/";
+my $mmSppDir              = "/Users/pgajer/projects/M_and_M/new_16S_classification_data/mm_spp_dir";
 
-my $nw_labels          = "nw_labels";
-my $nw_order           = "nw_order";
-my $nw_condense        = "nw_condense";
-my $nw_rename          = "nw_rename";
-my $nw_prune           = "nw_prune";
-my $nw_reroot          = "nw_reroot";
-my $uc2clstr2          = "uc2clstr2.pl";
-my $extract_seq_IDs    = "extract_seq_IDs.pl";
-my $select_seqs        = "select_seqs.pl";
-my $rmGaps             = "rmGaps";
-my $FastTree           = "FastTree";
-my $R                  = "R";
-my $mothur             = "/Users/pgajer/bin/mothur";
-my $usearch6           = "/Users/pgajer/bin/usearch6.0.203_i86osx32";
-my $vicut              = "/Users/pgajer/devel/vicut/bin/vicut";
-my $readNewickFile     = "/Users/pgajer/.Rlocal/read.newick.R";
+my $nw_labels             = "nw_labels";
+my $nw_order              = "nw_order";
+my $nw_condense           = "nw_condense";
+my $nw_rename             = "nw_rename";
+my $nw_prune              = "nw_prune";
+my $nw_reroot             = "nw_reroot";
+my $uc2clstr2             = "uc2clstr2.pl";
+my $extract_seq_IDs       = "extract_seq_IDs.pl";
+my $select_seqs           = "select_seqs.pl";
+my $rmGaps                = "rmGaps";
+my $FastTree              = "FastTree";
+my $R                     = "R";
+my $fix_size_str_in_fasta = "fix_size_str_in_fasta.pl";
+my $mothur                = "/Users/pgajer/bin/mothur";
+my $usearch6              = "/Users/pgajer/bin/usearch6.0.203_i86osx32";
+my $vicut                 = "/Users/pgajer/devel/vicut/bin/vicut";
+my $readNewickFile        = "/Users/pgajer/.Rlocal/read.newick.R";
 
-my $quietStr           = "--quiet";
+my $quietStr              = "--quiet";
 my $vsearchSORT;
 my $vsearch;
 
 my $igsStr = "";
 if ( defined $igs )
 {
-    #$baseDir         = "/local/scratch/MM/V3V4_unzipped/";
-  $baseDir            = "/usr/local/projects/pgajer/devel/MCextras/data/RDP/V3V4/";
-  $mmDir              = "/local/scratch/MM/";
-  $mmSppDir           = "/local/scratch/MM/MM_spp_dir";
+  $baseDir               = "/usr/local/projects/pgajer/devel/MCextras/data/RDP/V3V4/";
+  $mmDir                 = "/local/scratch/MM/";
+  $mmSppDir              = "/local/scratch/MM/MM_spp_dir";
 
-  $nw_labels          = "/usr/local/projects/pgajer/bin/nw_labels";
-  $nw_order           = "/usr/local/projects/pgajer/bin/nw_order";
-  $nw_condense        = "/usr/local/projects/pgajer/bin/nw_condense";
-  $nw_rename          = "/usr/local/projects/pgajer/bin/nw_rename";
-  $nw_prune           = "/usr/local/projects/pgajer/bin/nw_prune";
-  $nw_reroot          = "/usr/local/projects/pgajer/bin/nw_reroot";
-  $uc2clstr2          = "/home/pgajer/devel/MCclassifier/perl/uc2clstr2.pl";
-  $extract_seq_IDs    = "/home/pgajer/devel/MCclassifier/perl/extract_seq_IDs.pl";
-  $select_seqs        = "/home/pgajer/devel/MCclassifier/perl/select_seqs.pl";
-  $rmGaps             = "/usr/local/projects/pgajer/bin/rmGaps";
-  $FastTree           = "/home/pgajer/bin/FastTree_no_openMP";
-  #$R                 = "/usr/local/bin/R";
-  $R                  = "/home/pgajer/bin/R";
-  #$mothur            = "/usr/local/packages/mothur-1.39.3/mothur";
-  $mothur             = "/usr/local/projects/pgajer/bin/mothur";
-  $usearch6           = "/local/projects/pgajer/bin/usearch6.0.203_i86linux32";
-  $vicut              = "/usr/local/projects/pgajer/bin/vicut";
-  $readNewickFile     = "/local/projects/pgajer/devel/MCclassifier/perl/read.newick.R";
-  $vsearchSORT        = "/usr/local/packages/vsearch/bin/vsearch";
-  $vsearch            = "/usr/local/bin/vsearch";
-  $quietStr           = "";
-  $igsStr             = "--igs";
+  $fix_size_str_in_fasta = "/home/pgajer/devel/MCclassifier/perl/fix_size_str_in_fasta.pl";
+  $nw_labels             = "/usr/local/projects/pgajer/bin/nw_labels";
+  $nw_order              = "/usr/local/projects/pgajer/bin/nw_order";
+  $nw_condense           = "/usr/local/projects/pgajer/bin/nw_condense";
+  $nw_rename             = "/usr/local/projects/pgajer/bin/nw_rename";
+  $nw_prune              = "/usr/local/projects/pgajer/bin/nw_prune";
+  $nw_reroot             = "/usr/local/projects/pgajer/bin/nw_reroot";
+  $uc2clstr2             = "/home/pgajer/devel/MCclassifier/perl/uc2clstr2.pl";
+  $extract_seq_IDs       = "/home/pgajer/devel/MCclassifier/perl/extract_seq_IDs.pl";
+  $select_seqs           = "/home/pgajer/devel/MCclassifier/perl/select_seqs.pl";
+  $rmGaps                = "/usr/local/projects/pgajer/bin/rmGaps";
+  $FastTree              = "/home/pgajer/bin/FastTree_no_openMP";
+  $R                     = "/home/pgajer/bin/R";
+  $mothur                = "/usr/local/projects/pgajer/bin/mothur";
+  $usearch6              = "/local/projects/pgajer/bin/usearch6.0.203_i86linux32";
+  $vicut                 = "/usr/local/projects/pgajer/bin/vicut";
+  $readNewickFile        = "/local/projects/pgajer/devel/MCclassifier/perl/read.newick.R";
+  $vsearchSORT           = "/usr/local/packages/vsearch/bin/vsearch";
+  $vsearch               = "/usr/local/bin/vsearch";
+  $quietStr              = "";
+  $igsStr                = "--igs";
 }
 
 ## Export LD_LIBRARY_PATH=/usr/local/packages/readline/lib:/usr/local/packages/gcc-5.3.0/lib64
@@ -537,6 +541,20 @@ for my $phGr ( keys %phGrSppTbl )
 
     print "\n--- Processing $sp  ($phGr)\n";
 
+    # 1. Select representatives of 100% seq identity clusters (called also nr clusters)
+
+    # 2. If the number of nr-cluters (or nr-seq's ) is greater than $maxNumNRseqs
+    # selecte x number of largest nr-seq's such that the sum of their cluster
+    # sizes covers $percCoverage% of all seq's classified to the given species.
+
+    # 3. The number of slected nr-seq's cannot be more than $maxNumCovSeqs
+
+    # 4. Align these seq's to the phylo-group's ginsi alignment
+
+    # 5. Generate tree
+
+    # 6. Generate a pdf image of the tree
+
     my $spDir = $phGrDir . $sp . "_dir";
     my $cmd = "mkdir -p $spDir";
     print "\tcmd=$cmd\n" if $dryRun || $debug;
@@ -554,9 +572,19 @@ for my $phGr ( keys %phGrSppTbl )
       print "\r\t\tDereplicating species fasta file";
       if ( $useVsearch )
       {
-	$cmd = "$vsearchSORT --sortbylength $spFaFile --output $spSORTfaFile --fasta_width 0; $vsearch --derep_full $spSORTfaFile --output $spNRfaFile --sizeout --fasta_width 0 --uc $spUCfile";
+	my $spNRfaFile0  = "$spDir/$sp" . "_nr0.fa";
+	$cmd = "$vsearchSORT --sortbylength $spFaFile --output $spSORTfaFile --fasta_width 0; $vsearch --derep_full $spSORTfaFile --output $spNRfaFile0 --sizeout --fasta_width 0 --uc $spUCfile";
 	print "\tcmd=$cmd\n" if $dryRun || $debug;
 	system($cmd) == 0 or die "system($cmd) failed:$?" if !$dryRun;
+
+	#
+	# NOTE that the _nr.fa file will have seq headers of the form >seqID;size=\d+;
+	# This should be fixed here, so the seq headers are of the form >seqID size=\d+
+	#
+	$cmd = "$fix_size_str_in_fasta -i $spNRfaFile0 -o $spNRfaFile; rm -f $spNRfaFile0";
+	print "\tcmd=$cmd\n" if $dryRun || $debug;
+	system($cmd) == 0 or die "system($cmd) failed:$?" if !$dryRun;
+
 	next;
       }
       else
@@ -566,6 +594,17 @@ for my $phGr ( keys %phGrSppTbl )
         system($cmd) == 0 or die "system($cmd) failed:$?" if !$dryRun;
       }
     }
+
+
+
+    #
+    # NOTE that the _nr.fa file will have seq headers of the form >seqID;size=\d+;
+    # tenatively fixing size str here
+    #
+    my $spNRfaFileTmp  = "$spDir/$sp" . "_nrTmp.fa";
+    $cmd = "$fix_size_str_in_fasta -i $spNRfaFile -o $spNRfaFileTmp; mv $spNRfaFileTmp $spNRfaFile";
+    print "\tcmd=$cmd\n" if $dryRun || $debug;
+    system($cmd) == 0 or die "system($cmd) failed:$?" if !$dryRun;
 
     my $nrSeqIDsFile = "$spDir/$sp" . "_nr.seqIDs";
     if ( ! -e $nrSeqIDsFile || ! -s $nrSeqIDsFile || $runAll )
@@ -579,6 +618,7 @@ for my $phGr ( keys %phGrSppTbl )
 
     my @nrSeqIDs = read_NR_array( $nrSeqIDsFile );
     my $nnrSp = @nrSeqIDs;
+
     print "\nNo. nr seq IDs: " . commify($nnrSp) . "\n";
 
     my $spClstr2File = "$spDir/$sp" . "_nr.clstr2";
@@ -611,72 +651,63 @@ for my $phGr ( keys %phGrSppTbl )
     print $ROUT "n:     " . commify($nSp) . "\n";
     print $ROUT "n(nr): " . commify($nnrSp) . "\n";
 
-    ## for validation of the above calculations and getting a sense what the thld for cumulative percentage to choose
-    # my $outDir = "/Users/pgajer/projects/M_and_M/new_16S_classification_data/mm_speciation_validation_data/";
-    # writeArray(\@clSizes, $outDir . "Li_cltr_sizes.txt");
-    # writeArray(\@clPercs, $outDir . "Li_cltr_percs.txt");
-
-    my $cumPerc = 0;
-    my $percCovIdx = 0; # index of the sequence in @nrSeqIDs so that sum(clPercs[0..percCovIdx]) gives percCoverage
-    for my $i (0..$#clPercs)
-    {
-      $cumPerc += $clPercs[$i];
-      if ( $cumPerc > $percCoverage )
-      {
-	$percCovIdx = $i-1;
-	last;
-      }
-    }
-
-    $percCovIdx = 0 if $percCovIdx < 0;
-    ##print "\npercCovIdx: $percCovIdx\n";
-
     my $covSuffix = "";
     if ( @nrSeqIDs > $maxNumNRseqs )
     {
-      $covSuffix = "_nr_cov" . $percCoverage;
-
-      my @nrSeqIDsMax = @nrSeqIDs[0..($maxNumNRseqs-1)];
-      my @nrSeqIDsPer = @nrSeqIDs[0..$percCovIdx];
-
-      ## If the number of seq's constituting $percCoverage is less than
-      ## $maxNumNRseqs, we go with the later.
-      if ( @nrSeqIDsPer > @nrSeqIDsMax )
+      ## select no more than $maxNumCovSeqs nr-seq's
+      my $n = $#clPercs; # this is the number of all clusters -1
+      if ( $n > $maxNumCovSeqs )
       {
-	@nrSeqIDs = @nrSeqIDsPer;
-	print $ROUT "n(nr seq's covering $percCoverage" . "% of seq's classified to $sp): " . commify(scalar(@nrSeqIDs)) . "\n";
-	print "\nNo. nr seq IDs covering $percCoverage" . "% of seq's classified to $sp: " . commify(scalar(@nrSeqIDs)) . "\n";
+	$n = $maxNumCovSeqs;
       }
-      else
+
+      my $cumPerc = 0;
+      my $percCovIdx = 0; # index of the sequence in @nrSeqIDs so that sum(clPercs[0..percCovIdx]) gives percCoverage
+
+      for my $i ( 0..$n )
       {
-	my $percCov = 0;
-	for my $j (0..($maxNumNRseqs-1))
+	$cumPerc += $clPercs[$i];
+	if ( $cumPerc > $percCoverage )
 	{
-	  $percCov += $clPercs[$j];
+	  $percCovIdx = $i-1;
+	  last;
 	}
-	#my $perc = 100 *
-
-	@nrSeqIDs = @nrSeqIDsMax;
-
-	print $ROUT "$maxNumNRseqs no. of nr seq's covering $percCov" . "% of seq's classified to $sp): " . commify(scalar(@nrSeqIDs)) . "\n";
-	print "\n$maxNumNRseqs no. of nr seq's covering $percCov" . "% of seq's classified to $sp: " . commify(scalar(@nrSeqIDs)) . "\n";
+	elsif ( $i == $n )
+	{
+	  $percCovIdx = $i;
+	}
       }
+
+      $percCovIdx = 0 if $percCovIdx < 0;
+
+      if ( $percCovIdx < ($maxNumNRseqs-1) && ($maxNumNRseqs-1) <= $#clPercs )
+	$percCovIdx = $maxNumNRseqs-1;
+
+      print "\npercCovIdx: $percCovIdx\n" if $debug;
+
+      #my @nrSeqIDsMax = @nrSeqIDs[0..($maxNumNRseqs-1)];
+      my @nrSeqIDs = @nrSeqIDs[0..$percCovIdx];
+
+      my $percCov = 0;
+      for my $j (0..($maxNumNRseqs-1))
+      {
+	$percCov += $clPercs[$j];
+      }
+
+      print $ROUT "$maxNumNRseqs no. of nr seq's covering $percCov" . "% of seq's classified to $sp): " . commify(scalar(@nrSeqIDs)) . "\n";
+      print     "\n$maxNumNRseqs no. of nr seq's covering $percCov" . "% of seq's classified to $sp: " . commify(scalar(@nrSeqIDs)) . "\n";
+
+      $covSuffix = "_nr_cov" . sprintf( "%d", int($percCov) );
 
       $nrSeqIDsFile = "$spDir/$sp" . $covSuffix . ".seqIDs";
       writeArray(\@nrSeqIDs, $nrSeqIDsFile);
 
       ## Restricting nr fa file to only nr ref seq's covering $percCoverage of all seq's
-      my $spNRfaFileGOOD = "$spDir/$sp" . "_nr_good.fa";
-      my $spNRfaFile2 = "$spDir/$sp" . $covSuffix . ".fa";
-
-      print "\r\t\tCleaning sequence headers and                    ";
-      print "\r\t\tCreating restricted $sp fa file                  ";
-
-      ## Alter sequence headers to remove cluster sizes added by vsearch. Thus, select_seq.pl
-      ## would not recognize the seqIDs provided if .fa not altered.
-      open(my $OLDOUT, '<', $spNRfaFile) or die "Could not open file '$spNRfaFile' $!";
-      chomp(my @old = <$OLDOUT>);
-      close $OLDOUT;
+      my $spNRfaFileTmp = "$spDir/$sp" . "_nrTmp.fa";
+      $spNRfaFile       = "$spDir/$sp" . $covSuffix . ".fa";
+      $cmd = "$select_seqs $quietStr -s $nrSeqIDsFile -i $spNRfaFile -o $spNRfaFileTmp; mv $spNRfaFileTmp $spNRfaFile";
+      print "\tcmd=$cmd\n" if $dryRun || $debug;
+      system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 
     } # end of      if ( @nrSeqIDs > $maxNumNRseqs )
 
@@ -689,7 +720,7 @@ for my $phGr ( keys %phGrSppTbl )
       print "\r\t\tAligning phGr ref seq's (includeing OG seq's) and the selected seq's of $sp           ";
 
       my @tmp;
-      push (@tmp,"align.seqs(candidate=$spNRfaFile, template=$phGrAlgnFile, processors=8, flip=T)");
+      push (@tmp,"align.seqs(candidate=$spNRfaFile, template=$phGrAlgnFile, flip=T)"); # processors=8 on a grid when this is exectuted with allocated one node of the grid, asking for more nodes may cause serious slow down
 
       printArray(\@tmp, "mothur commands") if ($debug || $verbose);
 
