@@ -176,9 +176,6 @@ if ( ! -e $trRefFile )
 # the first order of business is to make sure we use the same sequence IDs for
 # both and that we still have at least one outgroup sequence there.
 
-print "--- Extracting seq IDs from trimmed alignment fasta file\n";
-my @seqIDs = get_seqIDs_from_fa($seqFile);
-
 print "--- Aligning $seqFile to $trRefFile file\n" if !$quiet;
 my @tmp;
 push (@tmp,"align.seqs(template=$trRefFile, candidate=$seqFile, processors=4, flip=T)");
