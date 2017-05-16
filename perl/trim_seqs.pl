@@ -148,12 +148,12 @@ my $trRefFile;
 my $trRefFileBasename;
 if ($varReg =~ 'V3V4')
 {
-  $trRefFileBasename = "/local/projects/pgajer/devel/MCextras/data/RDP/V400.unique.subsampled.fa";
+  $trRefFile = "/local/projects/pgajer/devel/MCextras/data/RDP/V400.unique.subsampled.fa";
   print "--- Detected ref db for the V3V4 variable region\n"
 }
 elsif ($varReg =~ 'V4')
 {
-  $trRefFileBasename = "/local/projects/pgajer/devel/MCextras/data/RDP/BEAM.unique.subsampled.fa";
+  $trRefFile = "/local/projects/pgajer/devel/MCextras/data/RDP/BEAM.unique.subsampled.fa";
   print "--- Detected ref db for the V4 variable region\n"
 }
 else
@@ -164,17 +164,11 @@ else
 }
 
 # check existence
-my $dbTrRefFileBasename = $dB . $trRefFileBasename;
-if ( ! -e $dbTrRefFileBasename )
+if ( ! -e $trRefFile )
 {
-  warn "ERROR: $dbTrRefFileBasename cannot be found";
+  warn "ERROR: $trRefFile cannot be found";
   exit 1;
 }
-
-$trRefFile = "$trDir/" . $trRefFileBasename;
-$cmd = "cp $dbTrRefFileBasename $trRefFile";
-print "\tcmd=$cmd\n" if $dryRun || $debug;
-system($cmd) == 0 or die "system($cmd) failed:$?" if !$dryRun;
 
 
 # The multiple sequence alignment produced by taxonomy_cleanup.pl (which is run
@@ -185,7 +179,7 @@ system($cmd) == 0 or die "system($cmd) failed:$?" if !$dryRun;
 print "--- Extracting seq IDs from trimmed alignment fasta file\n";
 my @seqIDs = get_seqIDs_from_fa($seqFile);
 
-print "--- Aligning $trRefFileBasename to $seqFile file\n" if !$quiet;
+print "--- Aligning $trRefFile to $seqFile file\n" if !$quiet;
 my @tmp;
 push (@tmp,"align.seqs(candidate=$trRefFile, template=$seqFile, processors=4, flip=T)");
 printArray(\@tmp, "mothur commands") if ($debug || $verbose);
@@ -196,8 +190,8 @@ print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed:$?" if !$dryRun;
 
 my @suffixes = (".fasta",".fa",".fna");
-my $candBasename = basename($trRefFileBasename, @suffixes); ## This may have to change ($trRefFileBasename to $trRefFile, depending on where mothur writes it)
-my $candAlgn = "$trDir/" . $candBasename . ".align";
+my $candBasename = basename($trRefFile, @suffixes); ## This may have to change ($trRefFileBasename to $trRefFile, depending on where mothur writes it)
+my $candAlgn = "$candBasename . ".align";
 my $candFile = $candBasename . ".align";
 
 ## removing $trRefFile as it is not needed anymore
