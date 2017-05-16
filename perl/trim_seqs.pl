@@ -185,13 +185,13 @@ push (@tmp,"align.seqs(candidate=$trRefFile, template=$seqFile, processors=4, fl
 printArray(\@tmp, "mothur commands") if ($debug || $verbose);
 my $scriptFile = createCommandTxt(\@tmp);
 
-$cmd = "$mothur < $scriptFile; rm -f $scriptFile";
+my $cmd = "$mothur < $scriptFile; rm -f $scriptFile";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed:$?" if !$dryRun;
 
 my @suffixes = (".fasta",".fa",".fna");
 my $candBasename = basename($trRefFile, @suffixes); ## This may have to change ($trRefFileBasename to $trRefFile, depending on where mothur writes it)
-my $candAlgn = "$candBasename . ".align";
+my $candAlgn = $candBasename . ".align";
 my $candFile = $candBasename . ".align";
 
 ## removing $trRefFile as it is not needed anymore
