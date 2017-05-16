@@ -637,17 +637,6 @@ for my $phGr ( keys %phGrSppTbl )
     print "\r\t\tParsing clstr2 file                   ";
     my %cTbl = parseClstr2($spClstr2File);
 
-    my $id = "0104.V1_22616127";
-    if ( exists $cTbl{$id} )
-    {
-      print "\n\nDetected $id in cTbl\n\n";
-    }
-    else
-    {
-      print "\n\nDid not detect $id in cTbl\n\n";
-      exit;
-    }
-
     # sort cluster reference sequence IDs w/r cluster size
     @nrSeqIDs = sort { $cTbl{$b} <=> $cTbl{$a} } keys %cTbl;
 
@@ -723,6 +712,8 @@ for my $phGr ( keys %phGrSppTbl )
       $nrSeqIDsFile = "$spDir/$sp" . $covSuffix . ".seqIDs";
       writeArray(\@nrSeqIDs, $nrSeqIDsFile);
 
+      print "\n\nCurrent number of nr-seq's" . @nrSeqIDs . "\n\n" if $debug;
+
       ## Restricting nr fa file to only nr ref seq's covering $percCoverage of all seq's
       $spNRfaFile = "$spDir/$sp" . $covSuffix . ".fa";
       $cmd = "$select_seqs $quietStr -s $nrSeqIDsFile -i $spFaFile -o $spNRfaFile";
@@ -738,6 +729,20 @@ for my $phGr ( keys %phGrSppTbl )
     if ( ! -e $bigAlgnFile || ! -s $bigAlgnFile || $runAll || $buildTree )
     {
       print "\r\t\tAligning phGr ref seq's (includeing OG seq's) and the selected seq's of $sp           ";
+
+      if ( $debug )
+      {
+	my $wcline = qx/ grep -c '>' $spNRfaFile /;
+	$wcline =~ s/^\s+//;
+	my ($nQseqs, $qstr) = split /\s+/, $wcline;
+
+	$wcline = qx/ grep -c '>' $phGrAlgnFile /;
+	$wcline =~ s/^\s+//;
+	my ($nTemptSeqs, $astr) = split /\s+/, $wcline;
+
+	print "\n\nAligning spNRfaFile with $nQseqs\n";
+	print "to phGrAlgnFile with $nTemptSeqs\n\n";
+      }
 
       my @tmp;
       push (@tmp,"align.seqs(candidate=$spNRfaFile, template=$phGrAlgnFile, flip=T)"); # processors=8 on a grid when this is exectuted with allocated one node of the grid, asking for more nodes may cause serious slow down
@@ -757,6 +762,15 @@ for my $phGr ( keys %phGrSppTbl )
       $cmd = "rm -f $bigAlgnFile; cat $mothurAlgnFile $phGrAlgnFile > $bigAlgnFile";
       print "\tcmd=$cmd\n" if $dryRun || $debug;
       system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+
+      if ( $debug )
+      {
+	my $wcline = qx/ grep -c '>' $bigAlgnFile /;
+	$wcline =~ s/^\s+//;
+	my ($nBAlgSeqs, $str) = split /\s+/, $wcline;
+
+	print "\nNumber of seq's in the concatenated alignment $nBAlgSeqs\n\n";
+      }
     }
 
     ##
@@ -766,6 +780,16 @@ for my $phGr ( keys %phGrSppTbl )
     if ( ! -e $bigNotRootedTreeFile || ! -s $bigNotRootedTreeFile || $runAll || $buildTree )
     {
       print "\r\t\tGenerating phylo tree of the above alignment                                    ";
+
+      if ( $debug )
+      {
+	my $wcline = qx/ grep -c '>' $bigAlgnFile /;
+	$wcline =~ s/^\s+//;
+	my ($nBAlgSeqs, $str) = split /\s+/, $wcline;
+
+	print "\nNumber of seq's in the concatenated alignment $nBAlgSeqs\n\n";
+      }
+
       $cmd = "rm -f $bigNotRootedTreeFile; $FastTree -nt $bigAlgnFile > $bigNotRootedTreeFile";
       print "\tcmd=$cmd\n" if $dryRun || $debug;
       system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
@@ -812,7 +836,6 @@ for my $phGr ( keys %phGrSppTbl )
 	$wcline = qx/ wc -l $phGrTxFile /;
 	$wcline =~ s/^\s+//;
 	my ($nAnnSeqs, $astr) = split /\s+/, $wcline;
-
 
 	my @leaves = get_leaves( $bigTreeFile );
 
@@ -1114,10 +1137,6 @@ sub parseClstr2
     chomp $rec;
     my @ids = split ",", $rec;
     my $refId = shift @ids;
-
-    print "\n\nDetected $refId\n\n" if $refId eq "0104.V1_22616127";
-
-    ##$tbl{$refId} = \@ids;
     $tbl{$refId} = @ids; # we are only interested in the size of the cluseter
   }
   close IN;
