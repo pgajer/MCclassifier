@@ -637,6 +637,17 @@ for my $phGr ( keys %phGrSppTbl )
     print "\r\t\tParsing clstr2 file                   ";
     my %cTbl = parseClstr2($spClstr2File);
 
+    my $id = "0104.V1_22616127";
+    if ( exists $cTbl{$id} )
+    {
+      print "\n\nDetected $id in cTbl\n\n";
+    }
+    else
+    {
+      print "\n\nDid not detect $id in cTbl\n\n";
+      exit;
+    }
+
     # sort cluster reference sequence IDs w/r cluster size
     @nrSeqIDs = sort { $cTbl{$b} <=> $cTbl{$a} } keys %cTbl;
 
@@ -700,7 +711,7 @@ for my $phGr ( keys %phGrSppTbl )
       }
 
       #my @nrSeqIDsMax = @nrSeqIDs[0..($maxNumNRseqs-1)];
-      my @nrSeqIDs = @nrSeqIDs[0..$percCovIdx];
+      @nrSeqIDs = @nrSeqIDs[0..$percCovIdx];
 
       $cumPerc = sprintf( "%d", int($cumPerc) );
 
@@ -1103,6 +1114,9 @@ sub parseClstr2
     chomp $rec;
     my @ids = split ",", $rec;
     my $refId = shift @ids;
+
+    print "\n\nDetected $refId\n\n" if $refId eq "0104.V1_22616127";
+
     ##$tbl{$refId} = \@ids;
     $tbl{$refId} = @ids; # we are only interested in the size of the cluseter
   }
