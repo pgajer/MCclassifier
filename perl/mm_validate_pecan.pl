@@ -680,34 +680,37 @@ for my $phGr ( keys %phGrSppTbl )
 
       $percCovIdx = 0 if $percCovIdx < 0;
 
+      print "\npercCovIdx: $percCovIdx\ncumPerc: $cumPerc\n" if $debug;
+
       if ( $percCovIdx < ($maxNumNRseqs-1) && ($maxNumNRseqs-1) <= $#clPercs )
       {
 	$percCovIdx = $maxNumNRseqs-1;
-      }
 
-      print "\npercCovIdx: $percCovIdx\n" if $debug;
+	$cumPerc = 0;
+	for my $j (0..($maxNumNRseqs-1))
+	{
+	  $cumPerc += $clPercs[$j];
+	}
+
+	print "percCovIdx changed to $percCovIdx\ncumPerc: $cumPerc\n" if $debug;
+      }
 
       #my @nrSeqIDsMax = @nrSeqIDs[0..($maxNumNRseqs-1)];
       my @nrSeqIDs = @nrSeqIDs[0..$percCovIdx];
 
-      my $percCov = 0;
-      for my $j (0..($maxNumNRseqs-1))
-      {
-	$percCov += $clPercs[$j];
-      }
+      $cumPerc = sprintf( "%d", int($cumPerc) );
 
-      print $ROUT "$maxNumNRseqs no. of nr seq's covering $percCov" . "% of seq's classified to $sp): " . commify(scalar(@nrSeqIDs)) . "\n";
-      print     "\n$maxNumNRseqs no. of nr seq's covering $percCov" . "% of seq's classified to $sp: " . commify(scalar(@nrSeqIDs)) . "\n";
+      print $ROUT "no. of nr seq's covering $cumPerc" . "% of seq's classified to $sp: " . commify(scalar(@nrSeqIDs)) . "\n";
+      print     "\nno. of nr seq's covering $cumPerc" . "% of seq's classified to $sp: " . commify(scalar(@nrSeqIDs)) . "\n";
 
-      $covSuffix = "_nr_cov" . sprintf( "%d", int($percCov) );
+      $covSuffix = "_nr_cov" . sprintf( "%d", int($cumPerc) );
 
       $nrSeqIDsFile = "$spDir/$sp" . $covSuffix . ".seqIDs";
       writeArray(\@nrSeqIDs, $nrSeqIDsFile);
 
       ## Restricting nr fa file to only nr ref seq's covering $percCoverage of all seq's
-      my $spNRfaFileTmp = "$spDir/$sp" . "_nrTmp.fa";
-      $spNRfaFile       = "$spDir/$sp" . $covSuffix . ".fa";
-      $cmd = "$select_seqs $quietStr -s $nrSeqIDsFile -i $spNRfaFile -o $spNRfaFileTmp; mv $spNRfaFileTmp $spNRfaFile";
+      $spNRfaFile = "$spDir/$sp" . $covSuffix . ".fa";
+      $cmd = "$select_seqs $quietStr -s $nrSeqIDsFile -i $spFaFile -o $spNRfaFile";
       print "\tcmd=$cmd\n" if $dryRun || $debug;
       system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 
