@@ -296,22 +296,23 @@ my $nMultCltrTxs = 0; # number multiple-cluster taxons (species present in more
 my $showCtrs = 0;
 
 
-my $queryTxFile = $outDir . "/query.tx"; # 2 columns; seqID, species; tab
-					 # delimited file of all query sequences
-					 # (redundant) except those who were
+my $queryTxFile = $outDir . "/query.tx"; # a tab delimited file with 2 columns:
+                                         # <seqID> <species> tab
+					 # of all query sequences
+					 # (redundant) except those that were
 					 # dropped due to presence in a cluster
 					 # with no named species and not being
 					 # abundant enough.
 
-my $trainTxFile = $outDir . "/train.tx"; # columns: seqID, species, phyloGroup, multiplicity
-                                         # multiplicity = size of the 100%
-                                         # identity cluster for query seq's, -1
-                                         # for ref seq's.  ref and query
-                                         # (non-redundant sequences only) are
-                                         # listed here. If more than 500 query
-                                         # sequences are present in a given
-                                         # cluster classified to a species, only
-                                         # the first 500 most abundant are used.
+# my $trainTxFile = $outDir . "/train.tx"; # columns: seqID, species, phyloGroup, multiplicity
+#                                          # multiplicity = size of the 100%
+#                                          # identity cluster for query seq's, -1
+#                                          # for ref seq's.  ref and query
+#                                          # (non-redundant sequences only) are
+#                                          # listed here. If more than 500 query
+#                                          # sequences are present in a given
+#                                          # cluster classified to a species, only
+#                                          # the first 500 most abundant are used.
 
 my $chgdRefTxFile = $outDir . "/changed.tx"; # if there are <= 10 seq's of a
 					     # species in a cluster with multiple
@@ -326,9 +327,6 @@ my $newSpFile = $outDir . "/new_spp.txt"; #
 
 my @droppedQuerySeqs;
 
-# my $trainTxFile = $outDir . "/train_weighted.tx"; # weighted version of the
-# trainin set were non-redundant sequences would be in different aboundances
-# based on their presence in the population
 
 open QOUT, ">$queryTxFile" or die "Cannot open $queryTxFile for writing: $OS_ERROR";
 open TOUT, ">$trainTxFile" or die "Cannot open $trainTxFile for writing: $OS_ERROR";
@@ -746,11 +744,11 @@ if ( $nAllSpp > $nProcessedSpp )
 if ( @droppedQuerySeqs )
 {
   writeArray( \@droppedQuerySeqs, $droppedSeqs );
+  print "\n\nNumber of sequences dropped from the taxonomy assignment: " . @droppedQuerySeqs . "\n\n";
 }
 
 print "Output written to $outDir\n\n";
 
-## print "\n\n\tMissing species table written to $ipSppFile\n\n";
 
 ####################################################################
 ##                               SUBS
