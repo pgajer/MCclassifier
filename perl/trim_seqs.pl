@@ -277,21 +277,21 @@ else
 #print "s: $s\te: $e\n";
 
 print "--- Trimming alignment to $s and $e\n";
-my $trAlgnFile = $seqFile . "_algn.fa";
+my $trAlgnFile = $seqFile . "trimmed_algn.fa";
 $cmd = "trimAlign -i $seqFile -o $trAlgnFile -s $s -e $e --min-seq-len $minLen";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed:$?" if !$dryRun;
 
-my $trFaFile = $trPrefix . ".fa";
+my $trFaFile = $seqFile . "trimmed.fa";
 print "--- Creating corresonding gap free fasta file $trFaFile\n";
 $cmd = "rmGaps -i $trAlgnFile -o $trFaFile";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed:$?" if !$dryRun;
 
 print "--- Dereplicating $trFaFile\n" if !$quiet;
-my $trUCfile = $trPrefix . ".uc";
-my $trNRfile = $trPrefix . "_nr.fa";
-my $trUCfilelog = $trPrefix . "_uc.log";
+my $trUCfile = $trFaFile . ".uc";
+my $trNRfile = $trFaFile . "_nr.fa";
+my $trUCfilelog = $trFaFile . "_uc.log";
 $cmd = "$usearch6 -cluster_fast $trFaFile -id 1.0 -uc $trUCfile -centroids $trNRfile";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed:$?" if !$dryRun;
