@@ -277,7 +277,7 @@ else
 #print "s: $s\te: $e\n";
 
 print "--- Trimming alignment to $s and $e\n";
-my $trAlgnFile = $trPrefix . "_algn.fa";
+my $trAlgnFile = $seqFile . "_algn.fa";
 $cmd = "trimAlign -i $seqFile -o $trAlgnFile -s $s -e $e --min-seq-len $minLen";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed:$?" if !$dryRun;
