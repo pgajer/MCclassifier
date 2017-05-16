@@ -145,6 +145,7 @@ if ( !$grPrefix )
   exit 1;
 }
 
+my $R              = "R";
 my $readNewickFile = "/Users/pgajer/.Rlocal/read.newick.R";
 
 my $igsStr = "";

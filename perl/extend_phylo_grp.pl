@@ -54,6 +54,7 @@ use diagnostics;
 use Pod::Usage;
 use English qw( -no_match_vars );
 use Getopt::Long qw(:config no_ignore_case no_auto_abbrev pass_through);
+use File::Temp qw/ tempfile /;
 
 $OUTPUT_AUTOFLUSH = 1;
 
@@ -114,7 +115,7 @@ if ( ! -e $tmpDir )
 ##                               MAIN
 ####################################################################
 
-my $baseDir        = "/Users/pgajer/devel/MCextras/data/RDP/rdp_Bacteria_phylum_dir/";
+my $baseDir = "/Users/pgajer/devel/MCextras/data/RDP/rdp_Bacteria_phylum_dir/";
 
 
 my @algnFiles0 = ("Actinobacteria_dir/Actinobacteria_group_0_V3V4_dir/Actinobacteria_group_0_V3V4_ginsi_algn.fa",
@@ -182,9 +183,21 @@ my %oPeTx     = read_tbl( $oPeTxFile );
 
 ## print "\n\nPECAN taxonomic classification of DQ666092: " . $oPeTx{"DQ666092"} . "\n\n"; exit;
 
-print "--- Parsing the origninal tx table of old ref seq's\n";
-my $oTxFile = "/Users/pgajer/projects/16S_rRNA_pipeline/vaginal_species_oct18_2013/vaginal_319_806_v2.tx";
+print "--- Parsing a modified tx table of old ref seq's\n";
+my $oTxFile = "/Users/pgajer/projects/16S_rRNA_pipeline/vaginal_species_oct18_2013/vaginal_319_806_v2b.tx"; # this is a version of v2 taxonomy with all _type_1/2 and genotype_\d turned into _sp's
 my %oTx     = read_tbl( $oTxFile );
+
+print "--- Checking if all old vaginal spp have 1 or 2 component names\n";
+for my $sp ( keys %oTx )
+{
+  my @f = split "_", $sp;
+  if ( @f > 2 )
+  {
+    warn "\n\n\tERROR: $sp seems to have more than 2 components";
+    print "\n\n";
+    exit;
+  }
+}
 
 my %oTxIDs; # sp => ref to array of seq IDs of the old ref seq's of that species
 for my $id ( keys %oTx )
@@ -261,6 +274,7 @@ if ( $verbose )
     }
   }
   print "\n\n";
+  exit;
 }
 
 
@@ -317,7 +331,7 @@ for my $origSp ( keys %tx2phGr )
 # Thermolithobacter_sp	Root;Bacteria;Firmicutes;Thermolithobacteria;Thermolithobacterales;Thermolithobacteraceae;Thermolithobacter;Thermolithobacter_sp
 
 print "--- Parsing old ref's species lineage table\n";
-my $oSppLiFile = "/Users/pgajer/projects/16S_rRNA_pipeline/vaginal_species_oct18_2013/vaginal_319_806_v2.fullTx";
+my $oSppLiFile = "/Users/pgajer/projects/16S_rRNA_pipeline/vaginal_species_oct18_2013/vaginal_319_806_v2b.fullTx";
 my %spLi = parse_spp_li_tbl( $oSppLiFile ); # sp => the species' lineage string derived from the sequence lineage table of old vag ref seq's
 
 ## changing
