@@ -98,27 +98,27 @@ if ($verbose)
 
 ## Gather final lineage, fasta (ungapped) and taxon files for all phylo-groups
 
-my $baseDirExt = "/Users/pgajer/devel/MCextras/data/vaginal_old_vs_PECAN_May11_2017/vag_expanded_V3V4_phylo_groups_dir/";
+my $baseDirExt = "/Users/pgajer/devel/MCextras/data/vag_exp_V3V4_phGrps_May16_dir/";
 
 my @spLiFilesExt0 = ("Actinobacteria_group_0_V3V4_dir/Actinobacteria_group_0_V3V4_final.spLineage",
-			  "Actinobacteria_group_1_V3V4_dir/Actinobacteria_group_1_V3V4_final.spLineage",
-			  "Actinobacteria_group_2_V3V4_dir/Actinobacteria_group_2_V3V4_final.spLineage",
-			  "Bacteroidetes_group_2_V3V4_dir/Bacteroidetes_group_2_V3V4_final.spLineage",
-			  "Firmicutes_group_0_V3V4_dir/Firmicutes_group_0_V3V4_final.spLineage",
-			  "Firmicutes_group_1_V3V4_dir/Firmicutes_group_1_V3V4_final.spLineage",
-			  "Firmicutes_group_2_V3V4_dir/Firmicutes_group_2_V3V4_final.spLineage",
-			  "Firmicutes_group_3_V3V4_dir/Firmicutes_group_3_V3V4_final.spLineage",
-			  "Firmicutes_group_4_V3V4_dir/Firmicutes_group_4_V3V4_final.spLineage",
-			  "Firmicutes_group_5_V3V4_dir/Firmicutes_group_5_V3V4_final.spLineage",
-			  "Firmicutes_group_6_V3V4_dir/Firmicutes_group_6_V3V4_final.spLineage",
-			  "Fusobacteria_V3V4_dir/Fusobacteria_V3V4_final.spLineage",
-			  "phyla_lessthen_1k_wOG_V3V4_dir/phyla_lessthen_1k_wOG_V3V4_final.spLineage",
-			  "Proteobacteria_group_10_V3V4_dir/Proteobacteria_group_10_V3V4_final.spLineage",
-			  "Proteobacteria_group_15_V3V4_dir/Proteobacteria_group_15_V3V4_final.spLineage",
-			  "Proteobacteria_group_17_V3V4_dir/Proteobacteria_group_17_V3V4_final.spLineage",
-			  "Proteobacteria_group_3_V3V4_dir/Proteobacteria_group_3_V3V4_final.spLineage",
-			  "Proteobacteria_group_9_V3V4_dir/Proteobacteria_group_9_V3V4_final.spLineage",
-			  "Tenericutes_V3V4_dir/Tenericutes_V3V4_final.spLineage");
+		     "Actinobacteria_group_1_V3V4_dir/Actinobacteria_group_1_V3V4_final.spLineage",
+		     "Actinobacteria_group_2_V3V4_dir/Actinobacteria_group_2_V3V4_final.spLineage",
+		     "Bacteroidetes_group_2_V3V4_dir/Bacteroidetes_group_2_V3V4_final.spLineage",
+		     "Firmicutes_group_0_V3V4_dir/Firmicutes_group_0_V3V4_final.spLineage",
+		     "Firmicutes_group_1_V3V4_dir/Firmicutes_group_1_V3V4_final.spLineage",
+		     "Firmicutes_group_2_V3V4_dir/Firmicutes_group_2_V3V4_final.spLineage",
+		     "Firmicutes_group_3_V3V4_dir/Firmicutes_group_3_V3V4_final.spLineage",
+		     "Firmicutes_group_4_V3V4_dir/Firmicutes_group_4_V3V4_final.spLineage",
+		     "Firmicutes_group_5_V3V4_dir/Firmicutes_group_5_V3V4_final.spLineage",
+		     "Firmicutes_group_6_V3V4_dir/Firmicutes_group_6_V3V4_final.spLineage",
+		     "Fusobacteria_V3V4_dir/Fusobacteria_V3V4_final.spLineage",
+		     "phyla_lessthen_1k_wOG_V3V4_dir/phyla_lessthen_1k_wOG_V3V4_final.spLineage",
+		     "Proteobacteria_group_10_V3V4_dir/Proteobacteria_group_10_V3V4_final.spLineage",
+		     "Proteobacteria_group_15_V3V4_dir/Proteobacteria_group_15_V3V4_final.spLineage",
+		     "Proteobacteria_group_17_V3V4_dir/Proteobacteria_group_17_V3V4_final.spLineage",
+		     "Proteobacteria_group_3_V3V4_dir/Proteobacteria_group_3_V3V4_final.spLineage",
+		     "Proteobacteria_group_9_V3V4_dir/Proteobacteria_group_9_V3V4_final.spLineage",
+		     "Tenericutes_V3V4_dir/Tenericutes_V3V4_final.spLineage");
 
 my @spLiFilesExt1 = map{ $baseDirExt . $_ } @spLiFilesExt0;
 
@@ -269,18 +269,21 @@ print "\nNumber of non-extended phylo-groups: " . @d . "\n";
 print_array(\@d);
 print "\n\n";
 
-my $dir = "/Users/pgajer/devel/MCextras/data/RDP/rdp_Bacteria_phylum_dir/";
-my $count = 1;
-for my $phGr ( @d )
+if ( 0 )
 {
-  print "--- [$count] Processing $phGr\n";
-  $count++;
-  my $phDir = $phDirTbl{$phGr};
-  my $cmd = "scp $dir$phDir/$phGr"  ."_dir.tgz cadbane.igs.umaryland.edu:/usr/local/projects/pgajer/devel/MCextras/data/RDP/V3V4";
-  print "\tcmd=$cmd\n" if $dryRun || $debug;
-  system($cmd) == 0 or die "system($cmd) failed with exit code: $?";# if !$dryRun;
+  my $dir = "/Users/pgajer/devel/MCextras/data/RDP/rdp_Bacteria_phylum_dir/";
+  my $count = 1;
+  for my $phGr ( @d )
+  {
+    print "--- [$count] Processing $phGr\n";
+    $count++;
+    my $phDir = $phDirTbl{$phGr};
+    my $cmd = "scp $dir$phDir/$phGr"  ."_dir.tgz cadbane.igs.umaryland.edu:/usr/local/projects/pgajer/devel/MCextras/data/RDP/V3V4";
+    print "\tcmd=$cmd\n" if $dryRun || $debug;
+    system($cmd) == 0 or die "system($cmd) failed with exit code: $?";# if !$dryRun;
+  }
+  exit;
 }
-exit;
 
 
 my %spLiTbl;
