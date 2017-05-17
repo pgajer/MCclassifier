@@ -283,7 +283,7 @@ my %ogInd = map{$_ =>1} @ogSeqIDs; # outgroup elements indicator table
 print "--- Testing if OG seq's form a monophylectic clade at the top or bottom of the input tree\n";
 if ( test_OG($treeFile, \%ogInd) != 0 )
 {
-  warn "\n\n\tERROR: There is an issue with input tree outgroup seq's";
+  warn "\n\n\tERROR: There is an issue with the input tree outgroup seq's";
   print "\n\n";
   exit 1;
 } ;
