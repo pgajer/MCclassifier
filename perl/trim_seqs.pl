@@ -187,14 +187,13 @@ system($cmd) == 0 or die "system($cmd) failed:$?" if !$dryRun;
 my @suffixes = (".fasta",".fa",".fna");
 my $candBasename = basename($trRefFile, @suffixes); ## This may have to change ($trRefFileBasename to $trRefFile, depending on where mothur writes it)
 my $candAlgn = $candBasename . ".align";
-my $candFile = $candBasename . ".align";
 
 ## removing $trRefFile as it is not needed anymore
 #$cmd = "rm -f $trRefFile";
 #print "\tcmd=$cmd\n" if $dryRun || $debug;
 #system($cmd) == 0 or die "system($cmd) failed:$?" if !$dryRun;
 
-print "--- Calculating alignment range of $candFile\n" if !$quiet;
+print "--- Calculating alignment range of $candAlgn\n" if !$quiet;
 
 my $startStats = Statistics::Descriptive::Full->new();
 my $endStats = Statistics::Descriptive::Full->new();
