@@ -183,9 +183,6 @@ my $cmd = "$mothur < $scriptFile; rm -f $scriptFile";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed:$?" if !$dryRun;
 
-my $cmd = "cp /local/projects/pgajer/devel/MCextras/data/RDP/V400.unique.subsampled.align .";
-print "\tcmd=$cmd\n" if $dryRun || $debug;
-system($cmd) == 0 or die "system($cmd) failed:$?" if !$dryRun;
 
 my @suffixes = (".fasta",".fa",".fna");
 my $candBasename = basename($trRefFile, @suffixes); ## This may have to change ($trRefFileBasename to $trRefFile, depending on where mothur writes it)
