@@ -163,8 +163,6 @@ if ( ! -e $seqFile )
 }
 
 
-
-
 my $s;
 my $e;
 my $cmd;
@@ -314,7 +312,7 @@ my $trPrefix = basename($seqFile, @suffixes);
 
 print "--- Trimming alignment to $s and $e\n";
 my $trAlgnFile = $trPrefix . "_" . $varReg . "_algn.fa";
-$cmd = "trimAlign -i $seqFile -o $trAlgnFile -s $s -e $e --min-seq-len $minLen";
+my $cmd = "trimAlign -i $seqFile -o $trAlgnFile -s $s -e $e --min-seq-len $minLen";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed:$?" if !$dryRun;
 
