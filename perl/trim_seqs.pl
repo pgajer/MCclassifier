@@ -11,7 +11,7 @@
   sequences, and produce an alignment truncated to either the variable region
   of choice (currently V3V4 or V4) or the indicated start and end positions. 
   Dereplication of sequences will also be performed via usearch6.
-  Three files will be produced: a truncated alignment file, a dereplicated
+  Four files will be produced: a truncated alignment file, a dereplicated
   truncated alignment file, a truncated ungapped sequence file, and a 
   dereplicated truncated ungapped sequence file.
 
@@ -106,10 +106,11 @@ if ($help)
   exit 1;
 }
 
-if (!$varReg && !$start && !$end)
+if (!$seqFile && !$varReg && !$start && !$end)
 {
-  print "\n\n ERROR: Must provide either a variable region with (-v)\n";
-  print "\n\n or start (-s) and end (-e) trimming positions.\n\n\n";
+  print "\n\n ERROR: Must provide an input alignment (-i).\n";
+  print "ERROR: Must provide either a variable region with (-v)\n";
+  print "or start (-s) and end (-e) trimming positions.\n\n\n";
   pod2usage(verbose => 2,exitstatus => 0);
   exit 1;
 }
