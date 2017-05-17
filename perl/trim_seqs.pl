@@ -7,21 +7,24 @@
 
 =head1 DESCRIPTION
 
-  trim_seqs.pl will take a full-length, unaligned set of 16S rRNA gene 
-  sequences, and produce an alignment truncated to the variable region
-  of choice (currently V3V4 or V4).
-
+  trim_seqs.pl will take a full-length, aligned set of 16S rRNA gene 
+  sequences, and produce an alignment truncated to either the variable region
+  of choice (currently V3V4 or V4) or the indicated start and end positions. 
+  Dereplication of sequences will also be performed via usearch6.
+  Three files will be produced: a truncated alignment file, a dereplicated
+  truncated alignment file, a truncated ungapped sequence file, and a 
+  dereplicated truncated ungapped sequence file.
 
 =head1 SYNOPSIS
 
-  truncate_algn.pl -i <sequence file> -v <variable region> -l <minimum sequence length>
+  trim_seqs.pl -i <sequence file> -l <minimum sequence length> -v <variable region> | -s <start position> -e <end position>
 
 =head1 OPTIONS
 
 =over
 
 =item B<--group-prefix, -i>
-  Sequence file.
+  Input sequence file. Must be alignment!!
 
 =item B<--variable-region, -v>
   16S rRNA gene variable region.
@@ -29,6 +32,12 @@
 
 =item B<--min-seq-len, -l>
   Sequence minimal length
+
+=item B<--start-position, -s>
+Start position to trim alignment
+
+=item B<--start-position, -e>
+End position to trim alignment
 
 =item B<--verbatim, -v>
   Prints content of some output files.
@@ -49,7 +58,11 @@
 
   cd ~/local/scratch/archaea_pecan/gg_silva_rdpArchaea
 
-  truncate_algn.pl -i SILVA_128_SSURef_Nr99_tax_silva_16S.fasta -v V3V4 -l 350
+  trim_seqs.pl -i SILVA_128_SSURef_Nr99_tax_silva_16S.fasta -v V3V4 -l 350
+
+  or
+
+  trim_seqs.pl -i SILVA_128_SSURef_Nr99_tax_silva_16S.fasta -s 1200 -e 1600 -l 350
 
 =cut
 
@@ -330,12 +343,8 @@ $cmd = "$usearch6 -cluster_fast $trFaFile -id 1.0 -uc $trUCfile -centroids $trNR
 print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed:$?" if !$dryRun;
 
-$cmd = "mv $trNRfile $trFaFile";
-print "\tcmd=$cmd\n" if $dryRun || $debug;
-system($cmd) == 0 or die "system($cmd) failed:$?" if !$dryRun;
-
 my $nrSeqIDs = $trPrefix . "_" . $varReg . "_nr.seqIDs";
-$cmd = "extract_seq_IDs.pl -i $trFaFile -o $nrSeqIDs";
+$cmd = "extract_seq_IDs.pl -i $trNRFile -o $nrSeqIDs";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 
@@ -344,6 +353,7 @@ print "--- Dereplicating truncated alignment file\n" if !$quiet;
 $cmd = "rm -f $trAlgnFileNR; select_seqs.pl -s $nrSeqIDs -i $trAlgnFile -o $trAlgnFileNR";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed:$?" if !$dryRun;
+
 
 ####################################################################
 ##                               SUBS
