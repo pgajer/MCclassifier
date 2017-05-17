@@ -164,8 +164,8 @@ my $igsStr = "";
 if ( defined $igs )
 {
   $baseDir               = "/usr/local/projects/pgajer/devel/MCextras/data/RDP/V3V4/";
-  $mmDir                 = "/local/scratch/MM/";
-  $mmSppDir              = "/local/scratch/MM/MM_spp_dir";
+  $mmDir                 = "/local/scratch/MM_pecan/";
+  $mmSppDir              = "/local/scratch/MM_pecan/MM_May16_spp_dir";
 
   $fix_fasta_headers     = "/home/pgajer/devel/MCclassifier/perl/fix_fasta_headers.pl";
   $nw_labels             = "/usr/local/projects/pgajer/bin/nw_labels";
@@ -584,7 +584,7 @@ for my $phGr ( keys %phGrSppTbl )
 	print "\tcmd=$cmd\n" if $dryRun || $debug;
 	system($cmd) == 0 or die "system($cmd) failed:$?" if !$dryRun;
 
-	next;
+	#next;
       }
       else
       {
@@ -593,8 +593,6 @@ for my $phGr ( keys %phGrSppTbl )
         system($cmd) == 0 or die "system($cmd) failed:$?" if !$dryRun;
       }
     }
-
-
 
     #
     # NOTE that the _nr.fa file will have seq headers of the form >seqID;size=\d+;
