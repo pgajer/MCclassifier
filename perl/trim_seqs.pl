@@ -69,17 +69,19 @@ $OUTPUT_AUTOFLUSH = 1;
 ####################################################################
 
 GetOptions(
-  "input-sequences|i=s" 	  => \my $seqFile,
+  "input-sequences|i=s" 	=> \my $seqFile,
   "variable-region|v=s"   => \my $varReg,
   "min-seq-len|l=i"       => \my $minLen,
-  "quiet"           	  => \my $quiet,
+  "quiet"           	    => \my $quiet,
   "verbose"           	  => \my $verbose,
-  "debug"            	  => \my $debug,
-  "dry-run"          	  => \my $dryRun,
-  "help|h!"          	  => \my $help,
+  "debug"            	    => \my $debug,
+  "dry-run"          	    => \my $dryRun,
+  "help|h!"          	    => \my $help,
   "igs"                   => \my $igs,
   "johanna"               => \my $johanna,
-  "manual"		  => \my $manual,
+  "manual"		            => \my $manual,
+  "start"                 => \my $start,
+  "end"                   => \my $end,
 
   )
   or pod2usage(verbose => 0,exitstatus => 1);
@@ -91,19 +93,36 @@ if ($help)
   exit 1;
 }
 
+if (!$varReg && !$start && !$end)
+{
+  print "\n\n ERROR: Must provide either a variable region with (-v)\n";
+  print "\n\n or start (-start) and end (-end) trimming positions.\n\n\n";
+  pod2usage(verbose => 2,exitstatus => 0);
+  exit 1;
+}
+elsif (!$varReg && !$start && $end)
+{
+  print "\n\n ERROR: End position provided, but start\n";
+  print "\n\n position (-start) missing.\n\n\n";
+  pod2usage(verbose => 2,exitstatus => 0);
+  exit 1;
+}
+elsif (!$varReg && $start && !$end)
+{
+  print "\n\n ERROR: Start position provided, but end\n";
+  print "\n\n position (-end) missing.\n\n\n";
+  pod2usage(verbose => 2,exitstatus => 0);
+  exit 1;
+}
+
 if (!$seqFile)
 {
   print "\n\nERROR: Missing input sequence file.\n\n\n";
   pod2usage(verbose => 2,exitstatus => 0);
   exit 1;
 }
-elsif (!$varReg)
-{
-  print "\n\nERROR: Missing variable region.\n\n\n";
-  pod2usage(verbose => 2,exitstatus => 0);
-  exit 1;
-}
-elsif (!$minLen)
+
+if (!$minLen)
 {
   print "ERROR: Missing sequence min length threshold\n\n";
   pod2usage(verbose => 2,exitstatus => 0);
@@ -170,104 +189,118 @@ if ( ! -e $trRefFile )
   exit 1;
 }
 
-
-## The unaligned sequence database must be aligned to 
-
-print "--- Aligning $trRefFile to $seqFile file\n" if !$quiet;
-my @tmp;
-push (@tmp,"align.seqs(candidate=$trRefFile, template=$seqFile, processors=4, flip=T)");
-printArray(\@tmp, "mothur commands") if ($debug || $verbose);
-my $scriptFile = createCommandTxt(\@tmp);
-
-my $cmd = "$mothur < $scriptFile; rm -f $scriptFile";
-print "\tcmd=$cmd\n" if $dryRun || $debug;
-system($cmd) == 0 or die "system($cmd) failed:$?" if !$dryRun;
-
-
-my @suffixes = (".fasta",".fa",".fna");
-my $candBasename = basename($trRefFile, @suffixes); ## This may have to change ($trRefFileBasename to $trRefFile, depending on where mothur writes it)
-my $candAlgn = $candBasename . ".align";
-my $candFile = "/local/projects/pgajer/devel/MCextras/data/RDP/" . $candAlgn;
-
-
-## removing $trRefFile as it is not needed anymore
-#$cmd = "rm -f $trRefFile";
-#print "\tcmd=$cmd\n" if $dryRun || $debug;
-#system($cmd) == 0 or die "system($cmd) failed:$?" if !$dryRun;
-
-print "--- Calculating alignment range of $candAlgn\n" if !$quiet;
-
-my $startStats = Statistics::Descriptive::Full->new();
-my $endStats = Statistics::Descriptive::Full->new();
-
-my %startTbl;
-my %endTbl;
-
-open (IN, "<$candFile") or die "Cannot open $candFile for reading: $OS_ERROR";
-$/ = ">";
-my $junkFirstOne = <IN>;
-while (<IN>)
-{
-  chomp;
-  my ($def,@seqlines) = split /\n/, $_;
-  my $seq = join '', @seqlines;
-  my ($id) = split /\s+/, $def;
-  $id =~ s/^>//;
-
-  my @seq = split "", $seq;
-
-  # find first non-gapped position
-  my $startPos = 0;
-  while ( $seq[$startPos] !~ /\w/ )
-  {
-    $startPos++;
-  }
-
-  # find last non-gapped position
-  my $endPos = $#seq;
-  while ( $seq[$endPos] !~ /\w/ )
-  {
-    $endPos--;
-  }
-
-  $startStats->add_data($startPos);
-  $endStats->add_data($endPos);
-}
-$/ = "\n";
-close IN;
-
-print "\r                                              ";
-print "\nNumber of sequences:\t" . $startStats->count() . "\n\n";
-
-print "Start summary stats [0-based positions]\n";
-print "Min:\t" . $startStats->min() . "\n";
-print "Max:\t" . $startStats->max() . "\n";
-print "Mode:\t" . $startStats->mode() . "\n";
-print "Median:\t" . $startStats->median() . "\n";
-print "IQR:\t" . $startStats->percentile(25) . "-" . $startStats->percentile(75) . "\n";
-print "Mean:\t" . $startStats->mean() . "\n";
-
-print "\nEnd summary stats [0-based positions]\n";
-print "Min:\t" . $endStats->min() . "\n";
-print "Max:\t" . $endStats->max() . "\n";
-print "Mode:\t" . $endStats->mode() . "\n";
-print "Median:\t" . $endStats->median() . "\n";
-print "IQR:\t" . $endStats->percentile(25) . "-" . $endStats->percentile(75) . "\n";
-print "Mean:\t" . $endStats->mean() . "\n\n";
-
 my $s;
 my $e;
-if (defined $manual)
+
+if (defined $varReg)
 {
-  print "Please examine above table and indicate the base to START truncation: \n";
-  chomp ($s = <STDIN>);
-  print "Please examine above table and indicate the base to END truncation: \n";
-  chomp ($e = <STDIN>);
-}
-else
+    ## The unaligned sequence database must be aligned to 
+
+    print "--- Aligning $trRefFile to $seqFile file\n" if !$quiet;
+    my @tmp;
+    push (@tmp,"align.seqs(candidate=$trRefFile, template=$seqFile, processors=4, flip=T)");
+    printArray(\@tmp, "mothur commands") if ($debug || $verbose);
+    my $scriptFile = createCommandTxt(\@tmp);
+
+    my $cmd = "$mothur < $scriptFile; rm -f $scriptFile";
+    print "\tcmd=$cmd\n" if $dryRun || $debug;
+    system($cmd) == 0 or die "system($cmd) failed:$?" if !$dryRun;
+
+
+    my @suffixes = (".fasta",".fa",".fna");
+    my $candBasename = basename($trRefFile, @suffixes); ## This may have to change ($trRefFileBasename to $trRefFile, depending on where mothur writes it)
+    my $candAlgn = $candBasename . ".align";
+    my $candFile = "/local/projects/pgajer/devel/MCextras/data/RDP/" . $candAlgn;
+
+
+    ## removing $trRefFile as it is not needed anymore
+    #$cmd = "rm -f $trRefFile";
+    #print "\tcmd=$cmd\n" if $dryRun || $debug;
+    #system($cmd) == 0 or die "system($cmd) failed:$?" if !$dryRun;
+
+    print "--- Calculating alignment range for $varReg region of $candAlgn\n" if !$quiet;
+
+    my $startStats = Statistics::Descriptive::Full->new();
+    my $endStats = Statistics::Descriptive::Full->new();
+
+    my %startTbl;
+    my %endTbl;
+
+    open (IN, "<$candFile") or die "Cannot open $candFile for reading: $OS_ERROR";
+    $/ = ">";
+    my $junkFirstOne = <IN>;
+    while (<IN>)
+    {
+      chomp;
+      my ($def,@seqlines) = split /\n/, $_;
+      my $seq = join '', @seqlines;
+      my ($id) = split /\s+/, $def;
+      $id =~ s/^>//;
+
+      my @seq = split "", $seq;
+
+      # find first non-gapped position
+      my $startPos = 0;
+      while ( $seq[$startPos] !~ /\w/ )
+      {
+        $startPos++;
+      }
+
+      # find last non-gapped position
+      my $endPos = $#seq;
+      while ( $seq[$endPos] !~ /\w/ )
+      {
+        $endPos--;
+      }
+
+      $startStats->add_data($startPos);
+      $endStats->add_data($endPos);
+    }
+    $/ = "\n";
+    close IN;
+
+    print "\r                                              ";
+    print "\nNumber of sequences:\t" . $startStats->count() . "\n\n";
+
+    print "Start summary stats [0-based positions]\n";
+    print "Min:\t" . $startStats->min() . "\n";
+    print "Max:\t" . $startStats->max() . "\n";
+    print "Mode:\t" . $startStats->mode() . "\n";
+    print "Median:\t" . $startStats->median() . "\n";
+    print "IQR:\t" . $startStats->percentile(25) . "-" . $startStats->percentile(75) . "\n";
+    print "Mean:\t" . $startStats->mean() . "\n";
+
+    print "\nEnd summary stats [0-based positions]\n";
+    print "Min:\t" . $endStats->min() . "\n";
+    print "Max:\t" . $endStats->max() . "\n";
+    print "Mode:\t" . $endStats->mode() . "\n";
+    print "Median:\t" . $endStats->median() . "\n";
+    print "IQR:\t" . $endStats->percentile(25) . "-" . $endStats->percentile(75) . "\n";
+    print "Mean:\t" . $endStats->mean() . "\n\n";
+
+
+    if (defined $manual)
+    {
+      print "--- Please examine above table and indicate the base to START truncation: \n";
+      chomp ($s = <STDIN>);
+      print "--- Please examine above table and indicate the base to END truncation: \n";
+      chomp ($e = <STDIN>);
+    }
+    else
+    {
+      print "--- Automatically using mode positions for trimming. \n";
+      $s = $startStats->mode();
+      $e = $endStats->mode();
+      print "--- Start position = $s. \n";
+      print "--- End position = $e. \n";
+    }
+
+if ($start && $end)
 {
-  $s = $startStats->mode();
-  $e = $endStats->mode();
+  print "--- Trimming start position provided. Trimming at position $start. \n";
+  chomp ($s = $start);
+  print "--- Trimming start position provided. Trimming at position $end. \n";
+  chomp ($e = $end);
 }
 
 #print "s: $s\te: $e\n";
