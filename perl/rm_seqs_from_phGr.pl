@@ -41,12 +41,15 @@
 
 =head1 EXAMPLE
 
-  rm_seqs_from_phGr.pl --debug -e Firmicutes_group_10_V3V4_dir/bad.seqIDs -i Firmicutes_group_10_V3V4
+  cd /Users/pgajer/devel/MCextras/data/RDP/rdp_Bacteria_phylum_dir/Proteobacteria_dir/tmp1
+
+  rm_seqs_from_phGr.pl --debug -e Proteobacteria_group_10_V3V4_dir/bad.seqIDs -i Proteobacteria_group_10_V3V4
 
 =cut
 
 use strict;
 use warnings;
+use diagnostics;
 use Pod::Usage;
 use English qw( -no_match_vars );
 use Getopt::Long qw(:config no_ignore_case no_auto_abbrev pass_through);
@@ -62,7 +65,8 @@ GetOptions(
   "seq-file|e=s"     => \my $seqFile,
   "keep-tmp-files"   => \my $keepTmpFiles,
   "quiet"            => \my $quiet,
-  "verbatim|v"       => \my $verbatim,
+  "igs"              => \my $igs,
+  "verbose|v"        => \my $verbose,
   "debug"            => \my $debug,
   "dry-run"          => \my $dryRun,
   "help|h!"          => \my $help,
@@ -90,6 +94,7 @@ elsif (!$seqFile)
 }
 
 my $debugStr = "";
+my $quietStr = "--quiet";
 if ($debug)
 {
   $debugStr  = "--debug";
@@ -102,10 +107,15 @@ if ($verbose)
   $verboseStr  = "--verbose";
 }
 
-my $FastTree  = "FastTree";
+my $FastTree    = "FastTree";
+my $select_seqs = "select_seqs.pl";
+my $select_tx   = "select_tx.pl";
+
 if ( defined $igs )
 {
-  $FastTree   = "/home/pgajer/bin/FastTree_no_openMP";
+  $FastTree     = "/home/pgajer/bin/FastTree_no_openMP";
+  $select_seqs  = "/home/pgajer/devel/MCclassifier/perl/select_seqs.pl";
+  $select_tx    = "/home/pgajer/devel/MCclassifier/perl/select_tx.pl";
 }
 
 ####################################################################
@@ -120,7 +130,17 @@ if ( ! -d $grDir )
   exit 1;
 }
 
-$grPrefix = "$grDir/$grPrefix";
+print "--- Parsing file with seq's to be removed\n" if !$quiet;
+my @selSeqs = read_array( $seqFile );
+#my %seqTbl = map { $_ => 1 } @selSeqs;
+
+
+print "--- Changing dir to $grDir\n";
+
+chdir $grDir;
+##$grPrefix = "$grDir/$grPrefix";
+
+$seqFile =~ s/$grDir\///;
 
 my $liFile    = $grPrefix . ".lineage";
 my $txFile    = $grPrefix . ".tx";
@@ -131,54 +151,79 @@ my $ogFile    = $grPrefix . "_outgroup.seqIDs";
 
 print "--- Creating directory for storing the original files\n" if !$quiet;
 my @now = localtime();
-my $timeStamp = sprintf("%04d-%02d-%02d_%02d:%02d:%02d",
+my $timeStamp = sprintf("%04d%02d%02d_%02d%02d%02d",
 			$now[5]+1900, $now[4]+1, $now[3],
 			$now[2],      $now[1],   $now[0]);
 
-my $bkpDir = $grDir . "/orig_data_dir_$timeStamp";
-
-print "--- Moving the original files to the backup dir\n" if !$quiet;
-
-my $cmd = "mv $liFile $bkpDir/$liFile";
+my $bkpDir = "orig_data_dir_$timeStamp";
+my $cmd = "mkdir $bkpDir";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 
-$cmd = "mv $txFile $bkpDir/$txFile";
+print "--- Copying the original files to the backup dir\n" if !$quiet;
+
+$cmd = "cp $liFile $bkpDir/$liFile";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 
-$cmd = "mv $algnFile $bkpDir/$algnFile";
+$cmd = "cp $txFile $bkpDir/$txFile";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 
-$cmd = "mv $ogFile $bkpDir/$ogFile";
+$cmd = "cp $algnFile $bkpDir/$algnFile";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 
-$cmd = "mv $treeFile $bkpDir/$treeFile";
+$cmd = "cp $ogFile $bkpDir/$ogFile";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 
+$cmd = "cp $treeFile $bkpDir/$treeFile";
+print "\tcmd=$cmd\n" if $dryRun || $debug;
+system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 
-
-print "--- Parsing file with seq's to be removed\n" if !$quiet;
-my @selSeqs = read_array( $seqFile );
-#my %seqTbl = map { $_ => 1 } @selSeqs;
 
 print "--- Removing given seq's from the lineage file\n" if !$quiet;
+
+my $liCountBefore = line_count( "$bkpDir/$liFile" );
 $cmd = "$select_tx $quietStr -e $seqFile -i $bkpDir/$liFile -o $liFile";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
+my $liCountAfter = line_count( $liFile );
+
+if ( !$quiet )
+{
+  print "\nLineage file line count BEFORE: $liCountBefore\n";
+  print   "Lineage file line count AFTER:  $liCountAfter\n\n";
+}
 
 print "--- Removing given seq's from the taxonomy file\n" if !$quiet;
+my $txCountBefore = line_count( "$bkpDir/$txFile" );
 $cmd = "$select_tx $quietStr -e $seqFile -i $bkpDir/$txFile -o $txFile";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
+my $txCountAfter = line_count( $txFile );
+
+if ( !$quiet )
+{
+  print "\nTaxonomy file line count BEFORE: $txCountBefore\n";
+  print   "Taxonomy file line count AFTER:  $txCountAfter\n\n";
+}
+
 
 print "--- Removing given seq's from the alignment file\n" if !$quiet;
+my $seqCountBefore = seq_count( "$bkpDir/$algnFile" );
 $cmd = "$select_seqs $quietStr -e $seqFile -i $bkpDir/$algnFile -o $algnFile";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
+my $seqCountAfter = seq_count( $algnFile );
+
+if ( !$quiet )
+{
+  print "\nAlignment file line count BEFORE: $seqCountBefore\n";
+  print   "Alignment file line count AFTER:  $seqCountAfter\n\n";
+}
+
 
 print "--- Removing given seq's from the OG file\n" if !$quiet;
 my @og = read_array( "$bkpDir/$ogFile" );
@@ -194,24 +239,57 @@ else
   print "\n\n";
 }
 
-print "--- Rebuilding tree using pruned alignment\n" if !$quiet;
-$cmd = "$FastTree -nt $algnFile > $treeFile";
-print "\tcmd=$cmd\n" if $dryRun || $debug;
-system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+if ( $seqCountBefore != $seqCountAfter )
+{
+  print "--- Rebuilding tree using pruned alignment\n" if !$quiet;
+  $cmd = "rm -f $treeFile; $FastTree -nt $algnFile > $treeFile";
+  print "\tcmd=$cmd\n" if $dryRun || $debug;
+  system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+}
+else
+{
+  print "\n\n\tWARNING: Do not rebuilding tree as the alignment file was not modified\n\n";
+}
 
 
 ####################################################################
 ##                               SUBS
 ####################################################################
+
+# extract line count of a file
+sub line_count
+{
+  my $file = shift;
+
+  my $wcline = qx/ wc -l $file /;
+  $wcline =~ s/^\s+//;
+  my ($lcount, $str) = split /\s+/, $wcline;
+
+  return $lcount;
+}
+
+# extract sequence count of a fasta file
+sub seq_count
+{
+  my $file = shift;
+
+  my $wcline = qx/ grep -c '>' $file /;
+  $wcline =~ s/^\s+//;
+  my ($lcount, $str) = split /\s+/, $wcline;
+
+  return $lcount;
+}
+
 # read table with one column
 sub read_array
 {
   my ($file, $hasHeader) = @_;
   my @rows;
 
-  if ( ! -f $file )
+  if ( ! -e $file )
   {
-    print "\n\nERROR in read_array() at line " . __LINE__ . ": $file does not exist\n\n\n";
+    warn "\n\n\nERROR: $file does not exist";
+    print "\n\n";
     exit 1;
   }
 
