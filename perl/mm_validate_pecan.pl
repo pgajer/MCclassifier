@@ -584,7 +584,7 @@ for my $phGr ( keys %phGrSppTbl )
 	print "\tcmd=$cmd\n" if $dryRun || $debug;
 	system($cmd) == 0 or die "system($cmd) failed:$?" if !$dryRun;
 
-	#next;
+	next;
       }
       else
       {
