@@ -189,9 +189,6 @@ my $candBasename = basename($trRefFile, @suffixes); ## This may have to change (
 my $candAlgn = $candBasename . ".align";
 my $candFile = "/local/projects/pgajer/devel/MCextras/data/RDP/" . $candAlgn;
 
-my $cmd = "";
-print "\tcmd=$cmd\n" if $dryRun || $debug;
-system($cmd) == 0 or die "system($cmd) failed:$?" if !$dryRun;
 
 ## removing $trRefFile as it is not needed anymore
 #$cmd = "rm -f $trRefFile";
