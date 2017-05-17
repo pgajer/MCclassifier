@@ -188,7 +188,7 @@ print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed:$?" if !$dryRun;
 
 my @suffixes = (".fasta",".fa",".fna");
-my $candBasename = basename($seqFile, @suffixes); ## This may have to change ($trRefFileBasename to $trRefFile, depending on where mothur writes it)
+my $candBasename = basename($trRefFile, @suffixes); ## This may have to change ($trRefFileBasename to $trRefFile, depending on where mothur writes it)
 my $candAlgn = $candBasename . ".align";
 my $candFile = $candBasename . ".align";
 
@@ -274,22 +274,25 @@ else
 
 #print "s: $s\te: $e\n";
 
+my @suffixes = (".fasta",".fa",".fna");
+my $trPrefix = basename($seqFile, @suffixes); 
+
 print "--- Trimming alignment to $s and $e\n";
-my $trAlgnFile = $candBasename . "_" . $varReg . "_algn.fa";
+my $trAlgnFile = $trPrefix . "_" . $varReg . "_algn.fa";
 $cmd = "trimAlign -i $seqFile -o $trAlgnFile -s $s -e $e --min-seq-len $minLen";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed:$?" if !$dryRun;
 
-my $trFaFile = $candBasename . "_" . $varReg . ".fa";
+my $trFaFile = $trPrefix . "_" . $varReg . ".fa";
 print "--- Creating corresonding gap free fasta file $trFaFile\n";
 $cmd = "rmGaps -i $trAlgnFile -o $trFaFile";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed:$?" if !$dryRun;
 
 print "--- Dereplicating $trFaFile\n" if !$quiet;
-my $trUCfile = $candBasename . "_" . $varReg . ".uc";
-my $trNRfile = $candBasename . "_" . $varReg . "_nr.fa";
-my $trUCfilelog = $candBasename . "_" . $varReg . "_uc.log";
+my $trUCfile = $trPrefix . "_" . $varReg . ".uc";
+my $trNRfile = $trPrefix . "_" . $varReg . "_nr.fa";
+my $trUCfilelog = $trPrefix . "_" . $varReg . "_uc.log";
 $cmd = "$usearch6 -cluster_fast $trFaFile -id 1.0 -uc $trUCfile -centroids $trNRfile";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed:$?" if !$dryRun;
@@ -298,13 +301,12 @@ $cmd = "mv $trNRfile $trFaFile";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed:$?" if !$dryRun;
 
-print "--- Creating non-redundant seq's taxonomy file\n" if !$quiet;
-my $nrSeqIDs = $candBasename . "_" . $varReg . "_nr.seqIDs";
+my $nrSeqIDs = $trPrefix . "_" . $varReg . "_nr.seqIDs";
 $cmd = "extract_seq_IDs.pl -i $trFaFile -o $nrSeqIDs";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 
-my $trAlgnFileNR = $candBasename . "_" . $varReg . "_algn_nr.fa";
+my $trAlgnFileNR = $trPrefix . "_" . $varReg . "_algn_nr.fa";
 print "--- Dereplicating truncated alignment file\n" if !$quiet;
 $cmd = "rm -f $trAlgnFileNR; select_seqs.pl -s $nrSeqIDs -i $trAlgnFile -o $trAlgnFileNR";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
