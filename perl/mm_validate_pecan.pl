@@ -1691,7 +1691,7 @@ sub read_part_tbl
 {
   my $file = shift;
 
-  if ( ! -f $file )
+  if ( ! -e $file )
   {
     warn "\n\n\tERROR: $file does not exist";
     print "\n\n";
