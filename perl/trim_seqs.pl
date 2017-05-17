@@ -191,6 +191,7 @@ if ( ! -e $trRefFile )
 
 my $s;
 my $e;
+my $cmd;
 
 if (defined $varReg)
 {
@@ -202,7 +203,7 @@ if (defined $varReg)
     printArray(\@tmp, "mothur commands") if ($debug || $verbose);
     my $scriptFile = createCommandTxt(\@tmp);
 
-    my $cmd = "$mothur < $scriptFile; rm -f $scriptFile";
+    $cmd = "$mothur < $scriptFile; rm -f $scriptFile";
     print "\tcmd=$cmd\n" if $dryRun || $debug;
     system($cmd) == 0 or die "system($cmd) failed:$?" if !$dryRun;
 
