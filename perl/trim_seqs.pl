@@ -294,6 +294,7 @@ if (defined $varReg)
       print "--- Start position = $s. \n";
       print "--- End position = $e. \n";
     }
+}
 
 if ($start && $end)
 {
