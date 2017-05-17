@@ -171,12 +171,9 @@ if ( ! -e $trRefFile )
 }
 
 
-# The multiple sequence alignment produced by taxonomy_cleanup.pl (which is run
-# before this script) may leave it out of synch with the lineage file. Therefore,
-# the first order of business is to make sure we use the same sequence IDs for
-# both and that we still have at least one outgroup sequence there.
+## The unaligned sequence database must be aligned to 
 
-print "--- Aligning $seqFile to $trRefFile file\n" if !$quiet;
+print "--- Aligning $trRefFile to $seqFile file\n" if !$quiet;
 my @tmp;
 push (@tmp,"align.seqs(candidate=$trRefFile, template=$seqFile, processors=4, flip=T)");
 printArray(\@tmp, "mothur commands") if ($debug || $verbose);
@@ -186,17 +183,19 @@ my $cmd = "$mothur < $scriptFile; rm -f $scriptFile";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed:$?" if !$dryRun;
 
+
 my @suffixes = (".fasta",".fa",".fna");
-my $candBasename = basename($seqFile, @suffixes); ## This may have to change ($trRefFileBasename to $trRefFile, depending on where mothur writes it)
+my $candBasename = basename($trRefFile, @suffixes); ## This may have to change ($trRefFileBasename to $trRefFile, depending on where mothur writes it)
 my $candAlgn = $candBasename . ".align";
-my $candFile = $candBasename . ".align";
+my $candFile = "/local/projects/pgajer/devel/MCextras/data/RDP/" . $candAlgn;
+
 
 ## removing $trRefFile as it is not needed anymore
 #$cmd = "rm -f $trRefFile";
 #print "\tcmd=$cmd\n" if $dryRun || $debug;
 #system($cmd) == 0 or die "system($cmd) failed:$?" if !$dryRun;
 
-print "--- Calculating alignment range of $candFile\n" if !$quiet;
+print "--- Calculating alignment range of $candAlgn\n" if !$quiet;
 
 my $startStats = Statistics::Descriptive::Full->new();
 my $endStats = Statistics::Descriptive::Full->new();
@@ -204,7 +203,7 @@ my $endStats = Statistics::Descriptive::Full->new();
 my %startTbl;
 my %endTbl;
 
-open (IN, "<$candAlgn") or die "Cannot open $candAlgn for reading: $OS_ERROR";
+open (IN, "<$candFile") or die "Cannot open $candFile for reading: $OS_ERROR";
 $/ = ">";
 my $junkFirstOne = <IN>;
 while (<IN>)
@@ -273,22 +272,25 @@ else
 
 #print "s: $s\te: $e\n";
 
+my @suffixes = (".fasta",".fa",".fna");
+my $trPrefix = basename($seqFile, @suffixes); 
+
 print "--- Trimming alignment to $s and $e\n";
-my $trAlgnFile = $candBasename . "_" . $varReg . "_algn.fa";
+my $trAlgnFile = $trPrefix . "_" . $varReg . "_algn.fa";
 $cmd = "trimAlign -i $seqFile -o $trAlgnFile -s $s -e $e --min-seq-len $minLen";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed:$?" if !$dryRun;
 
-my $trFaFile = $candBasename . "_" . $varReg . ".fa";
+my $trFaFile = $trPrefix . "_" . $varReg . ".fa";
 print "--- Creating corresonding gap free fasta file $trFaFile\n";
 $cmd = "rmGaps -i $trAlgnFile -o $trFaFile";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed:$?" if !$dryRun;
 
 print "--- Dereplicating $trFaFile\n" if !$quiet;
-my $trUCfile = $candBasename . "_" . $varReg . ".uc";
-my $trNRfile = $candBasename . "_" . $varReg . "_nr.fa";
-my $trUCfilelog = $candBasename . "_" . $varReg . "_uc.log";
+my $trUCfile = $trPrefix . "_" . $varReg . ".uc";
+my $trNRfile = $trPrefix . "_" . $varReg . "_nr.fa";
+my $trUCfilelog = $trPrefix . "_" . $varReg . "_uc.log";
 $cmd = "$usearch6 -cluster_fast $trFaFile -id 1.0 -uc $trUCfile -centroids $trNRfile";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed:$?" if !$dryRun;
@@ -297,14 +299,12 @@ $cmd = "mv $trNRfile $trFaFile";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed:$?" if !$dryRun;
 
-print "--- Creating non-redundant seq's taxonomy file\n" if !$quiet;
-## extracting seq IDs from the alignment file and selecting those IDs from the taxon file
-my $nrSeqIDs = $candBasename . "_" . $varReg . "_nr.seqIDs";
+my $nrSeqIDs = $trPrefix . "_" . $varReg . "_nr.seqIDs";
 $cmd = "extract_seq_IDs.pl -i $trFaFile -o $nrSeqIDs";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 
-my $trAlgnFileNR = $candBasename . "_" . $varReg . "_algn_nr.fa";
+my $trAlgnFileNR = $trPrefix . "_" . $varReg . "_algn_nr.fa";
 print "--- Dereplicating truncated alignment file\n" if !$quiet;
 $cmd = "rm -f $trAlgnFileNR; select_seqs.pl -s $nrSeqIDs -i $trAlgnFile -o $trAlgnFileNR";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
