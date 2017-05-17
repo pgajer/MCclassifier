@@ -163,31 +163,7 @@ if ( ! -e $seqFile )
 }
 
 
-my $trRefFile;
-my $trRefFileBasename;
-if ($varReg =~ 'V3V4')
-{
-  $trRefFile = "/local/projects/pgajer/devel/MCextras/data/RDP/V400.unique.subsampled.fa";
-  print "--- Detected ref db for the V3V4 variable region\n"
-}
-elsif ($varReg =~ 'V4')
-{
-  $trRefFile = "/local/projects/pgajer/devel/MCextras/data/RDP/BEAM.unique.subsampled.fa";
-  print "--- Detected ref db for the V4 variable region\n"
-}
-else
-{
-  warn "\n\n\tERROR: Invalid variable region $varReg";
-  print "\n\n";
-  exit 1;
-}
 
-# check existence
-if ( ! -e $trRefFile )
-{
-  warn "ERROR: $trRefFile cannot be found";
-  exit 1;
-}
 
 my $s;
 my $e;
@@ -195,6 +171,32 @@ my $cmd;
 
 if (defined $varReg)
 {
+    
+    my $trRefFile;
+    my $trRefFileBasename;
+    if ($varReg =~ 'V3V4')
+    {
+      $trRefFile = "/local/projects/pgajer/devel/MCextras/data/RDP/V400.unique.subsampled.fa";
+      print "--- Detected ref db for the V3V4 variable region\n"
+    }
+    elsif ($varReg =~ 'V4')
+    {
+      $trRefFile = "/local/projects/pgajer/devel/MCextras/data/RDP/BEAM.unique.subsampled.fa";
+      print "--- Detected ref db for the V4 variable region\n"
+    }
+    else
+    {
+      warn "\n\n\tERROR: Invalid variable region $varReg";
+      print "\n\n";
+      exit 1;
+    }
+
+    # check existence
+    if ( ! -e $trRefFile )
+    {
+      warn "ERROR: $trRefFile cannot be found";
+      exit 1;
+    }
     ## The unaligned sequence database must be aligned to 
 
     print "--- Aligning $trRefFile to $seqFile file\n" if !$quiet;
