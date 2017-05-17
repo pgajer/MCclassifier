@@ -45,9 +45,6 @@
 =item B<--build-tree>
   Forces build of a tree, even if one already has been build.
 
-=item B<--num-proc, -m>
-  Number of processors to be used. Default value: 8.
-
 =item B<--run-all>
   Ignore if ( ! -e ... ) statements.
 
@@ -96,7 +93,6 @@ $OUTPUT_AUTOFLUSH = 1;
 ##                             OPTIONS
 ####################################################################
 
-my $nProc             = 0;
 my $percCoverage      = 80;
 my $maxNumNRseqs      = 100;  # when the number of non-redundant seq's is more
 			      # than maxNumNRseqs selecte x number of largest
@@ -113,7 +109,6 @@ GetOptions(
   "build-tree"               => \my $buildTree,
   "use-vsearch"              => \my $useVsearch,
   "perc-coverage|p=i"        => \$percCoverage,
-  "num-proc|m=i"             => \$nProc,
   "igs"                      => \my $igs,
   "run-all"                  => \my $runAll,
   "show-tree"                => \my $showTree,
@@ -169,8 +164,8 @@ my $igsStr = "";
 if ( defined $igs )
 {
   $baseDir               = "/usr/local/projects/pgajer/devel/MCextras/data/RDP/V3V4/";
-  $mmDir                 = "/local/scratch/MM/";
-  $mmSppDir              = "/local/scratch/MM/MM_spp_dir";
+  $mmDir                 = "/local/scratch/MM_pecan/";
+  $mmSppDir              = "/local/scratch/MM_pecan/MM_May16_spp_dir";
 
   $fix_fasta_headers     = "/home/pgajer/devel/MCclassifier/perl/fix_fasta_headers.pl";
   $nw_labels             = "/usr/local/projects/pgajer/bin/nw_labels";
@@ -598,8 +593,6 @@ for my $phGr ( keys %phGrSppTbl )
         system($cmd) == 0 or die "system($cmd) failed:$?" if !$dryRun;
       }
     }
-
-
 
     #
     # NOTE that the _nr.fa file will have seq headers of the form >seqID;size=\d+;

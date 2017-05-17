@@ -112,7 +112,8 @@ if ($ppEmbedding)
 
 ## Gather final lineage, fasta (ungapped) and taxon files for all phylo-groups
 
-my $baseDirExt = "/Users/pgajer/devel/MCextras/data/vaginal_old_vs_PECAN_May11_2017/vag_expanded_V3V4_phylo_groups_dir/";
+
+my $baseDirExt = "/Users/pgajer/devel/MCextras/data/vag_exp_V3V4_phGrps_May16_dir/";
 
 my @faFilesExt0 = ("Actinobacteria_group_0_V3V4_dir/Actinobacteria_group_0_V3V4_final.fa",
 		   "Actinobacteria_group_1_V3V4_dir/Actinobacteria_group_1_V3V4_final.fa",
@@ -402,12 +403,12 @@ my @allPhGrs = ("Actinobacteria_group_0_V3V4",
 		"Proteobacteria_group_8_V3V4",
 		"Proteobacteria_group_9_V3V4");
 
-my %faTbl;
+my %fastaTbl;
 my %txTbl;
 my %spLiTbl;
 for my $i ( 0..$#allPhGrs )
 {
-  $faTbl{$allPhGrs[$i]}   = $faFiles1[$i];
+  $fastaTbl{$allPhGrs[$i]}   = $faFiles1[$i];
   $txTbl{$allPhGrs[$i]}   = $txFiles1[$i];
   $spLiTbl{$allPhGrs[$i]} = $spLiFiles1[$i];
 }
@@ -425,7 +426,7 @@ for ( @allPhGrs )
   }
   else
   {
-    push @faFiles,   $faTbl{$_};
+    push @faFiles,   $fastaTbl{$_};
     push @txFiles,   $txTbl{$_};
     push @spLiFiles, $spLiTbl{$_};
   }
@@ -520,9 +521,9 @@ foreach $file (@spLiFiles)
 {
   print "\rProcessing $file        ";
   my @tokens = split "/", $file;
-  my $phGr = $tokens[9];
+  my $phGr = $tokens[7];
   $phGr =~ s/_dir//;
-  ##  print "tokens: @tokens\t"; print "phGr: $phGr\tphGrID: $phGrID\n"; exit;
+  #print "tokens: @tokens\nphGr: $phGr\n"; exit;
 
   open IN, "$file" or die "Cannot open $file for reading: $OS_ERROR";
   for my $lineage (<IN>)
@@ -705,7 +706,7 @@ my %spLineage; # species => lineage of the species (recorded as a string) with t
 foreach $file (@spLiFiles)
 {
   my @tokens = split "/", $file;
-  my $phGr = $tokens[9];
+  my $phGr = $tokens[7];
   $phGr =~ s/_dir//;
   print "\rProcessing $phGr     ";
   my $phGrID;
@@ -810,7 +811,8 @@ system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 print "\r                                                                                 ";
 print "\n\t fasta file written to $faFile\n";
 print "\t taxon file written to $txFile\n";
-print "\t spLineage written to $spLineageFile\n\n";
+print "\t spLineage written to $spLineageFile\n";
+print "\t MC master models written to $mcDir\n\n";
 
 
 ####################################################################

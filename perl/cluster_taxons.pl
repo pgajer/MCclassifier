@@ -148,7 +148,9 @@ elsif (!$outFile)
 }
 
 my $readNewickFile = "/Users/pgajer/.Rlocal/read.newick.R";
-my $phyloPart = "/Users/pgajer/devel/MCclassifier/PhyloPart_v2.1/PhyloPart_v2.1.jar";
+my $phyloPart      = "/Users/pgajer/devel/MCclassifier/PhyloPart_v2.1/PhyloPart_v2.1.jar";
+my $R              = "R";
+
 
 if ($igs)
 {
