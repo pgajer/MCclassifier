@@ -517,6 +517,7 @@ my %clTbl;
 my %phTbl;
 
 ##my %spLineage; # species => lineage of the species (recorded as a string) with the corresponding phyo-group name at the end
+my %badSppName;
 foreach $file (@spLiFiles)
 {
   print "\rProcessing $file        ";
@@ -538,8 +539,32 @@ foreach $file (@spLiFiles)
     my $cl = shift @f;
     my $ph = shift @f;
 
-    ##$spLineage{$sp} = $lineage . "\t$phGr";
+    # does a species have 2 (or 1) component name ?
+    # @f = split "_", $sp;
+    # if ( @f > 2 && $f[2] ne "OG" )
+    # {
+    #   warn "\n\nERROR: $sp seems to have more than 2 components";
+    #   print "$file\n\n";
+    # }
 
+    #
+    if ( $sp =~ /MG/ || $sp =~ /FN/ || $sp =~ /\./)
+    {
+      warn "\n\nERROR: $sp has strange name";
+      print "$file\n\n";
+      $badSppName{$sp} = $file;
+    }
+
+    # are there any backslashes in the species name
+    @f = split "/", $sp;
+    if ( @f > 1 )
+    {
+      warn "\n\nERROR: $sp seems to have a backslash in its name";
+      print "$file\n\n";
+      $badSppName{$sp} = $file;
+    }
+
+    ##$spLineage{$sp} = $lineage . "\t$phGr";
     # print "lineage: $lineage\n";
     # print "sp : $sp\n";
     # print "sge : $sge\n";
@@ -560,6 +585,18 @@ foreach $file (@spLiFiles)
     $phTbl{$ph}{$phGr}   = 1;
   }
   close IN;
+}
+
+
+if ( keys %badSppName > 0 )
+{
+  print "\n\nDiscovered the following species with suspecious names\n";
+  my @a = sort { $badSppName{$a} cmp $badSppName{$b} } keys %badSppName;
+  print_tbl( \%badSppName, \@a );
+
+  print "\n\nPlease fix these names and rerun taxonomy_cleanup.pl on the corresonding phylo-groups\n\n";
+
+  exit;
 }
 
 if (0)
@@ -826,6 +863,14 @@ sub print_array
   my ($a, $header) = @_;
   print "\n$header\n" if $header;
   map {print "$_\n"} @{$a};
+}
+
+# print elements of a hash table
+sub print_tbl
+{
+  my ($rTbl, $r) = @_;
+
+  map {print "$_\t" . $rTbl->{$_} . "\n"} @{$r};
 }
 
 exit 0;

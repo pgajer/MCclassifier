@@ -21,6 +21,10 @@
 =item B<--output-file, -o>
   Output file.
 
+=item B<--scp-non-ext-phGrs>
+  scp gzipped tar balls of non-extended phylo-groups to
+  /usr/local/projects/pgajer/devel/MCextras/data/RDP/V3V4
+
 =item B<--verbose, -v>
   Prints content of some output files.
 
@@ -38,7 +42,9 @@
 
 =head1 EXAMPLE
 
-  build_spp_2_phGr_tbl.pl -o spp_2_phGr_ext_may12_models.txt
+  cd ~/devel/MCextras/data/vag_exp_V3V4_phGrps_May16_dir
+
+  build_spp_2_phGr_tbl.pl --scp-non-ext-phGrs -o spp_2_phGr_ext_may16_models.txt
 
 =cut
 
@@ -55,6 +61,7 @@ $OUTPUT_AUTOFLUSH = 1;
 ####################################################################
 
 GetOptions(
+  "scp-non-ext-phGrs"   => \my $scpNonExtPhGrs,
   "out-file|o=s"        => \my $outFile,
   "verbose|v"           => \my $verbose,
   "debug"               => \my $debug,
@@ -262,6 +269,7 @@ for my $i ( 0..$#allPhGrs )
 # print "\n";
 # exit;
 
+
 # list species in allPhGrs but not in extPhGrs
 
 my @d = diff( \@allPhGrs, \@extPhGrs );
@@ -269,7 +277,7 @@ print "\nNumber of non-extended phylo-groups: " . @d . "\n";
 print_array(\@d);
 print "\n\n";
 
-if ( 0 )
+if ( $scpNonExtPhGrs )
 {
   my $dir = "/Users/pgajer/devel/MCextras/data/RDP/rdp_Bacteria_phylum_dir/";
   my $count = 1;
@@ -317,12 +325,12 @@ if ( $debug )
   exit;
 }
 
-
 open OUT, ">$outFile" or die "Cannot open $outFile for writing: $OS_ERROR\n";
 for my $file ( @spLiFiles )
 {
   my $phGr = $spLiFile2phGr{$file};
   my @spp = get_spp_from_spLi( $file );
+  are_spp_names_good( \@spp, $file ); # Checking if all species have 1 or 2 component names
   for ( @spp )
   {
     print OUT "$_\t$phGr\n";
@@ -335,6 +343,31 @@ close OUT;
 ##                               SUBS
 ####################################################################
 
+
+# parse a 2 column table
+sub read_tbl
+{
+  my $file = shift;
+
+  if ( ! -e $file )
+  {
+    warn "\n\n\tERROR: $file does not exist";
+    print "\n\n";
+    exit 1;
+  }
+
+  my %tbl;
+  open IN, "$file" or die "Cannot open $file for reading: $OS_ERROR";
+  foreach my $line (<IN>)
+  {
+    chomp $line;
+    my ($id, $val) = split /\s+/, $line;
+    $tbl{$id} = $val;
+  }
+  close IN;
+
+  return %tbl;
+}
 
 # print array to stdout
 sub print_array
