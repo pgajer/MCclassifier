@@ -149,7 +149,7 @@ my $usearch6 = "/Users/pgajer/bin/usearch6.0.203_i86osx32";
 
 if ( defined $igs )
 {
-  $mothur   = "/usr/local/packages/mothur-1.36.1/mothur";
+  $mothur   = "/usr/local/packages/mothur-1.39.3/mothur";
   $dB       = "/usr/local/projects/pgajer/devel/MCextras/data/RDP/";
   $usearch6 = "/local/projects/pgajer/bin/usearch6.0.203_i86linux32";
 }
