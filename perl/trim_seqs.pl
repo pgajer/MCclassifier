@@ -80,8 +80,8 @@ GetOptions(
   "igs"                   => \my $igs,
   "johanna"               => \my $johanna,
   "manual"		            => \my $manual,
-  "start"                 => \my $start,
-  "end"                   => \my $end,
+  "start|s=i"             => \my $start,
+  "end|e=i"               => \my $end,
 
   )
   or pod2usage(verbose => 0,exitstatus => 1);
@@ -96,21 +96,21 @@ if ($help)
 if (!$varReg && !$start && !$end)
 {
   print "\n\n ERROR: Must provide either a variable region with (-v)\n";
-  print "\n\n or start (-start) and end (-end) trimming positions.\n\n\n";
+  print "\n\n or start (-s) and end (-e) trimming positions.\n\n\n";
   pod2usage(verbose => 2,exitstatus => 0);
   exit 1;
 }
 elsif (!$varReg && !$start && $end)
 {
   print "\n\n ERROR: End position provided, but start\n";
-  print "\n\n position (-start) missing.\n\n\n";
+  print "\n\n position (-s) missing.\n\n\n";
   pod2usage(verbose => 2,exitstatus => 0);
   exit 1;
 }
 elsif (!$varReg && $start && !$end)
 {
   print "\n\n ERROR: Start position provided, but end\n";
-  print "\n\n position (-end) missing.\n\n\n";
+  print "\n\n position (-e) missing.\n\n\n";
   pod2usage(verbose => 2,exitstatus => 0);
   exit 1;
 }
