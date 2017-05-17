@@ -177,6 +177,15 @@ my @algnFiles = map{ $baseDir . $_ } @algnFiles0;
 
 ## $ time classify -v --skip-err-thld -d /Users/pgajer/devel/MCextras/data/RDP/rdp_Bacteria_phylum_dir/all_bacteria_V3V4_MC_models_dir -i vaginal_319_806_v2.fa -o vaginal_319_806_v2_pecan_dir
 
+
+print "--- Checking if all species have 1 or 2 component names\n";
+for my $file ( @algnFiles )
+{
+  $file =~ s/_ginsi_algn.fa/.tx/;
+  are_spp_names_good( $file );
+}
+exit;
+
 print "--- Parsing PECAN tx table of old ref seq's\n";
 my $oPeTxFile = "/Users/pgajer/projects/16S_rRNA_pipeline/vaginal_species_oct18_2013/vaginal_319_806_v2_pecan_dir/MC_order7_results.txt";
 my %oPeTx     = read_tbl( $oPeTxFile );
@@ -1059,6 +1068,59 @@ sub unique
   my @out = grep(!$saw{$_}++, @{$a});
 
   return @out;
+}
+
+# do all species listed in taxonomy table have 2 (or 1) component names
+# the argument is a taxonomy table before taxonomy cleanup
+sub are_spp_names_good
+{
+  my $file = shift;
+
+  my %fqTbl = sp_freq_tbl( $file );
+
+  for my $sp ( keys %fqTbl )
+  {
+    my @f = split "_", $sp;
+    if ( @f > 2 && $f[2] ne "OG" )
+    {
+      warn "\n\nERROR: $sp seems to have more than 2 components";
+      print "$file\n\n";
+    }
+
+    # testing also if there are any backslashes in the species names
+    @f = split "/", $sp;
+    if ( @f > 1 )
+    {
+      warn "\n\nERROR: $sp seems to have a backslash in its name";
+      print "$file\n\n";
+    }
+  }
+}
+
+# extract from a taxonomy table species frequency table
+sub sp_freq_tbl
+{
+  my $file = shift;
+
+  if ( ! -e $file )
+  {
+    warn "\n\n\tERROR in read_tbl(): $file does not exist";
+    print "\n\n";
+    exit 1;
+  }
+
+  my %tbl;
+  open IN, "$file" or die "Cannot open $file for reading: $OS_ERROR";
+  foreach (<IN>)
+  {
+    next if /^$/;
+    chomp;
+    my ($id, $t) = split /\s+/,$_;
+    $tbl{$t}++;
+  }
+  close IN;
+
+  return %tbl;
 }
 
 exit 0;
