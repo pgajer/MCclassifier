@@ -187,6 +187,11 @@ system($cmd) == 0 or die "system($cmd) failed:$?" if !$dryRun;
 my @suffixes = (".fasta",".fa",".fna");
 my $candBasename = basename($trRefFile, @suffixes); ## This may have to change ($trRefFileBasename to $trRefFile, depending on where mothur writes it)
 my $candAlgn = $candBasename . ".align";
+my $candFile = "/local/projects/pgajer/devel/MCextras/data/RDP/" . $candAlgn;
+
+my $cmd = "";
+print "\tcmd=$cmd\n" if $dryRun || $debug;
+system($cmd) == 0 or die "system($cmd) failed:$?" if !$dryRun;
 
 ## removing $trRefFile as it is not needed anymore
 #$cmd = "rm -f $trRefFile";
@@ -201,7 +206,7 @@ my $endStats = Statistics::Descriptive::Full->new();
 my %startTbl;
 my %endTbl;
 
-open (IN, "<$candAlgn") or die "Cannot open $candAlgn for reading: $OS_ERROR";
+open (IN, "<$candFile") or die "Cannot open $candFile for reading: $OS_ERROR";
 $/ = ">";
 my $junkFirstOne = <IN>;
 while (<IN>)
