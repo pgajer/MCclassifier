@@ -171,18 +171,19 @@ if ( ! -e $trRefFile )
 }
 
 
-# The multiple sequence alignment produced by taxonomy_cleanup.pl (which is run
-# before this script) may leave it out of synch with the lineage file. Therefore,
-# the first order of business is to make sure we use the same sequence IDs for
-# both and that we still have at least one outgroup sequence there.
+## The unaligned sequence database must be aligned to 
 
-print "--- Aligning $seqFile to $trRefFile file\n" if !$quiet;
+print "--- Aligning $trRefFile to $seqFile file\n" if !$quiet;
 my @tmp;
 push (@tmp,"align.seqs(candidate=$trRefFile, template=$seqFile, processors=4, flip=T)");
 printArray(\@tmp, "mothur commands") if ($debug || $verbose);
 my $scriptFile = createCommandTxt(\@tmp);
 
 my $cmd = "$mothur < $scriptFile; rm -f $scriptFile";
+print "\tcmd=$cmd\n" if $dryRun || $debug;
+system($cmd) == 0 or die "system($cmd) failed:$?" if !$dryRun;
+
+my $cmd = "cp /local/projects/pgajer/devel/MCextras/data/RDP/V400.unique.subsampled.align .";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed:$?" if !$dryRun;
 
@@ -298,7 +299,6 @@ print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed:$?" if !$dryRun;
 
 print "--- Creating non-redundant seq's taxonomy file\n" if !$quiet;
-## extracting seq IDs from the alignment file and selecting those IDs from the taxon file
 my $nrSeqIDs = $candBasename . "_" . $varReg . "_nr.seqIDs";
 $cmd = "extract_seq_IDs.pl -i $trFaFile -o $nrSeqIDs";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
