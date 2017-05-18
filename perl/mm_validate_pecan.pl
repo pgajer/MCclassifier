@@ -1055,7 +1055,7 @@ for my $phGr ( keys %phGrSppTbl )
     {
       print "\r\t\tGenerating pdf of the condensed tree";
       my $treeAbsPath = abs_path( $condTreeFile2 );
-        plot_tree($treeAbsPath, $pdfTreeFile, $sp);
+      plot_tree($treeAbsPath, $pdfTreeFile, $sp);
 
       my $pdfTreeLink = $treesDir . "/$sp" . $covSuffix . "__$phGr" . "__tree.pdf";
       my $ap = abs_path( $pdfTreeFile );
