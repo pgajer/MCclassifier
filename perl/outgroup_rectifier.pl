@@ -397,18 +397,7 @@ my @badOGs;
 my $nCltrs = @rangeSize;
 if (@rangeSize>1)
 {
-  ## from http://stackoverflow.com/questions/18532026/how-to-append-system-date-to-a-filename-in-perl
-  my @now = localtime();
-  my $timeStamp = sprintf("%04d-%02d-%02d_%02d:%02d:%02d",
-			  $now[5]+1900, $now[4]+1, $now[3],
-			  $now[2],      $now[1],   $now[0]);
-
-  my $origDataDir = $grDir . "/orig_data_dir_$timeStamp";
-
-  $cmd = "mkdir -p $origDataDir";
-  print "\tcmd=$cmd\n" if $dryRun || $debug; # || $debug;
-  system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
-
+  my $origDataDir = mk_timeStamp_dir( "orig_data_dir" );
 
   print "Detected multiple OG clusters\n" if $debug;
 
@@ -1777,6 +1766,23 @@ sub touchFile
   my $cmd = "touch $file";
   print "\tcmd=$cmd\n" if $dryRun || $debug;
   system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+}
+
+sub mk_timeStamp_dir
+{
+  my $baseName = shift;
+
+  my @now = localtime();
+  my $timeStamp = sprintf("%04d%02d%02d_%02d%02d%02d",
+			  $now[5]+1900, $now[4]+1, $now[3],
+			  $now[2],      $now[1],   $now[0]);
+
+  my $tmpDir = $baseName . "_$timeStamp";
+  my $cmd = "mkdir -p $tmpDir";
+  print "\tcmd=$cmd\n" if $dryRun || $debug;
+  system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+
+  return $tmpDir;
 }
 
 exit 0;

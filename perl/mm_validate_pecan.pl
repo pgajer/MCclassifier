@@ -370,11 +370,6 @@ my @txFiles = map{ $baseDir . $_ } @txFiles0;
 
 if ( !defined $outDir )
 {
-  # my @now = localtime();
-  # my $timeStamp = sprintf("%04d%02d%02d_%02d%02d%02d",
-  # 			  $now[5]+1900, $now[4]+1, $now[3],
-  # 			  $now[2],      $now[1],   $now[0]);
-  # $outDir = $mmDir . "mm_validate_reports_dir_$timeStamp";
   $outDir = $mmDir . "mm_validate_pecan_dir";
 }
 
@@ -470,7 +465,7 @@ for my $phGr ( keys %phGrSppTbl )
   my $phGrTxFile = $f[0];
   ## print "\nphGr: $phGr; phGrTxFile: $phGrTxFile\n";
 
-  #my %phGrTxTbl = readTbl($phGrTxFile);
+  #my %phGrTxTbl = read_tbl($phGrTxFile);
 
   ## file with the given phylo-group's outgroup seq's
   my $phGrOGseqIDsFile = $phGrFaFile;
@@ -478,7 +473,7 @@ for my $phGr ( keys %phGrSppTbl )
 
   print "--- Reading $phGrOGseqIDsFile\n" if $debug;
 
-  my @ogSeqIDs = readArray($phGrOGseqIDsFile);
+  my @ogSeqIDs = read_array($phGrOGseqIDsFile);
   print "\nNo. OG seq's: " . scalar(@ogSeqIDs) . "\n";
 
   ## file with the given phylo-group's fa file of all seq's before curation including outgroup seq's
@@ -847,14 +842,14 @@ for my $phGr ( keys %phGrSppTbl )
     ## 5. Reporting results of vicut
     ##
 
-    my ($rvCltrTbl, $rvTxTbl, $rvExtTxTbl) = readCltrsTbl($vicutCltrsFile);
+    my ($rvCltrTbl, $rvTxTbl, $rvExtTxTbl) = read_cltrs_tbl($vicutCltrsFile);
 
     my %vCltrTbl   = %{$rvCltrTbl};  # seqID => vicut cluster ID
     my %vTxTbl     = %{$rvTxTbl};    # seqID => taxonomy (NA for query seq's)
     my %vExtTxTbl  = %{$rvExtTxTbl}; # seqID => taxonomy of seqID if seqID is a phGr ref seq and c<vicut cluster ID of seqID> if seqID is a query seq
 
     my $vExtTxTblFile = "$spDir/$sp" . $covSuffix . "_ext.tx";
-    writeTbl(\%vExtTxTbl, $vExtTxTblFile);
+    write_tbl(\%vExtTxTbl, $vExtTxTblFile);
 
     ## vicut-cltr/tx frequency table
     my %vCltrvTxFreq;
@@ -1012,7 +1007,7 @@ for my $phGr ( keys %phGrSppTbl )
       print "\tcmd=$cmd\n" if $dryRun || $debug;
       system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 
-      my @condSppTreeLeaves = readArray($condSppLeavesFile);
+      my @condSppTreeLeaves = read_array($condSppLeavesFile);
 
       ##print "condSppTreeLeaves: @condSppTreeLeaves\n";
 
@@ -1044,7 +1039,7 @@ for my $phGr ( keys %phGrSppTbl )
       }
 
       my $condSppLeavesFile2 = "$spDir/$sp" . $covSuffix . "_spp_cond.leaves2";
-      writeTbl(\%newLeafNames, $condSppLeavesFile2);
+      write_tbl(\%newLeafNames, $condSppLeavesFile2);
 
       $cmd = "rm -f $sppTreeFile; $nw_rename $condTreeFile $condSppLeavesFile2 | $nw_order -c n  - > $condTreeFile2";
       print "\tcmd=$cmd\n" if $dryRun || $debug;
@@ -1060,7 +1055,7 @@ for my $phGr ( keys %phGrSppTbl )
     {
       print "\r\t\tGenerating pdf of the condensed tree";
       my $treeAbsPath = abs_path( $condTreeFile2 );
-        plot_tree($treeAbsPath, $pdfTreeFile, $sp);
+      plot_tree($treeAbsPath, $pdfTreeFile, $sp);
 
       my $pdfTreeLink = $treesDir . "/$sp" . $covSuffix . "__$phGr" . "__tree.pdf";
       my $ap = abs_path( $pdfTreeFile );
@@ -1227,13 +1222,13 @@ sub parse_spp_tbl
 
 
 # read 3 column clstrs table
-sub readCltrsTbl{
+sub read_cltrs_tbl{
 
   my $file = shift;
 
   if ( ! -f $file )
   {
-    warn "\n\n\tERROR in readTbl(): $file does not exist";
+    warn "\n\n\tERROR in read_cltrs_tbl(): $file does not exist";
     print "\n\n";
     exit 1;
   }
@@ -1267,13 +1262,13 @@ sub readCltrsTbl{
 
 # read two column table; create a table that assigns
 # elements of the first column to the second column
-sub readTbl{
+sub read_tbl{
 
   my $file = shift;
 
-  if ( ! -f $file )
+  if ( ! -e $file )
   {
-    warn "\n\n\tERROR in readTbl(): $file does not exist";
+    warn "\n\n\tERROR: $file does not exist";
     print "\n\n";
     exit 1;
   }
@@ -1387,14 +1382,14 @@ sub comm{
 }
 
 # read table with one column
-sub readArray{
+sub read_array{
 
   my ($file, $hasHeader) = @_;
   my @rows;
 
   if ( ! -f $file )
   {
-    warn "\n\n\tERROR in readArray(): $file does not exist";
+    warn "\n\n\tERROR in read_array(): $file does not exist";
     print "\n\n";
     exit 1;
   }
@@ -1724,7 +1719,7 @@ sub read_part_tbl
 }
 
 # write hash table to a file
-sub writeTbl
+sub write_tbl
 {
   my ($rTbl, $outFile) = @_;
   my %tbl = %{$rTbl};
@@ -1845,7 +1840,7 @@ sub get_leaves
   print "\tcmd=$cmd\n" if $dryRun || $debug;
   system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 
-  my @a = readArray($leavesFile);
+  my @a = read_array($leavesFile);
 
   return @a;
 }
