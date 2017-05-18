@@ -119,31 +119,35 @@ if ($verbose)
   $verboseStr  = "--verbose";
 }
 
-my $nw_labels   = "nw_labels";
-my $nw_order    = "nw_order";
-my $nw_condense = "nw_condense";
-my $nw_rename   = "nw_rename";
-my $nw_prune    = "nw_prune";
-my $nw_reroot   = "nw_reroot";
-my $nw_clade    = "nw_clade";
-my $FastTree    = "FastTree";
-my $select_seqs = "select_seqs.pl";
-my $select_tx   = "select_tx.pl";
-my $mothur      = "/Users/pgajer/bin/mothur";
+my $nw_labels      = "nw_labels";
+my $nw_order       = "nw_order";
+my $nw_condense    = "nw_condense";
+my $nw_rename      = "nw_rename";
+my $nw_prune       = "nw_prune";
+my $nw_reroot      = "nw_reroot";
+my $nw_clade       = "nw_clade";
+my $FastTree       = "FastTree";
+my $select_seqs    = "select_seqs.pl";
+my $select_tx      = "select_tx.pl";
+my $mothur         = "/Users/pgajer/bin/mothur";
+my $readNewickFile = "/Users/pgajer/.Rlocal/read.newick.R";
+my $R              = "R";
 
 if ( defined $igs )
 {
-  $nw_labels    = "/usr/local/projects/pgajer/bin/nw_labels";
-  $nw_order     = "/usr/local/projects/pgajer/bin/nw_order";
-  $nw_condense  = "/usr/local/projects/pgajer/bin/nw_condense";
-  $nw_rename    = "/usr/local/projects/pgajer/bin/nw_rename";
-  $nw_prune     = "/usr/local/projects/pgajer/bin/nw_prune";
-  $nw_reroot    = "/usr/local/projects/pgajer/bin/nw_reroot";
-  $nw_clade     = "/usr/local/projects/pgajer/bin/nw_clade";
-  $FastTree     = "/home/pgajer/bin/FastTree_no_openMP";
-  $select_seqs  = "/home/pgajer/devel/MCclassifier/perl/select_seqs.pl";
-  $select_tx    = "/home/pgajer/devel/MCclassifier/perl/select_tx.pl";
-  $mothur       = "/usr/local/projects/pgajer/bin/mothur";
+  $nw_labels      = "/usr/local/projects/pgajer/bin/nw_labels";
+  $nw_order       = "/usr/local/projects/pgajer/bin/nw_order";
+  $nw_condense    = "/usr/local/projects/pgajer/bin/nw_condense";
+  $nw_rename      = "/usr/local/projects/pgajer/bin/nw_rename";
+  $nw_prune       = "/usr/local/projects/pgajer/bin/nw_prune";
+  $nw_reroot      = "/usr/local/projects/pgajer/bin/nw_reroot";
+  $nw_clade       = "/usr/local/projects/pgajer/bin/nw_clade";
+  $FastTree       = "/home/pgajer/bin/FastTree_no_openMP";
+  $select_seqs    = "/home/pgajer/devel/MCclassifier/perl/select_seqs.pl";
+  $select_tx      = "/home/pgajer/devel/MCclassifier/perl/select_tx.pl";
+  $mothur         = "/usr/local/projects/pgajer/bin/mothur";
+  $readNewickFile = "/local/projects/pgajer/devel/MCclassifier/perl/read.newick.R";
+  $R              = "/home/pgajer/bin/R";
 }
 
 ####################################################################
@@ -301,12 +305,30 @@ if ( $seqCountBefore != $seqCountAfter )
   print "--- Testing if OG seq's form a monophylectic clade at the top or bottom of the tree\n";
   if ( test_OG( $treeFile, \%ogLiTbl ) != 0 )
   {
-    warn "\n\n\tERROR: There is an issue with the input tree outgroup seq's";
+    print "--- Generating pdf of the condensed tree\n";
+    my $treeAbsPath = abs_path( $ssTreeFile );
+    my $pdfTreeFile = $grPrefix . "_sppSeqIDs_tree.pdf";
+    plot_tree( $treeAbsPath, $grPrefix, $pdfTreeFile );
+
+    $cmd = "open $pdfTreeFile";
+    print "\tcmd=$cmd\n" if $dryRun || $debug;
+    system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+
+    warn "\n\n\tERROR: There is an issue with the tree outgroup seq's";
+    print "\n\tPlease check out the following trees\n";
+    print "\t$treeFile\n";
+    print "\t$ssTreeFile\n";
     print "\n\n";
+
     exit 1;
   }
 
-  print "\n\n\tSuccessfully added OG seq's\n\n";
+  print "\n\n\tSuccessfully added OG seq's\n";
+  print "\n\tPlease check out the following trees\n";
+  print "\t$treeFile\n";
+  print "\t$ssTreeFile\n";
+  print "\n\n";
+
 }
 else
 {
@@ -1088,7 +1110,7 @@ sub test_OG
     }
   }
 
-  print "\n\tOG seq's form a monophylectic clade at the top or bottom of the input tree\n\n" if $debug_test_OG;
+  print "\n\tOG seq's form a monophylectic clade at the top or bottom of the tree\n\n" if $debug_test_OG;
 
   return $ret;
 }
@@ -1203,6 +1225,75 @@ sub build_spp_seqID_tree
   $cmd = "rm -f $ssTreeFile; $nw_rename $treeFile $annFile2 | $nw_order -  > $ssTreeFile";
   print "\tcmd=$cmd\n" if $dryRun || $debug;
   system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+}
+
+## plot tree with clade colors
+sub plot_tree
+{
+  my ($treeFile, $title, $pdfFile) = @_;
+
+  my $showBoostrapVals = "T";
+
+  if (!defined $title)
+  {
+    $title = "";
+  }
+
+  my $Rscript = qq~
+
+source(\"$readNewickFile\")
+require(phytools)
+
+tr <- read.newick(file=\"$treeFile\")
+tr <- collapse.singles(tr)
+
+(nLeaves <- length(tr\$tip.label))
+
+figH <- 8
+figW <- 6
+if ( nLeaves >= 50 )
+{
+    figH <- 6.0/50.0 * ( nLeaves - 50) + 10
+    figW <- 6.0/50.0 * ( nLeaves - 50) + 6
+}
+
+pdf(\"$pdfFile\", width=figW, height=figH)
+op <- par(mar=c(0,0,1.5,0), mgp=c(2.85,0.6,0),tcl = -0.3)
+plot(tr, type=\"phylogram\", no.margin=FALSE, show.node.label=F, cex=0.8, main=\"$title\")
+par(op)
+dev.off()
+~;
+
+  run_R_script( $Rscript );
+}
+
+# execute an R-script
+sub run_R_script
+{
+  my $Rscript = shift;
+
+  my ($fh, $inFile) = tempfile("rTmpXXXX", SUFFIX => '.R', OPEN => 1, DIR => $tmpDir);
+  print $fh "$Rscript";
+  close $fh;
+
+  my $outFile = $inFile . "out";
+  my $cmd = "$R CMD BATCH --no-save --no-restore-data $inFile $outFile";
+  system($cmd) == 0 or die "system($cmd) failed:$?\n";
+
+  open IN, "$outFile" or die "Cannot open $outFile for reading: $OS_ERROR";
+  my $exitStatus = 1;
+
+  foreach my $line (<IN>)
+  {
+    if ( $line =~ /Error/ )
+    {
+      print "R script crashed at\n$line";
+      print "check $outFile for details\n";
+      $exitStatus = 0;
+      exit 1;
+    }
+  }
+  close IN;
 }
 
 exit 0;
