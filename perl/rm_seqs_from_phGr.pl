@@ -245,6 +245,8 @@ if ( $seqCountBefore != $seqCountAfter )
   $cmd = "rm -f $treeFile; $FastTree -nt $algnFile > $treeFile";
   print "\tcmd=$cmd\n" if $dryRun || $debug;
   system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+
+  print "\n\n\tRemoval successfully complicated\n\n";
 }
 else
 {
@@ -372,13 +374,14 @@ sub printF
 
 # read two column table; create a table that assigns
 # elements of the first column to the second column
-sub read2colTbl
+sub read_tbl
 {
   my $file = shift;
 
-  if ( ! -f $file )
+  if ( ! -e $file )
   {
-    warn "\n\nERROR in read2colTbl(): $file does not exist\n\n\n";
+    warn "\n\n\tERROR: $file does not exist";
+    print "\n\n";
     exit 1;
   }
 
