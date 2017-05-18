@@ -317,6 +317,7 @@ if ($start && $end)
   chomp ($s = $start);
   print "--- Trimming start position provided. Trimming at position $end. \n";
   chomp ($e = $end);
+  $varReg = $s . "_" . $e;
 }
 
 #print "s: $s\te: $e\n";
