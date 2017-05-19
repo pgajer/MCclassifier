@@ -59,6 +59,7 @@ use Getopt::Long qw(:config no_ignore_case no_auto_abbrev pass_through);
 use Cwd qw(abs_path);
 use File::Temp qw/ tempfile /;
 
+
 $OUTPUT_AUTOFLUSH = 1;
 
 ####################################################################
@@ -235,7 +236,7 @@ $cmd = "mv $txFile $bkpDir/$txFile";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 
-$cmd = "mv $algnFile $bkpDir/$algnFile";
+$cmd = "cp $algnFile $bkpDir/$algnFile";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 
@@ -287,13 +288,13 @@ write_array( \@ogs, $ogFile );
 
 print "--- Aligning OG seq's to the phGr alignment file\n" if !$quiet;
 my $nProc = 8;
-my ($seqCountBefore, $seqCountAfter) = mothur_align_and_add( $ogFaFile, "$bkpDir/$algnFile", $nProc );
+my ($seqCountBefore, $seqCountAfter) = mothur_align_and_add( $ogFaFile, $algnFile, $nProc );
 
 if ( $seqCountBefore != $seqCountAfter )
 {
   print "--- Rebuilding tree using modified alignment\n" if !$quiet;
   my ($tmpFH, $tmpTreeFile) = tempfile("tmp.XXXX", SUFFIX => 'tree', OPEN => 0, DIR => $tmpDir);
-  build_FastTree( $algnFile, $tmpTreeFile );
+  build_tree( $algnFile, $tmpTreeFile );
 
   print "--- Rerooting the tree using new outgroup sequences\n" if !$quiet;
   reroot_tree( $tmpTreeFile, \@ogs, $treeFile );
@@ -1178,11 +1179,11 @@ sub mothur_align_and_add
     exit 1;
   }
 
-  $cmd = "cat $mothurAlgnFile $bkpDir/$algnFile > $algnFile";
+  $cmd = "cat $mothurAlgnFile >> $templateFile";
   print "\tcmd=$cmd\n" if $dryRun || $debug;
   system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 
-  my $seqCountAfter = seq_count( $algnFile );
+  my $seqCountAfter = seq_count( $templateFile );
 
   if ( !$quiet )
   {
@@ -1193,7 +1194,7 @@ sub mothur_align_and_add
   return ($seqCountBefore, $seqCountAfter);
 }
 
-sub build_FastTree
+sub build_tree
 {
   my ($algnFile, $treeFile) = @_;
 
