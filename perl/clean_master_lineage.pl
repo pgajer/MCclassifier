@@ -68,6 +68,7 @@ GetOptions(
   "quiet"               => \my $quiet,
   "igs"                 => \my $igs,
   "verbose|v"           => \my $verbose,
+  "dry-run"             => \my $dryRun,
   "debug"               => \my $debug,
   "help|h!"             => \my $help,
   )
@@ -112,12 +113,6 @@ my $verboseStr = "";
 if ( $verbose )
 {
   $verboseStr = "--verbose";
-}
-
-my $nProcStr = "";
-if ( $nProc )
-{
-  $nProcStr = "--thread $nProc";
 }
 
 my $nw_labels             = "nw_labels";
@@ -227,7 +222,39 @@ my @mLiFiles0 = ("Actinobacteria_dir/Actinobacteria_group_0_dir/Actinobacteria_g
 my @mLiFiles1 = map{ $_ = $baseDir . $_ } @mLiFiles0;
 
 
+print "--- Extracting species => genus table\n";
+
 my %spParent;
+foreach my $file ( @mLiFiles1 )
+{
+  my @a = split "/", $file;
+  my $phGr = pop @a;
+  $phGr =~ s/\.lineage$//;
+  print "\rProcessing $phGr        ";
+
+  open IN, "$file" or die "Cannot open $file for reading: $OS_ERROR";
+  for my $lineage (<IN>)
+  {
+    chomp $lineage;
+    my ($id, $li) = split /\s+/, $lineage;
+    my @f = split ";", $li;
+
+    my $sp = pop @f;
+    my $ge = pop @f;
+    $spParent{$sp} = $ge;
+  }
+  close IN;
+}
+print "\r                                                      ";
+
+my $spGeFile = $outDir . "/species_genus_tbl_may19_2017.txt";
+my @spp = sort keys %spParent;
+write_sorted_tbl( \%spParent, \@spp, $spGeFile );
+
+print "\r\n\nSpecies to genus tbl written to $spGeFile\n\n";
+
+exit;
+
 my %geParent;
 my %faParent;
 my %orParent;
@@ -240,6 +267,48 @@ my %suspeciousOrName;   # order not ending with 'les
 my %faEQor;
 my %orEQcl;
 my %clEQph;
+
+
+# array and table listing classes with identical taxonomy as their phyla
+my @goodCls = ("Thermodesulfobacteria", "Aquificae", "Gemmatimonadetes", "Actinobacteria", "Chrysiogenetes", "Elusimicrobia", "Deferribacteres", "Thermotogae");
+my %goodClsTbl = map { $_ => 1 } @goodCls;
+
+# [~/devel/MCextras/data/RDP/rdp_Bacteria_phylum_dir]$ awk 'FS=";" {print $2 " => " "\""$1"\""}' tmp.txt | sort | uniq
+
+my %geParent1 = (
+  Spongiispira => "Oceanospirillaceae",
+  Salicola     => "Halomonadaceae",
+  Vasilyevaea  => "Hyphomicrobiaceae",
+  Amorphus     => "Rhodobiaceae",
+  Teredinibacter => "Cellvibrionaceae",
+  Dasania      => "Spongiibacteraceae",
+  Oceanotoga   => "Thermotogaceae",
+  Caldithrix   => "DeferribacteralesIS",
+  Phocaeicola  => "BacteroidalesIS",
+  Fangia       => "ThiotrichalesIS",
+  Caedibacter  => "ThiotrichalesIS",
+  Thiomonas    => "BurkholderialesIS",
+  Aquabacterium => "BurkholderialesIS",
+  Aquincola => "BurkholderialesIS",
+  Ideonella => "BurkholderialesIS",
+  Inhella => "BurkholderialesIS",
+  Leptothrix => "BurkholderialesIS",
+  Methylibium => "BurkholderialesIS",
+  Mitsuaria => "BurkholderialesIS",
+  Paucibacter => "BurkholderialesIS",
+  Piscinibacter => "BurkholderialesIS",
+  Rubrivivax => "BurkholderialesIS",
+  Sphaerotilus => "BurkholderialesIS",
+  Tepidimonas => "Burkholderiales",
+  Tepidimonas => "BurkholderialesIS",
+  Thiobacter => "BurkholderialesIS",
+  Thiomonas => "BurkholderialesIS",
+  Xylophilus => "BurkholderialesIS",
+  Microaerobacter => "Bacillaceae",
+  Calditerricola => "Bacillaceae",
+  Caldalkalibacillus => "Bacillaceae",
+);
+
 
 foreach my $file ( @mLiFiles1 )
 {
@@ -582,15 +651,6 @@ sub seq_count
   my ($lcount, $str) = split /\s+/, $wcline;
 
   return $lcount;
-}
-
-sub ginsi_algn
-{
-  my ($faFile, $algnFile) = @_;
-
-  my $cmd = "rm -f $algnFile; $ginsi --inputorder $quietStr $nProcStr $faFile > $algnFile";
-  print "\tcmd=$cmd\n" if $dryRun || $debug;
-  system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 }
 
 sub build_tree
