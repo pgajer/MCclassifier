@@ -227,12 +227,6 @@ if (defined $varReg)
     my $candAlgn = $candBasename . ".align";
     my $candFile = "/local/projects/pgajer/devel/MCextras/data/RDP/" . $candAlgn;
 
-
-    ## removing $trRefFile as it is not needed anymore
-    #$cmd = "rm -f $trRefFile";
-    #print "\tcmd=$cmd\n" if $dryRun || $debug;
-    #system($cmd) == 0 or die "system($cmd) failed:$?" if !$dryRun;
-
     print "--- Calculating alignment range for $varReg region of $candAlgn\n" if !$quiet;
 
     my $startStats = Statistics::Descriptive::Full->new();
@@ -315,17 +309,15 @@ if ($start && $end)
 {
   print "--- Trimming start position provided. Trimming at position $start. \n";
   chomp ($s = $start);
-  print "--- Trimming start position provided. Trimming at position $end. \n";
+  print "--- Trimming end position provided. Trimming at position $end. \n";
   chomp ($e = $end);
   $varReg = $s . "_" . $e;
 }
 
-#print "s: $s\te: $e\n";
-
 my @suffixes = (".fasta",".fa",".fna");
 my $trPrefix = basename($seqFile, @suffixes); 
 
-print "--- Trimming alignment to $s and $e\n";
+## print "--- Trimming alignment to $s and $e\n";
 my $trAlgnFile = $trPrefix . "_" . $varReg . "_algn.fa";
 $cmd = "trimAlign -i $seqFile -o $trAlgnFile -s $s -e $e --min-seq-len $minLen";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
