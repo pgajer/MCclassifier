@@ -163,6 +163,7 @@ if ( $nProc )
 
 my $spGeFile              = "/Users/pgajer/devel/MCextras/data/RDP/rdp_Bacteria_phylum_dir/species_genus_tbl_may19_2017.txt";
 my $geLiFile              = "/Users/pgajer/devel/MCextras/data/RDP/rdp_Bacteria_phylum_dir/microcontax_genus_lineage_tbl.txt"; # NOTE: this one has a header !
+my $ogGeFile              = "/Users/pgajer/devel/MCextras/data/RDP/old/Archaea_Caldococcus_noboribetus_S000414080.fa";
 
 my $nw_labels             = "nw_labels";
 my $nw_order              = "nw_order";
@@ -208,7 +209,7 @@ if ( defined $igs )
 
   $spGeFile              = "/usr/local/projects/pgajer/devel/MCextras/data/species_genus_tbl_may19_2017.txt";
   $geLiFile              = "/usr/local/projects/pgajer/devel/MCextras/data/microcontax/microcontax_genus_lineage_tbl.txt"; # NOTE: this one has a header !
-
+  $ogGeFile              = "/usr/local/projects/pgajer/devel/MCextras/data/phylo_split/Archaea_Caldococcus_noboribetus_S000414080.fa";
   $nProcStr              = "";
   $nProc                 = 1;
 }
@@ -421,13 +422,13 @@ if ( ! -e $algnFile || ! -s $algnFile || $runAll )
   $runAll = 1;
   unlink( $algnFile ) if $runAll;
   ginsi_algn( $geFile, $algnFile );
+}
+
 
   ## adding outgroup seq to the alignment
   print "--- Aligning OG sequence to the alignment\n";
-  my $ogGeFile = "/Users/pgajer/devel/MCextras/data/RDP/old/Archaea_Caldococcus_noboribetus_S000414080.fa";
-
   my ($seqCountBefore, $seqCountAfter) = mothur_align_and_add( $ogGeFile, $algnFile, $nProc );
-}
+
 
 
 
