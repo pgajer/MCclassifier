@@ -208,6 +208,9 @@ if ( defined $igs )
 
   $spGeFile              = "/usr/local/projects/pgajer/devel/MCextras/data/species_genus_tbl_may19_2017.txt";
   $geLiFile              = "/usr/local/projects/pgajer/devel/MCextras/data/microcontax_genus_lineage_tbl.txt"; # NOTE: this one has a header !
+
+  $nProcStr              = "";
+  $nProc                 = 1;
 }
 
 ####################################################################
@@ -422,7 +425,6 @@ if ( ! -e $algnFile || ! -s $algnFile || $runAll )
   print "--- Aligning OG sequence to the alignment\n";
   my $ogGeFile = "/Users/pgajer/devel/MCextras/data/RDP/old/Archaea_Caldococcus_noboribetus_S000414080.fa";
 
-  ##my $nProc = 8;
   my ($seqCountBefore, $seqCountAfter) = mothur_align_and_add( $ogGeFile, $algnFile, $nProc );
 }
 
