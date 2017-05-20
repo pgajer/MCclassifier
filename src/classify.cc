@@ -525,6 +525,8 @@ int main(int argc, char **argv)
   int timeMin = 0;
   int timeSec = 0;
   int perc;
+  int nDecissions = 0; // for each sequence count the number of decisions the
+		       // classifier has to make to get to this tree.
 
   while ( getNextFastaRecord( in, id, data, alloc, seq, seqLen) )
   {
@@ -564,6 +566,7 @@ int main(int argc, char **argv)
     int nChildren = node->children_m.size();
     int breakLoop = 0;
     double finalPP = 0.0; // posterior probability of the sequence w/r to the winner model
+    nDecissions = 0;
 
     if ( inPar->ppEmbedding ) // start of decition path of the given sequence
       fprintf(dOut,"%s", id);
@@ -571,6 +574,8 @@ int main(int argc, char **argv)
     //int depthCount = 1;
     while ( nChildren && !breakLoop )
     {
+      nDecissions += nChildren;
+
       // compute model probabilities for seq and rcseq
       // NOTE: after a few iterations only seq or rcseq should be processed !!!
       for ( int i = 0; i < nChildren; i++ )
@@ -668,7 +673,7 @@ int main(int argc, char **argv)
     if ( inPar->ppEmbedding ) // end of the given seq's decition path
       fprintf(dOut,"\n");
 
-    fprintf(out,"%s\t%s\t%.2f\n", id, node->label.c_str(), finalPP);
+    fprintf(out,"%s\t%s\t%.2f\t%d\n", id, node->label.c_str(), finalPP, nDecissions);
 
   } // end of   while ( getNextFastaRecord( in, id, data, alloc, seq, seqLen) )
 

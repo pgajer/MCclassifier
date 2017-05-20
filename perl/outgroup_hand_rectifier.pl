@@ -232,13 +232,7 @@ printArrayByRow(\@goodOGseqIDs, "new OG seqIDs") if ($debug);
 
 writeArray(\@badOGSeqIDs, $delogSeqIDsFile);
 
-## from http://stackoverflow.com/questions/18532026/how-to-append-system-date-to-a-filename-in-perl
-my @now = localtime();
-my $timeStamp = sprintf("%04d-%02d-%02d_%02d:%02d:%02d",
-			$now[5]+1900, $now[4]+1, $now[3],
-			$now[2],      $now[1],   $now[0]);
-
-my $origDataDir = $grDir . "/orig_data_dir_$timeStamp";
+my $origDataDir = mk_timeStamp_dir( "orig_data_dir" );
 
 print "--- Pruning lost seqIDs from the current sppSeqIDs phylo tree\n" if !$quiet;
 my $prunedTreeFile = $grPrefix . "_sppSeqIDs_pruned.tree";
@@ -1268,6 +1262,23 @@ sub writeArray
   open OUT, ">$outFile" or die "Cannot open $outFile for writing: $OS_ERROR\n";
   map {print OUT "$_\n"} @{$a};
   close OUT
+}
+
+sub mk_timeStamp_dir
+{
+  my $baseName = shift;
+
+  my @now = localtime();
+  my $timeStamp = sprintf("%04d%02d%02d_%02d%02d%02d",
+			  $now[5]+1900, $now[4]+1, $now[3],
+			  $now[2],      $now[1],   $now[0]);
+
+  my $tmpDir = $baseName . "_$timeStamp";
+  my $cmd = "mkdir -p $tmpDir";
+  print "\tcmd=$cmd\n" if $dryRun || $debug;
+  system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+
+  return $tmpDir;
 }
 
 exit 0;

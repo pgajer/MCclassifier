@@ -186,15 +186,7 @@ if ( -l $treeFile )
 print "\n";
 
 print "\r--- Creating cross-validation reports directory";
-my @now = localtime();
-my $timeStamp = sprintf("%04d-%02d-%02d_%02d_%02d_%02d",
-			$now[5]+1900, $now[4]+1, $now[3],
-			$now[2],      $now[1],   $now[0]);
-
-my $cvReportsDir = "cv_reports_dir_$timeStamp";
-my $cmd = "mkdir -p $cvReportsDir";
-print "\tcmd=$cmd\n" if $dryRun || $debug; # || $debug;
-system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+my $cvReportsDir = mk_timeStamp_dir( "cv_reports_dir" );
 
 print "\r--- Extracting seq IDs from trimmed alignment fasta file              ";
 my @seqIDs = get_seqIDs_from_fa($faFile);
@@ -856,6 +848,23 @@ sub printFormatedTbl{
     print "$_$pad" . $rTbl->{$_} . "\n";
   }
   print "\n";
+}
+
+sub mk_timeStamp_dir
+{
+  my $baseName = shift;
+
+  my @now = localtime();
+  my $timeStamp = sprintf("%04d%02d%02d_%02d%02d%02d",
+			  $now[5]+1900, $now[4]+1, $now[3],
+			  $now[2],      $now[1],   $now[0]);
+
+  my $tmpDir = $baseName . "_$timeStamp";
+  my $cmd = "mkdir -p $tmpDir";
+  print "\tcmd=$cmd\n" if $dryRun || $debug;
+  system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+
+  return $tmpDir;
 }
 
 exit 0;
