@@ -478,9 +478,12 @@ $condPhTreeFile = abs_path( $condPhTreeFile );
 my $pdfTreeFile = $outDir . "/condensed_phylum_tree.pdf";
 plot_tree( $condPhTreeFile, "Condensed Phylum", $pdfTreeFile );
 
-$cmd = "open $pdfTreeFile";
-print "\tcmd=$cmd\n" if $dryRun || $debug;
-system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+if ( $OSNAME eq "darwin")
+{
+  $cmd = "open $pdfTreeFile";
+  print "\tcmd=$cmd\n" if $dryRun || $debug;
+  system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+}
 
 print "--- Running vicut using phylum annotation\n";
 my $phVicutDir = $outDir . "/phylum_vicut_dir";
@@ -510,9 +513,12 @@ $condClTreeFile = abs_path( $condClTreeFile );
 $pdfTreeFile = $outDir . "/condensed_class_tree.pdf";
 plot_tree( $condClTreeFile, "Condensed Class", $pdfTreeFile );
 
-$cmd = "open $pdfTreeFile";
-print "\tcmd=$cmd\n" if $dryRun || $debug;
-system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+if ( $OSNAME eq "darwin")
+{
+  $cmd = "open $pdfTreeFile";
+  print "\tcmd=$cmd\n" if $dryRun || $debug;
+  system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+}
 
 print "--- Running vicut using class annotation\n";
 my $clVicutDir = $outDir . "/class_vicut_dir";
@@ -542,9 +548,12 @@ $condOrTreeFile = abs_path( $condOrTreeFile );
 $pdfTreeFile = $outDir . "/condensed_order_tree.pdf";
 plot_tree( $condOrTreeFile, "Condensed Order", $pdfTreeFile );
 
-$cmd = "open $pdfTreeFile";
-print "\tcmd=$cmd\n" if $dryRun || $debug;
-system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+if ( $OSNAME eq "darwin")
+{
+  $cmd = "open $pdfTreeFile";
+  print "\tcmd=$cmd\n" if $dryRun || $debug;
+  system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+}
 
 print "--- Running vicut using order annotation\n";
 my $orVicutDir = $outDir . "/order_vicut_dir";
@@ -573,9 +582,12 @@ $condFaTreeFile = abs_path( $condFaTreeFile );
 $pdfTreeFile = $outDir . "/condensed_family_tree.pdf";
 plot_tree( $condFaTreeFile, "Condensed Family", $pdfTreeFile );
 
-$cmd = "open $pdfTreeFile";
-print "\tcmd=$cmd\n" if $dryRun || $debug;
-system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+if ( $OSNAME eq "darwin")
+{
+  $cmd = "open $pdfTreeFile";
+  print "\tcmd=$cmd\n" if $dryRun || $debug;
+  system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+}
 
 print "--- Running vicut using family annotation\n";
 my $faVicutDir = $outDir . "/family_vicut_dir";
