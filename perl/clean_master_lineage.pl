@@ -224,6 +224,31 @@ my @mLiFiles1 = map{ $_ = $baseDir . $_ } @mLiFiles0;
 
 print "--- Extracting species => genus table\n";
 
+my %badGenera = (
+  unknown => 1,
+  Kosakonia => 0,
+  Moheibacter => 0,
+  Thermoflexus => 0,
+  Chitinivibrio => 0,
+  Pluralibacter => 0,
+  "Escherichia-Shigella" => 1,
+  Ferrovum => 0,
+  Planococcaceae => 1,
+  "Chthonomonas-Armatimonadetes" => 1,
+  Erysipelotrichaceae => 1,
+  Peptostreptococcaceae => 1,
+  Lelliottia => 0,
+  Ruminococcus2 => 1,
+  Lachnospiracea => 1,
+  Psychrosinus => 0,
+  "Armatimonas/Armatimonadetes_gp1" => 1,
+  Sporolactobacillaceae => 1,
+  "Armatimonas-Armatimonadetes" => 1,
+  Desulfosporomusa => 0,
+  "Chthonomonas/Armatimonadetes_gp3" => 1,
+  );
+
+my %ourGeLiTbl;
 my %spParent;
 foreach my $file ( @mLiFiles1 )
 {
@@ -241,11 +266,106 @@ foreach my $file ( @mLiFiles1 )
 
     my $sp = pop @f;
     my $ge = pop @f;
+
+    if ( exists $badGenera{$ge} && $badGenera{$ge} == 1 )
+    {
+      print "\n$file\n";
+      print "$li\n";
+      exit 1;
+    }
+    elsif ( exists $badGenera{$ge} && $badGenera{$ge} == 0 )
+    {
+      $ourGeLiTbl{$ge} = $li;
+    }
     $spParent{$sp} = $ge;
   }
   close IN;
 }
+
+my %liFile2phGr;
+foreach my $file ( @liFiles )
+{
+  print "\rProcessing $file        ";
+  my @a = split "/", $file;
+  my $phGr = pop @a;
+  $phGr =~ s/\.lineage$//;
+  $liFile2phGr{$file} = $phGr;
+
+  open IN, "$file" or die "Cannot open $file for reading: $OS_ERROR";
+  for my $lineage (<IN>)
+  {
+    chomp $lineage;
+    my ($id, $li) = split /\s+/, $lineage;
+    my @f = split ";", $li;
+
+    my $sp = pop @f;
+
+    if ( ! exists $spParent{$sp} )
+    {
+      my $ge = pop @f;
+      my ($g, $suffix) = split "_", @f;
+      if ( (defined $suffix && $ge eq $g) )
+      {
+	print "\nWARNING: $sp not found in spParent tbl - using $g\n";
+	$spParent{$sp} = $g;
+      }
+      elsif ( !defined $suffix )
+      {
+	print "\nWARNING: $sp not found in spParent tbl - using $ge\n";
+	$spParent{$sp} = $ge;
+      }
+      else
+      {
+       	warn "\nWARNING: $sp not found in spParent tbl";
+	print "Two possible candidates: \n$g\n$ge\n\n";
+	exit 1;
+      }
+    }
+  }
+  close IN;
+}
+
 print "\r                                                      ";
+
+my $geLiFile = "/Users/pgajer/devel/MCextras/data/RDP/rdp_Bacteria_phylum_dir/microcontax_genus_lineage_tbl.txt"; # NOTE: this one has a header !
+
+if (0)
+{
+  print "--- Appending our genus-lineage to the microcontax pkg genus-lineage tbl\n";
+  open OUT, ">>$geLiFile" or die "Cannot open $geLiFile for writing: $OS_ERROR\n";
+  for my $ge ( keys %ourGeLiTbl )
+  {
+    my $li = $ourGeLiTbl{$ge};
+    my @f = split ";", $li;
+    my $sp = pop @f;
+    my $ge = pop @f;
+    my $fa = pop @f;
+    my $or = pop @f;
+    my $cl = pop @f;
+    my $ph = pop @f;
+    print OUT "$ge $fa $or $cl $ph Bacteria\n";
+
+  }
+  close OUT;
+}
+
+print "--- Parsing microcontax pkg genus-lineage tbl\n";
+my ($rgeFaTbl, $rgeOrTbl, $rgeClTbl, $rgePhTbl) = ge_li_tbl( $geLiFile );
+my %geFaTbl = %{$rgeFaTbl};
+
+
+
+print "--- Checking if all out db genera are found in the master genus-lineage table\n";
+my @ges = values %spParent;
+@ges = unique( \@ges );
+for my $ge ( @ges  )
+{
+  if ( ! exists $geFaTbl{$ge} )
+  {
+    #warn "WARNING: $ge not found in geFaTbl\n";
+    print "$ge\n";
+  }
+}
 
 my $spGeFile = $outDir . "/species_genus_tbl_may19_2017.txt";
 my @spp = sort keys %spParent;
@@ -1283,6 +1403,47 @@ sub print_tbl_valued_tbl
     }
   }
   print "\n";
+}
+
+sub ge_li_tbl
+{
+  my $file = shift;
+
+  my %geFaTbl;
+  my %geOrTbl;
+  my %geClTbl;
+  my %gePhTbl;
+  open IN, "$file" or die "Cannot open $file for reading: $OS_ERROR\n";
+  my $header = <IN>;
+  for ( <IN> )
+  {
+    chomp;
+    my @f = split /\s+/;
+
+    my $ge = shift @f;
+    my $fa = shift @f;
+    my $or = shift @f;
+    my $cl = shift @f;
+    my $ph = shift @f;
+
+    $geFaTbl{$ge} = $fa;
+    $geOrTbl{$ge} = $or;
+    $geClTbl{$ge} = $cl;
+    $gePhTbl{$ge} = $ph;
+  }
+  close IN;
+
+  return (\%geFaTbl, \%geOrTbl, \%geClTbl, \%gePhTbl);
+}
+
+# extract unique elements from an array
+sub unique{
+
+  my $a = shift;
+  my %saw;
+  my @out = grep(!$saw{$_}++, @{$a});
+
+  return @out;
 }
 
 exit 0;
