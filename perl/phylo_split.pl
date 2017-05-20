@@ -632,7 +632,7 @@ sub print_array
 
 sub get_li_files_igs
 {
-  $baseDir = "/usr/local/projects/pgajer/devel/MCextras/data/RDP/V3V4/";
+  my $baseDir = "/usr/local/projects/pgajer/devel/MCextras/data/RDP/V3V4/";
 
   my @liFiles0 = ("Actinobacteria_dir/Actinobacteria_group_0_V3V4_dir/Actinobacteria_group_0_V3V4.lineage",
 		  "Actinobacteria_dir/Actinobacteria_group_1_V3V4_dir/Actinobacteria_group_1_V3V4.lineage",
