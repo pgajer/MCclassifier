@@ -366,7 +366,8 @@ if ( ! -e $geFile || ! -s $geFile || $runAll )
 
     my %spFreq = %{ $geSpFreq{$phGr}{$ge} };
     my @spp = sort{ $spFreq{$b} <=> $spFreq{$a} } keys %spFreq;
-    my $sp = $spp[0]; # species with most representative seq's
+    #my $sp = $spp[0]; # species with most representative seq's
+    my $sp = $spp[rand @spp]; # species with most representative seq's
     my @ids = @{ $spSeqIDs{$phGr}{$sp} };
     my $refSeqID = $ids[rand @ids];
     $geRefSeqID{$ge} = $refSeqID;
