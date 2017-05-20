@@ -207,7 +207,7 @@ if ( defined $igs )
   $ginsi                 = "/home/pgajer/bin/ginsi"; # MAFFT v7.310 (2017/Mar/17)
 
   $spGeFile              = "/usr/local/projects/pgajer/devel/MCextras/data/species_genus_tbl_may19_2017.txt";
-  $geLiFile              = "/usr/local/projects/pgajer/devel/MCextras/data/microcontax_genus_lineage_tbl.txt"; # NOTE: this one has a header !
+  $geLiFile              = "/usr/local/projects/pgajer/devel/MCextras/data/microcontax/microcontax_genus_lineage_tbl.txt"; # NOTE: this one has a header !
 
   $nProcStr              = "";
   $nProc                 = 1;
