@@ -225,7 +225,7 @@ if (defined $varReg)
     my @suffixes = (".fasta",".fa",".fna");
     my $candBasename = basename($trRefFile, @suffixes); ## This may have to change ($trRefFileBasename to $trRefFile, depending on where mothur writes it)
     my $candAlgn = $candBasename . ".align";
-    my $candFile = "/local/projects/pgajer/devel/MCextras/data/RDP/" . $candAlgn;
+    my $candFile = "/home/jholm/" . $candAlgn;
 
     print "--- Calculating alignment range for $varReg region of $candAlgn\n" if !$quiet;
 
