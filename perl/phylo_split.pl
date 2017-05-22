@@ -371,7 +371,7 @@ if ( ! -e $geFile || ! -s $geFile || $runAll )
   print "--- Generating genus rep's fasta file\n";
   # NOTE that $geTxFile contains also OG seq's that are not present in $faFile,
   # but its not going to break select_seqs.pl
-  my $cmd = "select_seqs.pl -s $geTxFile -i $faFile -o $geFile";
+  my $cmd = "$select_seqs -s $geTxFile -i $faFile -o $geFile";
   print "\tcmd=$cmd\n" if $dryRun || $debug;
   system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 
