@@ -34,8 +34,8 @@
 
 =over
 
-=item B<--li-file, -l>
-  Master lineage file
+=item B<--tx-file, -t>
+  Master taxon file (seqID => species)
 
 =item B<--fa-file, -i>
   Master fasta file
@@ -79,9 +79,7 @@
 
   cd ~/projects/PECAN/data/phylo_groups/v0.2
 
-  phylo_split.pl -i master_V3V4.fa -l master_V3V4.lineage -o phylo_split_dir
-
-  phylo_split.pl --igs -i master_V3V4.fa -l master_V3V4.lineage -o phylo_split_dir
+  phylo_split.pl -i master_V3V4_no_outliers.fa -t master_V3V4_no_outliers.tx -o phylo_split_dir
 
 =cut
 
@@ -103,7 +101,7 @@ my $maxCltrSize = 3000;
 my $nProc       = 8;
 
 GetOptions(
-  "li-file|l=s"         => \my $liFile,
+  "tx-file|t=s"         => \my $txFile,
   "fa-file|i=s"         => \my $faFile,
   "output-dir|o=s"      => \my $outDir,
   "max-cltr-size|m=s"   => \$maxCltrSize,
@@ -132,7 +130,7 @@ if ( !$outDir )
   pod2usage(verbose => 2,exitstatus => 0);
   exit 1;
 }
-elsif ( !$liFile )
+elsif ( !$txFile )
 {
   print "ERROR: Missing master lineage file\n\n";
   pod2usage(verbose => 2,exitstatus => 0);
@@ -145,9 +143,9 @@ elsif ( !$faFile )
   exit 1;
 }
 
-if ( ! -e $liFile || ! -s $liFile )
+if ( ! -e $txFile || ! -s $txFile )
 {
-  warn "ERROR: Master lineage file does not exist (or has size 0)";
+  warn "ERROR: Master taxon file $txFile does not exist (or has size 0)";
   print "\n\n";
   exit 1;
 }
@@ -264,15 +262,17 @@ if ( defined $igs )
 ##                               MAIN
 ####################################################################
 
-print "--- Identifying lineage files\n";
-my @liFiles = get_li_files();
+print "--- Parsing OG seq's taxonomy\n";
+my %ogTx  = read_tbl( $ogTxFile );
+my @ogs   = keys %ogTx;
+my %ogInd = map { $_ => 1 } @ogs;
 
-if ( $debug )
-{
-  print_array( \@liFiles, "\nliFiles" );
-  print "\n\n";
-  exit;
-}
+print "--- Parsing seqID => species table\n";
+my %spTbl = read_tbl( $txFile );
+
+print "--- Parsing species-genus tbl\n";
+my %spGeTbl = read_tbl( $spGeFile );
+
 
 print "--- Parsing microcontax pkg genus-lineage tbl\n";
 my ($rgeFaTbl, $rgeOrTbl, $rgeClTbl, $rgePhTbl) = ge_li_tbl( $geLiFile );
@@ -288,53 +288,36 @@ $geClTbl{"OG"} = "OG";
 $gePhTbl{"OG"} = "OG";
 
 
-print "--- Parsing species-genus tbl\n";
-my %spGeTbl = read_tbl( $spGeFile );
+print "--- Building species-genus tables\n";
 
-
-print "--- Extracting taxonomy of V3V4 ref seq's\n";
-
-#my %txTbl;
 my %spSeqIDs;
 my %geFileFreq;
 my %geSpFreq;
 my %liFile2phGr;
-
-foreach my $file ( @liFiles )
+my $spGeTblNeedsUpdate = 0;
+foreach my $id ( keys %spTbl )
 {
-  print "\rProcessing $file        ";
-  my @a = split "/", $file;
-  my $phGr = pop @a;
-  $phGr =~ s/\.lineage$//;
-  $liFile2phGr{$file} = $phGr;
+  my $sp = $spTbl{$id};
 
-  open IN, "$file" or die "Cannot open $file for reading: $OS_ERROR";
-  for my $lineage (<IN>)
+  if ( ! exists $spGeTbl{$sp} )
   {
-    chomp $lineage;
-    my ($id, $li) = split /\s+/, $lineage;
-    my @f = split ";", $li;
-
-    my $sp = pop @f;
-    #$txTbl{$id} = $sp;
-
-    if ( ! exists $spGeTbl{$sp} )
-    {
-      my ($g, $suffix) = split "_", @f;
-      print "\nWARNING: $sp not found in spGeTbl - using $g\n";
-      $spGeTbl{$sp} = $g;
-      #exit 1;
-    }
-    my $ge = $spGeTbl{$sp};
-    $geFileFreq{$ge}{$file}++;
-    $geSpFreq{$phGr}{$ge}{$sp}++;
-    push @{ $spSeqIDs{$phGr}{$sp} }, $id;
+    my ($g, $suffix) = split "_", $sp;
+    print "WARNING: $sp not found in spGeTbl - using $g\n";
+    $spGeTbl{$sp} = $g;
+    $spGeTblNeedsUpdate = 1;
+    #exit 1;
   }
-  close IN;
+  my $ge = $spGeTbl{$sp};
+  $geSpFreq{$ge}{$sp}++;
+  push @{ $spSeqIDs{$sp} }, $id;
 }
 
-print "\r                                                                          \n";
 
+if ( $spGeTblNeedsUpdate )
+{
+  print "--- Updating $spGeFile\n";
+  write_tbl( \%spGeTbl, $spGeFile );
+}
 
 print "--- Checking if all out db genera are found in the master genus-lineage table\n";
 my @ges = values %spGeTbl;
@@ -349,71 +332,15 @@ for my $ge ( @ges  )
 }
 
 
-print "--- If a genus is present in more than one phylo-group identify seqIDs from the less abundant phylo-groups - for deletion\n";
-my @badIDs;
-for my $ge ( keys %geFileFreq )
-{
-  print "\rProcessing $ge                                      ";
-  my %fileFreq = %{ $geFileFreq{$ge} };
-  my @files = sort { $fileFreq{$b} <=> $fileFreq{$a} } keys %fileFreq;
-  if ( @files > 1 )
-  {
-    print "\nWARNING: $ge is present in more than one phylogroups\n";
-    #print "files: @files\n";
-    for my $f ( @files )
-    {
-      my $phGr = $liFile2phGr{$f};
-      print "$phGr\t" . $fileFreq{$f} . "\n";
-    }
-
-    shift @files;
-    for my $f ( @files )
-    {
-      my $phGr = $liFile2phGr{$f};
-      my %spFreq = %{ $geSpFreq{$phGr}{$ge} };
-      my @spp = keys %spFreq;
-      for my $sp (@spp)
-      {
-	my @ids = @{ $spSeqIDs{$phGr}{$sp} };
-	push @badIDs, @ids;
-      }
-    }
-    print "\n";
-  }
-}
-
-print "\r\nNumber of bad seqIDs: " . @badIDs . "\n";
-my $badIDsFile = $outDir . "/bad.seqIDs";
-write_array( \@badIDs, $badIDsFile );
-
-print "\nBad seqIDs written to $badIDsFile\n";
-
-exit;
-
-
-if ( 0 )
-{
-  my @ourGenera = keys %geFileFreq;
-  my @masterGenera = keys %geFaTbl;
-  my @d = diff( \@masterGenera, \@ourGenera );
-  my $geNotInOurDB = $outDir . "/genera_not_in_our_db.txt";
-  write_array( \@d, $geNotInOurDB );
-  print "\n\nGenera not in our db written to $geNotInOurDB\n\n";
-}
-
-# 3. For each genus pick a random sequence from the most abundant species of
-# that genus.
-
+#
+# For each genus pick a random sequence from the most abundant species of that genus
+#
 
 my %geRefSeqID;
 my %geTx;
 
 my $geTxFile = $outDir . "/genus.tx";
 my $algnFile = $outDir . "/genus_algn.fa";
-my $ogSeqID  = "S000414080";
-
-my @ogs   = ($ogSeqID);
-my %ogInd = map { $_ => 1 } @ogs;
 
 my $geFile = $outDir . "/genus.fa";
 if ( ! -e $geFile || ! -s $geFile || $runAll )
@@ -424,56 +351,34 @@ if ( ! -e $geFile || ! -s $geFile || $runAll )
   print "--- Picking a represetative sequence of each family\n";
   print "--- Building fasta file of genus represetative sequences\n";
 
-  for my $ge ( keys %geFileFreq )
+  for my $ge ( keys %geSpFreq )
   {
     print "\rProcessing $ge                                      ";
-    my %fileFreq = %{ $geFileFreq{$ge} };
-    my @files = sort { $fileFreq{$b} <=> $fileFreq{$a} } keys %fileFreq;
-    if ( @files > 1 )
-    {
-      print "\nWARNING: $ge is present in more than one phylogroups\n";
-      #print "files: @files\n";
-      for my $f ( @files )
-      {
-	my $phGr = $liFile2phGr{$f};
-	print "$phGr\t" . $fileFreq{$f} . "\n";
-      }
-      print "\n";
-    }
-    my $file = $files[0];
-    my $phGr = $liFile2phGr{$file};
-    #print "\n\nli file: $file\n";
-    $file =~ s/lineage$/fa/;
-    #print "ge file: $file\n"; exit;
-
-    my %spFreq = %{ $geSpFreq{$phGr}{$ge} };
-    my @spp = sort{ $spFreq{$b} <=> $spFreq{$a} } keys %spFreq;
-    #my $sp = $spp[0]; # species with most representative seq's
+    my %spFreq = %{ $geSpFreq{$ge} };
+    my @spp = keys %spFreq;
     my $sp = $spp[rand @spp]; # species with most representative seq's
-    my @ids = @{ $spSeqIDs{$phGr}{$sp} };
+    my @ids = @{ $spSeqIDs{$sp} };
     my $refSeqID = $ids[rand @ids];
     $geRefSeqID{$ge} = $refSeqID;
     $geTx{$refSeqID} = $ge;
-
-    if ( ! -e $file )
-    {
-      my $ginsiFile = $file;
-      $ginsiFile =~ s/\.fa$/_ginsi_algn.fa/;
-      print "\n\nginsiFile not found: $ginsiFile\n" if ! -e $ginsiFile;
-      $cmd = "$rmGaps -i $ginsiFile -o $file";
-      print "\tcmd=$cmd\n" if $dryRun || $debug;
-      system($cmd) == 0 or die "system($cmd) geiled with exit code: $?" if !$dryRun;
-    }
-
-    # select ref sequence from $file and append it to the target genus ref seq's
-    # gesta file
-    ##my $refSeqID = add_rand_seq_to_gesta( $file, $geRefSeqID{$ge}, $geFile );
-    add_seq_to_fasta( $file, $geRefSeqID{$ge}, $geFile );
   }
 
+  print "\r                                              \n";
   print "--- Writing genus taxonomy to a file\n";
-  $geTx{$ogSeqID} = "OG";
+  @geTx{ @ogs } = @ogTx{ @ogs };
   write_tbl( \%geTx, $geTxFile );
+
+  print "--- Generating genus rep's fasta file\n";
+  # NOTE that $geTxFile contains also OG seq's that are not present in $faFile,
+  # but its not going to break select_seqs.pl
+  my $cmd = "select_seqs.pl -s $geTxFile -i $faFile -o $geFile";
+  print "\tcmd=$cmd\n" if $dryRun || $debug;
+  system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+
+  print "--- Appending OG fasta file\n";
+  $cmd = "cat $ogFaFile >> $geFile";
+  print "\tcmd=$cmd\n" if $dryRun || $debug;
+  system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 }
 else
 {
@@ -486,14 +391,22 @@ else
   }
 }
 
-my $nGenera = keys %geFileFreq;
+my $nGenera    = keys %geTx;
 my $geFileSize = seq_count( $geFile );
+
 if ( $geFileSize != $nGenera  )
 {
-  warn "\n\n\tERROR: Number of gemilies: $nGenera";
+  warn "\n\n\tERROR: Number of genera (with OGs): $nGenera";
   print "but\n";
   print "$geFile has $geFileSize seq's\n\n";
   exit 1;
+}
+else
+{
+  my $n    = $nGenera - @ogs;
+  my $nOGs = @ogs;
+  print "Number of genera: $n\n";
+  print "Number OG seq's: $nOGs\n";
 }
 
 if ( ! -e $algnFile || ! -s $algnFile || $runAll )
@@ -504,14 +417,6 @@ if ( ! -e $algnFile || ! -s $algnFile || $runAll )
   unlink( $algnFile ) if $runAll;
   ginsi_algn( $geFile, $algnFile );
 }
-
-
-  ## adding outgroup seq to the alignment
-  print "--- Aligning OG sequence to the alignment\n";
-  my ($seqCountBefore, $seqCountAfter) = mothur_align_and_add( $ogFaFile, $algnFile, $nProc );
-
-
-
 
 print "--- Building a tree\n";
 my $treeFile          = $outDir . "/genus_ref_seqs.tree";
@@ -574,6 +479,11 @@ print "--- Running vicut using phylum annotation\n";
 my $phVicutDir = $outDir . "/phylum_vicut_dir";
 run_vicut_no_query( $geTreeFile, $gePhFile, $phVicutDir );
 
+print "--- Generating tree with <phylum name>_<vicut cltrID> labels at leaves\n";
+my $gePhCltrFile = $phVicutDir . "/minNodeCut.cltrs";
+my $phCltrTreeFile = $outDir . "/phylum_cltr.tree";
+build_ann_cltr_tree( $geTreeFile, $gePhCltrFile, $phCltrTreeFile );
+
 
 ##
 ## Class analysis
@@ -608,6 +518,12 @@ if ( $OSNAME eq "darwin")
 print "--- Running vicut using class annotation\n";
 my $clVicutDir = $outDir . "/class_vicut_dir";
 run_vicut_no_query( $geTreeFile, $geClFile, $clVicutDir );
+
+print "--- Generating tree with <class name>_<vicut cltrID> labels at leaves\n";
+my $geClCltrFile = $clVicutDir . "/minNodeCut.cltrs";
+my $clCltrTreeFile = $outDir . "/class_cltr.tree";
+build_ann_cltr_tree( $geTreeFile, $geClCltrFile, $clCltrTreeFile );
+
 
 ##
 ## Order analysis
@@ -874,6 +790,30 @@ sub build_ann_seqID_tree
   print "\tcmd=$cmd\n" if $dryRun || $debug;
   system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 }
+
+
+sub build_ann_cltr_tree
+{
+  my ($treeFile, $annFile, $annTreeFile ) = @_;
+
+  # $annFile file format
+
+  # readId	clstr	annot
+  # Chitinivibrio	0	Fibrobacteres
+  # Ignavibacterium	1	Chlorobi
+  # Caldisericum	2	Caldiserica
+
+  my ($fh, $annFile2) = tempfile("tmp.XXXX", SUFFIX => '.tx', OPEN => 0, DIR => $tmpDir);
+  $cmd = "awk '{print \$1\"\\t\"\$3\"__\"\$2}' $annFile > $annFile2";
+  print "\tcmd=$cmd\n" if $dryRun || $debug;
+  system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+
+  $cmd = "rm -f $annTreeFile; $nw_rename $treeFile $annFile2 | $nw_order -  > $annTreeFile";
+  print "\tcmd=$cmd\n" if $dryRun || $debug;
+  system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+}
+
+
 
 sub build_ann_tree
 {
