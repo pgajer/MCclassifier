@@ -282,10 +282,14 @@ my %geOrTbl = %{$rgeOrTbl};
 my %geClTbl = %{$rgeClTbl};
 my %gePhTbl = %{$rgePhTbl};
 
-$geFaTbl{"OG"} = "OG";
-$geOrTbl{"OG"} = "OG";
-$geClTbl{"OG"} = "OG";
-$gePhTbl{"OG"} = "OG";
+for ( keys %ogTx )
+{
+  my $tx = $ogTx{$_};
+  $geFaTbl{$tx} = "OG";
+  $geOrTbl{$tx} = "OG";
+  $geClTbl{$tx} = "OG";
+  $gePhTbl{$tx} = "OG";
+}
 
 
 print "--- Building species-genus tables\n";
