@@ -34,6 +34,12 @@
 
 =over
 
+=item B<--li-file, -l>
+  Master lineage file
+
+=item B<--fa-file, -i>
+  Master fasta file
+
 =item B<--output-dir, -o>
   Output dir with the following files.
 
@@ -71,8 +77,11 @@
 
 =head1 EXAMPLE
 
-  phylo_split.pl -o phylo_split_dir
-  phylo_split.pl --igs -o phylo_split_dir
+  cd ~/projects/PECAN/data/phylo_groups/v0.2
+
+  phylo_split.pl -i master_V3V4.fa -l master_V3V4.lineage -o phylo_split_dir
+
+  phylo_split.pl --igs -i master_V3V4.fa -l master_V3V4.lineage -o phylo_split_dir
 
 =cut
 
@@ -94,6 +103,8 @@ my $maxCltrSize = 3000;
 my $nProc       = 8;
 
 GetOptions(
+  "li-file|l=s"         => \my $liFile,
+  "fa-file|i=s"         => \my $faFile,
   "output-dir|o=s"      => \my $outDir,
   "max-cltr-size|m=s"   => \$maxCltrSize,
   "num-proc|p=i"        => \$nProc,
@@ -119,6 +130,32 @@ if ( !$outDir )
 {
   print "ERROR: Missing output directory\n\n";
   pod2usage(verbose => 2,exitstatus => 0);
+  exit 1;
+}
+elsif ( !$liFile )
+{
+  print "ERROR: Missing master lineage file\n\n";
+  pod2usage(verbose => 2,exitstatus => 0);
+  exit 1;
+}
+elsif ( !$faFile )
+{
+  print "ERROR: Missing master fasta file\n\n";
+  pod2usage(verbose => 2,exitstatus => 0);
+  exit 1;
+}
+
+if ( ! -e $liFile || ! -s $liFile )
+{
+  warn "ERROR: Master lineage file does not exist (or has size 0)";
+  print "\n\n";
+  exit 1;
+}
+
+if ( ! -e $faFile || ! -s $faFile )
+{
+  warn "ERROR: Master fasta file does not exist (or has size 0)";
+  print "\n\n";
   exit 1;
 }
 
@@ -161,9 +198,11 @@ if ( $nProc )
   $nProcStr = "--thread $nProc";
 }
 
-my $spGeFile              = "/Users/pgajer/devel/MCextras/data/RDP/rdp_Bacteria_phylum_dir/species_genus_tbl_may19_2017.txt";
-my $geLiFile              = "/Users/pgajer/devel/MCextras/data/RDP/rdp_Bacteria_phylum_dir/microcontax_genus_lineage_tbl.txt"; # NOTE: this one has a header !
-my $ogFaFile              = "/Users/pgajer/devel/MCextras/data/RDP/old/Archaea_Caldococcus_noboribetus_S000414080.fa";
+my $baseDir               = "/Users/pgajer/projects/PECAN/data/phylo_groups/v0.2/";
+my $spGeFile              = "/Users/pgajer/projects/PECAN/data/phylo_groups/v0.2/species_genus_tbl_may19_2017.txt";
+my $geLiFile              = "/Users/pgajer/projects/PECAN/data/microcontax/microcontax_genus_lineage_tbl.txt"; # NOTE: this file has a header !
+my $ogFaFile              = "/Users/pgajer/projects/PECAN/data/phylo_split/bacterial_OGs/Archaea_OG_for_Bacterial_V3V4.fa";
+my $ogTxFile              = "/Users/pgajer/projects/PECAN/data/phylo_split/bacterial_OGs/Archaea_OG_for_Bacterial_V3V4.tx";
 
 my $nw_labels             = "nw_labels";
 my $nw_order              = "nw_order";
@@ -210,6 +249,13 @@ if ( defined $igs )
   $spGeFile              = "/usr/local/projects/pgajer/devel/MCextras/data/species_genus_tbl_may19_2017.txt";
   $geLiFile              = "/usr/local/projects/pgajer/devel/MCextras/data/microcontax/microcontax_genus_lineage_tbl.txt"; # NOTE: this one has a header !
   $ogFaFile              = "/usr/local/projects/pgajer/devel/MCextras/data/phylo_split/Archaea_Caldococcus_noboribetus_S000414080.fa";
+
+  $baseDir               = "/usr/local/projects/pgajer/projects/PECAN/data/phylo_groups/v0.2/";
+  $spGeFile              = "/usr/local/projects/pgajer/projects/PECAN/data/phylo_groups/v0.2/species_genus_tbl_may19_2017.txt";
+  $geLiFile              = "/usr/local/projects/pgajer/projects/PECAN/data/microcontax/microcontax_genus_lineage_tbl.txt"; # NOTE: this file has a header !
+  $ogFaFile              = "/usr/local/projects/pgajer/projects/PECAN/data/phylo_split/bacterial_OGs/Archaea_OG_for_Bacterial_V3V4.fa";
+  $ogTxFile              = "/usr/local/projects/pgajer/projects/PECAN/data/phylo_split/bacterial_OGs/Archaea_OG_for_Bacterial_V3V4.tx";
+
   $nProcStr              = "";
   $nProc                 = 1;
 }
@@ -219,15 +265,7 @@ if ( defined $igs )
 ####################################################################
 
 print "--- Identifying lineage files\n";
-my @liFiles;
-if ( $igs )
-{
-  @liFiles = get_li_files_igs();
-}
-else
-{
-  @liFiles = get_li_files();
-}
+my @liFiles = get_li_files();
 
 if ( $debug )
 {
@@ -310,6 +348,49 @@ for my $ge ( @ges  )
   }
 }
 
+
+print "--- If a genus is present in more than one phylo-group identify seqIDs from the less abundant phylo-groups - for deletion\n";
+my @badIDs;
+for my $ge ( keys %geFileFreq )
+{
+  print "\rProcessing $ge                                      ";
+  my %fileFreq = %{ $geFileFreq{$ge} };
+  my @files = sort { $fileFreq{$b} <=> $fileFreq{$a} } keys %fileFreq;
+  if ( @files > 1 )
+  {
+    print "\nWARNING: $ge is present in more than one phylogroups\n";
+    #print "files: @files\n";
+    for my $f ( @files )
+    {
+      my $phGr = $liFile2phGr{$f};
+      print "$phGr\t" . $fileFreq{$f} . "\n";
+    }
+
+    shift @files;
+    for my $f ( @files )
+    {
+      my $phGr = $liFile2phGr{$f};
+      my %spFreq = %{ $geSpFreq{$phGr}{$ge} };
+      my @spp = keys %spFreq;
+      for my $sp (@spp)
+      {
+	my @ids = @{ $spSeqIDs{$phGr}{$sp} };
+	push @badIDs, @ids;
+      }
+    }
+    print "\n";
+  }
+}
+
+print "\r\nNumber of bad seqIDs: " . @badIDs . "\n";
+my $badIDsFile = $outDir . "/bad.seqIDs";
+write_array( \@badIDs, $badIDsFile );
+
+print "\nBad seqIDs written to $badIDsFile\n";
+
+exit;
+
+
 if ( 0 )
 {
   my @ourGenera = keys %geFileFreq;
@@ -362,7 +443,7 @@ if ( ! -e $geFile || ! -s $geFile || $runAll )
     my $file = $files[0];
     my $phGr = $liFile2phGr{$file};
     #print "\n\nli file: $file\n";
-    $file =~ s/lineage$/ge/;
+    $file =~ s/lineage$/fa/;
     #print "ge file: $file\n"; exit;
 
     my %spFreq = %{ $geSpFreq{$phGr}{$ge} };
@@ -377,7 +458,7 @@ if ( ! -e $geFile || ! -s $geFile || $runAll )
     if ( ! -e $file )
     {
       my $ginsiFile = $file;
-      $ginsiFile =~ s/\.ge$/_ginsi_algn.fa/;
+      $ginsiFile =~ s/\.fa$/_ginsi_algn.fa/;
       print "\n\nginsiFile not found: $ginsiFile\n" if ! -e $ginsiFile;
       $cmd = "$rmGaps -i $ginsiFile -o $file";
       print "\tcmd=$cmd\n" if $dryRun || $debug;
@@ -632,226 +713,69 @@ sub print_array
   map {print "$_\n"} @{$a};
 }
 
-sub get_li_files_igs
+sub get_li_files
 {
-  my $baseDir = "/usr/local/projects/pgajer/devel/MCextras/data/RDP/V3V4/";
-
-  my @liFiles0 = ("Actinobacteria_dir/Actinobacteria_group_0_V3V4_dir/Actinobacteria_group_0_V3V4.lineage",
-		  "Actinobacteria_dir/Actinobacteria_group_1_V3V4_dir/Actinobacteria_group_1_V3V4.lineage",
-		  "Actinobacteria_dir/Actinobacteria_group_2_V3V4_dir/Actinobacteria_group_2_V3V4.lineage",
-		  "Actinobacteria_dir/Actinobacteria_group_3_V3V4_dir/Actinobacteria_group_3_V3V4.lineage",
-		  "Actinobacteria_dir/Actinobacteria_group_4_V3V4_dir/Actinobacteria_group_4_V3V4.lineage",
-		  "Actinobacteria_dir/Actinobacteria_group_5_V3V4_dir/Actinobacteria_group_5_V3V4.lineage",
-		  "Bacteroidetes_dir/Bacteroidetes_group_0_V3V4_dir/Bacteroidetes_group_0_V3V4.lineage",
-		  "Bacteroidetes_dir/Bacteroidetes_group_1_V3V4_dir/Bacteroidetes_group_1_V3V4.lineage",
-		  "Bacteroidetes_dir/Bacteroidetes_group_2_V3V4_dir/Bacteroidetes_group_2_V3V4.lineage",
-		  "Bacteroidetes_dir/Bacteroidetes_group_3_V3V4_dir/Bacteroidetes_group_3_V3V4.lineage",
-		  "final_small_phyla_V3V4/Chloroflexi_V3V4_dir/Chloroflexi_V3V4.lineage",
-		  "final_small_phyla_V3V4/Deinococcus_Thermus_V3V4_dir/Deinococcus_Thermus_V3V4.lineage",
-		  "final_small_phyla_V3V4/Fusobacteria_V3V4_dir/Fusobacteria_V3V4.lineage",
-		  "final_small_phyla_V3V4/Nitrospirae_V3V4_dir/Nitrospirae_V3V4.lineage",
-		  "final_small_phyla_V3V4/Planctomycetes_V3V4_dir/Planctomycetes_V3V4.lineage",
-		  "final_small_phyla_V3V4/Spirochaetes_V3V4_dir/Spirochaetes_V3V4.lineage",
-		  "final_small_phyla_V3V4/Tenericutes_V3V4_dir/Tenericutes_V3V4.lineage",
-		  "final_small_phyla_V3V4/Verrucomicrobia_V3V4_dir/Verrucomicrobia_V3V4.lineage",
-		  "final_small_phyla_V3V4/phyla_lessthen_1k_wOG_V3V4_dir/phyla_lessthen_1k_wOG_V3V4.lineage",
-		  "Firmicutes_dir/Firmicutes_group_0_V3V4_dir/Firmicutes_group_0_V3V4.lineage",
-		  "Firmicutes_dir/Firmicutes_group_1_V3V4_dir/Firmicutes_group_1_V3V4.lineage",
-		  "Firmicutes_dir/Firmicutes_group_2_V3V4_dir/Firmicutes_group_2_V3V4.lineage",
-		  "Firmicutes_dir/Firmicutes_group_3_V3V4_dir/Firmicutes_group_3_V3V4.lineage",
-		  "Firmicutes_dir/Firmicutes_group_4_V3V4_dir/Firmicutes_group_4_V3V4.lineage",
-		  "Firmicutes_dir/Firmicutes_group_5_V3V4_dir/Firmicutes_group_5_V3V4.lineage",
-		  "Firmicutes_dir/Firmicutes_group_6_V3V4_dir/Firmicutes_group_6_V3V4.lineage",
-		  "Proteobacteria_dir/Proteobacteria_group_0_V3V4_dir/Proteobacteria_group_0_V3V4.lineage",
-		  "Proteobacteria_dir/Proteobacteria_group_10_V3V4_dir/Proteobacteria_group_10_V3V4.lineage",
-		  "Proteobacteria_dir/Proteobacteria_group_11_V3V4_dir/Proteobacteria_group_11_V3V4.lineage",
-		  "Proteobacteria_dir/Proteobacteria_group_12_V3V4_dir/Proteobacteria_group_12_V3V4.lineage",
-		  "Proteobacteria_dir/Proteobacteria_group_13_V3V4_dir/Proteobacteria_group_13_V3V4.lineage",
-		  "Proteobacteria_dir/Proteobacteria_group_14_V3V4_dir/Proteobacteria_group_14_V3V4.lineage",
-		  "Proteobacteria_dir/Proteobacteria_group_15_V3V4_dir/Proteobacteria_group_15_V3V4.lineage",
-		  "Proteobacteria_dir/Proteobacteria_group_17_V3V4_dir/Proteobacteria_group_17_V3V4.lineage",
-		  "Proteobacteria_dir/Proteobacteria_group_1_V3V4_dir/Proteobacteria_group_1_V3V4.lineage",
-		  "Proteobacteria_dir/Proteobacteria_group_2_V3V4_dir/Proteobacteria_group_2_V3V4.lineage",
-		  "Proteobacteria_dir/Proteobacteria_group_3_V3V4_dir/Proteobacteria_group_3_V3V4.lineage",
-		  "Proteobacteria_dir/Proteobacteria_group_4_V3V4_dir/Proteobacteria_group_4_V3V4.lineage",
-		  "Proteobacteria_dir/Proteobacteria_group_5_V3V4_dir/Proteobacteria_group_5_V3V4.lineage",
-		  "Proteobacteria_dir/Proteobacteria_group_6_V3V4_dir/Proteobacteria_group_6_V3V4.lineage",
-		  "Proteobacteria_dir/Proteobacteria_group_7_V3V4_dir/Proteobacteria_group_7_V3V4.lineage",
-		  "Proteobacteria_dir/Proteobacteria_group_8_V3V4_dir/Proteobacteria_group_8_V3V4.lineage",
-		  "Proteobacteria_dir/Proteobacteria_group_9_V3V4_dir/Proteobacteria_group_9_V3V4.lineage");
+  my @liFiles0 = ("Actinobacteria_group_0_V3V4_dir/Actinobacteria_group_0_V3V4.lineage",
+		  "Actinobacteria_group_1_V3V4_dir/Actinobacteria_group_1_V3V4.lineage",
+		  "Actinobacteria_group_2_V3V4_dir/Actinobacteria_group_2_V3V4.lineage",
+		  "Actinobacteria_group_3_V3V4_dir/Actinobacteria_group_3_V3V4.lineage",
+		  "Actinobacteria_group_4_V3V4_dir/Actinobacteria_group_4_V3V4.lineage",
+		  "Actinobacteria_group_5_V3V4_dir/Actinobacteria_group_5_V3V4.lineage",
+		  "Bacteroidetes_group_0_V3V4_dir/Bacteroidetes_group_0_V3V4.lineage",
+		  "Bacteroidetes_group_1_V3V4_dir/Bacteroidetes_group_1_V3V4.lineage",
+		  "Bacteroidetes_group_2_V3V4_dir/Bacteroidetes_group_2_V3V4.lineage",
+		  "Bacteroidetes_group_3_V3V4_dir/Bacteroidetes_group_3_V3V4.lineage",
+		  "Chloroflexi_V3V4_dir/Chloroflexi_V3V4.lineage",
+		  "Deinococcus_Thermus_V3V4_dir/Deinococcus_Thermus_V3V4.lineage",
+		  "Fusobacteria_V3V4_dir/Fusobacteria_V3V4.lineage",
+		  "Nitrospirae_V3V4_dir/Nitrospirae_V3V4.lineage",
+		  "Planctomycetes_V3V4_dir/Planctomycetes_V3V4.lineage",
+		  "Spirochaetes_V3V4_dir/Spirochaetes_V3V4.lineage",
+		  "Tenericutes_V3V4_dir/Tenericutes_V3V4.lineage",
+		  "Verrucomicrobia_V3V4_dir/Verrucomicrobia_V3V4.lineage",
+		  "phyla_lessthen_1k_wOG_V3V4_dir/phyla_lessthen_1k_wOG_V3V4.lineage",
+		  "Firmicutes_group_0_V3V4_dir/Firmicutes_group_0_V3V4.lineage",
+		  "Firmicutes_group_1_V3V4_dir/Firmicutes_group_1_V3V4.lineage",
+		  "Firmicutes_group_2_V3V4_dir/Firmicutes_group_2_V3V4.lineage",
+		  "Firmicutes_group_3_V3V4_dir/Firmicutes_group_3_V3V4.lineage",
+		  "Firmicutes_group_4_V3V4_dir/Firmicutes_group_4_V3V4.lineage",
+		  "Firmicutes_group_5_V3V4_dir/Firmicutes_group_5_V3V4.lineage",
+		  "Firmicutes_group_6_V3V4_dir/Firmicutes_group_6_V3V4.lineage",
+		  "Proteobacteria_group_0_V3V4_dir/Proteobacteria_group_0_V3V4.lineage",
+		  "Proteobacteria_group_10_V3V4_dir/Proteobacteria_group_10_V3V4.lineage",
+		  "Proteobacteria_group_11_V3V4_dir/Proteobacteria_group_11_V3V4.lineage",
+		  "Proteobacteria_group_12_V3V4_dir/Proteobacteria_group_12_V3V4.lineage",
+		  "Proteobacteria_group_13_V3V4_dir/Proteobacteria_group_13_V3V4.lineage",
+		  "Proteobacteria_group_14_V3V4_dir/Proteobacteria_group_14_V3V4.lineage",
+		  "Proteobacteria_group_15_V3V4_dir/Proteobacteria_group_15_V3V4.lineage",
+		  "Proteobacteria_group_17_V3V4_dir/Proteobacteria_group_17_V3V4.lineage",
+		  "Proteobacteria_group_1_V3V4_dir/Proteobacteria_group_1_V3V4.lineage",
+		  "Proteobacteria_group_2_V3V4_dir/Proteobacteria_group_2_V3V4.lineage",
+		  "Proteobacteria_group_3_V3V4_dir/Proteobacteria_group_3_V3V4.lineage",
+		  "Proteobacteria_group_4_V3V4_dir/Proteobacteria_group_4_V3V4.lineage",
+		  "Proteobacteria_group_5_V3V4_dir/Proteobacteria_group_5_V3V4.lineage",
+		  "Proteobacteria_group_6_V3V4_dir/Proteobacteria_group_6_V3V4.lineage",
+		  "Proteobacteria_group_7_V3V4_dir/Proteobacteria_group_7_V3V4.lineage",
+		  "Proteobacteria_group_8_V3V4_dir/Proteobacteria_group_8_V3V4.lineage",
+		  "Proteobacteria_group_9_V3V4_dir/Proteobacteria_group_9_V3V4.lineage");
 
   my @liFiles = map{ $baseDir . $_ } @liFiles0;
 
-  return @liFiles;
-}
-
-sub get_li_files
-{
-  my $baseDirExt = "/Users/pgajer/devel/MCextras/data/vag_exp_V3V4_phGrps_May16_dir/";
-
-  my @liFilesExt0 = ("Actinobacteria_group_0_V3V4_dir/Actinobacteria_group_0_V3V4.lineage",
-		     "Actinobacteria_group_1_V3V4_dir/Actinobacteria_group_1_V3V4.lineage",
-		     "Actinobacteria_group_2_V3V4_dir/Actinobacteria_group_2_V3V4.lineage",
-		     "Bacteroidetes_group_2_V3V4_dir/Bacteroidetes_group_2_V3V4.lineage",
-		     "Firmicutes_group_0_V3V4_dir/Firmicutes_group_0_V3V4.lineage",
-		     "Firmicutes_group_1_V3V4_dir/Firmicutes_group_1_V3V4.lineage",
-		     "Firmicutes_group_2_V3V4_dir/Firmicutes_group_2_V3V4.lineage",
-		     "Firmicutes_group_3_V3V4_dir/Firmicutes_group_3_V3V4.lineage",
-		     "Firmicutes_group_4_V3V4_dir/Firmicutes_group_4_V3V4.lineage",
-		     "Firmicutes_group_5_V3V4_dir/Firmicutes_group_5_V3V4.lineage",
-		     "Firmicutes_group_6_V3V4_dir/Firmicutes_group_6_V3V4.lineage",
-		     "Fusobacteria_V3V4_dir/Fusobacteria_V3V4.lineage",
-		     "phyla_lessthen_1k_wOG_V3V4_dir/phyla_lessthen_1k_wOG_V3V4.lineage",
-		     "Proteobacteria_group_10_V3V4_dir/Proteobacteria_group_10_V3V4.lineage",
-		     "Proteobacteria_group_15_V3V4_dir/Proteobacteria_group_15_V3V4.lineage",
-		     "Proteobacteria_group_17_V3V4_dir/Proteobacteria_group_17_V3V4.lineage",
-		     "Proteobacteria_group_3_V3V4_dir/Proteobacteria_group_3_V3V4.lineage",
-		     "Proteobacteria_group_9_V3V4_dir/Proteobacteria_group_9_V3V4.lineage",
-		     "Tenericutes_V3V4_dir/Tenericutes_V3V4.lineage");
-
-  my @liFilesExt1 = map{ $_ = $baseDirExt . $_ } @liFilesExt0;
-
-
-  my @extPhGrs = ("Actinobacteria_group_0_V3V4",
-		  "Actinobacteria_group_1_V3V4",
-		  "Actinobacteria_group_2_V3V4",
-		  "Bacteroidetes_group_2_V3V4",
-		  "Firmicutes_group_0_V3V4",
-		  "Firmicutes_group_1_V3V4",
-		  "Firmicutes_group_2_V3V4",
-		  "Firmicutes_group_3_V3V4",
-		  "Firmicutes_group_4_V3V4",
-		  "Firmicutes_group_5_V3V4",
-		  "Firmicutes_group_6_V3V4",
-		  "Fusobacteria_V3V4",
-		  "phyla_lessthen_1k_wOG_V3V4",
-		  "Proteobacteria_group_10_V3V4",
-		  "Proteobacteria_group_15_V3V4",
-		  "Proteobacteria_group_17_V3V4",
-		  "Proteobacteria_group_3_V3V4",
-		  "Proteobacteria_group_9_V3V4",
-		  "Tenericutes_V3V4");
-
-  my %liExtTbl;
-  for my $i ( 0..$#extPhGrs )
+  ## testing for existence
+  for my $file ( @liFiles )
   {
-    $liExtTbl{$extPhGrs[$i]} = $liFilesExt1[$i];
-  }
-
-
-  my $baseDir = "/Users/pgajer/devel/MCextras/data/RDP/rdp_Bacteria_phylum_dir/";
-  my @liFiles0 = ("Actinobacteria_dir/Actinobacteria_group_0_V3V4_dir/Actinobacteria_group_0_V3V4.lineage",
-		  "Actinobacteria_dir/Actinobacteria_group_1_V3V4_dir/Actinobacteria_group_1_V3V4.lineage",
-		  "Actinobacteria_dir/Actinobacteria_group_2_V3V4_dir/Actinobacteria_group_2_V3V4.lineage",
-		  "Actinobacteria_dir/Actinobacteria_group_3_V3V4_dir/Actinobacteria_group_3_V3V4.lineage",
-		  "Actinobacteria_dir/Actinobacteria_group_4_V3V4_dir/Actinobacteria_group_4_V3V4.lineage",
-		  "Actinobacteria_dir/Actinobacteria_group_5_V3V4_dir/Actinobacteria_group_5_V3V4.lineage",
-		  "Bacteroidetes_dir/Bacteroidetes_group_0_V3V4_dir/Bacteroidetes_group_0_V3V4.lineage",
-		  "Bacteroidetes_dir/Bacteroidetes_group_1_V3V4_dir/Bacteroidetes_group_1_V3V4.lineage",
-		  "Bacteroidetes_dir/Bacteroidetes_group_2_V3V4_dir/Bacteroidetes_group_2_V3V4.lineage",
-		  "Bacteroidetes_dir/Bacteroidetes_group_3_V3V4_dir/Bacteroidetes_group_3_V3V4.lineage",
-		  "final_small_phyla_V3V4/Chloroflexi_V3V4_dir/Chloroflexi_V3V4.lineage",
-		  "final_small_phyla_V3V4/Deinococcus_Thermus_V3V4_dir/Deinococcus_Thermus_V3V4.lineage",
-		  "final_small_phyla_V3V4/Fusobacteria_V3V4_dir/Fusobacteria_V3V4.lineage",
-		  "final_small_phyla_V3V4/Nitrospirae_V3V4_dir/Nitrospirae_V3V4.lineage",
-		  "final_small_phyla_V3V4/Planctomycetes_V3V4_dir/Planctomycetes_V3V4.lineage",
-		  "final_small_phyla_V3V4/Spirochaetes_V3V4_dir/Spirochaetes_V3V4.lineage",
-		  "final_small_phyla_V3V4/Tenericutes_V3V4_dir/Tenericutes_V3V4.lineage",
-		  "final_small_phyla_V3V4/Verrucomicrobia_V3V4_dir/Verrucomicrobia_V3V4.lineage",
-		  "final_small_phyla_V3V4/phyla_lessthen_1k_wOG_V3V4_dir/phyla_lessthen_1k_wOG_V3V4.lineage",
-		  "Firmicutes_dir/Firmicutes_group_0_V3V4_dir/Firmicutes_group_0_V3V4.lineage",
-		  "Firmicutes_dir/Firmicutes_group_1_V3V4_dir/Firmicutes_group_1_V3V4.lineage",
-		  "Firmicutes_dir/Firmicutes_group_2_V3V4_dir/Firmicutes_group_2_V3V4.lineage",
-		  "Firmicutes_dir/Firmicutes_group_3_V3V4_dir/Firmicutes_group_3_V3V4.lineage",
-		  "Firmicutes_dir/Firmicutes_group_4_V3V4_dir/Firmicutes_group_4_V3V4.lineage",
-		  "Firmicutes_dir/Firmicutes_group_5_V3V4_dir/Firmicutes_group_5_V3V4.lineage",
-		  "Firmicutes_dir/Firmicutes_group_6_V3V4_dir/Firmicutes_group_6_V3V4.lineage",
-		  "Proteobacteria_dir/Proteobacteria_group_0_V3V4_dir/Proteobacteria_group_0_V3V4.lineage",
-		  "Proteobacteria_dir/Proteobacteria_group_10_V3V4_dir/Proteobacteria_group_10_V3V4.lineage",
-		  "Proteobacteria_dir/Proteobacteria_group_11_V3V4_dir/Proteobacteria_group_11_V3V4.lineage",
-		  "Proteobacteria_dir/Proteobacteria_group_12_V3V4_dir/Proteobacteria_group_12_V3V4.lineage",
-		  "Proteobacteria_dir/Proteobacteria_group_13_V3V4_dir/Proteobacteria_group_13_V3V4.lineage",
-		  "Proteobacteria_dir/Proteobacteria_group_14_V3V4_dir/Proteobacteria_group_14_V3V4.lineage",
-		  "Proteobacteria_dir/Proteobacteria_group_15_V3V4_dir/Proteobacteria_group_15_V3V4.lineage",
-		  "Proteobacteria_dir/Proteobacteria_group_17_V3V4_dir/Proteobacteria_group_17_V3V4.lineage",
-		  "Proteobacteria_dir/Proteobacteria_group_1_V3V4_dir/Proteobacteria_group_1_V3V4.lineage",
-		  "Proteobacteria_dir/Proteobacteria_group_2_V3V4_dir/Proteobacteria_group_2_V3V4.lineage",
-		  "Proteobacteria_dir/Proteobacteria_group_3_V3V4_dir/Proteobacteria_group_3_V3V4.lineage",
-		  "Proteobacteria_dir/Proteobacteria_group_4_V3V4_dir/Proteobacteria_group_4_V3V4.lineage",
-		  "Proteobacteria_dir/Proteobacteria_group_5_V3V4_dir/Proteobacteria_group_5_V3V4.lineage",
-		  "Proteobacteria_dir/Proteobacteria_group_6_V3V4_dir/Proteobacteria_group_6_V3V4.lineage",
-		  "Proteobacteria_dir/Proteobacteria_group_7_V3V4_dir/Proteobacteria_group_7_V3V4.lineage",
-		  "Proteobacteria_dir/Proteobacteria_group_8_V3V4_dir/Proteobacteria_group_8_V3V4.lineage",
-		  "Proteobacteria_dir/Proteobacteria_group_9_V3V4_dir/Proteobacteria_group_9_V3V4.lineage");
-
-  my @liFiles1 = map{ $_ = $baseDir . $_ } @liFiles0;
-  ## print "lineageFile: @liFiles\n";
-
-  my @allPhGrs = ("Actinobacteria_group_0_V3V4",
-		  "Actinobacteria_group_1_V3V4",
-		  "Actinobacteria_group_2_V3V4",
-		  "Actinobacteria_group_3_V3V4",
-		  "Actinobacteria_group_4_V3V4",
-		  "Actinobacteria_group_5_V3V4",
-		  "Bacteroidetes_group_0_V3V4",
-		  "Bacteroidetes_group_1_V3V4",
-		  "Bacteroidetes_group_2_V3V4",
-		  "Bacteroidetes_group_3_V3V4",
-		  "Chloroflexi_V3V4",
-		  "Deinococcus_Thermus_V3V4",
-		  "Fusobacteria_V3V4",
-		  "Nitrospirae_V3V4",
-		  "Planctomycetes_V3V4",
-		  "Spirochaetes_V3V4",
-		  "Tenericutes_V3V4",
-		  "Verrucomicrobia_V3V4",
-		  "phyla_lessthen_1k_wOG_V3V4",
-		  "Firmicutes_group_0_V3V4",
-		  "Firmicutes_group_1_V3V4",
-		  "Firmicutes_group_2_V3V4",
-		  "Firmicutes_group_3_V3V4",
-		  "Firmicutes_group_4_V3V4",
-		  "Firmicutes_group_5_V3V4",
-		  "Firmicutes_group_6_V3V4",
-		  "Proteobacteria_group_0_V3V4",
-		  "Proteobacteria_group_10_V3V4",
-		  "Proteobacteria_group_11_V3V4",
-		  "Proteobacteria_group_12_V3V4",
-		  "Proteobacteria_group_13_V3V4",
-		  "Proteobacteria_group_14_V3V4",
-		  "Proteobacteria_group_15_V3V4",
-		  "Proteobacteria_group_17_V3V4",
-		  "Proteobacteria_group_1_V3V4",
-		  "Proteobacteria_group_2_V3V4",
-		  "Proteobacteria_group_3_V3V4",
-		  "Proteobacteria_group_4_V3V4",
-		  "Proteobacteria_group_5_V3V4",
-		  "Proteobacteria_group_6_V3V4",
-		  "Proteobacteria_group_7_V3V4",
-		  "Proteobacteria_group_8_V3V4",
-		  "Proteobacteria_group_9_V3V4");
-
-  my %liTbl;
-  for my $i ( 0..$#allPhGrs )
-  {
-    $liTbl{$allPhGrs[$i]} = $liFiles1[$i];
-  }
-
-  my @liFiles;
-  for ( @allPhGrs )
-  {
-    if ( exists $liExtTbl{$_} )
+    if ( ! -e $file )
     {
-      push @liFiles, $liExtTbl{$_};
-    }
-    else
-    {
-      push @liFiles, $liTbl{$_};
+      warn "\n\n\tERROR: $file does not exist";
+      print "\n\n";
+      exit 1;
     }
   }
 
   return @liFiles;
 }
+
+
 
 # Select $seqID from $file and append it to $faFile
 sub add_seq_to_fasta
