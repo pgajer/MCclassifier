@@ -148,7 +148,7 @@ my $selCount = 0;
 
 if ( defined $selsFile )
 {
-  my %selRead = readArray($selsFile);
+  my %selRead = read_array($selsFile);
   my $nSelSeqs = keys %selRead;
 
   open (FASTA, "<$inFile") or die "Cannot open $inFile for reading: $OS_ERROR\n";
@@ -175,10 +175,24 @@ if ( defined $selsFile )
   close FASTA;
 
   #print "nSelSeqs: $nSelSeqs\n";
+  my @missed;
+  for ( keys %selRead )
+  {
+    if ( $selRead{$_}==1 )
+    {
+      push @missed, $_;
+    }
+  }
+  if ( @missed )
+  {
+    print "\n\nSequence IDs not found in the fasta file\n";
+    print_array( \@missed );
+    print "\n";
+  }
 }
 else
 {
-  my %exclRead = readArray($exclFile);
+  my %exclRead = read_array($exclFile);
 
   open (FASTA, "<$inFile") or die "Cannot open $inFile for reading: $OS_ERROR\n";
   $/ = ">";
@@ -216,7 +230,7 @@ if (!$quiet)
 ####################################################################
 
 # print array to stdout
-sub printArray
+sub print_array
 {
   my ($a, $header) = @_;
   print "$header\n" if $header;
@@ -224,7 +238,7 @@ sub printArray
 }
 
 # read table with one column
-sub readArray
+sub read_array
 {
   my $file = shift;
   my %rows;
