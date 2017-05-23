@@ -188,7 +188,7 @@ if (defined $varReg)
     my $trRefFileBasename;
     if ($varReg =~ 'V3V4')
     {
-      $trRefFile = "/local/projects/pgajer/devel/MCextras/data/RDP/V400.unique.subsampled.fa";
+      $trRefFile = "/home/jholm/V400.unique.subsampled.fa";
       print "--- Detected ref db for the V3V4 variable region\n"
     }
     elsif ($varReg =~ 'V4')
@@ -225,7 +225,7 @@ if (defined $varReg)
     my @suffixes = (".fasta",".fa",".fna");
     my $candBasename = basename($trRefFile, @suffixes); ## This may have to change ($trRefFileBasename to $trRefFile, depending on where mothur writes it)
     my $candAlgn = $candBasename . ".align";
-    my $candFile = "/local/projects/pgajer/devel/MCextras/data/RDP/" . $candAlgn;
+    my $candFile = "/home/jholm/" . $candAlgn;
 
     print "--- Calculating alignment range for $varReg region of $candAlgn\n" if !$quiet;
 
