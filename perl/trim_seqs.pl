@@ -188,12 +188,12 @@ if (defined $varReg)
     my $trRefFileBasename;
     if ($varReg =~ 'V3V4')
     {
-      $trRefFile = "/home/jholm/V400.unique.subsampled.fa";
+      $trRefFile = "~/MCclassifier/data/trim_templates/V400.unique.subsampled.fa";
       print "--- Detected ref db for the V3V4 variable region\n"
     }
     elsif ($varReg =~ 'V4')
     {
-      $trRefFile = "/local/projects/pgajer/devel/MCextras/data/RDP/BEAM.unique.subsampled.fa";
+      $trRefFile = "~/MCclassifier/data/trim_templates/BEAM.unique.subsampled.fa";
       print "--- Detected ref db for the V4 variable region\n"
     }
     else
