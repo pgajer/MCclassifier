@@ -252,8 +252,8 @@ if ( defined $igs )
   $baseDir               = "/usr/local/projects/pgajer/projects/PECAN/data/phylo_groups/v0.2/";
   $spGeFile              = "/usr/local/projects/pgajer/projects/PECAN/data/phylo_groups/v0.2/species_genus_tbl_may19_2017.txt";
   $geLiFile              = "/usr/local/projects/pgajer/projects/PECAN/data/microcontax/microcontax_genus_lineage_tbl.txt"; # NOTE: this file has a header !
-  $ogFaFile              = "/usr/local/projects/pgajer/projects/PECAN/data/phylo_split/bacterial_OGs/Archaea_OG_for_Bacterial_V3V4.fa";
-  $ogTxFile              = "/usr/local/projects/pgajer/projects/PECAN/data/phylo_split/bacterial_OGs/Archaea_OG_for_Bacterial_V3V4_v2.tx";
+  $ogFaFile              = "/usr/local/projects/pgajer/projects/PECAN/data/phylo_split/bacterial_OGs/Archaea_OG_for_Microcontax_V3V4.fa";
+  $ogTxFile              = "/usr/local/projects/pgajer/projects/PECAN/data/phylo_split/bacterial_OGs/Archaea_OG_for_Microcontax_V3V4.tx";
 
   $nProcStr              = "";
   $nProc                 = 1;
