@@ -290,7 +290,7 @@ my %sizeTblR = %{$rsizeTblR}; # taxon => size with the uppler limit on the numbe
 ## for this I have build helper routines that build appropriate tables from the
 ## lineage file
 
-print "--- Building tree with genus names at the leaves\n";
+print "--- Parsing contax lineage file\n";
 my ($rgeTbl, $rgePhTbl, $rgeClTbl, $rgeOrTbl, $rgeFaTbl) = get_tbls_from_lineage( $liFile );
 
 my %geTbl   = %{$rgeTbl};
@@ -1587,11 +1587,11 @@ sub get_cltrSizes_labels
     my $cl = "c" . $cltrTbl{$tx};
     if ( ! exists $sizeTbl{ $tx } )
     {
-      $sizeTbl{ $tx } = 0;
+      $sizeTbl{ $tx }++;
     }
     if ( ! exists $sizeTblR{ $tx } )
     {
-      $sizeTblR{ $tx } = 0;
+      $sizeTblR{ $tx }++;
     }
     $clSize{ $cl }  += $sizeTbl{ $tx };
     $clSizeR{ $cl } += $sizeTblR{ $tx };
@@ -1607,7 +1607,6 @@ sub get_cltrSizes_labels
     $cltrSizeTblR{$tx} = $cl . "__" . $clSizeR{ $cl };
   }
 
-  #return (\%clSize, \%clSizeR);
   return (\%cltrSizeTbl, \%cltrSizeTblR);
 }
 
