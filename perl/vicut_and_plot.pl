@@ -340,38 +340,37 @@ if ( $OSNAME eq "darwin")
 
 print "--- Running vicut on genus tree using phylum annotation\n";
 my $phVicutDir = $outDir . "/phylum_vicut_dir";
-#run_vicut_no_query( $treeFile, $gePhFile, $phVicutDir );
 run_vicut( $treeFile, $gePhFile, $phVicutDir );
 
 print "--- Generating table of phylum-cluster-size labels\n";
 my $phCltrFile = $phVicutDir . "/minNodeCut.cltrs";
-my ($rphCltrSizeTbl, $rphCltrSizeTblR) = get_cltrSizes_labels( \%sizeTbl, \%sizeTblR, $phCltrFile );
+my ($rphCltrLabs, $rphCltrSizeLabs, $rphCltrSizeLabsR, $rphCltrSize, $rphCltrSizeR) = get_cltrSizes_labels( \%sizeTbl, \%sizeTblR, $phCltrFile );
 
-# print "\n\nAfter get_cltrSizes_labels()\n";
-# my $counter = 0;
-# for ( keys %{$rphCltrSizeTbl} )
-# {
-#   print "$_\t" . $rphCltrSizeTbl->{$_} . "\n";
-#   last if $counter == 10;
-#   $counter++;
-# }
+my $phCltrLabsFile = $outDir . "/phylum_cltr_labs.txt";
+write_tbl( $rphCltrLabs, $phCltrLabsFile );
 
-# exit;
+my $phCltrSizeLabsFile = $outDir . "/phylum_cltr_size_labs.txt";
+write_tbl( $rphCltrSizeLabs, $phCltrSizeLabsFile );
 
-my $phCltrSizeTblFile = $outDir . "/genus_phVicut.cltrSize";
-write_tbl( $rphCltrSizeTbl, $phCltrSizeTblFile );
+my $phCltrSizeLabsFileR = $outDir . "/phylum_cltr_sizeR_labs.txt";
+write_tbl( $rphCltrSizeLabsR, $phCltrSizeLabsFileR );
 
-my $phCltrSizeTblFileR = $outDir . "/genus_phVicut.cltrSizeR";
-write_tbl( $rphCltrSizeTblR, $phCltrSizeTblFileR );
+my $phCltrSizeFile = $outDir . "/phylum_cltr_size.txt";
+write_tbl( $rphCltrSize, $phCltrSizeFile );
 
+my $phCltrSizeFileR = $outDir . "/phylum_cltr_sizeR.txt";
+write_tbl( $rphCltrSizeR, $phCltrSizeFileR );
 
-print "--- Generating tree with <cltr>_<size> labels\n";
+print "--- Generating tree with <cltr> labels\n";
+my $condPhCltrTreeFile = $outDir . "/phylum_cond_cltr.tree";
+condense_tree( $treeFile, $phCltrLabsFile, $condPhCltrTreeFile );
 
-my $condPhCltrSizeTreeFile = $outDir . "/cond_phCltrSize.tree";
-condense_tree( $treeFile, $phCltrSizeTblFile, $condPhCltrSizeTreeFile );
+print "--- Generating trees with <cltr>_<size> labels\n";
+my $condPhCltrSizeTreeFile = $outDir . "/phylum_cond_cltrSize.tree";
+condense_tree( $treeFile, $phCltrSizeLabsFile, $condPhCltrSizeTreeFile );
 
-my $condPhCltrSizeTreeFileR = $outDir . "/cond_phCltrSizeR.tree";
-condense_tree( $treeFile, $phCltrSizeTblFileR, $condPhCltrSizeTreeFileR );
+my $condPhCltrSizeTreeFileR = $outDir . "/phylum_cond_cltrSizeR.tree";
+condense_tree( $treeFile, $phCltrSizeLabsFileR, $condPhCltrSizeTreeFileR );
 
 
 ##
@@ -381,7 +380,7 @@ print "--- Class analysis\n";
 
 print "--- Genus => Class table in the order of the genus tree leaves\n";
 print "\nGenus => Class on genus tree leaves\n";
-my $geClFile = $outDir . "/genus_class.txt";
+my $geClFile = $outDir . "/class.txt";
 write_sorted_tbl( \%geClTbl, \@leaves, $geClFile );
 
 print "--- Generating tree with <class name> labels at leaves\n";
@@ -404,29 +403,39 @@ if ( $OSNAME eq "darwin")
   system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 }
 
-print "--- Running vicut using class annotation\n";
+print "--- Running vicut on genus tree using class annotation\n";
 my $clVicutDir = $outDir . "/class_vicut_dir";
-#run_vicut_no_query( $treeFile, $geClFile, $clVicutDir );
 run_vicut( $treeFile, $geClFile, $clVicutDir );
 
 print "--- Generating table of class-cluster-size labels\n";
 my $clCltrFile = $clVicutDir . "/minNodeCut.cltrs";
-my ($rclCltrSizeTbl, $rclCltrSizeTblR) = get_cltrSizes_labels( \%sizeTbl, \%sizeTblR, $clCltrFile );
+my ($rclCltrLabs, $rclCltrSizeLabs, $rclCltrSizeLabsR, $rclCltrSize, $rclCltrSizeR) = get_cltrSizes_labels( \%sizeTbl, \%sizeTblR, $clCltrFile );
 
-my $clCltrSizeTblFile = $outDir . "/genus_clVicut.cltrSize";
-my $clCltrSizeTblFileR = $outDir . "/genus_clVicut.cltrSizeR";
+my $clCltrLabsFile = $outDir . "/class_cltr_labs.txt";
+write_tbl( $rclCltrLabs, $clCltrLabsFile );
 
-write_tbl( $rclCltrSizeTbl, $clCltrSizeTblFile );
-write_tbl( $rclCltrSizeTblR, $clCltrSizeTblFileR );
+my $clCltrSizeLabsFile = $outDir . "/class_cltr_size_labs.txt";
+write_tbl( $rclCltrSizeLabs, $clCltrSizeLabsFile );
 
+my $clCltrSizeLabsFileR = $outDir . "/class_cltr_sizeR_labs.txt";
+write_tbl( $rclCltrSizeLabsR, $clCltrSizeLabsFileR );
 
-print "--- Generating tree with <cltr>_<size> labels\n";
+my $clCltrSizeFile = $outDir . "/class_cltr_size.txt";
+write_tbl( $rclCltrSize, $clCltrSizeFile );
 
-my $condClCltrSizeTreeFile = $outDir . "/cond_clCltrSize.tree";
-condense_tree( $treeFile, $clCltrSizeTblFile, $condClCltrSizeTreeFile );
+my $clCltrSizeFileR = $outDir . "/class_cltr_sizeR.txt";
+write_tbl( $rclCltrSizeR, $clCltrSizeFileR );
 
-my $condClCltrSizeTreeFileR = $outDir . "/cond_clCltrSizeR.tree";
-condense_tree( $treeFile, $clCltrSizeTblFileR, $condClCltrSizeTreeFileR );
+print "--- Generating tree with <cltr> labels\n";
+my $condClCltrTreeFile = $outDir . "/class_cond_cltr.tree";
+condense_tree( $treeFile, $clCltrLabsFile, $condClCltrTreeFile );
+
+print "--- Generating trees with <cltr>_<size> labels\n";
+my $condClCltrSizeTreeFile = $outDir . "/class_cond_cltrSize.tree";
+condense_tree( $treeFile, $clCltrSizeLabsFile, $condClCltrSizeTreeFile );
+
+my $condClCltrSizeTreeFileR = $outDir . "/class_cond_cltrSizeR.tree";
+condense_tree( $treeFile, $clCltrSizeLabsFileR, $condClCltrSizeTreeFileR );
 
 
 ##
@@ -437,7 +446,7 @@ print "--- Order analysis\n";
 print "--- Genus => Order table in the order of the genus tree leaves\n";
 print "\nGenus => Order on genus tree leaves\n";
 #print_formated_tbl( \%geOrTbl, \@leaves );
-my $geOrFile = $outDir . "/genus_order.txt";
+my $geOrFile = $outDir . "/order.txt";
 write_sorted_tbl( \%geOrTbl, \@leaves, $geOrFile );
 
 print "--- Generating tree with <order name> labels at leaves\n";
@@ -460,29 +469,39 @@ if ( $OSNAME eq "darwin")
   system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 }
 
-print "--- Running vicut using order annotation\n";
+print "--- Running vicut on genus tree using order annotation\n";
 my $orVicutDir = $outDir . "/order_vicut_dir";
-#run_vicut_no_query( $treeFile, $geOrFile, $orVicutDir );w
 run_vicut( $treeFile, $geOrFile, $orVicutDir );
 
 print "--- Generating table of order-cluster-size labels\n";
 my $orCltrFile = $orVicutDir . "/minNodeCut.cltrs";
-my ($rorCltrSizeTbl, $rorCltrSizeTblR) = get_cltrSizes_labels( \%sizeTbl, \%sizeTblR, $orCltrFile );
+my ($rorCltrLabs, $rorCltrSizeLabs, $rorCltrSizeLabsR, $rorCltrSize, $rorCltrSizeR) = get_cltrSizes_labels( \%sizeTbl, \%sizeTblR, $orCltrFile );
 
-my $orCltrSizeTblFile = $outDir . "/genus_orVicut.cltrSize";
-my $orCltrSizeTblFileR = $outDir . "/genus_orVicut.cltrSizeR";
+my $orCltrLabsFile = $outDir . "/order_cltr_labs.txt";
+write_tbl( $rorCltrLabs, $orCltrLabsFile );
 
-write_tbl( $rorCltrSizeTbl, $orCltrSizeTblFile );
-write_tbl( $rorCltrSizeTblR, $orCltrSizeTblFileR );
+my $orCltrSizeLabsFile = $outDir . "/order_cltr_size_labs.txt";
+write_tbl( $rorCltrSizeLabs, $orCltrSizeLabsFile );
 
+my $orCltrSizeLabsFileR = $outDir . "/order_cltr_sizeR_labs.txt";
+write_tbl( $rorCltrSizeLabsR, $orCltrSizeLabsFileR );
 
-print "--- Generating tree with <cltr>_<size> labels\n";
+my $orCltrSizeFile = $outDir . "/order_cltr_size.txt";
+write_tbl( $rorCltrSize, $orCltrSizeFile );
 
-my $condOrCltrSizeTreeFile = $outDir . "/cond_orCltrSize.tree";
-condense_tree( $treeFile, $orCltrSizeTblFile, $condOrCltrSizeTreeFile );
+my $orCltrSizeFileR = $outDir . "/order_cltr_sizeR.txt";
+write_tbl( $rorCltrSizeR, $orCltrSizeFileR );
 
-my $condOrCltrSizeTreeFileR = $outDir . "/cond_orCltrSizeR.tree";
-condense_tree( $treeFile, $orCltrSizeTblFileR, $condOrCltrSizeTreeFileR );
+print "--- Generating tree with <cltr> labels\n";
+my $condOrCltrTreeFile = $outDir . "/order_cond_cltr.tree";
+condense_tree( $treeFile, $orCltrLabsFile, $condOrCltrTreeFile );
+
+print "--- Generating trees with <cltr>_<size> labels\n";
+my $condOrCltrSizeTreeFile = $outDir . "/order_cond_cltrSize.tree";
+condense_tree( $treeFile, $orCltrSizeLabsFile, $condOrCltrSizeTreeFile );
+
+my $condOrCltrSizeTreeFileR = $outDir . "/order_cond_cltrSizeR.tree";
+condense_tree( $treeFile, $orCltrSizeLabsFileR, $condOrCltrSizeTreeFileR );
 
 
 ##
@@ -491,7 +510,7 @@ condense_tree( $treeFile, $orCltrSizeTblFileR, $condOrCltrSizeTreeFileR );
 print "--- Family analysis\n";
 
 print "--- Genus => Family table in the order of the genus tree leaves\n";
-my $geFaFile = $outDir . "/genus_family.txt";
+my $geFaFile = $outDir . "/family.txt";
 write_sorted_tbl( \%geFaTbl, \@leaves, $geFaFile );
 
 print "--- Generating tree with <family name> labels at leaves\n";
@@ -514,32 +533,42 @@ if ( $OSNAME eq "darwin")
   system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 }
 
-print "--- Running vicut using family annotation\n";
+print "--- Running vicut on genus tree using family annotation\n";
 my $faVicutDir = $outDir . "/family_vicut_dir";
-#run_vicut_no_query( $treeFile, $geFaFile, $faVicutDir );
 run_vicut( $treeFile, $geFaFile, $faVicutDir );
-
 
 print "--- Generating table of family-cluster-size labels\n";
 my $faCltrFile = $faVicutDir . "/minNodeCut.cltrs";
-my ($rfaCltrSizeTbl, $rfaCltrSizeTblR) = get_cltrSizes_labels( \%sizeTbl, \%sizeTblR, $faCltrFile );
+my ($rfaCltrLabs, $rfaCltrSizeLabs, $rfaCltrSizeLabsR, $rfaCltrSize, $rfaCltrSizeR) = get_cltrSizes_labels( \%sizeTbl, \%sizeTblR, $faCltrFile );
 
-my $faCltrSizeTblFile = $outDir . "/genus_faVicut.cltrSize";
-my $faCltrSizeTblFileR = $outDir . "/genus_faVicut.cltrSizeR";
+my $faCltrLabsFile = $outDir . "/family_cltr_labs.txt";
+write_tbl( $rfaCltrLabs, $faCltrLabsFile );
 
-write_tbl( $rfaCltrSizeTbl, $faCltrSizeTblFile );
-write_tbl( $rfaCltrSizeTblR, $faCltrSizeTblFileR );
+my $faCltrSizeLabsFile = $outDir . "/family_cltr_size_labs.txt";
+write_tbl( $rfaCltrSizeLabs, $faCltrSizeLabsFile );
 
+my $faCltrSizeLabsFileR = $outDir . "/family_cltr_sizeR_labs.txt";
+write_tbl( $rfaCltrSizeLabsR, $faCltrSizeLabsFileR );
 
-print "--- Generating tree with <cltr>_<size> labels\n";
-my $condFaCltrSizeTreeFile = $outDir . "/cond_faCltrSize.tree";
-condense_tree( $treeFile, $faCltrSizeTblFile, $condFaCltrSizeTreeFile );
+my $faCltrSizeFile = $outDir . "/family_cltr_size.txt";
+write_tbl( $rfaCltrSize, $faCltrSizeFile );
 
-my $condFaCltrSizeTreeFileR = $outDir . "/cond_faCltrSizeR.tree";
-condense_tree( $treeFile, $faCltrSizeTblFileR, $condFaCltrSizeTreeFileR );
+my $faCltrSizeFileR = $outDir . "/family_cltr_sizeR.txt";
+write_tbl( $rfaCltrSizeR, $faCltrSizeFileR );
 
+print "--- Generating tree with <cltr> labels\n";
+my $condFaCltrTreeFile = $outDir . "/family_cond_cltr.tree";
+condense_tree( $treeFile, $faCltrLabsFile, $condFaCltrTreeFile );
+
+print "--- Generating trees with <cltr>_<size> labels\n";
+my $condFaCltrSizeTreeFile = $outDir . "/family_cond_cltrSize.tree";
+condense_tree( $treeFile, $faCltrSizeLabsFile, $condFaCltrSizeTreeFile );
+
+my $condFaCltrSizeTreeFileR = $outDir . "/family_cond_cltrSizeR.tree";
+condense_tree( $treeFile, $faCltrSizeLabsFileR, $condFaCltrSizeTreeFileR );
 
 print "\n\n\tSuccessfully finished all tasks\n";
+print "\tOutput written to $outDir\n";
 print "\n\n";
 
 cleanup_tmp_files();
@@ -989,7 +1018,7 @@ sub test_OG
   my $ret = 0;
 
   print "\t--- Extracting leaves from $treeFile\n" if $debug_test_OG;
-  my $treeLeavesFile = "$outDir" . "/genus_sppSeqIDs.leaves";
+  my $treeLeavesFile = "$outDir" . "/sppSeqIDs.leaves";
   my $cmd = "rm -f $treeLeavesFile; $nw_labels -I $treeFile > $treeLeavesFile";
   print "\tcmd=$cmd\n" if $dryRun || $debug;
   system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
@@ -1304,7 +1333,7 @@ sub comm
 # elements of the first column to the second column
 sub read_tbl
 {
-  my $file = shift;
+  my ($file, $skipHeader) = @_;
 
   if ( ! -e $file )
   {
@@ -1315,6 +1344,10 @@ sub read_tbl
 
   my %tbl;
   open IN, "$file" or die "Cannot open $file for reading: $OS_ERROR\n";
+  if ( $skipHeader )
+  {
+    my $header = <IN>;
+  }
   foreach (<IN>)
   {
     chomp;
@@ -1542,16 +1575,25 @@ sub run_vicut
   my @leaves = get_leaves( $treeFile );
 
   my @d = diff( \@leaves, \@ann );
-  my ($fh, $qFile) = tempfile("query.XXXX", SUFFIX => 'txt', OPEN => 1, DIR => $tmpDir);
-  for ( @d )
+  if ( @d )
   {
-    print $fh "$_\n";
-  }
-  close $fh;
+    my ($fh, $qFile) = tempfile("query.XXXX", SUFFIX => 'txt', OPEN => 1, DIR => $tmpDir);
+    for ( @d )
+    {
+      print $fh "$_\n";
+    }
+    close $fh;
 
-  my $cmd = "$vicut $quietStr -t $treeFile -a $annFile -q $qFile -o $vicutDir";
-  print "\tcmd=$cmd\n" if $dryRun || $debug;
-  system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+    my $cmd = "$vicut $quietStr -t $treeFile -a $annFile -q $qFile -o $vicutDir";
+    print "\tcmd=$cmd\n" if $dryRun || $debug;
+    system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+  }
+  else
+  {
+    my $cmd = "$vicut $quietStr -t $treeFile -a $annFile -o $vicutDir";
+    print "\tcmd=$cmd\n" if $dryRun || $debug;
+    system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+  }
 }
 
 sub run_vicut_no_query
@@ -1572,42 +1614,47 @@ sub cleanup_tmp_files
 
 sub get_cltrSizes_labels
 {
-  my ( $rsizeTbl, $rsizeTblR, $txCltrFile ) = @_;
+  my ( $rtxSizeTbl, $rtxSizeTblR, $txCltrFile ) = @_;
 
-  my %cltrTbl  = read_tbl( $txCltrFile );
+  # taxon size tables
+  my %txSizeTbl  = %{ $rtxSizeTbl };
+  my %txSizeTblR = %{ $rtxSizeTblR };
 
-  my %sizeTbl  = %{ $rsizeTbl };
-  my %sizeTblR = %{ $rsizeTblR };
+  # vicut leafID => cluster table
+  my $skipHeader = 1;
+  my %cltrTbl  = read_tbl( $txCltrFile, $skipHeader );
 
-  my %clSize;
-  my %clSizeR;
-
-  for my $tx ( keys %cltrTbl )
-  {
-    my $cl = "c" . $cltrTbl{$tx};
-    if ( ! exists $sizeTbl{ $tx } )
-    {
-      $sizeTbl{ $tx }++;
-    }
-    if ( ! exists $sizeTblR{ $tx } )
-    {
-      $sizeTblR{ $tx }++;
-    }
-    $clSize{ $cl }  += $sizeTbl{ $tx };
-    $clSizeR{ $cl } += $sizeTblR{ $tx };
-  }
-
-  my %cltrSizeTbl;
-  my %cltrSizeTblR;
+  my %cltrSize;
+  my %cltrSizeR;
 
   for my $tx ( keys %cltrTbl )
   {
     my $cl = "c" . $cltrTbl{$tx};
-    $cltrSizeTbl{$tx} = $cl . "__" . $clSize{ $cl };
-    $cltrSizeTblR{$tx} = $cl . "__" . $clSizeR{ $cl };
+    if ( ! exists $txSizeTbl{ $tx } )
+    {
+      $txSizeTbl{ $tx }++;
+    }
+    if ( ! exists $txSizeTblR{ $tx } )
+    {
+      $txSizeTblR{ $tx }++;
+    }
+    $cltrSize{ $cl }  += $txSizeTbl{ $tx };
+    $cltrSizeR{ $cl } += $txSizeTblR{ $tx };
   }
 
-  return (\%cltrSizeTbl, \%cltrSizeTblR);
+  my %cltrLab;
+  my %cltrSizeLab;
+  my %cltrSizeLabR;
+
+  for my $tx ( keys %cltrTbl )
+  {
+    my $cl = "c" . $cltrTbl{$tx};
+    $cltrLab{$tx} = $cl;
+    $cltrSizeLab{$tx} = $cl . "__" . $cltrSize{ $cl };
+    $cltrSizeLabR{$tx} = $cl . "__" . $cltrSizeR{ $cl };
+  }
+
+  return (\%cltrLab, \%cltrSizeLab, \%cltrSizeLabR, \%cltrSize, \%cltrSizeR);
 }
 
 
@@ -1708,7 +1755,7 @@ sub get_size_tbls
     map { $geSize += $spFreq{$_} } @spp;
     $sizeTblR{$ge} = $geSize;
   }
-
+  print "\r                                                       \r";
   return (\%sizeTbl, \%sizeTblR);
 }
 
