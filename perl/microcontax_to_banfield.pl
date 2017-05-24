@@ -42,7 +42,7 @@
 
 =head1 EXAMPLE
 
-  microcontax_to_banfield.pl -o contax_trim_banfield_itr_mothur_algn.fa
+  microcontax_to_banfield.pl -o contax_trim_banfield_itr_mothur_algn2.fa
 
 =cut
 
@@ -87,10 +87,20 @@ if ( !$outFile )
   exit 1;
 }
 
-my $bfdFullAlgnFile = "/Users/pgajer/projects/PECAN/data/banfield/banfield_16S_algn_no_Ekta.fa";
+# my $bfdFullAlgnFile = "/Users/pgajer/projects/PECAN/data/banfield/banfield_16S_algn_no_Ekta.fa";
+# my $mxxFaFile       = "/Users/pgajer/projects/PECAN/data/microcontax/contax_trim.fa";
+# my $mxxGeFaDir      = "/Users/pgajer/projects/PECAN/data/microcontax/contax_trim_genus_dir";
+# my $mxxTxFile       = "/Users/pgajer/projects/PECAN/data/microcontax/contax_trim_genus.tx";
+
+my $bfdFullAlgnFile = "/Users/pgajer/projects/PECAN/data/microcontax/contax_trim_banfield_itr_mothur_algn.fa";
 my $mxxFaFile       = "/Users/pgajer/projects/PECAN/data/microcontax/contax_trim.fa";
 my $mxxGeFaDir      = "/Users/pgajer/projects/PECAN/data/microcontax/contax_trim_genus_dir";
-my $mxxTxFile       = "/Users/pgajer/projects/PECAN/data/microcontax/contax_trim_genus.tx";
+my $mxxTxFile       = "/Users/pgajer/projects/PECAN/data/microcontax/contax_trim_genus_not_processed_yet.tx";
+
+# my $bfdFullAlgnFile = "/Users/pgajer/projects/PECAN/data/banfield/banfield_16S_algn.fa";
+# my $mxxFaFile       = "/Users/pgajer/projects/PECAN/data/microcontax/microcontax.trim.align_V3V4_algn_nr.fa";
+# my $mxxGeFaDir      = "/Users/pgajer/projects/PECAN/data/microcontax/contax_trim_V3V4_genus_dir";
+# my $mxxTxFile       = "/Users/pgajer/projects/PECAN/data/microcontax/contax_trim_genus.tx";
 
 my $mothur          = "mothur";
 
