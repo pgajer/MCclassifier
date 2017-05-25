@@ -356,10 +356,11 @@ my $phCltrSizeLabsFileR = $outDir . "/phylum_cltr_sizeR_labs.txt";
 write_tbl( $rphCltrSizeLabsR, $phCltrSizeLabsFileR );
 
 my $phCltrSizeFile = $outDir . "/phylum_cltr_size.txt";
-write_tbl( $rphCltrSize, $phCltrSizeFile );
+my $header = "phylum\tsize\n";
+write_tbl( $rphCltrSize, $phCltrSizeFile, $header );
 
 my $phCltrSizeFileR = $outDir . "/phylum_cltr_sizeR.txt";
-write_tbl( $rphCltrSizeR, $phCltrSizeFileR );
+write_tbl( $rphCltrSizeR, $phCltrSizeFileR, $header );
 
 print "--- Generating tree with <cltr> labels\n";
 my $condPhCltrTreeFile = $outDir . "/phylum_cond_cltr.tree";
@@ -421,10 +422,11 @@ my $clCltrSizeLabsFileR = $outDir . "/class_cltr_sizeR_labs.txt";
 write_tbl( $rclCltrSizeLabsR, $clCltrSizeLabsFileR );
 
 my $clCltrSizeFile = $outDir . "/class_cltr_size.txt";
-write_tbl( $rclCltrSize, $clCltrSizeFile );
+$header = "class\tsize\n";
+write_tbl( $rclCltrSize, $clCltrSizeFile, $header );
 
 my $clCltrSizeFileR = $outDir . "/class_cltr_sizeR.txt";
-write_tbl( $rclCltrSizeR, $clCltrSizeFileR );
+write_tbl( $rclCltrSizeR, $clCltrSizeFileR, $header );
 
 print "--- Generating tree with <cltr> labels\n";
 my $condClCltrTreeFile = $outDir . "/class_cond_cltr.tree";
@@ -487,10 +489,11 @@ my $orCltrSizeLabsFileR = $outDir . "/order_cltr_sizeR_labs.txt";
 write_tbl( $rorCltrSizeLabsR, $orCltrSizeLabsFileR );
 
 my $orCltrSizeFile = $outDir . "/order_cltr_size.txt";
-write_tbl( $rorCltrSize, $orCltrSizeFile );
+$header = "order\tsize\n";
+write_tbl( $rorCltrSize, $orCltrSizeFile, $header );
 
 my $orCltrSizeFileR = $outDir . "/order_cltr_sizeR.txt";
-write_tbl( $rorCltrSizeR, $orCltrSizeFileR );
+write_tbl( $rorCltrSizeR, $orCltrSizeFileR, $header );
 
 print "--- Generating tree with <cltr> labels\n";
 my $condOrCltrTreeFile = $outDir . "/order_cond_cltr.tree";
@@ -551,10 +554,11 @@ my $faCltrSizeLabsFileR = $outDir . "/family_cltr_sizeR_labs.txt";
 write_tbl( $rfaCltrSizeLabsR, $faCltrSizeLabsFileR );
 
 my $faCltrSizeFile = $outDir . "/family_cltr_size.txt";
-write_tbl( $rfaCltrSize, $faCltrSizeFile );
+$header = "family\tsize\n";
+write_tbl( $rfaCltrSize, $faCltrSizeFile, $header );
 
 my $faCltrSizeFileR = $outDir . "/family_cltr_sizeR.txt";
-write_tbl( $rfaCltrSizeR, $faCltrSizeFileR );
+write_tbl( $rfaCltrSizeR, $faCltrSizeFileR, $header );
 
 print "--- Generating tree with <cltr> labels\n";
 my $condFaCltrTreeFile = $outDir . "/family_cond_cltr.tree";
@@ -978,11 +982,12 @@ sub create_mothur_script
 # write hash table to a file
 sub write_tbl
 {
-  my ($rTbl, $outFile) = @_;
+  my ($rTbl, $outFile, $header) = @_;
 
   my %tbl = %{$rTbl};
 
   open OUT, ">$outFile" or die "Cannot open $outFile for writing: $OS_ERROR";
+  print OUT $header if $header;
   map {print OUT $_ . "\t" . $tbl{$_} . "\n"} sort keys %tbl;
   close OUT;
 }
