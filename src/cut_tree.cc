@@ -28,9 +28,33 @@ using namespace std;
 
 #define LINE_LEN  10000
 
-// ===================================================================
-//                   subroutine declarations
-// ===================================================================
+//----------------------------------------------------------- printUsage ----
+void printUsage( const char *s )
+{
+  cout << endl
+
+       << "USAGE " << endl
+       << endl
+       << "  Generating for each non-leaf node of the model tree and all ref sequnces of the\n"
+       << "  children nodes a table with each seq's pp w/r each child node.\n"
+       << endl
+       << "  " << s << " -i <tree file> -s <leaf size file> -o <output dir> [Options]\n"
+       << endl
+       << "\tOptions:\n"
+       << "\t-t <file>  - tree Newick format file\n"
+       << "\t-s <file>  - two column table of leaf sizes: <leafName> <size>\n"
+       << "\t-o <dir>   - output directory\n"
+       << "\t-m <thld>  - cluster size threshold\n"
+
+       << endl
+       << "  The following files are generated:\n"
+       << "  - thld_<thld>_tree_cut_tbl.txt\n"
+       << endl
+
+       << "\n\tEXAMPLE: \n"
+
+       << "\t" << s << " -v -i ex1.tree -s ex1_leaf_size.txt -o cut_tree_dir" << endl << endl;
+}
 
 //================================================= inPar_t ====
 //! holds input parameters
@@ -50,6 +74,10 @@ public:
   void print();
 };
 
+
+// ===================================================================
+//                   subroutine declarations
+// ===================================================================
 
 void parseArgs( int argc, char ** argv, inPar_t *p );
 void printUsage( const char *s );
@@ -339,35 +367,6 @@ inPar_t::~inPar_t()
     free(leafSizeFile);
 }
 
-//----------------------------------------------------------- printUsage ----
-void printUsage( const char *s )
-{
-  cout << endl
-
-       << "USAGE " << endl
-       << endl
-       << "  Generating for each non-leaf node of the model tree and all ref sequnces of the\n"
-       << "  children nodes a table with each seq's pp w/r each child node.\n"
-       << endl
-       << "  " << s << " -i <tree file> -s <leaf size file> -o <output dir> [Options]\n"
-       << endl
-       << "\tOptions:\n"
-       << "\t-i <file>  - tree Newick format file\n"
-       << "\t-s <file>  - two column table of leaf sizes: <leafName> <size>\n"
-       << "\t-o <dir>   - output directory\n"
-       << "\t-t <thld>  - cluster size threshold\n"
-
-       << endl
-       << "  The following files are generated:\n"
-       << "  - ???\n"
-       << endl
-
-       << "\n\tExample: \n"
-
-       << "\t" << s << " -v -i ex1.tree -s ex1_leaf_size.txt -o test_cut_tree_dir" << endl << endl;
-}
-
-
 //----------------------------------------------- printHelp ----
 void printHelp( const char *s )
 {
@@ -384,18 +383,18 @@ void parseArgs( int argc, char ** argv, inPar_t *p )
 
   static struct option longOptions[] = {
     {"out-dir"        ,required_argument, 0,          'o'},
-    {"tree-file"      ,required_argument, 0,          'i'},
+    {"tree-file"      ,required_argument, 0,          't'},
     {"leaf-size-file" ,required_argument, 0,          's'},
-    {"cltr-size-thld" ,required_argument, 0,          't'},
+    {"cltr-size-thld" ,required_argument, 0,          'm'},
     {"help"           ,no_argument,       0,            0},
     {"debug"          ,no_argument, &p->debug,          0},
     {0, 0, 0, 0}
   };
 
-  while ((c = getopt_long(argc, argv,"i:o:s:t:hv",longOptions, NULL)) != -1)
+  while ((c = getopt_long(argc, argv,"m:o:s:t:hv",longOptions, NULL)) != -1)
     switch (c)
     {
-      case 'i':
+      case 't':
 	p->treeFile = strdup(optarg);
 	break;
 
@@ -407,7 +406,7 @@ void parseArgs( int argc, char ** argv, inPar_t *p )
 	p->outDir = strdup(optarg);
 	break;
 
-      case 't':
+      case 'm':
 	p->cltrMaxSize = atoi(optarg);
 	break;
 
