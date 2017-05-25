@@ -139,8 +139,44 @@ int main(int argc, char **argv)
   readTable( inPar->leafSizeFile, &sizeTbl, &nrow, &ncol, &rowNames, &colNames );
 
   map<string, int> sizeMap;
+  int maxLeafSize = 0;
   for ( int i = 0; i < nrow; i++ )
+  {
     sizeMap[string(rowNames[i])] = sizeTbl[i][0];
+    if ( sizeTbl[i][0] > maxLeafSize )
+      maxLeafSize = sizeTbl[i][0];
+  }
+
+  fprintf( stderr,"\nMaximum leaf size: %d\n", maxLeafSize );
+  fprintf( stderr,"Maximum cluster size threshold: %d\n\n", inPar->cltrMaxSize );
+
+  if ( maxLeafSize > inPar->cltrMaxSize )
+  {
+    fprintf(stderr,"\n\n=========================================================================\n");
+    fprintf(stderr,"\nERROR: There is at least one leaf with size exceeding cltrMaxSize\n\n");
+    fprintf(stderr,"=========================================================================\n\n");
+
+    //fprintf(stderr,"--- Checking which leaves exceed cltrMaxSize\n");
+    map<string, int> tooBigLeaves;   // those are leaves with size > cltrMaxSize
+    map<string, int>::iterator it;
+    for ( it = sizeMap.begin(); it != sizeMap.end(); it++ )
+    {
+      if ( it->second > inPar->cltrMaxSize )
+      {
+	tooBigLeaves[ it->first ] = it->second;
+      }
+    }
+
+    fprintf(stderr,"The sizes of the following leaves exceeding cltrMaxSize\n");
+    for ( it = tooBigLeaves.begin(); it != tooBigLeaves.end(); it++ )
+    {
+      fprintf(stderr,"%s\t%d\n", (it->first).c_str(), it->second);
+    }
+    //fprintf(stderr,"\n");
+    fprintf(stderr,"\nPlease choose the maximal cluster size at least a big as the maximum of leaf sizes\n\n");
+    exit(EXIT_FAILURE);
+  }
+
 
   if ( inPar->debug )
   {
@@ -159,27 +195,6 @@ int main(int argc, char **argv)
     fprintf(stderr,"\n\n");
   }
 
-  fprintf(stderr,"--- Checking for leaves exceeding cltrMaxSize\n");
-  map<string, int> tooBigLeaves;   // those are leaves with size > cltrMaxSize
-  map<string, int>::iterator it;
-  for ( it = sizeMap.begin(); it != sizeMap.end(); it++ )
-  {
-    if ( it->second > inPar->cltrMaxSize )
-    {
-      tooBigLeaves[ it->first ] = it->second;
-    }
-  }
-
-  if ( !tooBigLeaves.empty() )
-  {
-    fprintf(stderr,"\n\n\tWARNING: The sizes of the following leaves exceeding cltrMaxSize\n");
-    map<string, int>::iterator it;
-    for ( it = tooBigLeaves.begin(); it != tooBigLeaves.end(); it++ )
-    {
-      fprintf(stderr,"%s\t%d\n", (it->first).c_str(), it->second);
-    }
-    fprintf(stderr,"\n");
-  }
 
 
   fprintf(stderr,"--- Post-order traversal of the tree with update of internal node sizes\n");
