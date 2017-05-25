@@ -53,7 +53,7 @@ CHK_DIR_EXISTS= test -d
 MKDIR         = mkdir -p
 
 SRCDIR  = .
-BINDIR  = .
+BINDIR  = ../bin
 BUILDDIR= .build
 
 create-build-dir := $(shell $(CHK_DIR_EXISTS) $(BUILDDIR) || $(MKDIR) $(BUILDDIR))
