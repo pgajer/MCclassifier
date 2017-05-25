@@ -229,7 +229,10 @@ int main(int argc, char **argv)
 
   fprintf(stderr, "--- Generating a cluster table: <leafName> <cluterID= -(node->idx)>\n");
 
-  string outFile = string(inPar->outDir) + string("/") + string("cltr_tbl.txt");
+  char thldStr[16];
+  sprintf( thldStr, "%d", inPar->cltrMaxSize );
+
+  string outFile = string(inPar->outDir) + string("/") + string("thld_") + string(thldStr) + string("_tree_cut_tbl.txt");
   FILE *out = fOpen( outFile.c_str(), "w" );
   map<NewickNode_t*, int>::iterator it2;
   for ( it2 = cutMap.begin(); it2 != cutMap.end(); it2++ )
@@ -239,7 +242,7 @@ int main(int argc, char **argv)
 
     vector<string>::iterator sItr;
     for ( sItr = leaves.begin(); sItr != leaves.end(); sItr++ )
-      fprintf( out,"%s\t%d\n", (*sItr).c_str(), (int)fabs(it2->first->idx));
+      fprintf( out,"%s\t%d\t%d\n", (*sItr).c_str(), (int)fabs(it2->first->idx), it2->second);
   }
   fclose( out );
 
