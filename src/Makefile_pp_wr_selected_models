@@ -3,7 +3,7 @@
 # Makefile for building pp_wr_selected_models
 #############################################################################
 
-# Copyright (C) 2016 Pawel Gajer pgajer@gmail.com and Jacques Ravel jravel@som.umaryland.edu
+# Copyright (C) 2017 Pawel Gajer pgajer@gmail.com and Jacques Ravel jravel@som.umaryland.edu
 
 # Permission to use, copy, modify, and distribute this software and its
 # documentation with or without modifications and for any purpose and
