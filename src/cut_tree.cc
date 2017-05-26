@@ -75,6 +75,19 @@ public:
 };
 
 
+// This is going to be used to sort map<NewickNode_t *,int> in saveCltrAnnStats()
+class sort_node_map
+{
+  public:
+  NewickNode_t * key;
+  int val;
+};
+
+bool Sort_node_by(const sort_node_map& a ,const sort_node_map& b)
+{
+	return a.val > b.val;
+}
+
 // ===================================================================
 //                   subroutine declarations
 // ===================================================================
@@ -263,14 +276,30 @@ int main(int argc, char **argv)
   string outFile = string(inPar->outDir) + string("/") + string("thld_") + string(thldStr) + string("_tree_cut_tbl.txt");
   FILE *out = fOpen( outFile.c_str(), "w" );
   map<NewickNode_t*, int>::iterator it2;
+  vector< sort_node_map > v;
+  sort_node_map sm;
   for ( it2 = cutMap.begin(); it2 != cutMap.end(); it2++ )
   {
+    sm.key = it2->first;
+    sm.val = it2->second;
+    v.push_back(sm);
+  }
+
+  sort( v.begin(),v.end(),Sort_node_by );
+
+  int phGrIdx = 1;
+  vector< sort_node_map >::iterator itv;
+  for (itv = v.begin(); itv != v.end(); ++itv)
+    //for ( it2 = cutMap.begin(); it2 != cutMap.end(); it2++ )
+  {
     vector<string> leaves;
-    nt.leafLabels( it2->first, leaves );
+    nt.leafLabels( itv->key, leaves );
 
     vector<string>::iterator sItr;
     for ( sItr = leaves.begin(); sItr != leaves.end(); sItr++ )
-      fprintf( out,"%s\t%d\t%d\n", (*sItr).c_str(), (int)fabs(it2->first->idx), it2->second);
+      fprintf( out,"%s\t%d\t%d\n", (*sItr).c_str(), phGrIdx, itv->val);
+
+    phGrIdx++;
   }
   fclose( out );
 
