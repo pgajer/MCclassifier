@@ -280,6 +280,11 @@ my ($rsizeTbl, $rsizeTblR) = get_size_tbls();
 my %sizeTbl  = %{$rsizeTbl};  # taxon => size
 my %sizeTblR = %{$rsizeTblR}; # taxon => size with the uppler limit on the number of representatives of at the species level
 
+my $sizeFile = $outDir . "/size.txt";
+write_tbl( \%sizeTbl, $sizeFile );
+
+my $sizeFileR = $outDir . "/sizeR.txt";
+write_tbl( \%sizeTblR, $sizeFileR );
 
 
 ## tree associated lineage file will be used to construct
@@ -302,12 +307,27 @@ my %geFaTbl = %{$rgeFaTbl};
 my $geTblFile = $outDir . "/genus.tx";
 write_tbl( \%geTbl, $geTblFile );
 
+print "--- Rerooting the tree using Archaea as an OG\n";
+my $rrTreeFile = $outDir . "/Banfield_medoids_FL_rr.tree";
+# selecting medoids Archaea seq's
+
+my @leaves = get_leaves( $treeFile );
+my @ogs = grep { $_ =~ "Eukaryota" } @leaves;
+# print "Found " . @ogs . " Eukaryota seqs\n\n";exit;
+reroot_tree( $treeFile, \@ogs, $rrTreeFile );
+
+$treeFile = $rrTreeFile;
+
+print "--- Running vicut using genus annotation\n";
+my $geVicutDir = $outDir . "/genus_vicut_dir";
+run_vicut( $treeFile, $geTblFile, $geVicutDir );
+
 print "--- Building genus names tree\n";
 my $geTreeFile = $outDir . "/genus.tree";
 build_ann_tree( $treeFile, $geTblFile, $geTreeFile );
 
 $treeFile = $geTreeFile;
-my @leaves = get_leaves( $treeFile );
+@leaves = get_leaves( $treeFile );
 
 ##
 ## Phylum analysis
@@ -1302,9 +1322,7 @@ sub read_array
   return @rows;
 }
 
-sub get_leaves
-{
-  my $treeFile = shift;
+sub get_leaves { my $treeFile = shift;
 
   my ($fh, $leavesFile) = tempfile("leaves.XXXX", SUFFIX => '', OPEN => 0, DIR => $tmpDir);
   my $cmd = "$nw_labels -I $treeFile > $leavesFile";
