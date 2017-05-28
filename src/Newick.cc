@@ -979,7 +979,8 @@ void NewickTree_t::saveCltrAnnStats( const char *outFile,
 
       for (it = annCount.begin(); it != annCount.end(); ++it)
       {
-	sm.key = (*it).first; sm.val = (*it).second;
+	sm.key = (*it).first;
+	sm.val = (*it).second;
 	v.push_back(sm);
 	sum += sm.val;
       }
