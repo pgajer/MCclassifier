@@ -64,17 +64,9 @@
 
 =head1 EXAMPLE
 
-  cd ~/projects/PECAN/data/microcontax
-  $ microcontax_to_banfield.pl -o contax_trim_banfield_itr_mothur_algn.fa
-  $ FastTree -nt contax_trim_banfield_itr_mothur_algn.fa > contax_trim_banfield_itr_mothur.tree
+  cd ~/projects/PECAN/data/Banfield_contax
 
-  vicut_and_plot.pl -t contax_trim_banfield_itr_mothur.tree -a contax_trim_phylum.tx -l contax_trim.lineage -o contax_trim_banfield_phylum_dir
-
-  vicut_and_plot.pl -t microcontax_mediods_V3V4_algn.tree -l medoids.lineage -o microcontax_mediods_V3V4_vicut_dir
-
-  vicut_and_plot.pl -t medoids_ginsi.tree -l medoids.lineage -o mediods_ginsi_vicut_dir
-
-  vicut_and_plot.pl -t Banfield_medoids_FL_algn.tree -l medoids.lineage -o banfield_medoids_FL_vicut_dir
+  vicut_and_plot.pl -t Banfield_medoids_FL.tree -l medoids.lineage -o banfield_medoids_FL_dir
 
 =cut
 
@@ -307,16 +299,19 @@ my %geFaTbl = %{$rgeFaTbl};
 my $geTblFile = $outDir . "/genus.tx";
 write_tbl( \%geTbl, $geTblFile );
 
-print "--- Rerooting the tree using Archaea as an OG\n";
-my $rrTreeFile = $outDir . "/Banfield_medoids_FL_rr.tree";
-# selecting medoids Archaea seq's
+#
+# Already done
+#
+# print "--- Rerooting the tree using Archaea as an OG\n";
+# my $rrTreeFile = $outDir . "/Banfield_medoids_FL_rr.tree";
+# # selecting medoids Archaea seq's
 
-my @leaves = get_leaves( $treeFile );
-my @ogs = grep { $_ =~ "Eukaryota" } @leaves;
-# print "Found " . @ogs . " Eukaryota seqs\n\n";exit;
-reroot_tree( $treeFile, \@ogs, $rrTreeFile );
+# my @leaves = get_leaves( $treeFile );
+# my @ogs = grep { $_ =~ "Eukaryota" } @leaves;
+# # print "Found " . @ogs . " Eukaryota seqs\n\n";exit;
+# reroot_tree( $treeFile, \@ogs, $rrTreeFile );
 
-$treeFile = $rrTreeFile;
+# $treeFile = $rrTreeFile;
 
 print "--- Running vicut using genus annotation\n";
 my $geVicutDir = $outDir . "/genus_vicut_dir";
@@ -327,7 +322,7 @@ my $geTreeFile = $outDir . "/genus.tree";
 build_ann_tree( $treeFile, $geTblFile, $geTreeFile );
 
 $treeFile = $geTreeFile;
-@leaves = get_leaves( $treeFile );
+my @leaves = get_leaves( $treeFile );
 
 ##
 ## Phylum analysis
