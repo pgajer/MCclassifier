@@ -28,11 +28,11 @@
 CC            = gcc #gcc-4.0
 CXX           = g++ #g++-4.0
 FLAGS         = -g # -fopenmp # -O2 # -g -O2
-CFLAGS        = $(FLAGS) -Wall -D__SIM_SSE3 -O2 -D_GNU_SOURCE -dynamic -msse3 -fomit-frame-pointer -funroll-loops # -D_USE_PTHREADS
-CXXFLAGS      = $(FLAGS) -std=gnu++11 -Wall -D__SIM_SSE3 -O2 -D_GNU_SOURCE -dynamic -msse3 -fomit-frame-pointer -funroll-loops # -D_USE_PTHREADS
+CFLAGS        = $(FLAGS) -Wall -D__SIM_SSE3 -msse3 -D_GNU_SOURCE -dynamic -O2 -fomit-frame-pointer -funroll-loops -D__AVX # -D_USE_PTHREADS
+CXXFLAGS      = $(FLAGS) -std=gnu++11 -Wall -D__SIM_SSE3 -O2 -D_GNU_SOURCE -dynamic -msse3 -fomit-frame-pointer -funroll-loops -D__AVX # -D_USE_PTHREADS
 INCPATH       = -Isrc
 LINK          = g++
-LIBS          = -lm # -L../../lib -lkmerstats
+LIBS          = -lm # -pthread -L../../lib -lkmerstats
 AR            = ar cq
 RANLIB        = ranlib -s
 TAR           = tar -cf

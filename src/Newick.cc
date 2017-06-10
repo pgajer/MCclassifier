@@ -38,6 +38,7 @@ using namespace std;
 
 #define DEBUG 0
 
+
 //--------------------------------------------- NewickNode_t() -----
 NewickNode_t::NewickNode_t(NewickNode_t * parent)
   : parent_m(parent)
@@ -74,6 +75,29 @@ NewickNode_t::~NewickNode_t()
   // {
   //   delete children_m[i];
   // }
+}
+
+
+//--------------------------------------------- stitch -----
+// make children on the input node the children of the current node
+// the children of the input node have the current node as a parent
+void NewickNode_t::stitch( NewickNode_t *node )
+{
+  #if DEBUG
+  fprintf(stderr,"in NewickNode_t::stitch()\n");
+  #endif
+
+  children_m = node->children_m;
+
+  int nChildren = children_m.size();
+  for ( int i = 0; i < nChildren; i++ )
+  {
+    children_m[i]->parent_m = this;
+  }
+
+  #if DEBUG
+  fprintf(stderr,"leaving NewickNode_t::stitch()\n");
+  #endif
 }
 
 //--------------------------------------------- addChild -----
@@ -273,8 +297,8 @@ bool NewickTree_t::loadTree(const char *file)
       c = fgetc(fp);
 
       #if DEBUGLT
-      fprintf(stderr,"in c==) next c=%c\n", c);
-      fprintf(stderr,"in c==) minIdx_m=%d\n", minIdx_m);
+      fprintf(stderr,"in ) next c=%c\n", c);
+      fprintf(stderr,"in ) minIdx_m=%d\n", minIdx_m);
       #endif
 
       cur->idx = minIdx_m;
@@ -282,48 +306,48 @@ bool NewickTree_t::loadTree(const char *file)
 
       if ( c == ';' )
       {
-	DONE = 1;
-	break;
+		DONE = 1;
+		break;
       }
       else if ( c == ':' )
       {
-	fscanf(fp, "%lf", &cur->branch_length);
+		fscanf(fp, "%lf", &cur->branch_length);
       }
       else if ( isdigit(c) )
       {
-	double bootVal;
-	fscanf(fp, "%lf:%lf", &bootVal, &cur->branch_length);
+		double bootVal;
+		fscanf(fp, "%lf:%lf", &bootVal, &cur->branch_length);
       }
       else if ( isalpha(c) )  // label:digit
       {
         #if DEBUGLT
-	fprintf(stderr,"in c==)alpha=%c\n", c);
-	#endif
+		fprintf(stderr,"in )alpha=%c\n", c);
+        #endif
 
-	char *brkt;
-	ungetc(c, fp);
-	int i = 0;
-	while ( isalnum(c) || c==':' || c=='.' || c=='_' || c=='-' )
-	{
-	  c = fgetc(fp);
-	  str[i++] = c;
-	}
-	str[--i] = '\0';
-	if (c != ',') { ungetc(c, fp); }
+		char *brkt;
+		ungetc(c, fp);
+		int i = 0;
+		while ( isalnum(c) || c==':' || c=='.' || c=='_' || c=='-' )
+		{
+		  c = fgetc(fp);
+		  str[i++] = c;
+		}
+		str[--i] = '\0';
+		if (c != ',') { ungetc(c, fp); }
 
-	strtok_r(str, ":", &brkt);
-	cur->label = string(str);
-	cur->branch_length = 0; //atof(str);
+		strtok_r(str, ":", &brkt);
+		cur->label = string(str);
+		cur->branch_length = 0; //atof(str);
 
         #if DEBUGLT
-	fprintf(stderr, "label=%s\tbranch_length=%.2f\n", cur->label.c_str(), cur->branch_length);
-	#endif
+		fprintf(stderr, "label=%s\tbranch_length=%.2f\n", cur->label.c_str(), cur->branch_length);
+        #endif
       }
       else //if (c != ':' && !isdigit(c) && c !=';')
       {
-	fprintf(stderr, "ERROR in %s at %d: Unexpected data, %c, after ')' in %s on line %d\n",
-		__FILE__, __LINE__, c, file, LINE);
-	return 0;
+		fprintf(stderr, "ERROR in %s at %d: Unexpected data, %c, after ')' in %s on line %d\n",
+				__FILE__, __LINE__, c, file, LINE);
+		return 0;
       }
 
       cur = cur->parent_m;
@@ -380,8 +404,6 @@ static void writeNewickNode(NewickNode_t * node,
                             int depth)
 {
   if (!node) { return; }
-
-  //for (int i = 0; i < depth; i++) { fprintf(fp, " "); }
 
   int numChildren = node->children_m.size();
 
@@ -2550,4 +2572,233 @@ void NewickTree_t::modelIdx( vector<string> &modelIds )
 	bfs.push(node->children_m[i]);
     }
   }
+}
+
+
+// ----------------------------------------- readNewickNode() ---------------------------------
+//
+// This code was lifted/adopted from the spimap-1.1 package
+// ~/devel/MCclassifier/packages/spimap-1.1/src
+// http://compbio.mit.edu/spimap/
+// https://academic.oup.com/mbe/article-lookup/doi/10.1093/molbev/msq189
+//
+
+float readDist( FILE *infile )
+{
+    float dist = 0;
+    fscanf(infile, "%f", &dist);
+    return dist;
+}
+
+
+char readChar(FILE *stream, int &depth)
+{
+    char chr;
+    do {
+        if (fread(&chr, sizeof(char), 1, stream) != 1) {
+            // indicate EOF
+            return '\0';
+        }
+    } while (chr == ' ' || chr == '\n');
+
+    // keep track of paren depth
+    if (chr == '(') depth++;
+    if (chr == ')') depth--;
+
+    return chr;
+}
+
+
+char readUntil(FILE *stream, string &token, const char *stops, int &depth)
+{
+    char chr;
+    token = "";
+    while (true) {
+        chr = readChar(stream, depth);
+        if (!chr)
+            return chr;
+
+        // compare char to stop characters
+        for (const char *i=stops; *i; i++) {
+            if (chr == *i)
+                return chr;
+        }
+        token += chr;
+    }
+}
+
+string getIdent( int depth )
+{
+   string identStr = "";
+   for ( int i = 0; i < depth; i++ )
+   {
+	  identStr += string("  ");
+   }
+
+   return identStr;
+}
+
+NewickNode_t *readNewickNode(FILE *infile, NewickTree_t *tree, NewickNode_t *parent, int &depth)
+{
+  #define DEBUG 0
+  #if DEBUG
+   string ident = getIdent( depth );
+   fprintf(stderr, "%sIn readNewickNode() depth: %d\n", ident.c_str(), depth);
+  #endif
+
+   char chr, char1;
+   NewickNode_t *node;
+   string token;
+
+   // read first character
+   if ( !(char1  = readChar(infile, depth)) )
+   {
+	  fprintf(stderr, "\n\n\tERROR: Unexpected end of file\n\n");
+	  exit(1);
+   }
+
+   if ( char1 == '(' ) // read internal node
+   {
+	  int depth2 = depth;
+	  if ( parent )
+	  {
+		 node = parent->addChild();
+		 #if DEBUG
+		 if ( depth )
+		 {
+			string ident = getIdent( depth );
+			fprintf( stderr, "%sCurrently at depth: %d - Adding a child to a parent\n", ident.c_str(), depth );
+		 }
+		 else
+		 {
+			fprintf( stderr, "Currently at depth: %d - Adding a child to a parent\n", depth );
+		 }
+		 #endif
+	  }
+	  else
+	  {
+		 node = new NewickNode_t();
+		 tree->setRoot( node );
+		 #if DEBUG
+		 fprintf( stderr, "Currently at depth: %d - Creating a root\n", depth );
+         #endif
+	  }
+
+	  // Assigning a numeric index to the node
+	  node->idx = tree->getMinIdx();
+	  tree->decrementMinIdx();
+
+	  // updating node's depth
+	  node->depth_m = depth - 1;
+
+	  // read all child nodes at this depth
+	  while ( depth == depth2 )
+	  {
+		 NewickNode_t *child = readNewickNode(infile, tree, node, depth);
+		 if (!child)
+		   return NULL;
+	  }
+
+	  // read branch_length for this node
+	  // this fragment assumes that the internal nodes do not have labels
+	  char chr = readUntil(infile, token, "):,;", depth);
+
+	  if ( !token.empty() ) // Reading node's label
+	  {
+		 node->label = trim(token.c_str());
+
+         #if DEBUG
+		 string ident = getIdent( depth );
+		 fprintf( stderr, "%sNode name: %s\n", ident.c_str(), token.c_str() );
+         #endif
+	  }
+
+	  if (chr == ':')
+	  {
+		 node->branch_length = readDist( infile );
+
+		 #if DEBUG
+		 string ident = getIdent( depth );
+		 fprintf( stderr, "%snode->branch_length: %f\n", ident.c_str(), node->branch_length );
+		 #endif
+
+		 if ( !(chr = readUntil(infile, token, "):,", depth)) )
+		   return NULL;
+	  }
+	  //if (chr == ';' && depth == 0)
+	  //    return node;
+
+	  #if DEBUG
+	  string ident = getIdent( node->depth_m );
+	  fprintf( stderr, "%sNode's depth: %d\n", ident.c_str(), node->depth_m );
+	  #endif
+
+	  return node;
+   }
+   else
+   {
+	  // Parsing leaf
+
+	  if (parent)
+	  {
+		node = parent->addChild();
+		#if DEBUG
+		string ident = getIdent(depth);
+		fprintf( stderr, "%sCurrently at depth: %d - Found leaf: adding it as a child to a parent\n", ident.c_str(), depth );
+		#endif
+	  }
+	  else
+	  {
+		 fprintf( stderr, "\n\n\tERROR: Found leaf without a parent\n\n" );
+		 exit(1);
+	  }
+
+	  // Assigning to the leaf a numeric index
+	  node->idx = tree->leafCount();
+	  tree->incrementLeafCount();
+
+	  // updating leaf's depth
+	  node->depth_m = depth;
+
+	  // Reading leaf label
+	  if ( !(chr = readUntil(infile, token, ":),", depth)) )
+		return NULL;
+	  token = char1 + trim(token.c_str());
+	  node->label = token;
+
+	  #if DEBUG
+	  string ident = getIdent( depth );
+	  fprintf( stderr, "%sLeaf name: %s\tdepth: %d\tidx: %d\n", ident.c_str(), token.c_str(), node->depth_m, node->idx );
+      #endif
+
+	  // read distance for this node
+	  if (chr == ':')
+	  {
+		 node->branch_length = readDist( infile );
+
+		 #if DEBUG
+		 fprintf( stderr, "%sLeaf's branch length: %f\n", ident.c_str(), node->branch_length );
+         #endif
+
+		 if ( !(chr = readUntil( infile, token, ":),", depth )) )
+		   return NULL;
+	  }
+
+	  return node;
+   }
+}
+
+
+NewickTree_t *readNewickTree( const char *filename )
+{
+   FILE *infile = fOpen(filename, "r");
+
+   int depth = 0;
+   NewickTree_t *tree = new NewickTree_t();
+   NewickNode_t * node = readNewickNode(infile, tree, NULL, depth);
+   tree->setRoot( node );
+
+   fclose(infile);
+
+   return tree;
 }

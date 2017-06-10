@@ -30,6 +30,12 @@ OR PERFORMANCE OF THIS SOFTWARE.
 #define MAXMESSAGE 1024
 static char Message[MAXMESSAGE];
 
+//-------------------------------------------------------------- error_msg ----
+void error_msg( const char *file, int line, const char *msg )
+{
+  fprintf(stderr, "\n\n\tERROR: in %s line %d: %s\n\n", file, line, msg );
+}
+
 
 //--------------------------------------------------------------- FileCheck ----
 /// Attempts to open/close file using mode. Validates the file by
@@ -124,7 +130,7 @@ char stringToChar (const char * str)
 }
 
 
-//------------------------------------------------------------------- Chomp ----
+//------------------------------------------------------------------- chomp ----
 /// Removes whitespace from the end of a string s.
 char* chomp(char *s)
 {

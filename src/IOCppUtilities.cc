@@ -34,6 +34,34 @@ OR PERFORMANCE OF THIS SOFTWARE.
 
 // typedef map<string, set<string> > strSet_t;
 
+//---------------------------------------------------------- trim ----
+// return the first word of a char string, str, trimmed to the first 100 characters.
+string trim(const char *str)
+{
+    char buf[101];
+    if (sscanf(str, "%100s", buf) == 1)
+        return string(buf);
+    else
+        return string("");
+}
+
+
+//---------------------------------------------------------- read_2s_tbl ----
+void read_2s_tbl( const char *inFile, map<string, string> &sMap )
+{
+  FILE *inFp = fOpen( inFile, "r" );
+
+  char s1[1024];
+  char s2[1024];
+
+  while( !feof( inFp ) )
+  {
+    fscanf( inFp,"%s %s", s1, s2);
+    sMap[ string(s1) ] = string(s2);
+  }
+  fclose(inFp);
+}
+
 //---------------------------------------------------------- printStringSet ----
 void printStringSet(set<string> &S)
 {

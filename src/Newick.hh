@@ -45,6 +45,7 @@ public:
 
   /// routines
   NewickNode_t * addChild();
+  void stitch( NewickNode_t * );
 
   /// variables
   NewickNode_t * parent_m;
@@ -59,10 +60,10 @@ public:
 // this is used in getSppProfs() and getTx() routines for taxonomic assignment
 class sppProf_t
 {
-public:
-  NewickNode_t *node;      // cut-node
-  NewickNode_t *ancNode;   // ancestral node with reference sequences (can be the same as 'node')
-  map<string,int> sppFreq; // frequencies of sppecies found in the ancestral subtree
+   public:
+   NewickNode_t *node;      // cut-node
+   NewickNode_t *ancNode;   // ancestral node with reference sequences (can be the same as 'node')
+   map<string,int> sppFreq; // frequencies of sppecies found in the ancestral subtree
 };
 
 class NewickTree_t
@@ -73,6 +74,7 @@ public:
 
   bool loadTree(const char *file);
 
+  void incrementLeafCount() { nLeaves_m++; }
   void rmNodesWith1child();
   void rmLeaf( string &s );
 
@@ -95,7 +97,9 @@ public:
 
   int getDepth();
   int getNleaves() { return nLeaves_m; }
+  int leafCount() { return nLeaves_m; }
   int getMinIdx() { return minIdx_m; }
+  void decrementMinIdx() { minIdx_m--; }
 
   void saveCltrMemb( const char *outFile,
 		     vector<int> &nodeCut,
@@ -161,6 +165,7 @@ public:
                 vector<sppProf_t*> &ancRootProfs);
 
   NewickNode_t * root() { return root_m; }
+  void setRoot( NewickNode_t *node ) { root_m = node; }
 
   void txSet2txTree( strSet_t &tx2seqIDs );
 
@@ -195,5 +200,11 @@ private:
   map<int, NewickNode_t*> idx2node_m;
 };
 
+float readDist( FILE *stream );
+char readChar( FILE *stream, int &depth );
+char readUntil( FILE *stream, string &token, const char *stops, int &depth );
+string getIdent( int depth );
+NewickNode_t *readNewickNode( FILE *stream, NewickTree_t *tree, NewickNode_t *parent, int &depth );
+NewickTree_t *readNewickTree( const char *filename );
 
 #endif

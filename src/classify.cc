@@ -328,7 +328,6 @@ int main(int argc, char **argv)
     nModels = inPar->trgFiles.size();
   }
 
-
   //map<string, errTbl_t *> modelErrTbl;
   map<string, double> thldTbl;
   if ( inPar->mcDir ) // extracting number of models and k-mer size
@@ -539,12 +538,12 @@ int main(int argc, char **argv)
 
       if ( runTime > 60 )
       {
-	timeMin = runTime / 60;
-	timeSec = runTime % 60;
+        timeMin = runTime / 60;
+        timeSec = runTime % 60;
       }
       else
       {
-	timeSec = runTime;
+        timeSec = runTime;
       }
       fprintf(stderr,"\r%d:%02d  %d [%02d%%]", timeMin, timeSec, count, perc);
     }
@@ -553,7 +552,7 @@ int main(int argc, char **argv)
     if ( inPar->revComp )
     {
       for ( int j = 0; j < seqLen; ++j )
-	rcseq[j] = Complement(seq[seqLen-1-j]);
+        rcseq[j] = Complement(seq[seqLen-1-j]);
       rcseq[seqLen] = '\0';
     }
 
@@ -580,39 +579,39 @@ int main(int argc, char **argv)
       // NOTE: after a few iterations only seq or rcseq should be processed !!!
       for ( int i = 0; i < nChildren; i++ )
       {
-	if ( inPar->revComp )
-	{
-	  x[i] = probModel->normLog10prob(rcseq, seqLen, (node->children_m[i])->model_idx );
-	}
-	else
-	{
-	  x[i] = probModel->normLog10prob(seq, seqLen, (node->children_m[i])->model_idx );
-	}
+        if ( inPar->revComp )
+        {
+          x[i] = probModel->normLog10prob(rcseq, seqLen, (node->children_m[i])->model_idx );
+        }
+        else
+        {
+          x[i] = probModel->normLog10prob(seq, seqLen, (node->children_m[i])->model_idx );
+        }
       }
 
       if ( 0 && inPar->ppEmbedding )
       {
-	// log pp's
-	string ppFile = string(inPar->mcDir) + string("/") + node->label + string("__lpps.txt");
-	FILE *ppOut;
-	if ( seen[node->label] )
-	  ppOut = fOpen( ppFile.c_str(), "a");
-	else
-	{
-	  seen[node->label] = true;
-	  ppOut = fOpen( ppFile.c_str(), "w");
-	  // header
-	  fprintf(ppOut,"seqIDs\tcltr");
-	  for (int j = 0; j < nChildren; j++)
-	    fprintf(ppOut,"\t%s",node->children_m[j]->label.c_str());
-	  fprintf(ppOut,"\n");
-	  // end of header
-	}
-	fprintf(ppOut,"%s\t%d", id, -1);
-	for (int j = 0; j < nChildren; j++)
-	  fprintf(ppOut,"\t%f", x[j]);
-	fprintf(ppOut,"\n");
-	fclose(ppOut);
+        // log pp's
+        string ppFile = string(inPar->mcDir) + string("/") + node->label + string("__lpps.txt");
+        FILE *ppOut;
+        if ( seen[node->label] )
+          ppOut = fOpen( ppFile.c_str(), "a");
+        else
+        {
+          seen[node->label] = true;
+          ppOut = fOpen( ppFile.c_str(), "w");
+          // header
+          fprintf(ppOut,"seqIDs\tcltr");
+          for (int j = 0; j < nChildren; j++)
+            fprintf(ppOut,"\t%s",node->children_m[j]->label.c_str());
+          fprintf(ppOut,"\n");
+          // end of header
+        }
+        fprintf(ppOut,"%s\t%d", id, -1);
+        for (int j = 0; j < nChildren; j++)
+          fprintf(ppOut,"\t%f", x[j]);
+        fprintf(ppOut,"\n");
+        fclose(ppOut);
       }
 
       int imax = which_max( x, nChildren );
@@ -620,50 +619,50 @@ int main(int argc, char **argv)
       node = node->children_m[imax];
 
       if ( inPar->ppEmbedding ) // decition path
-	fprintf(dOut,",%s  %.3f %.3f", node->label.c_str(), pow(10, x[imax]), pow(10, thldTbl[ node->label ]));
+        fprintf(dOut,",%s  %.3f %.3f", node->label.c_str(), pow(10, x[imax]), pow(10, thldTbl[ node->label ]));
 
       if ( !inPar->skipErrThld && node->children_m.size()==0 )
       {
-	if ( x[imax] < thldTbl[ node->label ] )
-	{
-          #if 0
-	  fprintf(stderr,"\n---- Processing %s\n",id) ;
-	  fprintf(stderr,"maxModel: %s\tlpp: %.4f\tthld: %.4f\t",
-		  node->label.c_str(), x[imax], thldTbl[ node->label ]);
+        if ( x[imax] < thldTbl[ node->label ] )
+        {
+#if 0
+          fprintf(stderr,"\n---- Processing %s\n",id) ;
+          fprintf(stderr,"maxModel: %s\tlpp: %.4f\tthld: %.4f\t",
+                  node->label.c_str(), x[imax], thldTbl[ node->label ]);
+          
+          map<string, string>::iterator itr;
+          map<string, string> seqRecs; // fasta file sequence records
 
-	  map<string, string>::iterator itr;
-	  map<string, string> seqRecs; // fasta file sequence records
+          string faFile = string(inPar->mcDir) + string("/") + node->label + string(".fa");
+          seqRecs.clear();
+          readFasta( faFile.c_str(), seqRecs);
+          int nRefSeqs = seqRecs.size();
 
-	  string faFile = string(inPar->mcDir) + string("/") + node->label + string(".fa");
-	  seqRecs.clear();
-	  readFasta( faFile.c_str(), seqRecs);
-	  int nRefSeqs = seqRecs.size();
+          vector<double> lpp(nRefSeqs);
+          double minLpp = 1.0;
+          int i = 0;
+          for ( itr = seqRecs.begin(); itr != seqRecs.end(); ++itr )
+          {
+            lpp[i] = probModel->normLog10prob(itr->second.c_str(), (int)itr->second.size(), node->model_idx );
+            if ( lpp[i] < minLpp )
+              minLpp = lpp[i];
+            i++;
+          }
 
-	  vector<double> lpp(nRefSeqs);
-	  double minLpp = 1.0;
-	  int i = 0;
-	  for ( itr = seqRecs.begin(); itr != seqRecs.end(); ++itr )
-	  {
-	    lpp[i] = probModel->normLog10prob(itr->second.c_str(), (int)itr->second.size(), node->model_idx );
-	    if ( lpp[i] < minLpp )
-	      minLpp = lpp[i];
-	    i++;
-	  }
+          fprintf(stderr,"min lpp: %.4f\n", minLpp);
+#endif
 
-	  fprintf(stderr,"min lpp: %.4f\n", minLpp);
-	  #endif
+          node = node->parent_m;
+          breakLoop = 1;
 
-	  node = node->parent_m;
-	  breakLoop = 1;
+          if ( node->label=="d_Bacteria" )
+            break;
+        }
 
-	  if ( node->label=="d_Bacteria" )
-	    break;
-	}
-
-        #if DEBUGMAIN1
-	fprintf(debugout,"maxModel: %s\tlpp: %.4f\tthld: %.4f\n",
-		node->label.c_str(), x[imax], thldTbl[ node->label ]);
-        #endif
+#if DEBUGMAIN1
+        fprintf(debugout,"maxModel: %s\tlpp: %.4f\tthld: %.4f\n",
+                node->label.c_str(), x[imax], thldTbl[ node->label ]);
+#endif
       }
 
       nChildren = node->children_m.size();

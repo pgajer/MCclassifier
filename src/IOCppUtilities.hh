@@ -46,6 +46,8 @@ OR PERFORMANCE OF THIS SOFTWARE.
 
 using namespace std;
 
+string trim( const char *word );
+
 void printStringSet(set<string> &S);
 
 void childrenMap( char ***tbl, int nRows, int nCols, map<string, set<string> > &children);
@@ -59,6 +61,9 @@ void writeStrVector(const char *outFile, vector<string> &v, const char *sep="\n"
 
 /// returns number of sequences in a fasta file
 int numRecordsInFasta( const char *file );
+
+/// read 2 column of strings table
+void read_2s_tbl( const char *inFile, map<string, string> &sMap );
 
 /// read matrix of numerical data, set header to 1 if input file has a header
 void readMatrix( const char *inputFile, double ***matrix, int *nrow, int *ncol, int header );
@@ -122,7 +127,7 @@ void printDblTbl(double **tbl, int nRows, int nCols);
 
 /// print vector of class T elements to stdout
 template<typename T>
-  void printVector(vector<T> &v, const char *sep="\t", int width = 0)
+void printVector(vector<T> &v, const char *sep="\t", int width = 0)
 {
   cout.precision(10);
   if ( width > 0 )
@@ -138,7 +143,7 @@ template<typename T>
 }
 
 template<typename T>
-  void printVector(const char *outFile, vector<T> &v, const char *header=NULL)
+void printVector(const char *outFile, vector<T> &v, const char *header=NULL)
 {
   ofstream fout( outFile, ios::out );
   fout.precision(15);
@@ -155,12 +160,39 @@ template<typename T>
 
 /// print vector of class T elements to stdout
 template<typename T>
-  void printArray(T *a, int n)
+void printArray(T *a, int n)
 {
   cout.precision(10);
   for ( int i = 0; i < n; ++i )
     cout << a[i] << " ";
   cout << endl;
 }
+
+/// check if a class, T, instant is a member of a vector<T>
+template<typename T>
+int exists_in_vector( vector<T> &v, T a )
+{
+  typename vector<T>::iterator it = find ( v.begin(), v.end(), a );
+
+  int ret = 1;
+  if ( it == v.end() )
+    ret = 0;
+
+  return ret;
+}
+
+/// check if a class, T, instant is a member of a map<T, S>
+template<typename T, typename S>
+int exists_in_map( map<T, S> &m, T a )
+{
+  typename map<T, S>::iterator it = m.find( a );
+
+  int ret = 1;
+  if ( it == m.end() )
+    ret = 0;
+
+  return ret;
+}
+
 
 #endif
