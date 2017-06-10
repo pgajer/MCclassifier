@@ -68,6 +68,8 @@
 
   vicut_and_plot.pl -t Banfield_medoids_FL.tree -l medoids.lineage -o banfield_medoids_FL_dir
 
+  vicut_and_plot.pl -t Banfield_medoids_FL.tree -l medoids_May30.lineage -o banfield_medoids_FL_may30_dir
+
 =cut
 
 use strict;
@@ -288,13 +290,13 @@ write_tbl( \%sizeTblR, $sizeFileR );
 ## lineage file
 
 print "--- Parsing contax lineage file\n";
-my ($rgeTbl, $rgePhTbl, $rgeClTbl, $rgeOrTbl, $rgeFaTbl) = get_tbls_from_lineage( $liFile );
+my ($rgeTbl, $rphTbl, $rclTbl, $rorTbl, $rfaTbl) = get_tbls_from_lineage( $liFile );
 
-my %geTbl   = %{$rgeTbl};
-my %gePhTbl = %{$rgePhTbl};
-my %geClTbl = %{$rgeClTbl};
-my %geOrTbl = %{$rgeOrTbl};
-my %geFaTbl = %{$rgeFaTbl};
+my %geTbl = %{$rgeTbl};
+my %phTbl = %{$rphTbl};
+my %clTbl = %{$rclTbl};
+my %orTbl = %{$rorTbl};
+my %faTbl = %{$rfaTbl};
 
 my $geTblFile = $outDir . "/genus.tx";
 write_tbl( \%geTbl, $geTblFile );
@@ -321,7 +323,7 @@ print "--- Building genus names tree\n";
 my $geTreeFile = $outDir . "/genus.tree";
 build_ann_tree( $treeFile, $geTblFile, $geTreeFile );
 
-$treeFile = $geTreeFile;
+#$treeFile = $geTreeFile;
 my @leaves = get_leaves( $treeFile );
 
 ##
@@ -330,12 +332,12 @@ my @leaves = get_leaves( $treeFile );
 print "--- Phylum analysis\n";
 
 print "--- Genus => Phylum table in the order of the genus tree leaves\n";
-my $gePhFile = $outDir . "/genus_phylum.txt";
-write_sorted_tbl( \%gePhTbl, \@leaves, $gePhFile );
+my $phFile = $outDir . "/phylum.tx";
+write_sorted_tbl( \%phTbl, \@leaves, $phFile );
 
 print "--- Generating tree with <phylum name> labels at leaves\n";
 my $phTreeFile = $outDir . "/phylum.tree";
-build_ann_tree( $treeFile, $gePhFile, $phTreeFile );
+build_ann_tree( $treeFile, $phFile, $phTreeFile );
 
 print "--- Generating condensed phylum tree\n";
 my $condPhTreeFile = $outDir . "/condensed_phylum.tree";
@@ -355,7 +357,7 @@ if ( $OSNAME eq "darwin")
 
 print "--- Running vicut on genus tree using phylum annotation\n";
 my $phVicutDir = $outDir . "/phylum_vicut_dir";
-run_vicut( $treeFile, $gePhFile, $phVicutDir );
+run_vicut( $treeFile, $phFile, $phVicutDir );
 
 print "--- Generating table of phylum-cluster-size labels\n";
 my $phCltrFile = $phVicutDir . "/minNodeCut.cltrs";
@@ -397,7 +399,7 @@ print "--- Class analysis\n";
 print "--- Genus => Class table in the order of the genus tree leaves\n";
 print "\nGenus => Class on genus tree leaves\n";
 my $geClFile = $outDir . "/class.txt";
-write_sorted_tbl( \%geClTbl, \@leaves, $geClFile );
+write_sorted_tbl( \%clTbl, \@leaves, $geClFile );
 
 print "--- Generating tree with <class name> labels at leaves\n";
 my $clTreeFile = $outDir . "/class.tree";
@@ -462,9 +464,9 @@ print "--- Order analysis\n";
 
 print "--- Genus => Order table in the order of the genus tree leaves\n";
 print "\nGenus => Order on genus tree leaves\n";
-#print_formated_tbl( \%geOrTbl, \@leaves );
+#print_formated_tbl( \%orTbl, \@leaves );
 my $geOrFile = $outDir . "/order.txt";
-write_sorted_tbl( \%geOrTbl, \@leaves, $geOrFile );
+write_sorted_tbl( \%orTbl, \@leaves, $geOrFile );
 
 print "--- Generating tree with <order name> labels at leaves\n";
 my $orTreeFile = $outDir . "/order.tree";
@@ -528,12 +530,12 @@ condense_tree( $treeFile, $orCltrSizeLabsFileR, $condOrCltrSizeTreeFileR );
 print "--- Family analysis\n";
 
 print "--- Genus => Family table in the order of the genus tree leaves\n";
-my $geFaFile = $outDir . "/family.txt";
-write_sorted_tbl( \%geFaTbl, \@leaves, $geFaFile );
+my $faFile = $outDir . "/family.tx";
+write_sorted_tbl( \%faTbl, \@leaves, $faFile );
 
 print "--- Generating tree with <family name> labels at leaves\n";
 my $faTreeFile = $outDir . "/family.tree";
-build_ann_tree( $treeFile, $geFaFile, $faTreeFile );
+build_ann_tree( $treeFile, $faFile, $faTreeFile );
 
 print "--- Generating condensed family tree\n";
 my $condFaTreeFile = $outDir . "/condensed_family.tree";
@@ -553,7 +555,7 @@ if ( $OSNAME eq "darwin")
 
 print "--- Running vicut on genus tree using family annotation\n";
 my $faVicutDir = $outDir . "/family_vicut_dir";
-run_vicut( $treeFile, $geFaFile, $faVicutDir );
+run_vicut( $treeFile, $faFile, $faVicutDir );
 
 print "--- Generating table of family-cluster-size labels\n";
 my $faCltrFile = $faVicutDir . "/minNodeCut.cltrs";
@@ -1645,6 +1647,61 @@ sub get_cltrSizes_labels
   my %cltrSize;
   my %cltrSizeR;
 
+  for my $id ( keys %cltrTbl )
+  {
+    my $cl = "c" . $cltrTbl{$id};
+
+    if ( exists $geTbl{$id} ) # $id is ConTax ID for which geTbl is defined
+    {
+      my $ge = $geTbl{$id};
+      if ( !defined $txSizeTbl{ $ge } )
+      {
+	$cltrSize{ $cl }++;
+	$cltrSizeR{ $cl }++;
+      }
+      else
+      {
+	$cltrSize{ $cl }  += $txSizeTbl{ $ge };
+	$cltrSizeR{ $cl } += $txSizeTblR{ $ge };
+      }
+    }
+    else
+    {
+      $cltrSize{ $cl }++;
+      $cltrSizeR{ $cl }++;
+    }
+  }
+
+  my %cltrLab;
+  my %cltrSizeLab;
+  my %cltrSizeLabR;
+
+  for my $tx ( keys %cltrTbl )
+  {
+    my $cl = "c" . $cltrTbl{$tx};
+    $cltrLab{$tx} = $cl;
+    $cltrSizeLab{$tx} = $cl . "__" . $cltrSize{ $cl };
+    $cltrSizeLabR{$tx} = $cl . "__" . $cltrSizeR{ $cl };
+  }
+
+  return (\%cltrLab, \%cltrSizeLab, \%cltrSizeLabR, \%cltrSize, \%cltrSizeR);
+}
+
+sub get_cltrSizes_labels_tx
+{
+  my ( $rtxSizeTbl, $rtxSizeTblR, $txCltrFile ) = @_;
+
+  # taxon size tables
+  my %txSizeTbl  = %{ $rtxSizeTbl };
+  my %txSizeTblR = %{ $rtxSizeTblR };
+
+  # vicut leafID => cluster table
+  my $skipHeader = 1;
+  my %cltrTbl  = read_tbl( $txCltrFile, $skipHeader );
+
+  my %cltrSize;
+  my %cltrSizeR;
+
   for my $tx ( keys %cltrTbl )
   {
     my $cl = "c" . $cltrTbl{$tx};
@@ -1783,10 +1840,10 @@ sub get_tbls_from_lineage
   my $file = shift;
 
   my %geTbl;   # seqID => genus
-  my %geFaTbl; # genus => family
-  my %geOrTbl; # genus => order
-  my %geClTbl; # genus => class
-  my %gePhTbl; # genus => phylum
+  my %faTbl; # genus => family
+  my %orTbl; # genus => order
+  my %clTbl; # genus => class
+  my %phTbl; # genus => phylum
 
   open IN, "$file" or die "Cannot open $file for reading: $OS_ERROR\n";
   for ( <IN> )
@@ -1802,15 +1859,15 @@ sub get_tbls_from_lineage
     my $ph = shift @f;
     #my $do = shift @f;
 
-    $geTbl{$id}   = $ge;
-    $geFaTbl{$ge} = $fa;
-    $geOrTbl{$ge} = $or;
-    $geClTbl{$ge} = $cl;
-    $gePhTbl{$ge} = $ph;
+    $geTbl{$id} = $ge;
+    $faTbl{$id} = $fa;
+    $orTbl{$id} = $or;
+    $clTbl{$id} = $cl;
+    $phTbl{$id} = $ph;
   }
   close IN;
 
-  return (\%geTbl, \%gePhTbl, \%geClTbl, \%geOrTbl, \%geFaTbl);
+  return (\%geTbl, \%phTbl, \%clTbl, \%orTbl, \%faTbl);
 }
 
 exit 0;
