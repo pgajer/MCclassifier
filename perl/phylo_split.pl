@@ -58,7 +58,9 @@
 
   cd ~/projects/PECAN/data/microcontax
 
-  phylo_split.pl -m 4100 -s banfield_medoids_FL_vicut_dir/family_cltr_sizeR.txt -t banfield_medoids_FL_vicut_dir/family_cond_cltr.tree -o banfield_medoids_FL_vicut_dir
+  phylo_split.pl -m 4100 -s banfield_medoids_FL_dir/family_cltr_sizeR.txt -t banfield_medoids_FL_dir/family_cond_cltr.tree -o banfield_medoids_FL_dir
+
+  phylo_split.pl -m 4100 -s banfield_medoids_FL_may30_dir/genus_cltr_sizeR.txt -t banfield_medoids_FL_may30_dir/genus_cond_cltr.tree -o banfield_medoids_FL_may30_dir
 
 =cut
 
