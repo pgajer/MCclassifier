@@ -200,11 +200,6 @@ private:
   map<int, NewickNode_t*> idx2node_m;
 };
 
-float readDist( FILE *stream );
-char readChar( FILE *stream, int &depth );
-char readUntil( FILE *stream, string &token, const char *stops, int &depth );
-string getIdent( int depth );
-NewickNode_t *readNewickNode( FILE *stream, NewickTree_t *tree, NewickNode_t *parent, int &depth );
 NewickTree_t *readNewickTree( const char *filename );
 
 #endif
