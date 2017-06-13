@@ -782,3 +782,342 @@ void printDblTbl(double **tbl, int nRows, int nCols)
   }
   cout << endl;
 }
+
+
+// ------------------------------ queryIDsToAnnIdx ---------------------
+void queryIDsToAnnIdx ( map<string, bool> &queryIDs,
+			char **leafIds, int nIds,
+			map<string,int> &annToIdx,
+			int *annIdx)
+/*
+  update annIdx and annToIdx, so that annToIdx has indices for 'NA' and
+  'Unclassified' strings with 'NA' corresponding to query sequences and
+  'Unclassified' to reference sequences without annotation.
+
+  annToIdx['Unclassified'] = -1
+  annToIdx['NA'] = -2
+
+  Therefore, annIdx on query sequences is -2 and on Unclassified sequences is -1.
+*/
+{
+  annToIdx[string("Unclassified")] = -1;
+  annToIdx[string("NA")] = -2;
+
+  for ( int i = 0; i < nIds; i++ )
+  {
+    if ( queryIDs.find( string(leafIds[i]) ) != queryIDs.end() ) // leafIds[i] is a query sequence
+    {
+      annIdx[i] = -2;
+    }
+  }
+}
+
+int getLine(FILE* inputfile, vector<char> &line)
+/*
+   This function reads one line from the inputfile and loads it into a char vector.
+   If inputfile is at EOF, a null pointer is returned.
+   The calling routine should free the char* returned by GetLine.
+*/
+{
+  int c;
+  line.clear();
+
+  while ((c = getc(inputfile))!=EOF && c!='\r' && c!='\n')
+  {
+    line.push_back((char)c);
+  }
+
+  if (c=='\r')
+  {
+    c = getc(inputfile);
+    if (c!='\n' && c!=EOF)
+      ungetc(c,inputfile);
+  }
+
+  if ( line.size()!=0 || c!=EOF)
+  {
+    line.push_back('\0');
+    return 1;
+  }
+  else
+  {
+    return 0;
+  }
+}
+
+// ------------------------------ parseQueryIDs ------------------------
+void parseQueryIDs(const char *inFile, map<string, bool> &queryIDs)
+/*
+  reads a list of query sequence IDs from a file with one ID per line
+ */
+{
+  FILE *file = fOpen(inFile,"r");
+
+  vector<char> line;
+  getLine(file,line); // reading the first line
+
+  // fprintf(stderr,"Reading %s\n",inFile);
+  // fprintf(stderr,"r=%d\tlength(line)=%d\tline=|%s|\n", r, (int)line.size(), &line[0]);
+  // exit(0);
+
+  if(line.size()==0)
+  {
+    fprintf(stderr,"ERROR in parseQueryIDs():%s at line %d: Attempt to read empty file",__FILE__,__LINE__);
+    exit(1);
+  }
+
+  queryIDs[string(&line[0])] = true;
+
+
+  // reading the rest of the file
+  while ( getLine(file,line) )
+  {
+    queryIDs[string(&line[0])] = true;
+  }
+
+  fclose(file);
+}
+
+// ------------------------------ read2cols ------------------------
+void read2cols(const char *inFile, map<string,string> &tbl)
+/*
+  Read a tab delimited file with two columns.
+  Each pair of elements (in one row) is written to a table
+
+  tbl[ 1stEl ] = 2ndEl
+
+  where a line is of the form
+
+  < 1stEl >\tab< 2ndEl >
+
+ */
+{
+  char s1[124];
+  char s2[124];
+  int ret;
+
+  FILE *file = fOpen(inFile,"r");
+
+  while(1)
+  {
+    ret = fscanf (file, "%s\t%s\n", s1, s2);
+    if ( ret == EOF )
+      break;
+    else
+      //printf ("I have read: %s and %s \n",s1,s2);
+      tbl[string(s1)] = string(s2);
+  }
+
+  fclose(file);
+}
+
+// ------------------------------ CharStrIdx ------------------------
+// this struct holds a char* string and its integer index
+// used for sorting char* array
+struct CharStrIdx
+{
+  char *str;
+  int idx;
+};
+
+// ------------------------------ cmpCharStrIdxByStr --------------------
+// qsort struct comparision function by str field of CharStrIdx
+int cmpCharStrIdxByStr(const void *a, const void *b)
+{
+  struct CharStrIdx *ia = (struct CharStrIdx *)a;
+  struct CharStrIdx *ib = (struct CharStrIdx *)b;
+
+  return strcmp(ia->str, ib->str);
+}
+
+
+// ------------------------------ parseAnnotation ------------------------
+int * parseAnnotation(const char *inFile, char **leafIds, int nIds,
+		      map<string,int> &annToIdx, bool verbose)
+/*
+  given a tab delimited annotation file name 'inFile' with file format
+
+    <leafId> <annotation string>
+
+  and an array 'leafIds' of phylogenetic tree leaf IDs
+
+  Parameters:
+
+  inFile   - a tab delimited leaf annotation file with two columns
+             <leafId> <annotation string>
+
+             Of course, not all leaves have annotation string attached to them.
+
+  leafIds  - array of leaf labels so that the i-th element of the array
+             is the label of the leaf in the Node tree with index 'i'
+
+  nIds     - number of elements in leafIds
+
+  annToIdx - annotation string (taxonomy) =>  unique integer index
+
+  verbose  - if 1, print diagnostic messages
+
+  Output: array 'ann' of annotation indices
+          each unique annotation string will have a unique int index
+          ann[i] =  unique index (as assigned in annToIdx) of the annotation of the i-th element of leafIds
+	  ann[i] = -1 if the i-th element has no annotation
+*/
+{
+  // Creating a sorted list of leaf ids
+  struct CharStrIdx *ids = (CharStrIdx*)malloc(nIds * sizeof(CharStrIdx));
+  int n;
+
+  for ( int i = 0; i < nIds; ++i )
+  {
+    n = strlen(leafIds[i]) + 1;
+    ids[i].str = (char*)malloc(n*sizeof(char));
+    strncpy(ids[i].str, leafIds[i], n);
+
+    ids[i].idx = i;
+  }
+
+  // sort ids w/r str field
+  qsort(ids, nIds, sizeof(struct CharStrIdx), cmpCharStrIdxByStr);
+
+  if ( verbose )
+  {
+    printf("nIds=%d\nleaf ids\nIndex\tLeafID\n",nIds);
+    for ( int i = 0; i < nIds; ++i )
+    {
+      printf("%d\t%s\n",i, leafIds[i]);
+    }
+
+    printf("\nleaf ids sorted by string name\nLeafID\tIndex\n");
+    for ( int i = 0; i < nIds; ++i )
+    {
+      printf("%s\t%d\n",ids[i].str, ids[i].idx);
+    }
+    printf("\n");
+  }
+
+
+  // creating an array of annotation indices
+  // each unique annotation string will have a unique int index
+  // ann[i] is the 0-based index of the annotation string assigned to the i-th element of leafIds
+  int *ann = (int*)malloc(nIds * sizeof(int));
+
+  // initializing all annotations to -1
+  for ( int i = 0; i < nIds; ++i )
+    ann[i] = -1;
+
+
+  FILE *file = fOpen(inFile,"r");
+
+  vector<char> line;
+  getLine(file,line); // reading the first line
+
+  if(line.size()==0)
+  {
+    fprintf(stderr,"ERROR in parseAnnotation():%s at line %d: Attempt to read empty file",__FILE__,__LINE__);
+    exit(1);
+  }
+
+  while(line[0]=='\0') /* Ignore completely empty lines */
+  {
+    getLine(file,line);
+
+    if(line.size()==0)
+    {
+      fprintf(stderr,"ERROR in parseAnnotation():%s at line %d: Failed to find first line in file",
+	      __FILE__,__LINE__);
+      exit(1);
+    }
+  }
+
+  // getting leafId string
+  char *idStr = strtok ( &line[0], " \t" );
+  CharStrIdx *node = new CharStrIdx;
+  node->str = idStr;
+
+  // search for idStr in ids[i].str
+  CharStrIdx *pId = (CharStrIdx*) bsearch(node, ids, nIds,
+					  sizeof(struct CharStrIdx), cmpCharStrIdxByStr);
+  int uAnnCounter = 0;
+  char *annStr;
+
+  if ( pId != NULL )
+  {
+    // getting annotation string
+    annStr = strtok ( NULL, " \t\n" );
+
+    // since this is the first annotation string we don't have to check if it is in annToIdx
+    annToIdx[string(annStr)] = uAnnCounter;
+    ann[pId->idx] = uAnnCounter;
+    uAnnCounter++;
+  }
+#if 0 // annotation file may contain more elements than tree file
+  else
+  {
+    printf("ERROR in parseAnnotation():%s at line %d: %s not found\n",__FILE__,__LINE__,idStr);
+    //exit(1);
+  }
+#endif
+
+  map<string,int>::iterator itr; // iterator to be used with find() insed the following loop
+
+  // reading the rest of the file
+  while ( getLine(file,line) )
+  {
+    if (line.size() > 1) /* Ignore completely empty lines */
+    {
+      // getting leafId string
+      idStr = strtok ( &line[0], " \t" );
+      node->str = idStr;
+
+      pId = (CharStrIdx*) bsearch(node, ids, nIds,
+				  sizeof(struct CharStrIdx), cmpCharStrIdxByStr);
+      if ( pId != NULL )
+      {
+	// getting annotation string
+	annStr = strtok ( NULL, " \t\n" );
+
+	// checking if the annotation string has already been seen
+	itr = annToIdx.find(string(annStr));
+	if ( itr == annToIdx.end() )
+	{
+	  annToIdx[string(annStr)] = uAnnCounter;
+	  uAnnCounter++;
+	}
+
+	ann[pId->idx] = annToIdx[string(annStr)];
+
+        #if 0
+	printf("idStr=%s\tannStr=%s\tidx=%d",idStr,annStr,pId->idx);
+	if ( itr == annToIdx.end() )
+	  printf("\tfound new ann str %s\n",annStr);
+	else
+	  printf("\n");
+	#endif
+      }
+      #if 0 // annotation file may contain more elements than tree file
+      else
+      {
+	printf("ERROR in parseAnnotation():%s at line %d: %s not found\n",
+	       __FILE__,__LINE__,idStr);
+	//exit(1);
+      }
+      # endif
+    }
+  }
+
+  if ( verbose )
+  {
+    printf("unique annotation strings:\n");
+    for (itr=annToIdx.begin(); itr!=annToIdx.end();itr++)
+    {
+      printf("%s\t%d\n",((*itr).first).c_str(),(*itr).second);
+    }
+    printf("\n");
+  }
+
+  fclose(file);
+  free(ids);
+  delete(node);
+
+  return ann;
+}

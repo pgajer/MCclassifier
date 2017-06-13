@@ -46,6 +46,22 @@ OR PERFORMANCE OF THIS SOFTWARE.
 
 using namespace std;
 
+// -- vicut stuff
+
+int * parseAnnotation(const char *inFile, char **rowIds, int nIds,
+                      map<string,int> &annToIdx, bool verbose);
+
+void parseQueryIDs(const char *inFile, map<string, bool> &queryIDs);
+
+void queryIDsToAnnIdx ( map<string, bool> &queryIDs,
+			char **leafIds, int nIds,
+			map<string,int> &annToIdx,
+			int *annIdx);
+
+void read2cols(const char *inFile, map<string,string> &tbl);
+
+// ---
+
 string trim( const char *word );
 
 void printStringSet(set<string> &S);
