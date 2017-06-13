@@ -786,7 +786,7 @@ double vicut(vector<int> &nodeCut, map<int, NewickNode_t *> &idx2node, int *annI
 
     BOOST_STATIC_ASSERT(true) __attribute__((unused));
 
-#define VICUT_DEBUG 1
+#define VICUT_DEBUG 0
 
     // computing nAnnLeaves and A(d)
     int nAnnLeaves = 0;
