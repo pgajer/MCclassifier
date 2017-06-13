@@ -69,10 +69,10 @@ OBJECTS = $(BUILDDIR)/classify.o \
           $(BUILDDIR)/CppUtilities.o \
           $(BUILDDIR)/strings.o \
           $(BUILDDIR)/CStatUtilities.o \
-	  $(BUILDDIR)/CppStatUtilities.o \
+		  $(BUILDDIR)/CppStatUtilities.o \
           $(BUILDDIR)/StatUtilities.o \
           $(BUILDDIR)/DNAsequence.o \
-	  $(BUILDDIR)/Newick.o \
+		  $(BUILDDIR)/Newick.o \
 
 ####### Build rules
 
