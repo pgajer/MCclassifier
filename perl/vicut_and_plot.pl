@@ -225,7 +225,7 @@ my $fix_fasta_headers     = "fix_fasta_headers.pl";
 my $mothur                = "mothur";
 my $usearch6              = "usearch6.0.203_i86osx32";
 my $vicut                 = "vicut";
-my $readNewickFile        = "/Users/pgajer/.Rlocal/read.newick.R";
+my $readNewickFile        = "/Users/pgajer/organizer/programming/R/libs/read.newick.R";
 my $ginsi                 = "/usr/local/bin/ginsi"; # MAFFT v7.310 (2017/Mar/17)
 
 if ( defined $igs )

@@ -97,7 +97,7 @@ if (!$grPrefix)
 
 # [/usr/local/bin]$ sudo ln -s "/System/Library/Automator/Combine PDF Pages.action/Contents/Resources/join.py" PDFconcat
 
-my $readNewickFile = "/Users/pgajer/.Rlocal/read.newick.R";
+my $readNewickFile = "/Users/pgajer/organizer/programming/R/libs/read.newick.R";
 my $phyloEdgeLenRData = "/Users/pgajer/devel/MCextras/data/phylo_edge_len.RData";
 
 if ( defined $igs )

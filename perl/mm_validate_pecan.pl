@@ -154,7 +154,7 @@ my $fix_fasta_headers     = "fix_fasta_headers.pl";
 my $mothur                = "/Users/pgajer/bin/mothur";
 my $usearch6              = "/Users/pgajer/bin/usearch6.0.203_i86osx32";
 my $vicut                 = "/Users/pgajer/devel/vicut/bin/vicut";
-my $readNewickFile        = "/Users/pgajer/.Rlocal/read.newick.R";
+my $readNewickFile        = "/Users/pgajer/organizer/programming/R/libs/read.newick.R";
 
 my $quietStr              = "--quiet";
 my $vsearchSORT;

@@ -146,7 +146,7 @@ if ( !$grPrefix )
 }
 
 my $R              = "R";
-my $readNewickFile = "/Users/pgajer/.Rlocal/read.newick.R";
+my $readNewickFile = "/Users/pgajer/organizer/programming/R/libs/read.newick.R";
 
 my $igsStr = "";
 if ( defined $igs )

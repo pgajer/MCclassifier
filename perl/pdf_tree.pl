@@ -29,7 +29,7 @@
   Opens tree's pdf file
 
 =item B<--show-node-labels>
-  Show node labels. 
+  Show node labels.
 
 =item B<--tree-type>
   A character string specifying the type of phylogeny to be drawn; it must be
@@ -124,7 +124,7 @@ if ( !defined $title )
   $title = "";
 }
 
-my $readNewickFile = "/Users/pgajer/.Rlocal/read.newick.R";
+my $readNewickFile = "/Users/pgajer/organizer/programming/R/libs/read.newick.R";
 
 if ( defined $igs )
 {
@@ -138,7 +138,7 @@ if ( defined $johanna )
 
 if ( $showNodeLabels )
 {
-    $showNodeLabels = "TRUE";    
+    $showNodeLabels = "TRUE";
 }
 else
 {
@@ -161,7 +161,7 @@ $pdfFile  = abs_path($pdfFile);
 
 if ( $cltrFile )
 {
-    $cltrFile  = abs_path($cltrFile);    
+    $cltrFile  = abs_path($cltrFile);
 }
 
 if ( $labsFile )
@@ -203,8 +203,8 @@ sub plot_tree_with_labels
   my $Rscript = qq~
 
 require(ape)
-source("/Users/pgajer/.Rlocal/read_tree.R")
-source("/Users/pgajer/.Rlocal/tree.R")
+source("/Users/pgajer/organizer/programming/R/libs/read_tree.R")
+source("/Users/pgajer/organizer/programming/R/libs/tree.R")
 
 tr <- tree.read(\"$treeFile\")
 nLeaves <- length(tr\$tip.label)
@@ -249,8 +249,8 @@ sub plot_tree_with_cltrs_and_labels
   my $Rscript = qq~
 
 require(ape)
-source("/Users/pgajer/.Rlocal/read_tree.R")
-source("/Users/pgajer/.Rlocal/tree.R")
+source("/Users/pgajer/organizer/programming/R/libs/read_tree.R")
+source("/Users/pgajer/organizer/programming/R/libs/tree.R")
 
 ##tr <- tree.read(\"$treeFile\")
 tr <- read.tree(\"$treeFile\")
@@ -333,8 +333,8 @@ sub plot_tree_bw
   my $Rscript = qq~
 
 require(ape)
-source("/Users/pgajer/.Rlocal/read_tree.R")
-source("/Users/pgajer/.Rlocal/tree.R")
+source("/Users/pgajer/organizer/programming/R/libs/read_tree.R")
+source("/Users/pgajer/organizer/programming/R/libs/tree.R")
 
 tr <- tree.read(\"$treeFile\")
 nLeaves <- length(tr\$tip.label)

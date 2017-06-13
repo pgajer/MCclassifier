@@ -162,7 +162,7 @@ my $spToPhGrFile   = "/Users/pgajer/projects/M_and_M/new_16S_classification_data
 my $R              = "R";
 my $mothur         = "/Users/pgajer/bin/mothur";
 my $usearch6       = "/Users/pgajer/bin/usearch6.0.203_i86osx32";
-my $readNewickFile = "/Users/pgajer/.Rlocal/read.newick.R";
+my $readNewickFile = "/Users/pgajer/organizer/programming/R/libs/read.newick.R";
 
 if ( defined $igs )
 {

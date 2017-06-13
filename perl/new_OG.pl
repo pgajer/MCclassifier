@@ -131,7 +131,7 @@ my $FastTree       = "FastTree";
 my $select_seqs    = "select_seqs.pl";
 my $select_tx      = "select_tx.pl";
 my $mothur         = "/Users/pgajer/bin/mothur";
-my $readNewickFile = "/Users/pgajer/.Rlocal/read.newick.R";
+my $readNewickFile = "/Users/pgajer/organizer/programming/R/libs/read.newick.R";
 my $R              = "R";
 
 if ( defined $igs )
