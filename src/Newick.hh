@@ -81,7 +81,7 @@ public:
   void writeTree(FILE * fp);
   void writeTree(FILE * fp, NewickNode_t *node);
   void writeTree(FILE * fp, const string &nodeLabel);
-  void printTree(bool withIdx=false, const char *indStr="  "); // prints tree to stdout; different depths are differen indentation level
+  void printTree(bool withIdx=false, const char *indStr="  ");
 
   void modelIdx( vector<string> &modelIds );
 

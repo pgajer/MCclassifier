@@ -552,79 +552,81 @@ int NewickTree_t::getDepth()
 }
 
 //--------------------------------------------- printTree -----
+//
+// prints tree to stdout with different depths at differen indentation levels
+// indStr - indentation string
 void NewickTree_t::printTree(bool withIdx, const char *indStr)
 {
-  if (root_m == NULL)
-  {
-    fprintf(stderr, "ERROR: Root is NULL!\n");
-  }
-
-  // Determine the depth of the tree
-  int maxDepth = getDepth();
-
-  printf("\nmaxDepth: %d\n\n", maxDepth);
-
-  maxDepth++;
-  //maxDepth++;
-
-  // Set up indent array of indentation strings
-  //const char *indStr="  ";
-  int indStrLen = strlen(indStr);
-
-  char **indent = (char **)malloc(maxDepth * sizeof(char*));
-  indent[0] = (char*)malloc(sizeof(char)); // empty string
-  indent[0][0] = '\0';
-  for ( int i = 1; i < maxDepth; i++ )
-  {
-    indent[i] = (char*)malloc(indStrLen * (i+1) * sizeof(char));
-    for ( int j = 0; j < i; j++ )
-      for ( int k = 0; k < indStrLen; k++ )
-	indent[i][j * indStrLen + k] = indStr[k];
-    indent[i][indStrLen * i] = '\0';
-  }
-
-  //Depth first search
-  deque<NewickNode_t *> dfs;
-  dfs.push_front(root_m);
-  NewickNode_t *node;
-
-  while ( !dfs.empty() )
-  {
-    node = dfs.front();
-    dfs.pop_front();
-
-    int numChildren = node->children_m.size();
-    if ( numChildren==0 ) // leaf
+    if (root_m == NULL)
     {
-      if ( withIdx )
-	printf("%s%s(%d)\n",indent[node->depth_m],node->label.c_str(), node->idx);
-      else
-	//printf("%s%s\n",indent[node->depth_m],node->label.c_str());
-	printf("(%d)%s%s\n",node->depth_m,indent[node->depth_m],node->label.c_str());
+      fprintf(stderr, "ERROR: Root is NULL!\n");
     }
-    else
+
+    // Determine the depth of the tree
+    int maxDepth = getDepth();
+
+    printf("\nmaxDepth: %d\n\n", maxDepth);
+
+    maxDepth++;
+
+    // Set up indent array of indentation strings
+    //const char *indStr="  ";
+    int indStrLen = strlen(indStr);
+
+    char **indent = (char **)malloc(maxDepth * sizeof(char*));
+    indent[0] = (char*)malloc(sizeof(char)); // empty string
+    indent[0][0] = '\0';
+    for ( int i = 1; i < maxDepth; i++ )
     {
-      if ( withIdx )
+      indent[i] = (char*)malloc(indStrLen * (i+1) * sizeof(char));
+      for ( int j = 0; j < i; j++ )
+        for ( int k = 0; k < indStrLen; k++ )
+          indent[i][j * indStrLen + k] = indStr[k];
+      indent[i][indStrLen * i] = '\0';
+    }
+
+    //Depth first search
+    deque<NewickNode_t *> dfs;
+    dfs.push_front(root_m);
+    NewickNode_t *node;
+
+    while ( !dfs.empty() )
+    {
+      node = dfs.front();
+      dfs.pop_front();
+
+      int numChildren = node->children_m.size();
+      if ( numChildren==0 ) // leaf
       {
-	if ( node->label.empty() )
-	  printf("%s*(%d)\n",indent[node->depth_m],node->idx);
-	else
-	  printf("%s%s(%d)\n",indent[node->depth_m],node->label.c_str(), node->idx);
+        if ( withIdx )
+          printf("%s%s(%d)\n",indent[node->depth_m],node->label.c_str(), node->idx);
+        else
+          //printf("%s%s\n",indent[node->depth_m],node->label.c_str());
+          printf("(%d)%s%s\n",node->depth_m,indent[node->depth_m],node->label.c_str());
       }
       else
       {
-	if ( node->label.empty() )
-	  printf("%s*\n",indent[node->depth_m]);
-	else
-	  //printf("%s%s\n",indent[node->depth_m],node->label.c_str());
-	  printf("(%d)%s%s\n",node->depth_m,indent[node->depth_m],node->label.c_str());
+        if ( withIdx )
+        {
+          if ( node->label.empty() )
+            printf("%s*(%d)\n",indent[node->depth_m],node->idx);
+          else
+            printf("%s%s(%d)\n",indent[node->depth_m],node->label.c_str(), node->idx);
+        }
+        else
+        {
+          if ( node->label.empty() )
+            printf("%s*\n",indent[node->depth_m]);
+          else
+            //printf("%s%s\n",indent[node->depth_m],node->label.c_str());
+            printf("(%d)%s%s\n",node->depth_m,indent[node->depth_m],node->label.c_str());
+        }
+
+        for (int i = 0; i < numChildren; i++)
+          dfs.push_front(node->children_m[i]);
+
       }
-
-      for (int i = 0; i < numChildren; i++)
-      	dfs.push_front(node->children_m[i]);
-
     }
-  }
 }
 
 
@@ -2852,9 +2854,6 @@ NewickNode_t *readNewickNode(FILE *infile, NewickTree_t *tree, NewickNode_t *par
          #endif
 	  }
 
-	  // Assigning a numeric index to the node
-	  node->idx = tree->getMinIdx();
-	  tree->decrementMinIdx();
 
 	  // updating node's depth
 	  node->depth_m = depth - 1;
@@ -2866,6 +2865,10 @@ NewickNode_t *readNewickNode(FILE *infile, NewickTree_t *tree, NewickNode_t *par
 		 if (!child)
 		   return NULL;
 	  }
+
+	  // Assigning a numeric index to the node
+	  node->idx = tree->getMinIdx();
+	  tree->decrementMinIdx();
 
 	  // read branch_length for this node
 	  // this fragment assumes that the internal nodes do not have labels
