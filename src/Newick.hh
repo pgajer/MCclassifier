@@ -139,6 +139,17 @@ public:
 		       int minNA,
 		       map<string, string> &txParent);
 
+  void saveNAtaxonomy0( const char *outFile,
+			const char *logFile, // recording sizes of two most abundant taxa. If there is only one (besides query sequences), recording the number of elements of the dominant taxon and 0.
+			vector<int> &nodeCut,
+			int *annIdx,
+			map<int, string> &idxToAnn,
+			int minAnn,
+			int &nNAs,
+			int &nNAs_with_tx,
+			int &tx_changed,
+			int &nClades_modified);
+
   void printGenusTrees( const char *outDir,
 			vector<int> &nodeCut,
 			int *annIdx,

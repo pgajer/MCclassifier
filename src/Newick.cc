@@ -1274,6 +1274,174 @@ void NewickTree_t::saveNAcltrAnnStats( const char *outFileA, // file to with clu
   fprintf(stderr,"Number of selected reference sequence from the above clusters with taxons with the number of reads >= %d: %d\n",minAnn, nRef);
 }
 
+// comparison between integers producing descending order
+bool gr (int i,int j) { return (i>j); }
+
+// ------------------------------ saveNAtaxonomy0 ------------------------
+void NewickTree_t::saveNAtaxonomy0( const char *outFile,
+				    const char *logFile, // recording sizes of two most abundant taxa. If there is only one (besides query sequences), recording the number of elements of the dominant taxon and 0.
+				    vector<int> &nodeCut,
+				    int *annIdx,
+				    map<int, string> &idxToAnn,
+				    int minAnn,
+				    int &nNAs,
+				    int &nNAs_with_tx,
+				    int &tx_changed,
+				    int &nClades_modified)
+/*
+  Assigning taxonomy to query sequences and modifying taxonomy of sequences with
+  non-monolityc clades using majority vote.
+
+  This is a special case of saveNAtaxonomy() that does taxonomy assignments of
+  query sequences from clusters containing at least minAnn reference
+  sequences. The taxonomy is based on the most abundant reference taxon.
+
+  I just extended the algorithm so that taxonomy of all elements of the given
+  cluster is set to the taxonomy of the cluster with the largest number of
+  sequences. If there are ties, that is two taxonomies are most abundant, then
+  there is no change.
+*/
+{
+  map<int, NewickNode_t*> idx2node;
+  indexNewickNodes(idx2node);
+
+  map<string,int> otuFreq; // <taxonomic rank name> => number of OTUs already assigned to it
+
+  FILE *file = fOpen(outFile,"w");
+  FILE *logfile = fOpen(logFile,"w");
+
+  nNAs = 0;
+  nNAs_with_tx = 0;
+  tx_changed = 0;
+  nClades_modified = 0;
+
+  int n = nodeCut.size();
+  for ( int i = 0; i < n; ++i )
+  {
+    map<string,int> annCount; // count of a given annotation string in the subtree of a given node
+    int naCount = 0;
+
+    queue<NewickNode_t *> bfs;
+    bfs.push(idx2node[nodeCut[i]]);
+    NewickNode_t *node;
+
+    while ( !bfs.empty() )
+    {
+      node = bfs.front();
+      bfs.pop();
+
+      int numChildren = node->children_m.size();
+      if ( numChildren==0 ) // leaf
+      {
+	//if ( i==262 )printf("\n%s\t%s", node->label.c_str(), idxToAnn[ annIdx[node->idx] ].c_str());
+
+	annCount[ idxToAnn[ annIdx[node->idx] ] ]++;
+	if ( annIdx[node->idx] == -2) naCount++;
+	if ( idxToAnn[ annIdx[node->idx] ] == "NA" ) nNAs++;
+      }
+      else
+      {
+	for (int j = 0; j < numChildren; j++)
+	{
+	  bfs.push(node->children_m[j]);
+	}
+      }
+    }
+    //if ( i==262 )printf("\n\n");
+
+    //if ( naCount >= minNA && annCount.size() >= minAnn )
+    if ( annCount.size() >= (unsigned)minAnn ) // Assigning taxonomy to query sequences and modifying taxonomy of sequences with non-monolityc clades using majority vote
+    {
+      string cltrTx;
+      int maxCount = 0; // maximal count among annotated sequences in the cluster
+      map<string,int>::iterator it;
+
+      // Make sure there are not ties for max count
+
+      // Copying counts into a vector, sorting it and checking that the first two
+      // values (when sorting in the decreasing order) are not equal to each
+      // other.
+      vector<int> counts;
+
+      for (it = annCount.begin(); it != annCount.end(); ++it)
+      {
+	if ( (*it).first != "NA" )
+	  counts.push_back((*it).second);
+
+	if ( (*it).first != "NA" && (*it).second > maxCount )
+	{
+	  maxCount = (*it).second;
+	  cltrTx   = (*it).first;
+	}
+      }
+
+      sort( counts.begin(), counts.end(), gr );
+
+      #if 0
+      if ( i==231 )
+      {
+	fprintf(stderr,"\ncltrTx: %s\n", cltrTx.c_str());
+	fprintf(stderr,"\nCluster %d\nannCount\n",i);
+	for (it = annCount.begin(); it != annCount.end(); ++it)
+	{
+	  fprintf(stderr,"\t%s\t%d\n", ((*it).first).c_str(), (*it).second);
+	}
+	fprintf(stderr,"\nsorted counts: ");
+	for (int j = 0; j < counts.size(); j++)
+	  fprintf(stderr,"%d, ", counts[j]);
+	fprintf(stderr,"\n\n");
+      }
+      #endif
+
+      // Traverse the subtree again assigning taxonomy to all query sequences
+      int counts_size = counts.size();
+      if ( counts_size==1 || ( counts_size>1 && counts[0] > counts[1] ) )
+      {
+	nClades_modified++;
+
+	if ( counts_size > 1 )
+	  fprintf(logfile, "%d\t%d\n", counts[0], counts[1]);
+	else
+	  fprintf(logfile, "%d\t0\n", counts[0]);
+
+	queue<NewickNode_t *> bfs2;
+	bfs2.push(idx2node[nodeCut[i]]);
+	NewickNode_t *node;
+
+	while ( !bfs2.empty() )
+	{
+	  node = bfs2.front();
+	  bfs2.pop();
+
+	  int numChildren = node->children_m.size();
+	  if ( numChildren==0 ) // leaf
+	  {
+	    //if ( idxToAnn[ annIdx[node->idx] ] == "NA" && !cltrTx.empty() )
+	    if ( idxToAnn[ annIdx[node->idx] ] !=cltrTx  && !cltrTx.empty() )
+	    {
+	      //idxToAnn[ annIdx[node->idx] ] = cltrTx;
+	      fprintf(file, "%s\t%s\n", node->label.c_str(), cltrTx.c_str());
+	      if ( idxToAnn[ annIdx[node->idx] ] == "NA" )
+		nNAs_with_tx++;
+	      else
+		tx_changed++;
+	    }
+	  }
+	  else
+	  {
+	    for (int j = 0; j < numChildren; j++)
+	      bfs2.push(node->children_m[j]);
+	  }
+	} // end while ( !bfs2.empty() )
+      } // end  if ( counts.size()==1 || ( counts.size()>1 && counts[0] > counts[1] ) )
+
+    } // end if ( naCount >= minNA && annCount.size() >= minAnn )
+
+  } // end   for ( int i = 0; i < n; ++i )
+
+  fclose(file);
+  fclose(logfile);
+}
 
 // ------------------------------ saveNAtaxonomy ------------------------
 void NewickTree_t::saveNAtaxonomy( const char *outFile,
@@ -2640,8 +2808,8 @@ string getIdent( int depth )
 
 NewickNode_t *readNewickNode(FILE *infile, NewickTree_t *tree, NewickNode_t *parent, int &depth)
 {
-  #define DEBUG 0
-  #if DEBUG
+  #define DEBUG_RNN 0
+  #if DEBUG_RNN
    string ident = getIdent( depth );
    fprintf(stderr, "%sIn readNewickNode() depth: %d\n", ident.c_str(), depth);
   #endif
@@ -2663,7 +2831,7 @@ NewickNode_t *readNewickNode(FILE *infile, NewickTree_t *tree, NewickNode_t *par
 	  if ( parent )
 	  {
 		 node = parent->addChild();
-		 #if DEBUG
+		 #if DEBUG_RNN
 		 if ( depth )
 		 {
 			string ident = getIdent( depth );
@@ -2679,7 +2847,7 @@ NewickNode_t *readNewickNode(FILE *infile, NewickTree_t *tree, NewickNode_t *par
 	  {
 		 node = new NewickNode_t();
 		 tree->setRoot( node );
-		 #if DEBUG
+		 #if DEBUG_RNN
 		 fprintf( stderr, "Currently at depth: %d - Creating a root\n", depth );
          #endif
 	  }
@@ -2707,7 +2875,7 @@ NewickNode_t *readNewickNode(FILE *infile, NewickTree_t *tree, NewickNode_t *par
 	  {
 		 node->label = trim(token.c_str());
 
-         #if DEBUG
+         #if DEBUG_RNN
 		 string ident = getIdent( depth );
 		 fprintf( stderr, "%sNode name: %s\n", ident.c_str(), token.c_str() );
          #endif
@@ -2717,18 +2885,18 @@ NewickNode_t *readNewickNode(FILE *infile, NewickTree_t *tree, NewickNode_t *par
 	  {
 		 node->branch_length = readDist( infile );
 
-		 #if DEBUG
+		 #if DEBUG_RNN
 		 string ident = getIdent( depth );
 		 fprintf( stderr, "%snode->branch_length: %f\n", ident.c_str(), node->branch_length );
 		 #endif
 
-		 if ( !(chr = readUntil(infile, token, "):,", depth)) )
+		 if ( !(chr = readUntil(infile, token, "):,;", depth)) )
 		   return NULL;
 	  }
 	  //if (chr == ';' && depth == 0)
 	  //    return node;
 
-	  #if DEBUG
+	  #if DEBUG_RNN
 	  string ident = getIdent( node->depth_m );
 	  fprintf( stderr, "%sNode's depth: %d\n", ident.c_str(), node->depth_m );
 	  #endif
@@ -2742,7 +2910,7 @@ NewickNode_t *readNewickNode(FILE *infile, NewickTree_t *tree, NewickNode_t *par
 	  if (parent)
 	  {
 		node = parent->addChild();
-		#if DEBUG
+		#if DEBUG_RNN
 		string ident = getIdent(depth);
 		fprintf( stderr, "%sCurrently at depth: %d - Found leaf: adding it as a child to a parent\n", ident.c_str(), depth );
 		#endif
@@ -2766,7 +2934,7 @@ NewickNode_t *readNewickNode(FILE *infile, NewickTree_t *tree, NewickNode_t *par
 	  token = char1 + trim(token.c_str());
 	  node->label = token;
 
-	  #if DEBUG
+	  #if DEBUG_RNN
 	  string ident = getIdent( depth );
 	  fprintf( stderr, "%sLeaf name: %s\tdepth: %d\tidx: %d\n", ident.c_str(), token.c_str(), node->depth_m, node->idx );
       #endif
@@ -2776,7 +2944,7 @@ NewickNode_t *readNewickNode(FILE *infile, NewickTree_t *tree, NewickNode_t *par
 	  {
 		 node->branch_length = readDist( infile );
 
-		 #if DEBUG
+		 #if DEBUG_RNN
 		 fprintf( stderr, "%sLeaf's branch length: %f\n", ident.c_str(), node->branch_length );
          #endif
 
