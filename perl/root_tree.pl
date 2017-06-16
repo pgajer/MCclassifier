@@ -6,8 +6,9 @@
 
 =head1 DESCRIPTION
 
-  Given a phylogenetic tree in the Newick format, root it by changing )0.990:0.00612; to ); at the end of the tree string.
-  The change is done in place !
+  Given a phylogenetic tree in the Newick format, root it by changing
+  )0.990:0.00612; to ); at the end of the tree string. The change is done in
+  place !
 
 =head1 SYNOPSIS
 
