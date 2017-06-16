@@ -200,23 +200,24 @@ if ( $labsFile )
   $labsFile  = abs_path($labsFile);
 }
 
+my $annTreeFile;
 if ( $labsFile && $condense )
 {
-  my $condAnnTreeFile = plot_condensed_tree( $treeFile, $title, $labsFile, $pdfFile);
-  print "\nCondensed tree written to $condAnnTreeFile\n\n";
+  $annTreeFile = plot_condensed_tree( $treeFile, $title, $labsFile, $pdfFile);
+  print "\nCondensed tree written to $annTreeFile\n\n";
 }
 elsif ( $labsFile && $condense2 )
 {
-  my $condAnnTreeFile = plot_condensed2_tree( $treeFile, $title, $labsFile, $pdfFile);
-  print "\nCondensed tree written to $condAnnTreeFile\n\n";
+  $annTreeFile = plot_condensed2_tree( $treeFile, $title, $labsFile, $pdfFile);
+  print "\nCondensed tree written to $annTreeFile\n\n";
 }
 elsif ( $cltrFile && $labsFile )
 {
-  plot_tree_with_cltrs_and_labels( $treeFile, $title, $cltrFile, $labsFile, $pdfFile);
+  $annTreeFile = plot_tree_with_cltrs_and_labels( $treeFile, $title, $cltrFile, $labsFile, $pdfFile);
 }
 elsif ( $labsFile )
 {
-  plot_tree_with_labels( $treeFile, $title, $labsFile, $pdfFile);
+  $annTreeFile = plot_tree_with_labels( $treeFile, $title, $labsFile, $pdfFile);
 }
 else
 {
@@ -230,10 +231,57 @@ if ( $showTree && $OSNAME eq "darwin")
   system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 }
 
+if ( $showLeafFreq )
+{
+  my @cLeaves;
+  if ( $annTreeFile )
+  {
+    @cLeaves = get_leaves( $annTreeFile );
+  }
+  else
+  {
+    @cLeaves = get_leaves( $treeFile );
+  }
+
+  my %leafFreq; ## table of number of sequences per species
+  map { $leafFreq{$_}++ } @cLeaves;
+  my @uqLeaves = sort { $leafFreq{$b} <=> $leafFreq{$a} } keys %leafFreq;
+
+  print "\n\nLeaf label frequencies\n";
+  print_formated_tbl( \%leafFreq, \@uqLeaves );
+}
+
 
 ####################################################################
 ##                               SUBS
 ####################################################################
+
+sub cleanup_tmp_files
+{
+  my $cmd = "rm -f $tmpDir/*";
+  print "\tcmd=$cmd\n" if $dryRun || $debug;
+  system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+}
+
+sub get_leaves
+{
+  my $treeFile = shift;
+
+  my $tmpDir = "temp_dir";
+  my ($fh, $leavesFile) = tempfile("leaves.XXXX", SUFFIX => '', OPEN => 1, DIR => $tmpDir);
+  close $fh;
+  my $cmd = "nw_labels -I $treeFile > $leavesFile";
+  print "\tcmd=$cmd\n" if $dryRun || $debug;
+  system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
+
+  my @a = read_array($leavesFile);
+
+  my $cmd = "rm -fr $tmpDir";
+  print "\tcmd=$cmd\n" if $dryRun || $debug;
+  system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+
+  return @a;
+}
 
 sub build_ann_tree
 {
@@ -315,6 +363,9 @@ sub plot_tree_with_labels
     $title = "";
   }
 
+  my $annTreeFile = $pdfFile;
+  $annTreeFile =~ s/pdf$/tree/;
+
   my $Rscript = qq~
 
 require(ape)
@@ -332,6 +383,8 @@ names(labs) <- rownames(labsTbl)
 tr\$node.label <- rep("", length(tr\$node.label))
 tr\$tip.label <- as.character(labs[tr\$tip.label])
 
+write.tree(tr, file=\"$annTreeFile\")
+
 figH <- 8
 figW <- 6
 if ( nLeaves >= 50 )
@@ -348,6 +401,8 @@ dev.off()
 ~;
 
   run_R_script( $Rscript );
+
+  return $annTreeFile;
 }
 
 
@@ -360,6 +415,9 @@ sub plot_tree_with_cltrs_and_labels
   {
     $title = "";
   }
+
+  my $annTreeFile = $pdfFile;
+  $annTreeFile =~ s/pdf$/tree/;
 
   my $Rscript = qq~
 
@@ -415,6 +473,7 @@ names(labs) <- rownames(labsTbl)
 ##tr\$node.label <- rep("", length(tr\$node.label))
 tr\$tip.label <- as.character(labs[tr\$tip.label])
 
+write.tree(tr, file=\"$annTreeFile\")
 
 figH <- 8
 figW <- 6
@@ -433,6 +492,8 @@ dev.off()
 ~;
 
   run_R_script( $Rscript );
+
+  return $annTreeFile;
 }
 
 ## plot tree with without any colors
