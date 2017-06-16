@@ -101,7 +101,7 @@ if ( ! -e $treeFile )
   exit;
 }
 
-my $tmpDir = "temp_dir";
+my $tmpDir = "leaf_freq_temp_dir";
 if ( ! -e $tmpDir )
 {
   my $cmd = "mkdir -p $tmpDir";
@@ -127,9 +127,18 @@ if ( $print )
 
 write_formated_freq_tbl( \%freq, $outFile );
 
+remove_tmp_dir();
+
 ####################################################################
 ##                               SUBS
 ####################################################################
+
+sub remove_tmp_dir
+{
+  my $cmd = "rm -rf $tmpDir";
+  print "\tcmd=$cmd\n" if $dryRun || $debug;
+  system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
+}
 
 sub get_leaves
 {
@@ -221,7 +230,7 @@ sub print_formated_freq_tbl
       $pad .= " ";
     }
     print "WARNING: tbl value not defined for $_\n" if !exists $rTbl->{$_};
-    print "\t$_$pad" . $rTbl->{$_} . "\n";
+    print "$_$pad" . $rTbl->{$_} . "\n";
   }
   print "\n";
 
