@@ -1028,7 +1028,6 @@ double vicut(vector<int> &nodeCut, map<int, NewickNode_t *> &idx2node, int *annI
             }
           }
         }
-
       }
       else
       {
@@ -1121,103 +1120,7 @@ double vicut(vector<int> &nodeCut, map<int, NewickNode_t *> &idx2node, int *annI
         }
       }
 
-      if ( nSpp>1 && ( minCut[i]==1 || ( j1 > -1 && j2 > -1 && AcountMap[i][j1] >= 3*AcountMap[i][j2] && AcountMap[i][j2]==1 ) )  )
-        //if ( nSpp>1 )
-      {
-
-#if VICUT_DEBUG
-        fprintf(stderr,"\nThis node has leaves assigned to multiple species\n");
-        fprintf(stderr,"Resetting annIdx on leaves of the subtree using a majority vote\n\n");
-        //exit(1);
-
-        fprintf(stderr,"AcountMap[i]: ");
-        for ( int k = 0; k < nuAnn; ++k )
-          fprintf(stderr,"%d ",AcountMap[i][k]);
-        fprintf(stderr,"\n");
-
-        if ( r )
-        {
-          fprintf(stderr,"rank AcountMap: ");
-          for ( int j = 0; j < nuAnn; ++j )
-            fprintf(stderr,"%d ", r[j]);
-          fprintf(stderr,"\n\n");
-        }
-
-        fprintf(stderr,"j1: %d\tj2: %d\n\n", j1, j2);
-#endif
-
-
-        // if ( AcountMap[i][j1] == AcountMap[i][j2] )
-        // //if ( (minCut[i]==1 && AcountMap[i][j1] == AcountMap[i][j2]) || !(AcountMap[i][j1] >= 3*AcountMap[i][j2]) )
-        // //if ( !(AcountMap[i][j1] >= 3*AcountMap[i][j2]) )
-        // //if ( !(minCut[i]==1 || AcountMap[i][j1] >= 3*AcountMap[i][j2]) )
-        // if ( ! (minCut[i]==1 || ( AcountMap[i] && j1 > -1 && j2 > -1 && AcountMap[i][j1] >= 3*AcountMap[i][j2] && AcountMap[i][j2]==1 )) )
-        // {
-        // 	i--;
-        // 	continue;
-        // }
-
-
-        //map<string, int> &leafIdx
-        for ( unsigned int j = 0; j < leaves.size(); j++ )
-          annIdx[ leafIdx[ leaves[j] ] ] = j1;
-
-        for ( int j = nLeaves-1; j >= i ; j-- )
-          if ( AcountMap[j] )
-            free(AcountMap[j]);
-
-        // populating countMap, AcountMap and qMap for leaves
-        for ( int j = 0; j < nLeaves; ++j )
-        {
-          if ( annIdx[j] > -1 )
-          {
-            countMap[j] = 1;
-
-            AcountMap[j] = (int*)calloc(nuAnn, sizeof(int));
-            AcountMap[j][annIdx[j]] = 1;
-
-            qMap[j] = Hp; // = 2*H(jp) - Hp; // which is Hp as H(jp) = H(p)
-          }
-          else
-          {
-            countMap[j]  = 0;
-            AcountMap[j] = NULL;
-            qMap[j] = 0;
-          }
-        }
-
-        // resetting countMap of internal nodes to -1
-        for( int j = minIdx; j < 0; j++ )
-          countMap[j] = -1;
-
-        // resetting all leave nodes to 1 and internal nodes to 0
-        for ( int j = 0; j < nLeaves; ++j )
-          minCut[j] = 1;
-
-        for( int j = minIdx; j < 0; j++ )
-          minCut[j] = 0;
-
-
-        // resetting Acount table
-        for ( int j = 0; j < nuAnn; ++j )
-          Acount[j] = 0;
-
-        for ( int j = 0; j < nLeaves; ++j )
-        {
-          if ( annIdx[j] > -1 )
-          {
-            Acount[annIdx[j]]++;
-          }
-        }
-
-        //exit(1);
-        round++;
-        i=-1;
-      }
-      else
-      {
-        i--;
-      }
+      i--;
     } // end of while ( ) loop
 
     free(AcountMap[minIdx]);
