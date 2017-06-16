@@ -28,9 +28,6 @@
 =item B<--show-tree>
   Opens tree's pdf file
 
-=item B<--show-node-labels>
-  Show node labels.
-
 =item B<--tree-type>
   A character string specifying the type of phylogeny to be drawn; it must be
   one of "phylogram" (the default), "cladogram", "fan", "unrooted", "radial"
@@ -39,9 +36,24 @@
 =item B<--labs-file, -l>
   A tab delimited file with two columns <leaf ID> => <label>
 
-
 =item B<--cltr-file, -c>
   A tab delimited file with two columns <leaf ID> => <cluster ID>
+
+=item B<--condense>
+  Only used with the --labs-file flag. When present a condensed tree is produced.
+
+=item B<--condense2>
+  As --condense, but adds a suffix _n<N> where N is the number of leaves that
+  were collapsed to the current leaf on the condensed tree.
+
+=item B<--show-leaf-freq>
+  Prints out frequencies of leaf labels.
+
+=item B<--show-node-labels>
+  Show inner node labels.
+
+=item B<--use-edge-length>
+  Use edge lengths when plotting the tree. If not present all leafs end up at the same level.
 
 =item B<-h|--help>
   Print help message and exit successfully.
@@ -74,22 +86,25 @@ $OUTPUT_AUTOFLUSH = 1;
 my $treeType = "phylogram";
 
 GetOptions(
-    "tree-file|i=s"    => \my $treeFile,
-    "pdf-file|o=s"     => \my $pdfFile,
-    "labs-file|l=s"    => \my $labsFile,
-    "cltr-file|c=s"    => \my $cltrFile,
-    "title|t=s"        => \my $title,
-    "show-tree"        => \my $showTree,
-    "show-node-labels" => \my $showNodeLabels,
-    "tree-type"        => \$treeType,
-    "igs"              => \my $igs,
-    "johanna"          => \my $johanna,
-    "debug"            => \my $debug,
-    "dry-run"          => \my $dryRun,
-    "help|h!"          => \my $help,
+  "tree-file|i=s"    => \my $treeFile,
+  "pdf-file|o=s"     => \my $pdfFile,
+  "labs-file|l=s"    => \my $labsFile,
+  "cltr-file|c=s"    => \my $cltrFile,
+  "title|t=s"        => \my $title,
+  "condense"         => \my $condense,
+  "condense2"        => \my $condense2,
+  "show-leaf-freq"   => \my $showLeafFreq,
+  "show-tree"        => \my $showTree,
+  "show-node-labels" => \my $showNodeLabels,
+  "tree-type"        => \$treeType,
+  "use-edge-length"  => \my $useEdgeLength,
+  "igs"              => \my $igs,
+  "johanna"          => \my $johanna,
+  "debug"            => \my $debug,
+  "dry-run"          => \my $dryRun,
+  "help|h!"          => \my $help,
   )
   or pod2usage(verbose => 0,exitstatus => 1);
-
 
 if ($help)
 {
@@ -119,30 +134,46 @@ if ( ! -e $treeFile )
   exit 1;
 }
 
+
+my $readTree       = "/Users/pgajer/organizer/programming/R/libs/read_tree.R";
+my $treeLib        = "/Users/pgajer/organizer/programming/R/libs/tree.R";
+my $readNewickFile = "/Users/pgajer/organizer/programming/R/libs/read.newick.R";
+
+if ( defined $igs )
+{
+  $readTree       = "/home/pgajer/devel/MCclassifier/R/read_tree.R";
+  $treeLib        = "/home/pgajer/devel/MCclassifier/R/tree.R";
+  $readNewickFile = "/home/pgajer/devel/MCclassifier/R/read.newick.R";
+}
+
+if ( defined $johanna )
+{
+  $readTree       = "/Users/jholm/MCclassifier/R/read_tree.R";
+  $treeLib        = "/Users/jholm/MCclassifier/R/tree.R";
+  $readNewickFile = "/Users/jholm/MCclassifier/R/read.newick.R";
+}
+
 if ( !defined $title )
 {
   $title = "";
 }
 
-my $readNewickFile = "/Users/pgajer/organizer/programming/R/libs/read.newick.R";
-
-if ( defined $igs )
+if ( $useEdgeLength )
 {
-  $readNewickFile = "??";
+  $useEdgeLength = "TRUE";
 }
-
-if ( defined $johanna )
+else
 {
-  $readNewickFile = "/Users/jholm/MCclassifier/perl/read.newick.R";
+  $useEdgeLength = "FALSE";
 }
 
 if ( $showNodeLabels )
 {
-    $showNodeLabels = "TRUE";
+  $showNodeLabels = "TRUE";
 }
 else
 {
-    $showNodeLabels = "FALSE";
+  $showNodeLabels = "FALSE";
 }
 
 
@@ -156,26 +187,40 @@ my $cmd = "mkdir -p $tmpDir";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed: $?" if !$dryRun;
 
-$treeFile = abs_path($treeFile);
-$pdfFile  = abs_path($pdfFile);
+$treeFile = abs_path( $treeFile );
+$pdfFile  = abs_path( $pdfFile );
 
 if ( $cltrFile )
 {
-    $cltrFile  = abs_path($cltrFile);
+  $cltrFile  = abs_path($cltrFile);
 }
 
 if ( $labsFile )
 {
-    $labsFile  = abs_path($labsFile);
+  $labsFile  = abs_path($labsFile);
 }
 
-if ( $cltrFile && $labsFile )
+if ( $labsFile && $condense )
+{
+  my $condAnnTreeFile = plot_condensed_tree( $treeFile, $title, $labsFile, $pdfFile);
+  print "\nCondensed tree written to $condAnnTreeFile\n\n";
+}
+elsif ( $labsFile && $condense2 )
+{
+  my $condAnnTreeFile = plot_condensed2_tree( $treeFile, $title, $labsFile, $pdfFile);
+  print "\nCondensed tree written to $condAnnTreeFile\n\n";
+}
+elsif ( $cltrFile && $labsFile )
 {
   plot_tree_with_cltrs_and_labels( $treeFile, $title, $cltrFile, $labsFile, $pdfFile);
 }
+elsif ( $labsFile )
+{
+  plot_tree_with_labels( $treeFile, $title, $labsFile, $pdfFile);
+}
 else
 {
-  plot_tree_bw(abs_path($treeFile), $pdfFile, $title);
+  plot_tree_bw( $treeFile, $title, $pdfFile);
 }
 
 if ( $showTree && $OSNAME eq "darwin")
@@ -190,6 +235,76 @@ if ( $showTree && $OSNAME eq "darwin")
 ##                               SUBS
 ####################################################################
 
+sub build_ann_tree
+{
+  my ($treeFile, $annFile, $annTreeFile ) = @_;
+
+  ## get leaves and test if they have the same number of elements as the table or
+  ## the table has those plus more
+
+  $cmd = "rm -f $annTreeFile; nw_rename $treeFile $annFile | nw_order -  > $annTreeFile";
+  print "\tcmd=$cmd\n" if $dryRun || $debug;
+  system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+}
+
+## Create a condensed tree given a tree with certain labels at the leaves
+sub condense_tree_only
+{
+  my ($treeFile, $condTreeFile) = @_;
+
+  $cmd = "rm -f $condTreeFile; nw_condense $treeFile > $condTreeFile";
+  print "\tcmd=$cmd\n" if $dryRun || $debug;
+  system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
+}
+
+## Create a condensed tree given a tree with certain labels at the leaves
+sub condense2_tree_only
+{
+  my ($treeFile, $condTreeFile) = @_;
+
+  $cmd = "rm -f $condTreeFile; nw_condense2 $treeFile > $condTreeFile";
+  print "\tcmd=$cmd\n" if $dryRun || $debug;
+  system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
+}
+
+sub plot_condensed_tree
+{
+  my ($treeFile, $title, $annFile, $pdfFile) = @_;
+
+  my $annTreeFile = "tmp.tree";
+  build_ann_tree( $treeFile, $annFile, $annTreeFile );
+
+  #print "--- Generating condensed tree\n";
+  my $condAnnTreeFile = $pdfFile;
+  $condAnnTreeFile =~ s/pdf$/tree/;
+  condense_tree_only( $annTreeFile, $condAnnTreeFile );
+
+  plot_tree_bw( $condAnnTreeFile, $title, $pdfFile);
+
+  unlink( $annTreeFile );
+
+  return $condAnnTreeFile;
+}
+
+sub plot_condensed2_tree
+{
+  my ($treeFile, $title, $annFile, $pdfFile) = @_;
+
+  my $annTreeFile = "tmp.tree";
+  build_ann_tree( $treeFile, $annFile, $annTreeFile );
+
+  #print "--- Generating condensed tree\n";
+  my $condAnnTreeFile = $pdfFile;
+  $condAnnTreeFile =~ s/pdf$/tree/;
+  condense2_tree_only( $annTreeFile, $condAnnTreeFile );
+
+  plot_tree_bw( $condAnnTreeFile, $title, $pdfFile);
+
+  unlink( $annTreeFile );
+
+  return $condAnnTreeFile;
+}
+
 ## plot tree with colored labels
 sub plot_tree_with_labels
 {
@@ -203,8 +318,8 @@ sub plot_tree_with_labels
   my $Rscript = qq~
 
 require(ape)
-source("/Users/pgajer/organizer/programming/R/libs/read_tree.R")
-source("/Users/pgajer/organizer/programming/R/libs/tree.R")
+source(\"$readTree\")
+source(\"$treeLib\")
 
 tr <- tree.read(\"$treeFile\")
 nLeaves <- length(tr\$tip.label)
@@ -227,7 +342,7 @@ if ( nLeaves >= 50 )
 
 pdf(\"$pdfFile\", width=figW, height=figH)
 op <- par(mar=c(0,0,1.5,0), mgp=c(2.85,0.6,0),tcl = -0.3, family=\"mono\")
-plot(tr, type=\"$treeType\", use.edge.length=FALSE, no.margin=FALSE, show.node.label=T, cex=0.7, tip.color=tip.colors, main=\"$title\")
+plot(tr, type=\"$treeType\", use.edge.length=$useEdgeLength, no.margin=FALSE, show.node.label=T, cex=0.7, tip.color=tip.colors, main=\"$title\")
 par(op)
 dev.off()
 ~;
@@ -249,8 +364,8 @@ sub plot_tree_with_cltrs_and_labels
   my $Rscript = qq~
 
 require(ape)
-source("/Users/pgajer/organizer/programming/R/libs/read_tree.R")
-source("/Users/pgajer/organizer/programming/R/libs/tree.R")
+source(\"$readTree\")
+source(\"$treeLib\")
 
 ##tr <- tree.read(\"$treeFile\")
 tr <- read.tree(\"$treeFile\")
@@ -311,7 +426,7 @@ if ( nLeaves >= 50 )
 
 pdf(\"$pdfFile\", width=figW, height=figH)
 op <- par(mar=c(0,0,1.5,0), mgp=c(2.85,0.6,0),tcl = -0.3, family=\"mono\")
-plot(tr, type=\"$treeType\", use.edge.length=FALSE, no.margin=FALSE, show.node.label=$showNodeLabels, cex=0.7, tip.color=tip.colors, main=\"$title\")
+plot(tr, type=\"$treeType\", use.edge.length=$useEdgeLength, no.margin=FALSE, show.node.label=$showNodeLabels, cex=0.7, tip.color=tip.colors, main=\"$title\")
 ##nodelabels(names(cltr.node), as.vector(cltr.node))
 par(op)
 dev.off()
@@ -323,7 +438,7 @@ dev.off()
 ## plot tree with without any colors
 sub plot_tree_bw
 {
-  my ($treeFile, $pdfFile, $title) = @_;
+  my ($treeFile, $title, $pdfFile) = @_;
 
   if (!defined $title)
   {
@@ -333,8 +448,8 @@ sub plot_tree_bw
   my $Rscript = qq~
 
 require(ape)
-source("/Users/pgajer/organizer/programming/R/libs/read_tree.R")
-source("/Users/pgajer/organizer/programming/R/libs/tree.R")
+source(\"$readTree\")
+source(\"$treeLib\")
 
 tr <- tree.read(\"$treeFile\")
 nLeaves <- length(tr\$tip.label)
@@ -349,7 +464,7 @@ if ( nLeaves >= 50 )
 
 pdf(\"$pdfFile\", width=figW, height=figH)
 op <- par(mar=c(0,0,1.5,0), mgp=c(2.85,0.6,0),tcl = -0.3, family=\"mono\")
-plot(tr, type=\"$treeType\", use.edge.length=FALSE, no.margin=FALSE, show.node.label=$showNodeLabels, cex=0.8, main=\"$title\")
+plot(tr, type=\"$treeType\", use.edge.length=$useEdgeLength, no.margin=FALSE, show.node.label=$showNodeLabels, cex=0.8, main=\"$title\")
 par(op)
 dev.off()
 ~;
