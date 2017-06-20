@@ -6,12 +6,49 @@
 
 =head1 DESCRIPTION
 
-  The script generates a split of all bacterial (and Archeal) sequences into
-  phylogenetically-based phylo-groups.
+  The script identifies clades of subRDP+CX+HB sequences using a CX+HB+(a few
+  genera of subRDP) tree. The groups are called in the sequal phylo-groups.
 
-  1. Run cut_tree at the genus level.
+  Input:
+  - Tree
+  - genus taxonomy of the leaves of the tree
+  - genus taxonomy of subRDP sequences
+  - phylo-group size threshold
 
-  2. Generate seqID => phylo-group table
+  Using the above genus taxonomy tables, genus => size table (for full and
+  restricted species size selections) will be generated. Post-order traversal of
+  the genus condensed tree will be run at each time testing if the size of the
+  corresponding subtree is less than a threshold.
+
+  Output:
+  - phylo_groups.tx: a two column table with seqID and phylo-group ID
+  - og.tx:           a two column OG table: seqID and phylo-group ID only for OG seq's
+  - phylo-group dirs with og.seqIDs file in each
+
+  After this script is run
+
+  - multi_select_seqs_bigMem.pl will be run with -s phylo_groups.tx to generate
+    fasta file of FL subRDP+CX+HB sequences per phylo-group.
+  - do the same for lineage files
+
+  Once fasta and lineage files are generated, ginsi alignments are build and
+  then FastTree is run on them. The resulting trees are rerooted using OG seq's.
+
+  Next, taxonomy_cleaup.pl is run.
+
+  The resulting species taxonomy is fed into V3V4 phylo-group dirs.
+
+  Taxonomy cleanup is run on V3V4 phylo-groups.
+
+  We use the data to build models - using phylo-part lineage generated in the
+  taxonomy cleanup process.
+
+  M&M sequences are classified using the above models.
+  NOTE that we have non-redundant files that were generated in the previous run
+  of pecan validation and we can run the classifier on those files to speedup
+  the whole process.
+
+  PECAN validation is run and final taxonomy assignments generated.
 
 =head1 SYNOPSIS
 
@@ -22,13 +59,13 @@
 =over
 
 =item B<--tree-file, -t>
-  Tree file.
+  Genus condensed tree file generated with vicut_classify.pl
 
-=item B<--genus-size-file, -s>
-  Genus sizes file.
+=item B<--tree-genus-tx-file, -s>
+  Genus taxonomy of the leaves of the input tree of vicut_classify.pl
 
-=item B<--genus-tx-file, -g>
-  Genus taxonomy file.
+=item B<--subRDP-genus-tx-file, -g>
+  subRDP seq's genus taxonomy file.
 
 =item B<--max-phGr-size, -m>
   Maximum size of a phylo-group.
@@ -61,7 +98,7 @@
 
   cd ~/projects/PECAN/data/Banfield_contax
 
-  phylo_split_by_genus.pl -m 4100 -s genus_size_dir/size_restricted.tx -g banfield_medoids_genus.tx -o banfield_medoids_FL_phGr_by_genus_dir
+  phylo_split_by_genus.pl -m 5000 -t ... -s .. -g  -o cx_hb_ssubRDP_FL_5k_phGr_dir
 
 =cut
 
@@ -79,22 +116,20 @@ $OUTPUT_AUTOFLUSH = 1;
 ##                             OPTIONS
 ####################################################################
 
-my $treeFile = "/Users/pgajer/projects/PECAN/data/Banfield_contax/Banfield_medoids_FL.tree";
-
 GetOptions(
-  "tree-file|t=s"       => \$treeFile,
-  "genus-size-file|s=s" => \my $ourDBgeSizeFile,
-  "genus-tx-file|g=s"   => \my $genusTxFile,
-  "max-phGr-size|m=s"   => \my $maxCltrSize,
-  "output-dir|o=s"      => \my $outDir,
-  "report"              => \my $report,
-  "run-all"             => \my $runAll,
-  "quiet"               => \my $quiet,
-  "igs"                 => \my $igs,
-  "verbose|v"           => \my $verbose,
-  "debug"               => \my $debug,
-  "dry-run"             => \my $dryRun,
-  "help|h!"             => \my $help,
+  "tree-file|t=s"            => \my $treeFile,
+  "tree-genus-tx-file|s=s"   => \my $treeGenusTxFile,
+  "subRDP-genus-tx-file|g=s" => \my $subRDPgenusTxFile,
+  "max-phGr-size|m=s"        => \my $maxCltrSize,
+  "output-dir|o=s"           => \my $outDir,
+  "report"                   => \my $report,
+  "run-all"                  => \my $runAll,
+  "quiet"                    => \my $quiet,
+  "igs"                      => \my $igs,
+  "verbose|v"                => \my $verbose,
+  "debug"                    => \my $debug,
+  "dry-run"                  => \my $dryRun,
+  "help|h!"                  => \my $help,
   )
   or pod2usage(verbose => 0,exitstatus => 1);
 
@@ -116,15 +151,15 @@ elsif ( !$treeFile )
   pod2usage(verbose => 2,exitstatus => 0);
   exit 1;
 }
-elsif ( !$ourDBgeSizeFile )
+elsif ( !$treeGenusTxFile )
 {
-  print "ERROR: Missing genus size file\n\n";
+  print "ERROR: Missing genus taxonomy of the leaves of the tree file\n\n";
   pod2usage(verbose => 2,exitstatus => 0);
   exit 1;
 }
-elsif ( !$genusTxFile )
+elsif ( !$subRDPgenusTxFile )
 {
-  print "ERROR: Missing genus taxonomy file\n\n";
+  print "ERROR: Missing subRDP genus taxonomy file\n\n";
   pod2usage(verbose => 2,exitstatus => 0);
   exit 1;
 }
@@ -136,14 +171,14 @@ if ( ! -e $treeFile || ! -s $treeFile )
   exit 1;
 }
 
-if ( ! -e $ourDBgeSizeFile || ! -s $ourDBgeSizeFile )
+if ( ! -e $treeGenusTxFile || ! -s $treeGenusTxFile )
 {
   warn "ERROR: Genus size file does not exist (or has size 0)";
   print "\n\n";
   exit 1;
 }
 
-if ( ! -e $genusTxFile || ! -s $genusTxFile )
+if ( ! -e $subRDPgenusTxFile || ! -s $subRDPgenusTxFile )
 {
   warn "ERROR: Genus taxonomy file does not exist (or has size 0)";
   print "\n\n";
@@ -230,60 +265,50 @@ if ( defined $igs )
 ##                               MAIN
 ####################################################################
 
-print "--- Generating genus condense tree\n";
-my $geCondTreeFile = $outDir . "/genus_cond.tree";
-condense_tree( $treeFile, $genusTxFile, $geCondTreeFile );
+print "--- Parsing genus taxonomy of the leaves of the tree\n";
+my %trGeTbl = read_tbl( $treeGenusTxFile ); # trGeTbl{$ge} = ref to array of seq's of that genus
 
-print "--- Checking if there are genera appearing more than once in the genus condense tree\n";
-my @condGeLeaves = get_leaves( $geCondTreeFile );
-my %geFreq;
-for ( @condGeLeaves )
-{
-  $geFreq{$_}++;
-}
+print "--- Parsing subRDP genus taxonomy file\n";
+my %rdpGeTbl = read_tbl( $subRDPgenusTxFile ); # rdpGeTbl{$ge} = ref to array of seq's of that genus
 
-my @mGenera; # genera that apprear more than once
-for my $ge ( keys %geFreq )
+my %geTbl = %trGeTbl;
+for my $ge ( keys %geTbl )
 {
-  if ( $geFreq{$ge} > 1 )
+  if ( exists $rdpGeTbl{$ge} )
   {
-    push @mGenera, $ge;
+    push @{$geTbl{$ge}}, @{$rdpGeTbl{$ge}};
   }
 }
 
-if ( @mGenera )
+my %geSize;
+for my $ge ( keys %geTbl )
 {
-  print "\nThe following genera appear more than once  in the genus condense tree\n";
-  print_formated_tbl( \%geFreq, \@mGenera );
+  $geSize{$ge} = @{$geTbl{$ge}};
 }
 
-print "--- Parsing genus taxonomy table\n";
-my %geSeqs = parse_geTx_tbl( $genusTxFile ); # geSeqs{$ge} = ref to array of seq's of that genus
+print "--- Generating for all leaves of the condensed tree\n";
+## since this is a tree generated vicut_classify.pl, there will be leaves with
+## c<N> label names corresponding to vicut clusters with only query sequences or
+## clusters of some genera present in more than one place (only largest cluster
+## of this genus will carry its name and the rest will be turned into c<N>
+## unless they merge with other genera in the cleanup process).
 
-print "--- Generating CXHG + our DB genus size table\n";
-my %ourDBgeTbl = parse_spTx_tbl( $ourDBgeSizeFile ); # ourDBgeTbl{$ge} = ref to array of seq's of $ge in our DB
+my @leaves = get_leaves( $treeFile );
 
-my $geSizeFile = $outDir . "/cxhb_and_ourDB_genus_size_tbl.txt";
-open OUT, ">$geSizeFile" or die "Cannot open $geSizeFile for writing: $OS_ERROR\n";
-print OUT "seqID\tsize\n";
-for my $ge ( keys %geFreq )
+# Expanding $geSize to c<N> leaves, setting their size to 0
+for my $ge ( @leaves )
 {
-  my $geMult = $geFreq{$ge};
-  my $size;
-  if ( exists $ourDBgeTbl{$ge} )
+  if ( !exists $geSize{$ge} )
   {
-    $size = int( (@{$ourDBgeTbl{$ge}} + @{$geSeqs{$ge}}) / $geMult );
+    $geSize{$ge} = 0;
   }
-  else
-  {
-    $size = int( @{$geSeqs{$ge}} / $geMult );
-  }
-  print OUT "$ge\t$size\n";
 }
-close OUT;
+
+my $geSizeFile = $outDir . "/genus_size_tbl.txt";
+write_tbl( \%geSize, $geSizeFile );
 
 print "--- Running cut_tree\n";
-$cmd = "cut_tree -m $maxCltrSize -s $geSizeFile -t $geCondTreeFile -o $outDir";
+$cmd = "cut_tree -m $maxCltrSize -s $geSizeFile -t $treeFile -o $outDir";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 
@@ -294,42 +319,25 @@ my ($rphGr, $rphGrSize) = parse_cut_file( $cutFile );
 my %phGrTbl  = %{$rphGr};     # phGr => ref to array of tree leaves of that phylo-group
 my %phGrSize = %{$rphGrSize}; # phGr => size
 
+
+print "--- Selecting an OG for each phylo-group\n";
+my %ogTbl = get_ogs( $treeFile, \%phGrTbl ); # phGr => seqID
+
+
 print "--- Generating phGr table\n";
 my $phGrFile = "$outDir/thld_" . $maxCltrSize . "_phGr_tbl.txt";
 open OUT, ">$phGrFile" or die "Cannot open $phGrFile for writing: $OS_ERROR\n";
 for my $phGr ( keys %phGrTbl )
 {
-  my @ges = @{ $phGrTbl{$phGr} };
-  my @uqGes = unique( \@ges );
-  for my $ge ( @uqGes )
-  {
-    for ( @{ $geSeqs{$ge} } )
-    {
-      print OUT "$_\t$phGr\n";
-    }
-  }
-}
-close OUT;
-
-## OG table produced in og_selection.R
-my $ogFile = "/Users/pgajer/projects/PECAN/data/Banfield_contax/banfield_medoids_FL_genus5k_phGr_OGs.txt";
-my %ogTbl = read_tbl( $ogFile );
-
-my $phGrFile = ""; # ???
-my %cxhbTbl = read_phGr_tbl( $phGrFile ); # phGr => ref to array of CXHG seqIDs of phGr
-
-for my $phGr ( keys %phGrTbl )
-{
   print "\nProcessing $phGr\n\n";
 
-  print "--- Creating phylo-group directory\n";
+  # Creating phylo-group directory
   my $phGrDir = $outDir . "/$phGr" . "_dir";
   $cmd = "mkdir -p $phGrDir";
   print "\tcmd=$cmd\n" if $dryRun || $debug;
   system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 
-  print "--- Selecting an OG sequence\n";
-  ##my $ogSeq = get_OG_seq( $phGr );
+  # Getting an OG sequence of $phGr
   if ( ! exists $ogTbl{$phGr} )
   {
     warn "\n\n\tERROR: $phGr not found in ogTbl";
@@ -338,17 +346,28 @@ for my $phGr ( keys %phGrTbl )
   }
 
   my $ogSeq = $ogTbl{$phGr};
+  print OUT "$ogSeq\t$phGr\n";
 
-  print "--- Generating phGr lineage file\n";
-  my $liFile = $phGrDir . "/$phGr" . ".lineage";
-  generate_lineage_file( $phGr, $ogSeq, $liFile );
+  # Creating an outgroup file in the phGr dir
+  my $ogFile = $phGrDir . "/$phGr" . "_outgroup.seqIDs";
+  my @ogs = ($ogSeq);
+  write_array( \@ogs, $ogFile );
 
-  print "--- Generating phGr fasta file\n";
-  my $liFile = $phGrDir . "/$phGr" . ".lineage";
-  generate_fa_file( $phGr, $ogSeq, $liFile );
+  # Finishing seqID => phGr table for the given phGr
+  my @ges = @{ $phGrTbl{$phGr} };
+  my @uqGes = unique( \@ges );
+  for my $ge ( @uqGes )
+  {
+    if ( exists $geTbl{$ge} )
+    {
+      for ( @{$geTbl{$ge}} )
+      {
+        print OUT "$_\t$phGr\n";
+      }
+    }
+  }
 }
-
-
+close OUT;
 
 cleanup_tmp_files();
 
@@ -913,6 +932,15 @@ sub create_mothur_script
     return $inFile;
 }
 
+# write array to a file (one column format)
+sub write_array
+{
+  my ($a, $outFile) = @_;
+  open OUT, ">$outFile" or die "Cannot open $outFile for writing: $OS_ERROR";
+  map {print OUT "$_\n"} @{$a};
+  close OUT
+}
+
 # write hash table to a file
 sub write_tbl
 {
@@ -1054,7 +1082,9 @@ sub read_tbl
   return %tbl;
 }
 
-sub get_leaves { my $treeFile = shift;
+sub get_leaves
+{
+  my $treeFile = shift;
 
   my ($fh, $leavesFile) = tempfile("leaves.XXXX", SUFFIX => '', OPEN => 0, DIR => $tmpDir);
   my $cmd = "$nw_labels -I $treeFile > $leavesFile";
@@ -1064,6 +1094,72 @@ sub get_leaves { my $treeFile = shift;
   my @a = read_array($leavesFile);
 
   return @a;
+}
+
+sub get_ogs
+{
+  my ( $treeFile, $rphGrTbl ) = @_;
+
+  my %phGrTbl = %{$rphGrTbl};
+  $" = ",";
+
+  my $Rscript = qq~
+
+tr <- read.tree(\"$treeFile\")
+for (
+ids <- c(
+p <- first.common.ancestor( tr, ids )
+p <- tree.parent.node( tr, p ) # get the grandparent of p
+ids2.idx <- node.leaves( tr, p )
+ids2 <- tr\$tip.label[ids2.idx]
+cmd <- sprintf(\"nw_clade %s \", treeFile)
+for ( id in ids2 )
+{
+    cmd <- paste(cmd, id)
+}
+cmd <- paste(cmd, \" > \", \"$cladeTreeFile\")
+system(cmd)
+
+cmd <- sprintf("nw_rename %s %s > %s", cladeTreeFile, \"$annFile\", pFile2)
+system(cmd)
+
+    rids  <- as.character(chb.tx[ids])
+    rids2 <- as.character(chb.tx[ids2])
+
+    clade.tr <- tree.read( cladeTreeFile2 )
+    nLeaves <- length(clade.tr$tip.label)
+
+    p <- first.common.ancestor( clade.tr, rids )
+    cl <- strsplit(title, " ")[[1]][1]
+
+    tip.colors <- rep( 1, length(clade.tr$tip.label) )
+    names(tip.colors) <- clade.tr$tip.label
+    tip.colors[rids] <- 4 # blue
+
+    i <- grep("ConTax", rids)
+    cid <- rids[i]
+    tip.colors[cid] <- 2
+
+    figH <- 8
+    figW <- 12
+    if ( nLeaves >= 50 )
+    {
+        figH <- 6.0/50.0 * ( nLeaves - 50) + 10
+        figW <- 6.0/50.0 * ( nLeaves - 50) + 6
+    }
+
+    clade.tr$node.label <- rep("", length(clade.tr$node.label))
+
+    pdf(pdfFile, width=figW, height=figH)
+    op <- par(mar=c(0,0,1.5,0), mgp=c(2.85,0.6,0),tcl = -0.3)
+    plot(clade.tr,type="phylogram", use.edge.length=FALSE, no.margin=FALSE, show.node.label=T, cex=0.8, tip.color=tip.colors, main=title)
+    nodelabels(cl, p)
+    par(op)
+    dev.off()
+
+        ~;
+
+    unlink $idsFile;
 }
 
 exit 0;
