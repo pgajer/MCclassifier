@@ -70,6 +70,8 @@
 
   vicut_and_plot.pl -t Banfield_medoids_FL.tree -l medoids_May30.lineage -o banfield_medoids_FL_may30_dir
 
+  vicut_and_plot.pl -t medoids_FL_rr.tree -l ../../microcontax/medoids.lineage -o medoids_FL_dir
+
 =cut
 
 use strict;
@@ -250,13 +252,11 @@ if ( defined $igs )
   $readNewickFile        = "/local/projects/pgajer/devel/MCclassifier/perl/read.newick.R";
   $ginsi                 = "/home/pgajer/bin/mafft --maxiterate 1000 --globalpair"; # MAFFT v7.310 (2017/Mar/17)
 
-  $spGeFile              = "/usr/local/projects/pgajer/devel/MCextras/data/species_genus_tbl_may19_2017.txt";
-  $geLiFile              = "/usr/local/projects/pgajer/devel/MCextras/data/microcontax/microcontax_genus_lineage_tbl.txt"; # NOTE: this one has a header !
+  #$spGeFile              = "/usr/local/projects/pgajer/devel/MCextras/data/species_genus_tbl_may19_2017.txt";
+  #$geLiFile              = "/usr/local/projects/pgajer/devel/MCextras/data/microcontax/microcontax_genus_lineage_tbl.txt"; # NOTE: this one has a header !
   #$ogFaFile              = "/usr/local/projects/pgajer/devel/MCextras/data/phylo_split/Archaea_Caldococcus_noboribetus_S000414080.fa";
 
-  $baseDir               = "/usr/local/projects/pgajer/projects/PECAN/data/phylo_groups/v0.2/";
-  $spGeFile              = "/usr/local/projects/pgajer/projects/PECAN/data/phylo_groups/v0.2/species_genus_tbl_may19_2017.txt";
-  $geLiFile              = "/usr/local/projects/pgajer/projects/PECAN/data/microcontax/microcontax_genus_lineage_tbl.txt"; # NOTE: this file has a header !
+  1
   # $ogFaFile              = "/usr/local/projects/pgajer/projects/PECAN/data/phylo_split/bacterial_OGs/Archaea_OG_for_Bacterial_V3V4.fa";
   # $ogTxFile              = "/usr/local/projects/pgajer/projects/PECAN/data/phylo_split/bacterial_OGs/Archaea_OG_for_Bacterial_V3V4_v2.tx";
 
