@@ -206,9 +206,93 @@ open OUT, ">$clFile" or die "Cannot open $clFile for writing: $OS_ERROR\n";
 my $chgFile = $outDir . "/$label" . "_taxonomy_changes.txt";
 open OUT2, ">$chgFile" or die "Cannot open $chgFile for writing: $OS_ERROR\n";
 
-my %txChg; # table recording changes of annotation of annotated elements
-my %naChg; # $naChg{$cl} seq IDs of $cl; only clusters containing NA elements are in this table; it will be used to generate grandparent trees
-my %newAnn; # new taxonomy
+my %txChg;    # table recording changes of annotation of annotated elements
+my %naChg;    # $naChg{$cl} seq IDs of $cl; only clusters containing NA elements are in this table; it will be used to generate grandparent trees
+my %newAnn;   # new taxonomy
+my %txClTbl;  # taxon to cluster to seqIDs table
+for my $cl ( keys %clTxTbl )
+{
+  my @txs = sort { @{$clTxTbl{$cl}{$b}} <=> @{$clTxTbl{$cl}{$a}} } keys %{$clTxTbl{$cl}};
+  my $moAnn = shift @txs; # most abundant annotation
+  if ( exists $clTxTbl{$cl}{"NA"} )
+  {
+    if ( $moAnn eq "NA" && @txs > 0 )
+    {
+      $moAnn = shift @txs;
+    }
+    elsif ( $moAnn eq "NA" && @txs == 0 )
+    {
+      $moAnn = $cl;
+    }
+  }
+
+  for my $tx ( keys %{$clTxTbl{$cl}} )
+  {
+    my @ids = @{$clTxTbl{$cl}{$tx}};
+    if ( $tx eq "NA" )
+    {
+      push @{$naChg{$cl}}, @ids;
+    }
+
+    if ( $tx ne "NA" && $tx ne $moAnn )
+    {
+      $txChg{$tx} = $moAnn;
+      for my $id ( @ids )
+      {
+        print OUT2 "$id\t$tx\t$moAnn\n";
+      }
+    }
+
+    push @{$txClTbl{$moAnn}{$cl}}, @ids;
+
+    for my $id ( @ids )
+    {
+      print OUT "$id\t$moAnn\n";
+      $newAnn{$id} = $moAnn;
+    }
+  }
+}
+close OUT;
+close OUT2;
+
+print "--- Moving genera present in more than one cluster to query in the next run of vicut\n";
+for my $tx ( keys %txClTbl )
+{
+  my @cls = sort { @{$txClTbl{$tx}{$b}} <=> @{$txClTbl{$tx}{$a}} } keys %{$txClTbl{$tx}};
+  if ( @cls > 1 )
+  {
+    my $winner = shift @cls;
+    for my $cl ( @cls )
+    {
+      my @ids = @{$txClTbl{$tx}{$cl}};
+      delete @ann{@ids};
+    }
+  }
+}
+
+
+$annFile = $outDir . "/$label" . "_ann.txt";
+write_tbl( \%ann, $annFile );
+
+
+print "--- Running 2nd vicut\n";
+$vicutDir = $outDir . "/vicut_dir2";
+@query = run_vicut( $treeFile, $annFile, $vicutDir );
+
+print "--- Parsing results of vicut run\n";
+%clTxTbl = parse_cltr_tbl(); # clTxTbl{cl}{tx} ref to seq IDs of tx taxonomy within the cl cluster.
+
+print "--- Majority vote classification of query elements\n";
+
+$clFile = $outDir . "/$label" . "_classification_results2.txt";
+open OUT, ">$clFile" or die "Cannot open $clFile for writing: $OS_ERROR\n";
+
+$chgFile = $outDir . "/$label" . "_taxonomy_changes2.txt";
+open OUT2, ">$chgFile" or die "Cannot open $chgFile for writing: $OS_ERROR\n";
+
+undef %txChg;    # table recording changes of annotation of annotated elements
+undef %naChg;    # $naChg{$cl} seq IDs of $cl; only clusters containing NA elements are in this table; it will be used to generate grandparent trees
+undef %newAnn;   # new taxonomy
 for my $cl ( keys %clTxTbl )
 {
   my @txs = sort { @{$clTxTbl{$cl}{$b}} <=> @{$clTxTbl{$cl}{$a}} } keys %{$clTxTbl{$cl}};
@@ -251,6 +335,7 @@ for my $cl ( keys %clTxTbl )
 }
 close OUT;
 close OUT2;
+
 
 print "--- Generating tree with vicut classification derived labels\n";
 my $annTreeFile = $treeDir . "/$label" . ".tree";
