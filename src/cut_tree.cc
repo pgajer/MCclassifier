@@ -97,9 +97,13 @@ void printUsage( const char *s );
 void printHelp( const char *s );
 void read_char_int_tbl( const char *inputFile, map<string, int> &tbl);
 int post_ord_trvl( NewickNode_t *node,
-		   map<string, int> &sizeMap,
-		   inPar_t *inPar,
-		   map<NewickNode_t *, int> &cutMap);
+                   map<string, int> &sizeMap,
+                   inPar_t *inPar,
+                   map<NewickNode_t *, int> &cutMap);
+
+void get_ogs( NewickTree_t &nt,
+              map<NewickNode_t *, int> &phGrMap,
+              map<int, string> &ogMap);
 
 
 // ===================================================================
@@ -270,11 +274,6 @@ int main(int argc, char **argv)
 
   fprintf(stderr, "--- Generating a cluster table: <leafName> <cluterID= -(node->idx)>\n");
 
-  char thldStr[16];
-  sprintf( thldStr, "%d", inPar->cltrMaxSize );
-
-  string outFile = string(inPar->outDir) + string("/") + string("thld_") + string(thldStr) + string("_tree_cut_tbl.txt");
-  FILE *out = fOpen( outFile.c_str(), "w" );
   map<NewickNode_t*, int>::iterator it2;
   vector< sort_node_map > v;
   sort_node_map sm;
@@ -287,10 +286,16 @@ int main(int argc, char **argv)
 
   sort( v.begin(),v.end(),Sort_node_by );
 
+  char thldStr[16];
+  sprintf( thldStr, "%d", inPar->cltrMaxSize );
+  string outFile = string(inPar->outDir) + string("/") + string("thld_") + string(thldStr) + string("_tree_cut_tbl.txt");
+  FILE *out = fOpen( outFile.c_str(), "w" );
+
+  map<NewickNode_t*, int> phGrMap; // cut node to the index of the corresponding phylo-group
+
   int phGrIdx = 1;
   vector< sort_node_map >::iterator itv;
   for (itv = v.begin(); itv != v.end(); ++itv)
-    //for ( it2 = cutMap.begin(); it2 != cutMap.end(); it2++ )
   {
     vector<string> leaves;
     nt.leafLabels( itv->key, leaves );
@@ -299,11 +304,26 @@ int main(int argc, char **argv)
     for ( sItr = leaves.begin(); sItr != leaves.end(); sItr++ )
       fprintf( out,"%s\t%d\t%d\n", (*sItr).c_str(), phGrIdx, itv->val);
 
+    phGrMap[ itv->key ] = phGrIdx;
     phGrIdx++;
   }
   fclose( out );
 
   fprintf( stderr, "\n\n\tCluter table written to %s\n\n", outFile.c_str() );
+
+
+  // selecting OG for each phylo-group
+  map<int, string> ogMap;
+  get_ogs( nt, phGrMap, ogMap );
+
+  outFile = string( inPar->outDir ) + string( "/" ) + string( "thld_" ) + string( thldStr ) + string( "_og_tbl.txt" );
+  out = fOpen( outFile.c_str(), "w" );
+  map<int, string>::iterator oItr;
+  for ( oItr = ogMap.begin(); oItr != ogMap.end(); ++oItr )
+  {
+    fprintf( out,"%d\t%s\n", oItr->first, (oItr->second).c_str() );
+  }
+  fclose( out );
 
   return EXIT_SUCCESS;
 }
@@ -312,6 +332,43 @@ int main(int argc, char **argv)
 // ===================================================================
 //                   subroutine definitions
 // ===================================================================
+
+//----------------------------------------------- get_ogs ----
+// Given cut map, the routine finds a outgroup sequence for each subtree induced
+// by the cut. An outgroup sequence is a random sequence from a sibling node of
+// the parent of each subtree
+void get_ogs( NewickTree_t &nt,
+              map<NewickNode_t *, int> &phGrMap,
+              map<int, string> &ogMap)
+{
+    NewickNode_t *pnode   = NULL; // parent node of each cut
+    NewickNode_t *gpnode  = NULL; // grand-parent node of each cut
+    NewickNode_t *sibnode = NULL; // sibling node of pnode
+    map<NewickNode_t *, int>::iterator it;
+    for ( it = phGrMap.begin(); it != phGrMap.end(); ++it )
+    {
+      pnode = it->first;
+      gpnode = pnode->parent_m;
+
+      int i = 0;
+      int n = (int)gpnode->children_m.size();
+      while( i < n )
+      {
+        if ( gpnode->children_m[i] != pnode )
+        {
+          sibnode = gpnode->children_m[i];
+          break;
+        }
+        i++;
+      }
+
+      vector<string> leaves;
+      nt.leafLabels( sibnode, leaves );
+
+      int randIdx = rand() % leaves.size();
+      ogMap[ it->second ] = leaves[randIdx];
+    }
+}
 
 //----------------------------------------------- post_ord_trvl ----
 // post order traversal of a tree
