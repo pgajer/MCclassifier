@@ -172,10 +172,13 @@ if ( $debug )
   exit;
 }
 
+my $baseDir  = "/Users/pgajer/projects/PECAN/data/phylo_groups/v0.1/";
+#my $spGeFile = "/Users/pgajer/projects/PECAN/data/phylo_groups/v0.2/species_genus_tbl_may19_2017.txt";
+my $geLiFile = "/Users/pgajer/projects/PECAN/data/microcontax/microcontax_genus_lineage_tbl.txt"; # NOTE: this file has a header !
 
 print "--- Building taxonomic parent tables\n";
 
-my $baseDir = "/Users/pgajer/devel/MCextras/data/RDP/rdp_Bacteria_phylum_dir/";
+#my $baseDir = "/Users/pgajer/projects/PECAN/data/phylo_groups/v0.1/";
 my @mLiFiles0 = ("Actinobacteria_dir/Actinobacteria_group_0_dir/Actinobacteria_group_0.lineage",
 		 "Actinobacteria_dir/Actinobacteria_group_1_dir/Actinobacteria_group_1.lineage",
 		 "Actinobacteria_dir/Actinobacteria_group_2_dir/Actinobacteria_group_2.lineage",
@@ -327,7 +330,7 @@ foreach my $file ( @liFiles )
 
 print "\r                                                      ";
 
-my $geLiFile = "/Users/pgajer/devel/MCextras/data/RDP/rdp_Bacteria_phylum_dir/microcontax_genus_lineage_tbl.txt"; # NOTE: this one has a header !
+#my $geLiFile = "/Users/pgajer/projects/PECAN/data/microcontax/microcontax_genus_lineage_tbl.txt"; # NOTE: this one has a header !
 
 if (0)
 {
@@ -367,7 +370,7 @@ for my $ge ( @ges  )
   }
 }
 
-my $spGeFile = $outDir . "/species_genus_tbl_may19_2017.txt";
+my $spGeFile = $outDir . "/species_genus_tbl_june19_2017.txt";
 my @spp = sort keys %spParent;
 write_sorted_tbl( \%spParent, \@spp, $spGeFile );
 
@@ -552,7 +555,71 @@ sub print_array
 
 sub get_li_files
 {
-  my $baseDirExt = "/Users/pgajer/devel/MCextras/data/vag_exp_V3V4_phGrps_May16_dir/";
+  my @liFiles0 = ("Actinobacteria_group_0_V3V4_dir/Actinobacteria_group_0_V3V4.lineage",
+		  "Actinobacteria_group_1_V3V4_dir/Actinobacteria_group_1_V3V4.lineage",
+		  "Actinobacteria_group_2_V3V4_dir/Actinobacteria_group_2_V3V4.lineage",
+		  "Actinobacteria_group_3_V3V4_dir/Actinobacteria_group_3_V3V4.lineage",
+		  "Actinobacteria_group_4_V3V4_dir/Actinobacteria_group_4_V3V4.lineage",
+		  "Actinobacteria_group_5_V3V4_dir/Actinobacteria_group_5_V3V4.lineage",
+		  "Bacteroidetes_group_0_V3V4_dir/Bacteroidetes_group_0_V3V4.lineage",
+		  "Bacteroidetes_group_1_V3V4_dir/Bacteroidetes_group_1_V3V4.lineage",
+		  "Bacteroidetes_group_2_V3V4_dir/Bacteroidetes_group_2_V3V4.lineage",
+		  "Bacteroidetes_group_3_V3V4_dir/Bacteroidetes_group_3_V3V4.lineage",
+		  "Chloroflexi_V3V4_dir/Chloroflexi_V3V4.lineage",
+		  "Deinococcus_Thermus_V3V4_dir/Deinococcus_Thermus_V3V4.lineage",
+		  "Fusobacteria_V3V4_dir/Fusobacteria_V3V4.lineage",
+		  "Nitrospirae_V3V4_dir/Nitrospirae_V3V4.lineage",
+		  "Planctomycetes_V3V4_dir/Planctomycetes_V3V4.lineage",
+		  "Spirochaetes_V3V4_dir/Spirochaetes_V3V4.lineage",
+		  "Tenericutes_V3V4_dir/Tenericutes_V3V4.lineage",
+		  "Verrucomicrobia_V3V4_dir/Verrucomicrobia_V3V4.lineage",
+		  "phyla_lessthen_1k_wOG_V3V4_dir/phyla_lessthen_1k_wOG_V3V4.lineage",
+		  "Firmicutes_group_0_V3V4_dir/Firmicutes_group_0_V3V4.lineage",
+		  "Firmicutes_group_1_V3V4_dir/Firmicutes_group_1_V3V4.lineage",
+		  "Firmicutes_group_2_V3V4_dir/Firmicutes_group_2_V3V4.lineage",
+		  "Firmicutes_group_3_V3V4_dir/Firmicutes_group_3_V3V4.lineage",
+		  "Firmicutes_group_4_V3V4_dir/Firmicutes_group_4_V3V4.lineage",
+		  "Firmicutes_group_5_V3V4_dir/Firmicutes_group_5_V3V4.lineage",
+		  "Firmicutes_group_6_V3V4_dir/Firmicutes_group_6_V3V4.lineage",
+		  "Proteobacteria_group_0_V3V4_dir/Proteobacteria_group_0_V3V4.lineage",
+		  "Proteobacteria_group_10_V3V4_dir/Proteobacteria_group_10_V3V4.lineage",
+		  "Proteobacteria_group_11_V3V4_dir/Proteobacteria_group_11_V3V4.lineage",
+		  "Proteobacteria_group_12_V3V4_dir/Proteobacteria_group_12_V3V4.lineage",
+		  "Proteobacteria_group_13_V3V4_dir/Proteobacteria_group_13_V3V4.lineage",
+		  "Proteobacteria_group_14_V3V4_dir/Proteobacteria_group_14_V3V4.lineage",
+		  "Proteobacteria_group_15_V3V4_dir/Proteobacteria_group_15_V3V4.lineage",
+		  "Proteobacteria_group_17_V3V4_dir/Proteobacteria_group_17_V3V4.lineage",
+		  "Proteobacteria_group_1_V3V4_dir/Proteobacteria_group_1_V3V4.lineage",
+		  "Proteobacteria_group_2_V3V4_dir/Proteobacteria_group_2_V3V4.lineage",
+		  "Proteobacteria_group_3_V3V4_dir/Proteobacteria_group_3_V3V4.lineage",
+		  "Proteobacteria_group_4_V3V4_dir/Proteobacteria_group_4_V3V4.lineage",
+		  "Proteobacteria_group_5_V3V4_dir/Proteobacteria_group_5_V3V4.lineage",
+		  "Proteobacteria_group_6_V3V4_dir/Proteobacteria_group_6_V3V4.lineage",
+		  "Proteobacteria_group_7_V3V4_dir/Proteobacteria_group_7_V3V4.lineage",
+		  "Proteobacteria_group_8_V3V4_dir/Proteobacteria_group_8_V3V4.lineage",
+		  "Proteobacteria_group_9_V3V4_dir/Proteobacteria_group_9_V3V4.lineage");
+
+  my $baseDir  = "/Users/pgajer/projects/PECAN/data/phylo_groups/v0.2/";
+  my @liFiles = map{ $baseDir . $_ } @liFiles0;
+
+  ## testing for existence
+  for my $file ( @liFiles )
+  {
+    if ( ! -e $file )
+    {
+      warn "\n\n\tERROR: $file does not exist";
+      print "\n\n";
+      exit 1;
+    }
+  }
+
+  return @liFiles;
+}
+
+sub old_get_li_files
+{
+  #my $baseDirExt = "/Users/pgajer/devel/MCextras/data/vag_exp_V3V4_phGrps_May16_dir/";
+  my $baseDirExt = "/Users/pgajer/projects/PECAN/data/phylo_groups/v0.2/";
 
   my @liFilesExt0 = ("Actinobacteria_group_0_V3V4_dir/Actinobacteria_group_0_V3V4.lineage",
 		     "Actinobacteria_group_1_V3V4_dir/Actinobacteria_group_1_V3V4.lineage",
