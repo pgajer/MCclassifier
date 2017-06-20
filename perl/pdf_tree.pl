@@ -276,7 +276,7 @@ sub get_leaves
 
   my @a = read_array($leavesFile);
 
-  my $cmd = "rm -fr $tmpDir";
+  $cmd = "rm -fr $tmpDir";
   print "\tcmd=$cmd\n" if $dryRun || $debug;
   system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 
