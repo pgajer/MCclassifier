@@ -99,9 +99,9 @@
 
 =head1 EXAMPLE
 
-  cd ~/projects/PECAN/data/Banfield_contax
+  cd ~/projects/PECAN/data/Banfield_contax/FL
 
-  phylo_split_by_genus.pl -m 5000 -t Banfield_contax_FL_subRDP_supplemnt_algn_goodHBids_100_1776tr_nr_rr.tree -s Banfield_contax_subRDP_supplt_FL_min1250_100_1776tr_genus_dir/genus_classification_results2.txt -g .. -c Banfield_contax_subRDP_supplt_FL_min1250_100_1776tr_genus_dir/genus_taxonomy_changes2.txt -o cx_hb_ssubRDP_FL_5k_phGr_dir
+  phylo_split_by_genus.pl -m 5000 -t Banfield_contax_subRDP_supplt_FL_min1250_100_1776tr_genus_dir/trees_dir/condensed_genus.tree -s Banfield_contax_subRDP_supplt_FL_min1250_100_1776tr_genus_dir/genus_classification_results2.txt -g ../../phylo_groups/v0.2/master_V3V4_no_outliers_sp100_genus.tx -c Banfield_contax_subRDP_supplt_FL_min1250_100_1776tr_genus_dir/genus_taxonomy_changes2.txt -o cx_hb_ssubRDP_FL_5k_phGr_dir
 
 =cut
 
@@ -203,7 +203,7 @@ if ( ! -e $genusTxChgFile || ! -s $genusTxChgFile )
 }
 
 # creating output directory
-my $cmd = "mkdir -p $outDir";
+my $cmd = "rm -rf $outDir; mkdir $outDir";
 print "cmd=$cmd\n" if $dryRun;
 system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 
@@ -290,15 +290,17 @@ print "--- Generating from => to table for lost genera\n";
 my %fromTo;
 for my $from ( keys %txChgTbl )
 {
-  my @tos = sort { $txChgTbl{$from}{$b} <=> $txChgTbl{$from}{$a} } keys %{$txChgTbl{$from}}
+  my @tos = sort { $txChgTbl{$from}{$b} <=> $txChgTbl{$from}{$a} } keys %{$txChgTbl{$from}};
   $fromTo{$from} = shift @tos;
 }
 
 print "--- Parsing genus taxonomy of the leaves of the tree\n";
-my %trGeTbl = read_tbl( $treeGenusTxFile ); # trGeTbl{$ge} = ref to array of seq's of that genus
+my %trGeTbl = parse_tx_tbl( $treeGenusTxFile ); # trGeTbl{$ge} = ref to array of seq's of that genus
+
+delete @fromTo{ keys %trGeTbl }; # only genera not present in the tree have to be augmented
 
 print "--- Parsing subRDP genus taxonomy file\n";
-my %rdpGeTbl = read_tbl( $subRDPgenusTxFile ); # rdpGeTbl{$ge} = ref to array of seq's of that genus
+my %rdpGeTbl = parse_tx_tbl( $subRDPgenusTxFile ); # rdpGeTbl{$ge} = ref to array of seq's of that genus
 
 my %geTbl = %trGeTbl;
 for my $ge ( keys %geTbl )
@@ -306,25 +308,34 @@ for my $ge ( keys %geTbl )
   if ( exists $rdpGeTbl{$ge} )
   {
     push @{$geTbl{$ge}}, @{$rdpGeTbl{$ge}};
-    delete $rdpGeTbl{$ge};
+    #delete $rdpGeTbl{$ge};
   }
 }
 
+print "--- Augmenting seqIDs of missing genera\n";
 for my $ge ( keys %rdpGeTbl )
 {
   if ( exists $fromTo{$ge} && exists $trGeTbl{ $fromTo{$ge} } )
   {
-    push @{$geTbl{ $fromTo{$ge} }), @{$rdpGeTbl{$ge}};
+    push @{$geTbl{ $fromTo{$ge} }}, @{$rdpGeTbl{$ge}};
   }
 }
 
+print "--- Removing duplicate seq's from each phylo-group\n";
+for my $ge ( keys %geTbl )
+{
+  my @ids = unique( $geTbl{$ge} );
+  @{$geTbl{$ge}} = @ids;
+}
+
+print "--- Computing sized of all genera\n";
 my %geSize;
 for my $ge ( keys %geTbl )
 {
   $geSize{$ge} = @{$geTbl{$ge}};
 }
 
-print "--- Generating for all leaves of the condensed tree\n";
+print "--- Extanding geSize table to all leaves of the condensed tree\n";
 ## since this is a tree generated vicut_classify.pl, there will be leaves with
 ## c<N> label names corresponding to vicut clusters with only query sequences or
 ## clusters of some genera present in more than one place (only largest cluster
@@ -357,17 +368,32 @@ my ($rphGr, $rphGrSize) = parse_cut_file( $cutFile );
 my %phGrTbl  = %{$rphGr};     # phGr => ref to array of tree leaves of that phylo-group
 my %phGrSize = %{$rphGrSize}; # phGr => size
 
+print "--- Parsing OG cut_tree table\n";
+my $ogFile = "$outDir/thld_" . $maxCltrSize . "_og_tbl.txt";
+my %geOGtbl = parse_og_file( $ogFile ); # phGr => OG genus
 
-print "--- Selecting an OG for each phylo-group\n";
-my %ogTbl = get_ogs( $treeFile, \%phGrTbl ); # phGr => seqID
-
+print "--- Selecting random sequence from each OG genus\n";
+my %ogTbl;
+for my $phGr ( keys %geOGtbl )
+{
+  my $ge = $geOGtbl{$phGr};
+  if ( !exists $trGeTbl{$ge} )
+  {
+    warn "\n\n\tERROR: $ge undefined in trGeTbl";
+    print "\n\n";
+    exit 1;
+  }
+  my @ids = @{$trGeTbl{$ge}};
+  my $seqID = $ids[rand @ids];
+  $ogTbl{$phGr} = $seqID;
+}
 
 print "--- Generating phGr table\n";
 my $phGrFile = "$outDir/thld_" . $maxCltrSize . "_phGr_tbl.txt";
-open OUT, ">$phGrFile" or die "Cannot open $phGrFile for writing: $OS_ERROR\n";
+open POUT, ">$phGrFile" or die "Cannot open $phGrFile for writing: $OS_ERROR\n";
 for my $phGr ( keys %phGrTbl )
 {
-  print "\nProcessing $phGr\n\n";
+  print "\rProcessing $phGr";
 
   # Creating phylo-group directory
   my $phGrDir = $outDir . "/$phGr" . "_dir";
@@ -384,7 +410,7 @@ for my $phGr ( keys %phGrTbl )
   }
 
   my $ogSeq = $ogTbl{$phGr};
-  print OUT "$ogSeq\t$phGr\n";
+  print POUT "$ogSeq\t$phGr\n";
 
   # Creating an outgroup file in the phGr dir
   my $ogFile = $phGrDir . "/$phGr" . "_outgroup.seqIDs";
@@ -400,14 +426,22 @@ for my $phGr ( keys %phGrTbl )
     {
       for ( @{$geTbl{$ge}} )
       {
-        print OUT "$_\t$phGr\n";
+        print POUT "$_\t$phGr\n";
       }
     }
   }
 }
-close OUT;
+close POUT;
 
 cleanup_tmp_files();
+
+print "\r                                                              ";
+
+print "\n\nNumber of phylo-groups generated: " . (keys %phGrSize) . "\n";
+print "Phylo-group sizes\n";
+print_formated_freq_tbl( \%phGrSize );
+print "\n\n";
+
 
 ####################################################################
 ##                               SUBS
@@ -441,49 +475,6 @@ sub parse_tx_chg_file
   return %txChgTbl;
 }
 
-
-sub generate_lineage_file
-{
-  my ($phGr, $ogSeq, $liFile) = @_;
-
-  my @cxhgIDs = @{ $cxhbTbl{$phGr} };
-
-  my %liTbl;
-  check_key( $ogSeq, \%cxhgLiTbl, "cxhgLiTbl" );
-  $liTbl{$ogSeq} = $cxhgLiTbl{$ogSeq};
-
-  my %geTbl; # genera of the given phylo-group
-  for my $id ( @cxhgIDs )
-  {
-    check_key( $id, \%cxhgLiTbl, "cxhgLiTbl" );
-    # if ( !exists $cxhgLiTbl{$id} )
-    # {
-    #   warn "\n\n\tERROR: $id not found in cxhgLiTbl";
-    #   print "\n\n";
-    #   exit 1;
-    # }
-    my $li = $cxhgLiTbl{$id};
-    $liTbl{$id} = $li;
-    my $ge = get_genus($li);
-    $geTbl{$ge}++;
-  }
-
-  for my $ge ( keys %geTbl )
-  {
-    my @ids = @{ $ourDBgeTbl{$ge} };
-    for my $id ( @ids )
-    {
-      $liTbl{$id} = $ourDBliTbl{$id};
-    }
-  }
-
-  open OUT, ">$liFile" or die "Cannot open $liFile for writing: $OS_ERROR";
-  for my $id ( keys %liTbl )
-  {
-    print OUT "$id\t" . $liTbl{$id} . "\n";
-  }
-  close OUT;
-}
 
 sub get_genus
 {
@@ -632,7 +623,26 @@ sub parse_cltr_file
   return %tbl;
 }
 
-# Parsing the output of vicut_and_plot.pl script
+# Parsing outgroup file generated by cut_tree
+sub parse_og_file
+{
+  my $ogFile = shift;
+
+  my %ogTbl;
+  open IN, "$ogFile" or die "Cannot open $ogFile for reading: $OS_ERROR";
+  for ( <IN> )
+  {
+    chomp;
+    my ($phGrIdx, $ogGe) = split /\s+/;
+    my $phGr = "phGr$phGrIdx";
+    $ogTbl{$phGr} = $ogGe;
+  }
+  close IN;
+
+  return %ogTbl;
+}
+
+# Parsing phylo-group assignment file generated by cut_tree
 sub parse_cut_file
 {
   my $cutFile = shift;
@@ -896,11 +906,11 @@ sub print_formated_freq_tbl
   my $maxStrLen = 0;
   map { $maxStrLen = length($_) if( length($_) > $maxStrLen )} @args;
 
-  for (@args)
+  for ( @args )
   {
     my $n = $maxStrLen - length($_);
     my $pad = ": ";
-    for (my $i=0; $i<$n; $i++)
+    for ( my $i=0; $i<$n; $i++ )
     {
       $pad .= " ";
     }
@@ -1119,6 +1129,25 @@ sub read_array
   return @rows;
 }
 
+# its a version of read_tbl but the output is a taxon table
+# txTbl{tx} ref to array of seqIDs of that taxon
+sub parse_tx_tbl
+{
+  my $file = shift;
+
+  my %tbl;
+  open IN, "$file" or die "Cannot open $file for reading: $OS_ERROR\n";
+  foreach (<IN>)
+  {
+    chomp;
+    my ($id, $tx) = split /\s+/,$_;
+    push @{$tbl{$tx}}, $id;
+  }
+  close IN;
+
+  return %tbl;
+}
+
 # read two column table; create a table that assigns
 # elements of the first column to the second column
 sub read_tbl
@@ -1161,72 +1190,6 @@ sub get_leaves
   my @a = read_array($leavesFile);
 
   return @a;
-}
-
-sub get_ogs
-{
-  my ( $treeFile, $rphGrTbl ) = @_;
-
-  my %phGrTbl = %{$rphGrTbl};
-  $" = ",";
-
-  my $Rscript = qq~
-
-tr <- read.tree(\"$treeFile\")
-for (
-ids <- c(
-p <- first.common.ancestor( tr, ids )
-p <- tree.parent.node( tr, p ) # get the grandparent of p
-ids2.idx <- node.leaves( tr, p )
-ids2 <- tr\$tip.label[ids2.idx]
-cmd <- sprintf(\"nw_clade %s \", treeFile)
-for ( id in ids2 )
-{
-    cmd <- paste(cmd, id)
-}
-cmd <- paste(cmd, \" > \", \"$cladeTreeFile\")
-system(cmd)
-
-cmd <- sprintf("nw_rename %s %s > %s", cladeTreeFile, \"$annFile\", pFile2)
-system(cmd)
-
-    rids  <- as.character(chb.tx[ids])
-    rids2 <- as.character(chb.tx[ids2])
-
-    clade.tr <- tree.read( cladeTreeFile2 )
-    nLeaves <- length(clade.tr$tip.label)
-
-    p <- first.common.ancestor( clade.tr, rids )
-    cl <- strsplit(title, " ")[[1]][1]
-
-    tip.colors <- rep( 1, length(clade.tr$tip.label) )
-    names(tip.colors) <- clade.tr$tip.label
-    tip.colors[rids] <- 4 # blue
-
-    i <- grep("ConTax", rids)
-    cid <- rids[i]
-    tip.colors[cid] <- 2
-
-    figH <- 8
-    figW <- 12
-    if ( nLeaves >= 50 )
-    {
-        figH <- 6.0/50.0 * ( nLeaves - 50) + 10
-        figW <- 6.0/50.0 * ( nLeaves - 50) + 6
-    }
-
-    clade.tr$node.label <- rep("", length(clade.tr$node.label))
-
-    pdf(pdfFile, width=figW, height=figH)
-    op <- par(mar=c(0,0,1.5,0), mgp=c(2.85,0.6,0),tcl = -0.3)
-    plot(clade.tr,type="phylogram", use.edge.length=FALSE, no.margin=FALSE, show.node.label=T, cex=0.8, tip.color=tip.colors, main=title)
-    nodelabels(cl, p)
-    par(op)
-    dev.off()
-
-        ~;
-
-    unlink $idsFile;
 }
 
 exit 0;
