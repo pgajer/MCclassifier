@@ -236,7 +236,7 @@ for my $cl ( keys %clTxTbl )
 
     if ( $tx ne "NA" && $tx ne $moAnn )
     {
-      $txChg{$tx} = $moAnn;
+      push @{$txChg{$tx}}, $moAnn;
       for my $id ( @ids )
       {
         print OUT2 "$id\t$tx\t$moAnn\n";
@@ -290,7 +290,7 @@ open OUT, ">$clFile" or die "Cannot open $clFile for writing: $OS_ERROR\n";
 $chgFile = $outDir . "/$label" . "_taxonomy_changes2.txt";
 open OUT2, ">$chgFile" or die "Cannot open $chgFile for writing: $OS_ERROR\n";
 
-undef %txChg;    # table recording changes of annotation of annotated elements
+##undef %txChg;    # table recording changes of annotation of annotated elements
 undef %naChg;    # $naChg{$cl} seq IDs of $cl; only clusters containing NA elements are in this table; it will be used to generate grandparent trees
 undef %newAnn;   # new taxonomy
 for my $cl ( keys %clTxTbl )
@@ -319,7 +319,7 @@ for my $cl ( keys %clTxTbl )
 
     if ( $tx ne "NA" && $tx ne $moAnn )
     {
-      $txChg{$tx} = $moAnn;
+      push @{$txChg{$tx}}, $moAnn;
       for my $id ( @ids )
       {
         print OUT2 "$id\t$tx\t$moAnn\n";
@@ -336,29 +336,6 @@ for my $cl ( keys %clTxTbl )
 close OUT;
 close OUT2;
 
-
-print "--- Generating tree with vicut classification derived labels\n";
-my $annTreeFile = $treeDir . "/$label" . ".tree";
-build_ann_tree( $treeFile, $clFile, $annTreeFile );
-
-print "--- Generating condensed tree\n";
-my $condAnnTreeFile = $treeDir . "/condensed_$label" . ".tree";
-condense_tree_only( $annTreeFile, $condAnnTreeFile );
-
-my $condAnnTreeFile2 = $treeDir . "/condensed2_$label" . ".tree";
-condense2_tree_only( $annTreeFile, $condAnnTreeFile2 );
-
-print "--- Generating pdf of the condensed tree\n";
-my $pdfTreeFile = $treeDir . "/condensed2_$label" . "_tree.pdf";
-plot_tree( abs_path( $condAnnTreeFile2 ), "", $pdfTreeFile );
-
-if ( $OSNAME eq "darwin")
-{
-  $cmd = "open $pdfTreeFile";
-  print "\tcmd=$cmd\n" if $dryRun || $debug;
-  system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
-}
-
 print "--- Computing frequencies of new annotation labels\n";
 my %newAnnFreq;
 map { $newAnnFreq{$_}++ } values %newAnn;
@@ -367,52 +344,72 @@ my @uqNewAnn = keys %newAnnFreq;
 # print "\n\n newAnnFreq\n";
 # print_formated_tbl( \%newAnnFreq );
 
-print "--- Generating tree with seqID + classification derived labels\n";
-## Adding _q to query sequences
-my %qInd = map { $_ => 1 } @query;
-for my $id ( keys %newAnn )
+my $condAnnTreeFile = $treeDir . "/condensed_$label" . ".tree";
+if ( 0 )
 {
-  if ( !exists $newAnn{$id} )
+  print "--- Generating tree with vicut classification derived labels\n";
+  my $annTreeFile = $treeDir . "/$label" . ".tree";
+  build_ann_tree( $treeFile, $clFile, $annTreeFile );
+
+  print "--- Generating condensed tree\n";
+  condense_tree_only( $annTreeFile, $condAnnTreeFile );
+
+  my $condAnnTreeFile2 = $treeDir . "/condensed2_$label" . ".tree";
+  condense2_tree_only( $annTreeFile, $condAnnTreeFile2 );
+
+  print "--- Generating pdf of the condensed tree\n";
+  my $pdfTreeFile = $treeDir . "/condensed2_$label" . "_tree.pdf";
+  plot_tree( abs_path( $condAnnTreeFile2 ), "", $pdfTreeFile );
+
+  if ( $OSNAME eq "darwin")
   {
-    warn "\n\n\tERROR: $id not defined in newAnn";
-    print "\n\n";
-    exit;
-  }
-  if ( exists $qInd{$id} )
-  {
-    $newAnn{$id} = $id . "_" . $newAnn{$id} . "_q";
-  }
-  else
-  {
-    $newAnn{$id} = $id . "_" . $newAnn{$id};
+    $cmd = "open $pdfTreeFile";
+    print "\tcmd=$cmd\n" if $dryRun || $debug;
+    system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
   }
 }
 
-my $labsFile = $treeDir . "/seqID_$label" . "_q.txt";
-write_tbl( \%newAnn, $labsFile );
-
-my $annTreeFile2 = $treeDir . "/seqID_$label" . ".tree";
-build_ann_tree( $treeFile, $labsFile, $annTreeFile2 );
-
-print "--- Generating pdf figure of the tree with seqID + classification derived labels\n";
-$pdfTreeFile = $treeDir . "/seqID_$label" . "_tree.pdf";
-plot_tree( abs_path( $annTreeFile2 ), "", $pdfTreeFile );
-
-if ( 0 && $OSNAME eq "darwin")
+if ( 0 )
 {
-  $cmd = "open $pdfTreeFile";
-  print "\tcmd=$cmd\n" if $dryRun || $debug;
-  system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+  print "--- Generating tree with seqID + classification derived labels\n";
+  ## Adding _q to query sequences
+  my %qInd = map { $_ => 1 } @query;
+  for my $id ( keys %newAnn )
+  {
+    if ( !exists $newAnn{$id} )
+    {
+      warn "\n\n\tERROR: $id not defined in newAnn";
+      print "\n\n";
+      exit;
+    }
+    if ( exists $qInd{$id} )
+    {
+      $newAnn{$id} = $id . "_" . $newAnn{$id} . "_q";
+    }
+    else
+    {
+      $newAnn{$id} = $id . "_" . $newAnn{$id};
+    }
+  }
+
+  my $labsFile = $treeDir . "/seqID_$label" . "_q.txt";
+  write_tbl( \%newAnn, $labsFile );
+
+  my $annTreeFile2 = $treeDir . "/seqID_$label" . ".tree";
+  build_ann_tree( $treeFile, $labsFile, $annTreeFile2 );
+
+  print "--- Generating pdf figure of the tree with seqID + classification derived labels\n";
+  my $pdfTreeFile = $treeDir . "/seqID_$label" . "_tree.pdf";
+  plot_tree( abs_path( $annTreeFile2 ), "", $pdfTreeFile );
+
+  if ( 0 && $OSNAME eq "darwin")
+  {
+    $cmd = "open $pdfTreeFile";
+    print "\tcmd=$cmd\n" if $dryRun || $debug;
+    system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+  }
 }
 
-##print "--- Generating grandparent trees for clusters with query sequences\n";
-# for my $cl ( keys %naChg )
-# {
-#     my @ids = keys @{$naChg{$cl}};
-#     my $clTreeFile = $treeDir . "/$cl" . "_ann.tree";
-#     my $title = "$cl";
-#     my $pdfTreeFile = plot_clade_tree( $treeFile, \@ids, $title, $clTreeFile )
-# }
 print "--- Computing multiplicities of condensed annotation tree leaves\n";
 my @cLeaves = get_leaves( $condAnnTreeFile );
 my %leafFreq; ## table of number of sequences per species
@@ -422,11 +419,12 @@ my @uqLeaves1 = grep { $leafFreq{$_} > 1 } @uqLeaves;
 
 if ( keys %txChg > 0 )
 {
-  print "\n\nWARNING: The following annotations have changed\n";
-  print "oldTx\tnewTx\n";
-  print_formated_tbl( \%txChg );
+  # print "\n\nWARNING: The following annotations have changed\n";
+  # print "oldTx\tnewTx\n";
+  # print_formated_tbl( \%txChg );
 
-  print "\n\nDetailed list of <seq IDs> <orig tx> <new tx> columns was written to $chgFile\n"
+  print "\n\nWARNING: Some annotations have changed\n";
+  print "Detailed list of <seq IDs> <orig tx> <new tx> columns was written to $chgFile\n"
 }
 else
 {
@@ -438,6 +436,18 @@ if ( @missingAnn )
 {
   print "\n\nWARNING: The following annotations are not present in the new annotation table\n";
   print_array( \@missingAnn );
+
+  print "\n\nChange table for missing taxons\n";
+  for my $tx ( @missingAnn )
+  {
+    print "$tx: ";
+    for my $t ( @{$txChg{$tx}} )
+    {
+      print "\t$t";
+    }
+    print "\n";
+  }
+  print "\n\n";
 }
 
 if ( @uqLeaves1 )
