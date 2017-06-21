@@ -43,9 +43,9 @@
 
 =head1 EXAMPLE
 
-  cd /Users/pgajer/devel/MCextras/data/RDP/rdp_Bacteria_phylum_dir/Firmicutes_dir
+  cd /Users/pgajer/projects/PECAN/data/phylo_groups/v0.3/cx_hb_ssubRDP_FL_5k_phGr_dir
 
-  run_ginsi.pl --debug -i Firmicutes_group_6 -p 8
+  run_ginsi.pl --debug -i phGr1 -p 8
 
 =cut
 
@@ -144,37 +144,18 @@ if ( ! -d $grDir )
 chdir $grDir;
 print "--- Changed dir to $grDir\n";
 
-my $algnFile	    = $grPrefix . "_algn.fa";
-my $trimmedAlgnFile = $grPrefix . "_algn_trimmed.fa";
-my $outgroupFile    = $grPrefix . "_outgroup.seqIDs";
-
-if ( ! -e $trimmedAlgnFile )
-{
-  warn "WARNING: $trimmedAlgnFile does not exist. Creating a symbolic link to $algnFile.\n";
-  my $ap = abs_path( $algnFile );
-  my $cmd = "rm -f $trimmedAlgnFile; ln -s $ap $trimmedAlgnFile";
-  print "\tcmd=$cmd\n" if $dryRun || $debug;
-  system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
-}
-elsif ( ! -e $outgroupFile )
-{
-  warn "\n\n\tERROR: $outgroupFile does not exist";
-  print "\n\n";
-  exit 1;
-}
-
-if ( -l $trimmedAlgnFile )
-{
-  $trimmedAlgnFile = readlink($trimmedAlgnFile);
-}
+my $faFile	     = $grPrefix . ".fa";
+my $algnFile	 = $grPrefix . "_algn.fa";
+my $treeFile	 = $grPrefix . ".tree";
+my $outgroupFile = $grPrefix . "_outgroup.seqIDs";
 
 ## Gathering outgroup data
 print "--- Parsing $outgroupFile\n";
-my @ogSeqIDs = readArray($outgroupFile);
+my @ogSeqIDs = read_array($outgroupFile);
 my %ogInd = map{$_ =>1} @ogSeqIDs; # outgroup elements indicator table
 
-print "--- Extracting seq IDs from trimmed alignment fasta file\n";
-my @seqIDs = get_seqIDs_from_fa($trimmedAlgnFile);
+print "--- Extracting seq IDs from alignment fasta file\n";
+my @seqIDs = get_seqIDs_from_fa($faFile);
 
 print "--- Testing if outgroup sequences are part of seqIDs\n";
 my @ogDiff = diff( \@ogSeqIDs, \@seqIDs );
@@ -182,8 +163,9 @@ my @ogDiff = diff( \@ogSeqIDs, \@seqIDs );
 
 if ( scalar(@ogDiff) != 0 )
 {
-  warn "\n\tWARNING the following outgroup seq IDs are not in the trimmed alignment file:\n\n";
-  printArray(\@ogDiff);
+  warn "\n\tERROR the following outgroup seq IDs are not in the trimmed alignment file:\n\n";
+  print_array(\@ogDiff);
+  exit 1;
 }
 
 if ( scalar(@ogSeqIDs) == 0 )
@@ -199,36 +181,22 @@ if ($debug)
   print   "\tNumber of outgroup seq's: " . @ogSeqIDs . "\n\n";
 }
 
-my $ginsiAlgnFile = $grPrefix . "_ginsi_algn.fa";
-#if ( ! -e $ginsiAlgnFile )
-{
-  print "--- Redoing alignment using ginsi\n";
-  ## first remove gaps
-  my $faFile2 = $grPrefix . "_from_algn_gapFree.fa";
-  my $cmd = "rmGaps -i $trimmedAlgnFile -o $faFile2";
-  print "\tcmd=$cmd\n" if $dryRun || $debug; # || $debug;
-  system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+print "--- Generating ginsi alignment\n";
+my $cmd = "rm -f $algnFile; time $ginsi --inputorder $quietStr $nProcStr $faFile > $algnFile";
+print "\tcmd=$cmd\n" if $dryRun || $debug;
+system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 
-  $cmd = "rm -f $ginsiAlgnFile; time $ginsi --inputorder $quietStr $nProcStr $faFile2 > $ginsiAlgnFile";
-  print "\tcmd=$cmd\n" if $dryRun || $debug;
-  system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
-}
+print "--- Producing tree\n";
+my $urTreeFile = $grPrefix . "_unrooted.tree";
+$cmd = "rm -f $urTreeFile; $fastTree -nt $algnFile > $urTreeFile";
+print "\tcmd=$cmd\n" if $dryRun || $debug;
+system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;# && !$skipFastTree;
 
-my $rrPrunedGinsiTreeFile = $grPrefix . "_ginsi_rr.tree";
-#if ( ! -e $rrPrunedGinsiTreeFile)
-{
-  print "--- Producing tree for the ginsi algn\n";
-  my $ginsiTreeFile = $grPrefix . "_ginsi.tree";
-  my $cmd = "rm -f $ginsiTreeFile; $fastTree -nt $trimmedAlgnFile > $ginsiTreeFile";
-  print "\tcmd=$cmd\n" if $dryRun || $debug;
-  system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;# && !$skipFastTree;
+print "--- Rerooting the tree\n";
+$cmd = "rm -f $treeFile; nw_reroot $urTreeFile @ogSeqIDs | nw_order -  > $treeFile";
+print "\tcmd=$cmd\n" if $dryRun || $debug;
+system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 
-  # rerooting it
-  print "--- Rerooting the ginsi tree\n";
-  $cmd = "rm -f $rrPrunedGinsiTreeFile; nw_reroot $ginsiTreeFile @ogSeqIDs | nw_order -  > $rrPrunedGinsiTreeFile";
-  print "\tcmd=$cmd\n" if $dryRun || $debug;
-  system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
-}
 
 ####################################################################
 ##                               SUBS
@@ -273,14 +241,14 @@ sub diff{
 }
 
 # read table with one column
-sub readArray{
+sub read_array{
 
   my ($file, $hasHeader) = @_;
   my @rows;
 
   if ( ! -f $file )
   {
-    warn "\n\n\tERROR in readArray(): $file does not exist";
+    warn "\n\n\tERROR in read_array(): $file does not exist";
     print "\n\n";
     exit 1;
   }
@@ -343,6 +311,15 @@ sub get_seqIDs_from_fa
   $/ = "\n";
 
   return @seqIDs;
+}
+
+
+# print array to stdout
+sub print_array
+{
+  my ($a, $header) = @_;
+  print "\n$header\n" if $header;
+  map {print "$_\n"} @{$a};
 }
 
 exit 0;
