@@ -70,6 +70,9 @@
 =item B<--max-phGr-size, -m>
   Maximum size of a phylo-group.
 
+=item B<--genus-tx-chg-file, -c>
+  genus_taxonomy_changes2.txt output file from vicut_classify.pl
+
 =item B<--output-dir, -o>
   Output dir with the following files.
 
@@ -98,7 +101,7 @@
 
   cd ~/projects/PECAN/data/Banfield_contax
 
-  phylo_split_by_genus.pl -m 5000 -t ... -s .. -g  -o cx_hb_ssubRDP_FL_5k_phGr_dir
+  phylo_split_by_genus.pl -m 5000 -t Banfield_contax_FL_subRDP_supplemnt_algn_goodHBids_100_1776tr_nr_rr.tree -s Banfield_contax_subRDP_supplt_FL_min1250_100_1776tr_genus_dir/genus_classification_results2.txt -g .. -c Banfield_contax_subRDP_supplt_FL_min1250_100_1776tr_genus_dir/genus_taxonomy_changes2.txt -o cx_hb_ssubRDP_FL_5k_phGr_dir
 
 =cut
 
@@ -120,6 +123,7 @@ GetOptions(
   "tree-file|t=s"            => \my $treeFile,
   "tree-genus-tx-file|s=s"   => \my $treeGenusTxFile,
   "subRDP-genus-tx-file|g=s" => \my $subRDPgenusTxFile,
+  "genus-tx-chg-file|c=s"    => \my $genusTxChgFile,
   "max-phGr-size|m=s"        => \my $maxCltrSize,
   "output-dir|o=s"           => \my $outDir,
   "report"                   => \my $report,
@@ -163,6 +167,12 @@ elsif ( !$subRDPgenusTxFile )
   pod2usage(verbose => 2,exitstatus => 0);
   exit 1;
 }
+elsif ( !$genusTxChgFile )
+{
+  print "ERROR: Missing genus taxonomy change file\n\n";
+  pod2usage(verbose => 2,exitstatus => 0);
+  exit 1;
+}
 
 if ( ! -e $treeFile || ! -s $treeFile )
 {
@@ -181,6 +191,13 @@ if ( ! -e $treeGenusTxFile || ! -s $treeGenusTxFile )
 if ( ! -e $subRDPgenusTxFile || ! -s $subRDPgenusTxFile )
 {
   warn "ERROR: Genus taxonomy file does not exist (or has size 0)";
+  print "\n\n";
+  exit 1;
+}
+
+if ( ! -e $genusTxChgFile || ! -s $genusTxChgFile )
+{
+  warn "ERROR: Genus taxonomy change file does not exist (or has size 0)";
   print "\n\n";
   exit 1;
 }
@@ -265,6 +282,18 @@ if ( defined $igs )
 ##                               MAIN
 ####################################################################
 
+
+print "--- Parsing genus taxonomy change file\n";
+my %txChgTbl = parse_tx_chg_file( $genusTxChgFile );
+
+print "--- Generating from => to table for lost genera\n";
+my %fromTo;
+for my $from ( keys %txChgTbl )
+{
+  my @tos = sort { $txChgTbl{$from}{$b} <=> $txChgTbl{$from}{$a} } keys %{$txChgTbl{$from}}
+  $fromTo{$from} = shift @tos;
+}
+
 print "--- Parsing genus taxonomy of the leaves of the tree\n";
 my %trGeTbl = read_tbl( $treeGenusTxFile ); # trGeTbl{$ge} = ref to array of seq's of that genus
 
@@ -277,6 +306,15 @@ for my $ge ( keys %geTbl )
   if ( exists $rdpGeTbl{$ge} )
   {
     push @{$geTbl{$ge}}, @{$rdpGeTbl{$ge}};
+    delete $rdpGeTbl{$ge};
+  }
+}
+
+for my $ge ( keys %rdpGeTbl )
+{
+  if ( exists $fromTo{$ge} && exists $trGeTbl{ $fromTo{$ge} } )
+  {
+    push @{$geTbl{ $fromTo{$ge} }), @{$rdpGeTbl{$ge}};
   }
 }
 
@@ -374,6 +412,35 @@ cleanup_tmp_files();
 ####################################################################
 ##                               SUBS
 ####################################################################
+
+## parse_tx_chg_file
+
+## parsing 3 col tbl of the form
+
+# HB1021	Mannheimia	Basfia
+# ConTax140371	Thermocrinis	Caldimicrobium
+# ConTax140332	Thermocrinis	Caldimicrobium
+# ConTax1229	Halopenitus	Halorubrum
+
+# 2nd col = from, 3rd = to
+# generating table txChgTbl{from}{to} = seq count
+sub parse_tx_chg_file
+{
+  my $file = shift;
+
+  my %txChgTbl;
+  open IN, "$file" or die "Cannot open $file for reading: $OS_ERROR\n";
+  for ( <IN> )
+  {
+    chomp;
+    my ($id, $from, $to) = split /\s+/;
+    $txChgTbl{$from}{$to}++;
+  }
+  close IN;
+
+  return %txChgTbl;
+}
+
 
 sub generate_lineage_file
 {
