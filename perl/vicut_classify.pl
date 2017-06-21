@@ -345,7 +345,7 @@ my @uqNewAnn = keys %newAnnFreq;
 # print_formated_tbl( \%newAnnFreq );
 
 my $condAnnTreeFile = $treeDir . "/condensed_$label" . ".tree";
-if ( 0 )
+if ( 1 )
 {
   print "--- Generating tree with vicut classification derived labels\n";
   my $annTreeFile = $treeDir . "/$label" . ".tree";
@@ -369,7 +369,7 @@ if ( 0 )
   }
 }
 
-if ( 0 )
+if ( 1 )
 {
   print "--- Generating tree with seqID + classification derived labels\n";
   ## Adding _q to query sequences
