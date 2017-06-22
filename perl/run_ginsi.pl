@@ -214,18 +214,18 @@ my @ogDiff = diff( \@ogSeqIDs, \@seqIDs );
 if ( scalar(@ogDiff) != 0 )
 {
   warn "\n\tERROR the following outgroup seq IDs are not in the trimmed alignment file:\n\n";
-  print_array(\@ogDiff);
+  print_array( \@ogDiff );
   exit 1;
 }
 
-if ( scalar(@ogSeqIDs) == 0 )
+if ( scalar( @ogSeqIDs ) == 0 )
 {
   warn "\n\n\tERROR: All outgroup seq's were lost";
   print "\n\n";
   exit 1;
 }
 
-if ($debug)
+if ( $debug )
 {
   print "\n\tNumber of seq's in the trimmed alignment/lineage files: " . @seqIDs . "\n";
   print   "\tNumber of outgroup seq's: " . @ogSeqIDs . "\n\n";
