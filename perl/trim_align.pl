@@ -1,4 +1,4 @@
-#! /usr/bin/perl
+#!/usr/bin/env perl
 
 =head1 NAME
 
@@ -175,6 +175,7 @@ while (<IN>)
   $count++;
 
   chomp;
+
   my ($def,@seqlines) = split /\n/, $_;
   $seq = join '', @seqlines;
   my ($id) = split /\s+/, $def;
