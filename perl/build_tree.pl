@@ -31,6 +31,9 @@
 =item B<--num-proc, -p>
   Number of processors to be used. Default value: 8.
 
+=item B<--run-ginsi>
+  Run ginsi alignment. Be default mothur aligner is used with mothur's SILVA SEED db
+
 =item B<--verbose, -v>
   Prints content of some output files.
 
@@ -73,6 +76,7 @@ $OUTPUT_AUTOFLUSH = 1;
 GetOptions(
   "input-group|i=s" 	=> \my $grPrefix,
   "num-proc|p=i"        => \my $nProc,
+  "run-ginsi"           => \my $runGinsi,
   "igs"                 => \my $igs,
   "johanna"             => \my $johanna,
   "verbose|v"           => \my $verbose,
@@ -137,7 +141,8 @@ if ( ! -d $grDir )
 my @p = split "/", $grPrefix;
 $grPrefix = pop @p;
 
-my $tmpDir                = "/Users/pgajer/projects/PECAN/data/phylo_groups/v0.3";
+my $tmpDir                = "/Users/pgajer/projects/PECAN/data/phylo_groups/v0.3/tmpDir";
+my $silvaSEED             = "/Users/pgajer/projects/PECAN/data/SILVA/v128/silva_seed_v128_algn.fa";
 
 my $nw_labels             = "nw_labels";
 my $nw_order              = "nw_order";
@@ -165,7 +170,8 @@ my $vsearch;
 my $igsStr = "";
 if ( defined $igs )
 {
-  $tmpDir                = "/home/pgajer/projects/PECAN/data/phylo_groups/v0.3";
+  $tmpDir                = "/home/pgajer/tmpDir";
+  $silvaSEED             = "/home/pgajer/projects/PECAN/data/SILVA/v128/silva_seed_v128_algn.fa";
 
   $fix_fasta_headers     = "/home/pgajer/devel/MCclassifier/perl/fix_fasta_headers.pl";
   $nw_labels             = "/usr/local/projects/pgajer/bin/nw_labels";
@@ -240,10 +246,18 @@ if ( $debug )
   print   "\tNumber of outgroup seq's: " . @ogSeqIDs . "\n\n";
 }
 
-print "--- Generating ginsi alignment\n";
-my $cmd = "rm -f $algnFile; time $ginsi --inputorder $quietStr $nProcStr $faFile > $algnFile";
-print "\tcmd=$cmd\n" if $dryRun || $debug;
-system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+if ( !$runGinsi )
+{
+  print "--- Generating mothur alignment using mothur's SILVA SEED db\n";
+  mothur_align( $faFile, $nProc, $algnFile );
+}
+else
+{
+  print "--- Generating ginsi alignment\n";
+  my $cmd = "rm -f $algnFile; time $ginsi --inputorder $quietStr $nProcStr $faFile > $algnFile";
+  print "\tcmd=$cmd\n" if $dryRun || $debug;
+  system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+}
 
 print "--- Generating sequence summary of the alignment file\n";
 my @tmp;
@@ -251,7 +265,7 @@ push (@tmp,"summary.seqs(fasta=$algnFile)");
 print_array(\@tmp, "mothur commands") if ($debug || $verbose);
 
 my $scriptFile = create_mothur_script( \@tmp );
-$cmd = "$mothur < $scriptFile; rm -f $scriptFile mothur.*.logfile";
+my $cmd = "$mothur < $scriptFile; rm -f $scriptFile mothur.*.logfile";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed:$?" if !$dryRun;
 
@@ -263,7 +277,7 @@ if ( ! -e $summaryFile )
   print "\n\n";
   exit 1;
 }
-$cmd = "$trim_align -v -c 95 -j $summaryFile -i $algnFile -o $trAlgnFile";
+$cmd = "$trim_align -c 95 -j $summaryFile -i $algnFile -o $trAlgnFile";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 
@@ -296,7 +310,7 @@ system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 
 print "--- Producing tree\n";
 my $urTreeFile = $grPrefix . "_unrooted.tree";
-$cmd = "rm -f $urTreeFile; $fastTree -nt $trAlgnFile > $urTreeFile";
+$cmd = "rm -f $urTreeFile; $FastTree -nt $trAlgnFile > $urTreeFile";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;# && !$skipFastTree;
 
@@ -309,6 +323,65 @@ system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 ####################################################################
 ##                               SUBS
 ####################################################################
+
+# extract line count of a file
+sub line_count
+{
+  my $file = shift;
+
+  my $wcline = qx/ wc -l $file /;
+  $wcline =~ s/^\s+//;
+  my ($lcount, $str) = split /\s+/, $wcline;
+
+  return $lcount;
+}
+
+# extract sequence count of a fasta file
+sub seq_count
+{
+  my $file = shift;
+
+  my $wcline = qx/ grep -c '>' $file /;
+  $wcline =~ s/^\s+//;
+  my ($lcount, $str) = split /\s+/, $wcline;
+
+  return $lcount;
+}
+
+sub mothur_align
+{
+  my ($candidateFile, $nProc, $algnFile ) = @_;
+
+  my @tmp;
+  push (@tmp,"align.seqs(candidate=$candidateFile, template=$silvaSEED, flip=T, processors=$nProc)");
+
+  my $mothurAlgnFile = $candidateFile;
+  $mothurAlgnFile =~ s/fa$/align/;
+
+  push (@tmp,"filter.seqs(fasta=$mothurAlgnFile)");
+
+  my $mothurFilteredFile = $candidateFile;
+  $mothurFilteredFile =~ s/fa$/filter.fasta/;
+
+  print_array( \@tmp, "mothur commands" ) if ( $debug || $verbose );
+
+  my $scriptFile = create_mothur_script( \@tmp );
+  my $cmd = "$mothur < $scriptFile; rm -f $scriptFile mothur.*.logfile";
+  print "\tcmd=$cmd\n" if $dryRun || $debug;
+  system($cmd) == 0 or die "system($cmd) failed:$?" if !$dryRun;
+
+  if ( ! -e $mothurFilteredFile )
+  {
+    warn "\n\n\tERROR: Count not find $mothurFilteredFile";
+    print "\n\n";
+    exit 1;
+  }
+
+  my $cmd = "mv $mothurFilteredFile $algnFile";
+  print "\tcmd=$cmd\n" if $dryRun || $debug;
+  system($cmd) == 0 or die "system($cmd) failed:$?" if !$dryRun;
+
+}
 
 sub create_mothur_script
 {
