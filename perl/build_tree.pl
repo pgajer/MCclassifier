@@ -262,7 +262,7 @@ print "--- Parsing $outgroupFile\n";
 my @ogSeqIDs = read_array($outgroupFile);
 my %ogInd = map{$_ =>1} @ogSeqIDs; # outgroup elements indicator table
 
-print "--- Extracting seq IDs from alignment fasta file\n";
+print "--- Extracting seq IDs from the input fasta file\n";
 my @seqIDs = get_seqIDs_from_fa($faFile);
 
 print "--- Testing if outgroup sequences are part of seqIDs\n";
@@ -271,7 +271,7 @@ my @ogDiff = diff( \@ogSeqIDs, \@seqIDs );
 
 if ( scalar(@ogDiff) != 0 )
 {
-  warn "\n\tERROR the following outgroup seq IDs are not in the trimmed alignment file:\n\n";
+  warn "\n\tERROR the following outgroup seq IDs are not in the input file:\n\n";
   print_array( \@ogDiff );
   exit 1;
 }
