@@ -129,18 +129,29 @@ for ( <IN> )
   my @f = split ";", $li;
   my $sp = pop @f;
   my $ge = pop @f;
+  my $fa = pop @f;
 
   my $origSp = $sp;
   #$sp = "AAA-BBB_gp1_sp.sldur-23X";
   #$sp = "Curtobacterium_MG-2011-84-GV";
   #$sp = "Mycobacterium_n";
+  #$sp = "Granulicatella_para|adiacens";
+  #$sp = "Selenomonas_flueggei|like";
   #print "sp BEFORE: $sp\n";
   $sp =~ s/\//\|/g;
   $sp =~ s/\-/\|/g;
-  $sp =~ s/_gp/|gp/;
+  $sp =~ s/_gp\d//;
   $sp =~ s/\..+//;
   $sp =~ s/_[[:upper:]].+/_sp/;
   $sp =~ s/_\w$/_sp/;
+  $sp =~ s/Ruminococcus2/Ruminococcus/;
+  $sp =~ s/Armatimonas\|Armatimonadetes/Armatimonas/;
+  $sp =~ s/Chthonomonas\|Armatimonadetes/Chthonomonas/;
+  $sp =~ s/Escherichia\|Shigella/EscherichiaShigella/;
+  $sp =~ s/_para\|/_/;
+  $sp =~ s/\|like$//;
+  $sp =~ s/lxb\|14/lxb14/;
+  $sp =~ s/lxb\|3/lxb3/;
   #print "sp AFTER: $sp\n";  exit 1;
 
   if ( $sp !~ /[[:upper:]][\||\w]+_[[:lower:]]\w+/ && $sp !~ /BVAB/ )
@@ -150,8 +161,17 @@ for ( <IN> )
     exit 1;
   }
 
-  ($ge, $suffix) = split "_", $sp;
-  $li = join ";", (@f, $ge, $sp);
+  if ( $sp !~ /BVAB/ )
+  {
+    ($ge, $suffix) = split "_", $sp;
+  }
+
+  if ( $ge eq $fa )
+  {
+    next;
+  }
+
+  $li = join ";", (@f, $fa, $ge, $sp);
   print OUT "$id\t$li\n";
   #print "$id\t$li\n"; exit 1;
 }
