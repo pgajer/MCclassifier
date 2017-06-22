@@ -28,6 +28,9 @@
   Prefix of input group. For example, if Firmicutes_group_6_dir is a directory
   Firmicutes_group_6 group, then the input group name is "Firmicutes_group_6".
 
+=item B<--min-size, -m>
+  Minimal number of elements in fasta/lineage files for this script to run.
+
 =item B<--num-proc, -p>
   Number of processors to be used. Default value: 8.
 
@@ -77,7 +80,7 @@
 
   cd /Users/pgajer/projects/PECAN/data/phylo_groups/v0.3/cx_hb_ssubRDP_FL_5k_phGr_dir
 
-  build_tree.pl --debug --mafft-auto-algn -i phGr50 -p 4
+  build_tree.pl --debug --min-size 10 --mafft-auto-algn -i phGr50 -p 4
 
 =cut
 
@@ -100,6 +103,7 @@ my $criteria = 95;
 GetOptions(
   "input-group|i=s" 	=> \my $grPrefix,
   "num-proc|p=i"        => \my $nProc,
+  "min-size|m=i"        => \my $minSize,
   "mafft-auto-algn"     => \my $runMAFFTauto,
   "linsi-algn"          => \my $runLinsi,
   "ginsi-algn"          => \my $runGinsi,
@@ -124,6 +128,13 @@ if ($help)
 if ( !$grPrefix )
 {
   warn "\n\n\tERROR: Missing input group name";
+  print "\n\n";
+  pod2usage(verbose => 2,exitstatus => 0);
+  exit 1;
+}
+elsif ( !$minSize )
+{
+  warn "\n\n\tERROR: Missing minum size parameter";
   print "\n\n";
   pod2usage(verbose => 2,exitstatus => 0);
   exit 1;
@@ -249,8 +260,6 @@ if ( defined $igs )
 chdir $grDir;
 print "--- Changed dir to $grDir\n";
 
-
-
 my $faFile	     = $grPrefix . ".fa";
 my $algnFile	 = $grPrefix . "_algn.fa";
 my $trAlgnFile   = $grPrefix . "_algn_trimmed.fa";
@@ -264,6 +273,12 @@ my %ogInd = map{$_ =>1} @ogSeqIDs; # outgroup elements indicator table
 
 print "--- Extracting seq IDs from the input fasta file\n";
 my @seqIDs = get_seqIDs_from_fa($faFile);
+
+if ( @seqIDs < $minSize )
+{
+  print "\n\nWARNING: $grPrefix has less than $minSize elements; Exiting\n\n";
+  exit 0;
+}
 
 print "--- Testing if outgroup sequences are part of seqIDs\n";
 my @ogDiff = diff( \@ogSeqIDs, \@seqIDs );
