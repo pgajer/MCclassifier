@@ -329,7 +329,7 @@ elsif ( $runMothurAlgn )
   my $mothurAlgnFile = abs_path( $grPrefix . "_mothur_algn.fa" );
   mothur_align( $faFile, $nProc, $mothurAlgnFile );
 
-  $cmd = "rm -f $algnFile; ln -s $mothurAlgnFile $algnFile";
+  my $cmd = "rm -f $algnFile; ln -s $mothurAlgnFile $algnFile";
   print "\tcmd=$cmd\n" if $dryRun || $debug;
   system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 }
