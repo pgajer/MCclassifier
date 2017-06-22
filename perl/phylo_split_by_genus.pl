@@ -388,6 +388,10 @@ for my $phGr ( keys %geOGtbl )
   $ogTbl{$phGr} = $seqID;
 }
 
+$ogFile = "$outDir/thld_" . $maxCltrSize . "_og.seqIDs";
+write_tbl( \%ogTbl, $ogFile );
+
+
 print "--- Generating phGr table\n";
 my $phGrFile = "$outDir/thld_" . $maxCltrSize . "_phGr_tbl.txt";
 open POUT, ">$phGrFile" or die "Cannot open $phGrFile for writing: $OS_ERROR\n";
