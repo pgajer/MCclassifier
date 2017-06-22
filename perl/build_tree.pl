@@ -195,6 +195,7 @@ my $ginsi                 = "/usr/local/bin/ginsi"; # MAFFT v7.310 (2017/Mar/17)
 my $linsi                 = "/usr/local/bin/mafft --maxiterate 1000 --localpair"; # MAFFT v7.310 (2017/Mar/17)
 my $mafft                 = "/usr/local/bin/mafft --auto"; # MAFFT v7.310 (2017/Mar/17)
 my $FastTree              = "FastTree";
+my $FastTreeNoMP          = "FastTree";
 my $R                     = "R";
 my $fix_fasta_headers     = "fix_fasta_headers.pl";
 my $mothur                = "/Users/pgajer/bin/mothur";
@@ -227,7 +228,8 @@ if ( defined $igs )
   $ginsi                 = "/home/pgajer/bin/mafft --maxiterate 1000 --globalpair"; # MAFFT v7.310 (2017/Mar/17)
   $linsi                 = "/home/pgajer/bin/mafft --maxiterate 1000 --localpair"; # MAFFT v7.310 (2017/Mar/17)
   $mafft                 = "/home/pgajer/bin/mafft --auto"; # MAFFT v7.310 (2017/Mar/17)
-  $FastTree              = "/home/pgajer/bin/FastTree_no_openMP";
+  $FastTreeNoMP          = "/home/pgajer/bin/FastTree_no_openMP";
+  $FastTree              = "/usr/local/projects/pgajer/bin/FastTree";
   $R                     = "/home/pgajer/bin/R";
   $mothur                = "/usr/local/projects/pgajer/bin/mothur";
   $usearch6              = "/local/projects/pgajer/bin/usearch6.0.203_i86linux32";
@@ -390,7 +392,14 @@ if ( ! $runMothurAlgn ) # mothur aligner removes bases and so we cannot use its
   system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 
   print "--- Producing tree\n";
-  $cmd = "rm -f $urTreeFile; $FastTree -nt $trAlgnFile > $urTreeFile";
+  if ( $nProc > 1 )
+  {
+    $cmd = "rm -f $urTreeFile; $FastTree -nt $trAlgnFile > $urTreeFile";
+  }
+  else
+  {
+    $cmd = "rm -f $urTreeFile; $FastTreeNoMP -nt $trAlgnFile > $urTreeFile";
+  }
   print "\tcmd=$cmd\n" if $dryRun || $debug;
   system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;# && !$skipFastTree;
 }
