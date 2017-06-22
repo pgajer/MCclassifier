@@ -55,6 +55,7 @@ use Pod::Usage;
 use English qw( -no_match_vars );
 use Getopt::Long qw(:config no_ignore_case no_auto_abbrev pass_through);
 use Cwd qw(abs_path);
+use File::Temp qw/ tempfile /;
 
 $OUTPUT_AUTOFLUSH = 1;
 
@@ -137,6 +138,8 @@ if ( ! -d $grDir )
   exit 1;
 }
 
+my $tmpDir                = "/Users/pgajer/projects/PECAN/data/phylo_groups/v0.3";
+
 my $nw_labels             = "nw_labels";
 my $nw_order              = "nw_order";
 my $nw_condense           = "nw_condense";
@@ -161,6 +164,8 @@ my $vsearch;
 
 if ( defined $igs )
 {
+  $tmpDir                = "/home/pgajer/projects/PECAN/data/phylo_groups/v0.3";
+
   $fix_fasta_headers     = "/home/pgajer/devel/MCclassifier/perl/fix_fasta_headers.pl";
   $nw_labels             = "/usr/local/projects/pgajer/bin/nw_labels";
   $nw_order              = "/usr/local/projects/pgajer/bin/nw_order";
@@ -236,8 +241,24 @@ my $cmd = "rm -f $algnFile; time $ginsi --inputorder $quietStr $nProcStr $faFile
 print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 
+print "--- Generating sequence summary of the alignment file\n";
+my @tmp;
+push (@tmp,"summary.seqs(fasta=$algnFile)");
+print_array(\@tmp, "mothur commands") if ($debug || $verbose);
+
+my $scriptFile = create_mothur_script( \@tmp );
+my $cmd = "$mothur < $scriptFile; rm -f $scriptFile mothur.*.logfile";
+print "\tcmd=$cmd\n" if $dryRun || $debug;
+system($cmd) == 0 or die "system($cmd) failed:$?" if !$dryRun;
+
 print "--- Trimming alignment to length of 95% of sequences\n";
 my $summaryFile     = $grPrefix . "_algn.summary";
+if ( ! -e $summaryFile )
+{
+  warn "\n\n\tERROR: cannot find $summaryFile";
+  print "\n\n";
+  exit 1;
+}
 $cmd = "$trim_align -c 95 -j $summaryFile -i $algnFile -o $trAlgnFile";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
@@ -261,7 +282,7 @@ print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 
 my $nrTrAlgnFile   = $grPrefix . "_algn_trimmed_nr.fa";
-$cmd = "$select_seqs.pl -s $nrSeqsFile -i $trAlgnFile -o $nrTrAlgnFile";
+$cmd = "$select_seqs -s $nrSeqsFile -i $trAlgnFile -o $nrTrAlgnFile";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 
@@ -284,6 +305,21 @@ system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 ####################################################################
 ##                               SUBS
 ####################################################################
+
+sub create_mothur_script
+{
+    my (@arr) = @{$_[0]};
+
+    my ($fh, $inFile) = tempfile("mothur.XXXX", SUFFIX => '', OPEN => 1, DIR => $tmpDir);
+    foreach my $c (@arr)
+    {
+        print $fh $c . "\n";
+    }
+    print $fh "quit()\n";
+    close $fh;
+
+    return $inFile;
+}
 
 # common part of two arrays
 sub comm{
