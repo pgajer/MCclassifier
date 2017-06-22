@@ -97,7 +97,7 @@ my $igsStr = "";
 if ( defined $igs )
 {
   $igsStr   = "--igs";
-  $ginsi    = "ginsi"; # MAFFT v7.310 (2017/Mar/17)
+  $ginsi    = "/home/pgajer/bin/mafft --maxiterate 1000 --globalpair"; # MAFFT v7.310 (2017/Mar/17)
   $fastTree = "/usr/local/projects/pgajer/bin/FastTree";
 }
 
@@ -137,6 +137,9 @@ if ( ! -d $grDir )
   print "\n\n";
   exit 1;
 }
+
+my @p = split "/", $grPrefix;
+$grPrefix = pop @p;
 
 my $tmpDir                = "/Users/pgajer/projects/PECAN/data/phylo_groups/v0.3";
 
@@ -198,6 +201,8 @@ if ( defined $igs )
 chdir $grDir;
 print "--- Changed dir to $grDir\n";
 
+
+
 my $faFile	     = $grPrefix . ".fa";
 my $algnFile	 = $grPrefix . "_algn.fa";
 my $trAlgnFile   = $grPrefix . "_algn_trimmed.fa";
@@ -247,7 +252,7 @@ push (@tmp,"summary.seqs(fasta=$algnFile)");
 print_array(\@tmp, "mothur commands") if ($debug || $verbose);
 
 my $scriptFile = create_mothur_script( \@tmp );
-my $cmd = "$mothur < $scriptFile; rm -f $scriptFile mothur.*.logfile";
+$cmd = "$mothur < $scriptFile; rm -f $scriptFile mothur.*.logfile";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed:$?" if !$dryRun;
 
@@ -259,7 +264,7 @@ if ( ! -e $summaryFile )
   print "\n\n";
   exit 1;
 }
-$cmd = "$trim_align -c 95 -j $summaryFile -i $algnFile -o $trAlgnFile";
+$cmd = "$trim_align -v -c 95 -j $summaryFile -i $algnFile -o $trAlgnFile";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 
@@ -297,7 +302,7 @@ print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;# && !$skipFastTree;
 
 print "--- Rerooting the tree\n";
-$cmd = "rm -f $treeFile; $nw_reroot $urTreeFile @ogSeqIDs | nw_order -  > $treeFile";
+$cmd = "rm -f $treeFile; $nw_reroot $urTreeFile @ogSeqIDs | $nw_order -  > $treeFile";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 
