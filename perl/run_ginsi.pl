@@ -90,17 +90,6 @@ if ( !$grPrefix )
   exit 1;
 }
 
-my $ginsi = "/usr/local/bin/ginsi"; # MAFFT v7.310 (2017/Mar/17)
-my $fastTree = "FastTree";
-
-my $igsStr = "";
-if ( defined $igs )
-{
-  $igsStr   = "--igs";
-  $ginsi    = "/home/pgajer/bin/mafft --maxiterate 1000 --globalpair"; # MAFFT v7.310 (2017/Mar/17)
-  $fastTree = "/usr/local/projects/pgajer/bin/FastTree";
-}
-
 my $johannaStr = "";
 if ( defined $johanna )
 {
@@ -153,6 +142,7 @@ my $uc2clstr2             = "uc2clstr2.pl";
 my $extract_seq_IDs       = "extract_seq_IDs.pl";
 my $select_seqs           = "select_seqs.pl";
 my $rmGaps                = "rmGaps";
+my $ginsi                 = "/usr/local/bin/ginsi"; # MAFFT v7.310 (2017/Mar/17)
 my $FastTree              = "FastTree";
 my $R                     = "R";
 my $fix_fasta_headers     = "fix_fasta_headers.pl";
@@ -165,6 +155,7 @@ my $trim_align            = "trim_align.pl";
 my $vsearchSORT;
 my $vsearch;
 
+my $igsStr = "";
 if ( defined $igs )
 {
   $tmpDir                = "/home/pgajer/projects/PECAN/data/phylo_groups/v0.3";
@@ -181,6 +172,7 @@ if ( defined $igs )
   $extract_seq_IDs       = "/home/pgajer/devel/MCclassifier/perl/extract_seq_IDs.pl";
   $select_seqs           = "/home/pgajer/devel/MCclassifier/perl/select_seqs.pl";
   $rmGaps                = "/usr/local/projects/pgajer/bin/rmGaps";
+  $ginsi                 = "/home/pgajer/bin/mafft --maxiterate 1000 --globalpair"; # MAFFT v7.310 (2017/Mar/17)
   $FastTree              = "/home/pgajer/bin/FastTree_no_openMP";
   $R                     = "/home/pgajer/bin/R";
   $mothur                = "/usr/local/projects/pgajer/bin/mothur";
