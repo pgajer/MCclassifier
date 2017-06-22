@@ -45,7 +45,7 @@
 
   cd /Users/pgajer/projects/PECAN/data/phylo_groups/v0.3/cx_hb_ssubRDP_FL_5k_phGr_dir
 
-  run_ginsi.pl --debug -i phGr1 -p 8
+  run_ginsi.pl --debug -i phGr100 -p 8
 
 =cut
 
@@ -137,6 +137,55 @@ if ( ! -d $grDir )
   exit 1;
 }
 
+my $nw_labels             = "nw_labels";
+my $nw_order              = "nw_order";
+my $nw_condense           = "nw_condense";
+my $nw_rename             = "nw_rename";
+my $nw_prune              = "nw_prune";
+my $nw_reroot             = "nw_reroot";
+my $uc2clstr2             = "uc2clstr2.pl";
+my $extract_seq_IDs       = "extract_seq_IDs.pl";
+my $select_seqs           = "select_seqs.pl";
+my $rmGaps                = "rmGaps";
+my $FastTree              = "FastTree";
+my $R                     = "R";
+my $fix_fasta_headers     = "fix_fasta_headers.pl";
+my $mothur                = "/Users/pgajer/bin/mothur";
+my $usearch6              = "/Users/pgajer/bin/usearch6.0.203_i86osx32";
+my $vicut                 = "/Users/pgajer/devel/vicut/bin/vicut";
+my $readNewickFile        = "/Users/pgajer/organizer/programming/R/libs/read.newick.R";
+my $trim_align            = "trim_align.pl";
+
+my $vsearchSORT;
+my $vsearch;
+
+if ( defined $igs )
+{
+  $fix_fasta_headers     = "/home/pgajer/devel/MCclassifier/perl/fix_fasta_headers.pl";
+  $nw_labels             = "/usr/local/projects/pgajer/bin/nw_labels";
+  $nw_order              = "/usr/local/projects/pgajer/bin/nw_order";
+  $nw_condense           = "/usr/local/projects/pgajer/bin/nw_condense";
+  $nw_rename             = "/usr/local/projects/pgajer/bin/nw_rename";
+  $nw_prune              = "/usr/local/projects/pgajer/bin/nw_prune";
+  $nw_reroot             = "/usr/local/projects/pgajer/bin/nw_reroot";
+  $trim_align            = "/home/pgajer/devel/MCclassifier/perl/trim_align.pl";
+  $uc2clstr2             = "/home/pgajer/devel/MCclassifier/perl/uc2clstr2.pl";
+  $extract_seq_IDs       = "/home/pgajer/devel/MCclassifier/perl/extract_seq_IDs.pl";
+  $select_seqs           = "/home/pgajer/devel/MCclassifier/perl/select_seqs.pl";
+  $rmGaps                = "/usr/local/projects/pgajer/bin/rmGaps";
+  $FastTree              = "/home/pgajer/bin/FastTree_no_openMP";
+  $R                     = "/home/pgajer/bin/R";
+  $mothur                = "/usr/local/projects/pgajer/bin/mothur";
+  $usearch6              = "/local/projects/pgajer/bin/usearch6.0.203_i86linux32";
+  $vicut                 = "/usr/local/projects/pgajer/bin/vicut";
+  $readNewickFile        = "/local/projects/pgajer/devel/MCclassifier/perl/read.newick.R";
+  $vsearchSORT           = "/usr/local/packages/vsearch/bin/vsearch";
+  $vsearch               = "/usr/local/bin/vsearch";
+
+  $quietStr              = "";
+  $igsStr                = "--igs";
+}
+
 ####################################################################
 ##                               MAIN
 ####################################################################
@@ -146,6 +195,7 @@ print "--- Changed dir to $grDir\n";
 
 my $faFile	     = $grPrefix . ".fa";
 my $algnFile	 = $grPrefix . "_algn.fa";
+my $trAlgnFile   = $grPrefix . "_algn_trimmed.fa";
 my $treeFile	 = $grPrefix . ".tree";
 my $outgroupFile = $grPrefix . "_outgroup.seqIDs";
 
@@ -186,14 +236,47 @@ my $cmd = "rm -f $algnFile; time $ginsi --inputorder $quietStr $nProcStr $faFile
 print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 
+print "--- Trimming alignment to length of 95% of sequences\n";
+my $summaryFile     = $grPrefix . "_algn.summary";
+$cmd = "$trim_align -c 95 -j $summaryFile -i $algnFile -o $trAlgnFile";
+print "\tcmd=$cmd\n" if $dryRun || $debug;
+system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+
+print "--- Dereplicating trimmed alignemnt file\n";
+my $trFaFile = $grPrefix . "_trimmed.fa";
+$cmd = "$rmGaps -i $trAlgnFile -o $trFaFile";
+print "\tcmd=$cmd\n" if $dryRun || $debug;
+system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
+
+my $ucFile = $grPrefix . "_trimmed.uc";
+my $nrFile = $grPrefix . "_trimmed_nr.fa";
+$cmd = "$usearch6 -cluster_fast $trFaFile -id 1.0 -uc $ucFile -centroids $nrFile";
+print "\tcmd=$cmd\n" if $dryRun || $debug;
+system($cmd) == 0 or die "system($cmd) failed:$?" if !$dryRun;
+
+print "--- Restricting alignment to non-redundant seq's\n";
+my $nrSeqsFile = $grPrefix . "_trimmed_nr.seqIDs";
+$cmd = "$extract_seq_IDs -i $nrFile -o $nrSeqsFile";
+print "\tcmd=$cmd\n" if $dryRun || $debug;
+system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+
+my $nrTrAlgnFile   = $grPrefix . "_algn_trimmed_nr.fa";
+$cmd = "$select_seqs.pl -s $nrSeqsFile -i $trAlgnFile -o $nrTrAlgnFile";
+print "\tcmd=$cmd\n" if $dryRun || $debug;
+system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+
+$cmd = "mv $nrTrAlgnFile $trAlgnFile";
+print "\tcmd=$cmd\n" if $dryRun || $debug;
+system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+
 print "--- Producing tree\n";
 my $urTreeFile = $grPrefix . "_unrooted.tree";
-$cmd = "rm -f $urTreeFile; $fastTree -nt $algnFile > $urTreeFile";
+$cmd = "rm -f $urTreeFile; $fastTree -nt $trAlgnFile > $urTreeFile";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;# && !$skipFastTree;
 
 print "--- Rerooting the tree\n";
-$cmd = "rm -f $treeFile; nw_reroot $urTreeFile @ogSeqIDs | nw_order -  > $treeFile";
+$cmd = "rm -f $treeFile; $nw_reroot $urTreeFile @ogSeqIDs | nw_order -  > $treeFile";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 
