@@ -156,7 +156,8 @@ else
   ($startPos, $endPos) = split '_', $selRange;
 }
 
-print "\nstartPos: $startPos\nendPos: $endPos\n" if $verbose;
+#print "\nstartPos: $startPos\nendPos: $endPos\n" if $verbose;
+print "\nstartPos: $startPos\nendPos: $endPos\n";
 
 ## print "--- Generating fasta files of selected clusters ... ";
 open OUT, ">$outFile" or die "Cannot open $outFile for writing: $OS_ERROR\n";
@@ -181,6 +182,10 @@ while (<IN>)
   my ($id) = split /\s+/, $def;
   my $s = substr( $seq, $startPos-1, $endPos - $startPos + 1);
   print OUT ">$id\n$s\n";
+
+  # print "BEFORE: $seq\n";
+  # print "AFTER:  $s\n";
+  # exit;
 }
 $/ = "\n";
 close OUT;
