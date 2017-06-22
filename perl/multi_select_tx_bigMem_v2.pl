@@ -182,7 +182,7 @@ for my $sp ( keys %spIDsTbl )
       print "\n\n";
       exit 1;
     }
-    print OUT ">$_\n" . $liTbl{$_} . "\n";
+    print OUT "$_\t" . $liTbl{$_} . "\n";
   }
   close OUT;
 }
