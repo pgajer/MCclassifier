@@ -2,16 +2,23 @@
 
 =head1 NAME
 
-  run_ginsi.pl
+  build_tree.pl
 
 =head1 DESCRIPTION
 
-  Run mafft's ginsi aligner on the degapped trimmed alignment fasta file and then
-  do FastTree and rerooting.
+  This script
+
+  - builds an alignment
+  - trims it
+  - dereplicates trimmed sequences
+  - builds a tree using FastTree
+  - reroots the tree
+
+  Note: This used to be called build_tree.pl.
 
 =head1 SYNOPSIS
 
-  run_ginsi.pl -i <input group name> -p <number of processors to use for ginsi (works only on linux)>
+  build_tree.pl -i <phylo-group name> -p <number of processors to use for ginsi>
 
 =head1 OPTIONS
 
@@ -45,7 +52,7 @@
 
   cd /Users/pgajer/projects/PECAN/data/phylo_groups/v0.3/cx_hb_ssubRDP_FL_5k_phGr_dir
 
-  run_ginsi.pl --debug -i phGr100 -p 8
+  build_tree.pl --debug -i phGr100 -p 8
 
 =cut
 
