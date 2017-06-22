@@ -31,8 +31,30 @@
 =item B<--num-proc, -p>
   Number of processors to be used. Default value: 8.
 
-=item B<--run-ginsi>
-  Run ginsi alignment. Be default mothur aligner is used with mothur's SILVA SEED db
+=item B<--mafft-auto-algn>
+  Generate MAFFT alignment using --auto flag. For fasta files > 200 seq's (?) it will run
+
+  FFT-NS-2 (Fast but rough)
+  Progressive method (guide trees were built 2 times.)
+
+=item B<--linsi-algn>
+  Generate MAFFT L-INS-i alignment.
+
+  L-INS-i (Probably most accurate, very slow)
+  Iterative refinement method (<16) with LOCAL pairwise alignment information
+
+=item B<--ginsi-algn>
+  Generate MAFFT G-INS-i alignment.
+
+  G-INS-i (Suitable for sequences of similar lengths, very slow)
+  Iterative refinement method (<16) with GLOBAL pairwise alignment information
+
+=item B<--mothur-algn>
+  Generate mothur aligner is used with mothur's SILVA SEED db.
+
+=item B<--criteria, -c>
+  An integer between 0 and 100. The alignment will be trimmed at the positions
+  where percentage of sequences that start and end is at least the criteria value.
 
 =item B<--verbose, -v>
   Prints content of some output files.
@@ -55,7 +77,7 @@
 
   cd /Users/pgajer/projects/PECAN/data/phylo_groups/v0.3/cx_hb_ssubRDP_FL_5k_phGr_dir
 
-  build_tree.pl --debug -i phGr100 -p 8
+  build_tree.pl --debug --mafft-auto-algn -i phGr50 -p 4
 
 =cut
 
@@ -73,10 +95,16 @@ $OUTPUT_AUTOFLUSH = 1;
 ##                             OPTIONS
 ####################################################################
 
+my $criteria = 95;
+
 GetOptions(
   "input-group|i=s" 	=> \my $grPrefix,
   "num-proc|p=i"        => \my $nProc,
-  "run-ginsi"           => \my $runGinsi,
+  "mafft-auto-algn"     => \my $runMAFFTauto,
+  "linsi-algn"          => \my $runLinsi,
+  "ginsi-algn"          => \my $runGinsi,
+  "mothur-algn"         => \my $runMothurAlgn,
+  "criteria|c=i"        => \$criteria,
   "igs"                 => \my $igs,
   "johanna"             => \my $johanna,
   "verbose|v"           => \my $verbose,
@@ -100,6 +128,15 @@ if ( !$grPrefix )
   pod2usage(verbose => 2,exitstatus => 0);
   exit 1;
 }
+
+if ( !$runMAFFTauto && !$runLinsi && !$runGinsi && !$runMothurAlgn )
+{
+  warn "\n\n\tERROR: Missing alignment type";
+  print "\n\n";
+  pod2usage(verbose => 2,exitstatus => 0);
+  exit 1;
+}
+
 
 my $johannaStr = "";
 if ( defined $johanna )
@@ -155,6 +192,8 @@ my $extract_seq_IDs       = "extract_seq_IDs.pl";
 my $select_seqs           = "select_seqs.pl";
 my $rmGaps                = "rmGaps";
 my $ginsi                 = "/usr/local/bin/ginsi"; # MAFFT v7.310 (2017/Mar/17)
+my $linsi                 = "/usr/local/bin/mafft --maxiterate 1000 --localpair"; # MAFFT v7.310 (2017/Mar/17)
+my $mafft                 = "/usr/local/bin/mafft --auto"; # MAFFT v7.310 (2017/Mar/17)
 my $FastTree              = "FastTree";
 my $R                     = "R";
 my $fix_fasta_headers     = "fix_fasta_headers.pl";
@@ -186,6 +225,8 @@ if ( defined $igs )
   $select_seqs           = "/home/pgajer/devel/MCclassifier/perl/select_seqs.pl";
   $rmGaps                = "/usr/local/projects/pgajer/bin/rmGaps";
   $ginsi                 = "/home/pgajer/bin/mafft --maxiterate 1000 --globalpair"; # MAFFT v7.310 (2017/Mar/17)
+  $linsi                 = "/home/pgajer/bin/mafft --maxiterate 1000 --localpair"; # MAFFT v7.310 (2017/Mar/17)
+  $mafft                 = "/home/pgajer/bin/mafft --auto"; # MAFFT v7.310 (2017/Mar/17)
   $FastTree              = "/home/pgajer/bin/FastTree_no_openMP";
   $R                     = "/home/pgajer/bin/R";
   $mothur                = "/usr/local/projects/pgajer/bin/mothur";
@@ -246,76 +287,123 @@ if ( $debug )
   print   "\tNumber of outgroup seq's: " . @ogSeqIDs . "\n\n";
 }
 
-if ( !$runGinsi )
+if ( $runMAFFTauto )
+{
+  print "--- Generating MAFFT --auto alignment\n";
+  my $mafftAlgnFile = abs_path( $grPrefix . "_mafft_auto_algn.fa" );
+  my $cmd = "rm -f $mafftAlgnFile; time $mafft --inputorder $quietStr $nProcStr $faFile > $mafftAlgnFile";
+  print "\tcmd=$cmd\n" if $dryRun || $debug;
+  system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+
+  $cmd = "rm -f $algnFile; ln -s $mafftAlgnFile $algnFile";
+  print "\tcmd=$cmd\n" if $dryRun || $debug;
+  system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+}
+elsif ( $runLinsi )
+{
+  print "--- Generating MAFFT L-INS-i alignment\n";
+  my $linsiAlgnFile = abs_path( $grPrefix . "_linsi_algn.fa" );
+  my $cmd = "rm -f $algnFile; time $linsi --inputorder $quietStr $nProcStr $faFile > $linsiAlgnFile";
+  print "\tcmd=$cmd\n" if $dryRun || $debug;
+  system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+
+  $cmd = "rm -f $algnFile; ln -s $linsiAlgnFile $algnFile";
+  print "\tcmd=$cmd\n" if $dryRun || $debug;
+  system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+}
+elsif ( $runGinsi )
+{
+  print "--- Generating MAFFT G-INS-i alignment\n";
+  my $ginsiAlgnFile = abs_path( $grPrefix . "_ginsi_algn.fa" );
+  my $cmd = "rm -f $algnFile; time $ginsi --inputorder $quietStr $nProcStr $faFile > $ginsiAlgnFile";
+  print "\tcmd=$cmd\n" if $dryRun || $debug;
+  system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+
+  $cmd = "rm -f $algnFile; ln -s $ginsiAlgnFile $algnFile";
+  print "\tcmd=$cmd\n" if $dryRun || $debug;
+  system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+}
+elsif ( $runMothurAlgn )
 {
   print "--- Generating mothur alignment using mothur's SILVA SEED db\n";
-  mothur_align( $faFile, $nProc, $algnFile );
-}
-else
-{
-  print "--- Generating ginsi alignment\n";
-  my $cmd = "rm -f $algnFile; time $ginsi --inputorder $quietStr $nProcStr $faFile > $algnFile";
+  my $mothurAlgnFile = abs_path( $grPrefix . "_mothur_algn.fa" );
+  mothur_align( $faFile, $nProc, $mothurAlgnFile );
+
+  $cmd = "rm -f $algnFile; ln -s $mothurAlgnFile $algnFile";
   print "\tcmd=$cmd\n" if $dryRun || $debug;
   system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 }
 
-print "--- Generating sequence summary of the alignment file\n";
-my @tmp;
-push (@tmp,"summary.seqs(fasta=$algnFile)");
-print_array(\@tmp, "mothur commands") if ($debug || $verbose);
-
-my $scriptFile = create_mothur_script( \@tmp );
-my $cmd = "$mothur < $scriptFile; rm -f $scriptFile mothur.*.logfile";
-print "\tcmd=$cmd\n" if $dryRun || $debug;
-system($cmd) == 0 or die "system($cmd) failed:$?" if !$dryRun;
-
-print "--- Trimming alignment to length of 95% of sequences\n";
-my $summaryFile     = $grPrefix . "_algn.summary";
-if ( ! -e $summaryFile )
-{
-  warn "\n\n\tERROR: cannot find $summaryFile";
-  print "\n\n";
-  exit 1;
-}
-$cmd = "$trim_align -c 95 -j $summaryFile -i $algnFile -o $trAlgnFile";
-print "\tcmd=$cmd\n" if $dryRun || $debug;
-system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
-
-print "--- Dereplicating trimmed alignemnt file\n";
-my $trFaFile = $grPrefix . "_trimmed.fa";
-$cmd = "$rmGaps -i $trAlgnFile -o $trFaFile";
-print "\tcmd=$cmd\n" if $dryRun || $debug;
-system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
-
-my $ucFile = $grPrefix . "_trimmed.uc";
-my $nrFile = $grPrefix . "_trimmed_nr.fa";
-$cmd = "$usearch6 -cluster_fast $trFaFile -id 1.0 -uc $ucFile -centroids $nrFile";
-print "\tcmd=$cmd\n" if $dryRun || $debug;
-system($cmd) == 0 or die "system($cmd) failed:$?" if !$dryRun;
-
-print "--- Restricting alignment to non-redundant seq's\n";
-my $nrSeqsFile = $grPrefix . "_trimmed_nr.seqIDs";
-$cmd = "$extract_seq_IDs -i $nrFile -o $nrSeqsFile";
-print "\tcmd=$cmd\n" if $dryRun || $debug;
-system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
-
-my $nrTrAlgnFile   = $grPrefix . "_algn_trimmed_nr.fa";
-$cmd = "$select_seqs -s $nrSeqsFile -i $trAlgnFile -o $nrTrAlgnFile";
-print "\tcmd=$cmd\n" if $dryRun || $debug;
-system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
-
-$cmd = "mv $nrTrAlgnFile $trAlgnFile";
-print "\tcmd=$cmd\n" if $dryRun || $debug;
-system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
-
-print "--- Producing tree\n";
 my $urTreeFile = $grPrefix . "_unrooted.tree";
-$cmd = "rm -f $urTreeFile; $FastTree -nt $trAlgnFile > $urTreeFile";
-print "\tcmd=$cmd\n" if $dryRun || $debug;
-system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;# && !$skipFastTree;
 
-print "--- Rerooting the tree\n";
-$cmd = "rm -f $treeFile; $nw_reroot $urTreeFile @ogSeqIDs | $nw_order -  > $treeFile";
+if ( ! $runMothurAlgn ) # mothur aligner removes bases and so we cannot use its
+                        # result to then filter out redundant sequnences (after
+                        # trimming)
+{
+  print "--- Generating sequence summary of the alignment file\n";
+  my @tmp;
+  push (@tmp,"summary.seqs(fasta=$algnFile)");
+  print_array(\@tmp, "mothur commands") if ($debug || $verbose);
+
+  my $scriptFile = create_mothur_script( \@tmp );
+  my $cmd = "$mothur < $scriptFile; rm -f $scriptFile mothur.*.logfile";
+  print "\tcmd=$cmd\n" if $dryRun || $debug;
+  system($cmd) == 0 or die "system($cmd) failed:$?" if !$dryRun;
+
+  print "--- Trimming alignment to length of $criteria% of sequences\n";
+  my $summaryFile     = $grPrefix . "_algn.summary";
+  if ( ! -e $summaryFile )
+  {
+    warn "\n\n\tERROR: cannot find $summaryFile";
+    print "\n\n";
+    exit 1;
+  }
+  $cmd = "$trim_align -c $criteria -j $summaryFile -i $algnFile -o $trAlgnFile";
+  print "\tcmd=$cmd\n" if $dryRun || $debug;
+  system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+
+  print "--- Dereplicating trimmed alignemnt file\n";
+  my $trFaFile = $grPrefix . "_trimmed.fa";
+  $cmd = "$rmGaps -i $trAlgnFile -o $trFaFile";
+  print "\tcmd=$cmd\n" if $dryRun || $debug;
+  system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
+
+  my $ucFile = $grPrefix . "_trimmed.uc";
+  my $nrFile = $grPrefix . "_trimmed_nr.fa";
+  $cmd = "$usearch6 -cluster_fast $trFaFile -id 1.0 -uc $ucFile -centroids $nrFile";
+  print "\tcmd=$cmd\n" if $dryRun || $debug;
+  system($cmd) == 0 or die "system($cmd) failed:$?" if !$dryRun;
+
+  print "--- Restricting alignment to non-redundant seq's\n";
+  my $nrSeqsFile = $grPrefix . "_trimmed_nr.seqIDs";
+  $cmd = "$extract_seq_IDs -i $nrFile -o $nrSeqsFile";
+  print "\tcmd=$cmd\n" if $dryRun || $debug;
+  system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+
+  my $nrTrAlgnFile   = $grPrefix . "_algn_trimmed_nr.fa";
+  $cmd = "$select_seqs -s $nrSeqsFile -i $trAlgnFile -o $nrTrAlgnFile";
+  print "\tcmd=$cmd\n" if $dryRun || $debug;
+  system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+
+  $cmd = "mv $nrTrAlgnFile $trAlgnFile";
+  print "\tcmd=$cmd\n" if $dryRun || $debug;
+  system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+
+  print "--- Producing tree\n";
+  $cmd = "rm -f $urTreeFile; $FastTree -nt $trAlgnFile > $urTreeFile";
+  print "\tcmd=$cmd\n" if $dryRun || $debug;
+  system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;# && !$skipFastTree;
+}
+else
+{
+  print "--- Producing tree\n";
+  my $cmd = "rm -f $urTreeFile; $FastTree -nt $algnFile > $urTreeFile";
+  print "\tcmd=$cmd\n" if $dryRun || $debug;
+  system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;# && !$skipFastTree;
+}
+
+print "--- Rooting the tree\n";
+my $cmd = "rm -f $treeFile; $nw_reroot $urTreeFile @ogSeqIDs | $nw_order -  > $treeFile";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 
@@ -377,7 +465,7 @@ sub mothur_align
     exit 1;
   }
 
-  my $cmd = "mv $mothurFilteredFile $algnFile";
+  $cmd = "mv $mothurFilteredFile $algnFile";
   print "\tcmd=$cmd\n" if $dryRun || $debug;
   system($cmd) == 0 or die "system($cmd) failed:$?" if !$dryRun;
 
