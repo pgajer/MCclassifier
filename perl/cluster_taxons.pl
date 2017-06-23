@@ -229,10 +229,18 @@ if ($debug)
   $quiet = 0;
 }
 
-my $tmpDir = "temp_dir";
+my $tmpDir = "clTx_temp_dir";
 if ( ! -e $tmpDir )
 {
   my $cmd = "mkdir -p $tmpDir";
+  print "\tcmd=$cmd\n" if $dryRun || $debug;
+  system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
+}
+
+my $ppDir = "phylo_part_dir";
+if ( ! -e $ppDir )
+{
+  my $cmd = "mkdir -p $ppDir";
   print "\tcmd=$cmd\n" if $dryRun || $debug;
   system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 }
@@ -281,8 +289,8 @@ print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 
 print "--- Running phylo partitioning on $treeFile at $percThld percentile thld\n" if !$quiet;
-my $partFile     = "phyloPart_$taxon" . "_$percThld" . ".txt";
-my $phyloPartLog = "phyloPart_$taxon.log";
+my $partFile     = "$ppDir/phyloPart_$taxon" . "_$percThld" . ".txt";
+my $phyloPartLog = "$ppDir/phyloPart_$taxon.log";
 $cmd = "rm -f $phyloPartLog; java -jar $phyloPart $treeFile $percThld -o$partFile > $phyloPartLog ";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
@@ -321,16 +329,16 @@ if ($debug)
   print "\n";
 }
 
-my $partCltrFile = "phyloPart_$taxon" . "_$percThld" . ".cltr";
+my $partCltrFile = "$ppDir/phyloPart_$taxon" . "_$percThld" . ".cltr";
 print "--- Writing phylo partitioning to $partCltrFile\n" if !$quiet;
 writeTbl(\%part, $partCltrFile);
 
 if ( $nPhyloParts > 1 )
 {
   print "--- Generating annotation and query files\n" if !$quiet;
-  my $annFile    = "phyloPart_$taxon" . "_ann.tx";
-  my $queryFile  = "phyloPart_$taxon" . "_query.seqIDs";
-  my $vicutDir   = "phyloPart_$taxon" . "_vicut_dir";
+  my $annFile    = "$ppDir/phyloPart_$taxon" . "_ann.tx";
+  my $queryFile  = "$ppDir/phyloPart_$taxon" . "_query.seqIDs";
+  my $vicutDir   = "$ppDir/phyloPart_$taxon" . "_vicut_dir";
   my $nQuerySeqs = 0;
   my $nAnnSeqs   = 0;
   my @queryTx;
@@ -358,7 +366,7 @@ if ( $nPhyloParts > 1 )
   close QOUT;
 
   print "--- Parsing tree leaves\n" if !$quiet;
-  my $treeLeavesFile = "phyloPart_$taxon" . "_tree.leaves";
+  my $treeLeavesFile = "$ppDir/phyloPart_$taxon" . "_tree.leaves";
   $cmd = "rm -f $treeLeavesFile; nw_labels -I $treeFile > $treeLeavesFile";
   print "\tcmd=$cmd\n" if $dryRun || $debug;
   system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
@@ -711,8 +719,8 @@ if ( $nPhyloParts > 1 )
   }
 
   print "--- Creating tree with taxon_cluster leaf names\n" if !$quiet;
-  my $spClFile = "phyloPart_$taxon" . ".sppCl";
-  my $spClFile2 = abs_path( "phyloPart_$taxon" . ".sppCl2" );
+  my $spClFile = "$ppDir/phyloPart_$taxon" . ".sppCl";
+  my $spClFile2 = abs_path( "$ppDir/phyloPart_$taxon" . ".sppCl2" );
   open OUT, ">$spClFile" or die "Cannot open $spClFile for writing: $OS_ERROR\n";
   open OUT2, ">$spClFile2" or die "Cannot open $spClFile2 for writing: $OS_ERROR\n";
   for (keys %txCltrIdx)
@@ -724,7 +732,7 @@ if ( $nPhyloParts > 1 )
   close OUT2;
   print "\n\n--> Cluster index tbl written to $spClFile2\n" if $debug;
 
-  my $treeFile2 = "phyloPart_$taxon" . "_final_condensed_cltrs.tree";
+  my $treeFile2 = "$ppDir/phyloPart_$taxon" . "_final_condensed_cltrs.tree";
   $cmd = "nw_rename $treeFile $spClFile | nw_order -c n  - > $treeFile2";
   print "\tcmd=$cmd\n" if $dryRun || $debug;
   system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
@@ -742,7 +750,7 @@ if ( $nPhyloParts > 1 )
 			  $now[5]+1900, $now[4]+1, $now[3],
 			  $now[2],      $now[1],   $now[0]);
 
-  my $pdfTreeFile = abs_path( "phyloPart_$taxon" . "_cltrs_condensed_tree_$timeStamp.pdf" );
+  my $pdfTreeFile = abs_path( "$ppDir/phyloPart_$taxon" . "_cltrs_condensed_tree_$timeStamp.pdf" );
   my $treeFile2AbsPath = abs_path( $treeFile2 );
 
   plot_tree($treeFile2AbsPath, $spClFile2, $pdfTreeFile);
