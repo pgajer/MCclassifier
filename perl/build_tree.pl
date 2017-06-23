@@ -201,6 +201,7 @@ my $nw_reroot             = "nw_reroot";
 my $uc2clstr2             = "uc2clstr2.pl";
 my $extract_seq_IDs       = "extract_seq_IDs.pl";
 my $select_seqs           = "select_seqs.pl";
+my $select_tx             = "select_tx.pl";
 my $rmGaps                = "rmGaps";
 my $ginsi                 = "/usr/local/bin/ginsi"; # MAFFT v7.310 (2017/Mar/17)
 my $linsi                 = "/usr/local/bin/mafft --maxiterate 1000 --localpair"; # MAFFT v7.310 (2017/Mar/17)
@@ -235,6 +236,7 @@ if ( defined $igs )
   $uc2clstr2             = "/home/pgajer/devel/MCclassifier/perl/uc2clstr2.pl";
   $extract_seq_IDs       = "/home/pgajer/devel/MCclassifier/perl/extract_seq_IDs.pl";
   $select_seqs           = "/home/pgajer/devel/MCclassifier/perl/select_seqs.pl";
+  $select_tx             = "/home/pgajer/devel/MCclassifier/perl/select_tx.pl";
   $rmGaps                = "/usr/local/projects/pgajer/bin/rmGaps";
   $ginsi                 = "/home/pgajer/bin/mafft --maxiterate 1000 --globalpair"; # MAFFT v7.310 (2017/Mar/17)
   $linsi                 = "/home/pgajer/bin/mafft --maxiterate 1000 --localpair"; # MAFFT v7.310 (2017/Mar/17)
@@ -260,15 +262,42 @@ if ( defined $igs )
 chdir $grDir;
 print "--- Changed dir to $grDir\n";
 
-my $faFile	     = $grPrefix . ".fa";
-my $algnFile	 = $grPrefix . "_algn.fa";
-my $trAlgnFile   = $grPrefix . "_algn_trimmed.fa";
-my $treeFile	 = $grPrefix . ".tree";
-my $outgroupFile = $grPrefix . "_outgroup.seqIDs";
+my $faFile	    = $grPrefix . ".fa";
+my $liFile	    = $grPrefix . ".lineage";
+my $treeFile	= $grPrefix . ".tree";
+my $ogFile      = $grPrefix . "_outgroup.seqIDs";
+my $algnFile	= $grPrefix . "_algn.fa";
+my $trAlgnFile  = $grPrefix . "_algn_trimmed.fa";
+
+if ( ! -e $faFile )
+{
+  warn "\n\n\tERROR: $faFile does not exist";
+  print "\n\n";
+  exit 1;
+}
+elsif ( ! -e $liFile )
+{
+  warn "\n\n\tERROR: $liFile does not exist";
+  print "\n\n";
+  exit 1;
+}
+elsif ( ! -e $treeFile )
+{
+  warn "\n\n\tERROR: $treeFile does not exist";
+  print "\n";
+  exit 1;
+}
+elsif ( ! -e $ogFile )
+{
+  warn "\n\n\tERROR: $ogFile does not exist";
+  print "\n\n";
+  exit 1;
+}
+
 
 ## Gathering outgroup data
-print "--- Parsing $outgroupFile\n";
-my @ogSeqIDs = read_array($outgroupFile);
+print "--- Parsing $ogFile\n";
+my @ogSeqIDs = read_array($ogFile);
 my %ogInd = map{$_ =>1} @ogSeqIDs; # outgroup elements indicator table
 
 print "--- Extracting seq IDs from the input fasta file\n";
@@ -405,6 +434,17 @@ if ( ! $runMothurAlgn ) # mothur aligner removes bases and so we cannot use its
   $cmd = "mv $nrTrAlgnFile $trAlgnFile";
   print "\tcmd=$cmd\n" if $dryRun || $debug;
   system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+
+  print "--- Restricting lineage tbl to non-redundant seq's\n";
+  my $nrLiFile   = $grPrefix . "_nr.lineage";
+  $cmd = "$select_tx -s $nrSeqsFile -i $liFile -o $nrLiFile";
+  print "\tcmd=$cmd\n" if $dryRun || $debug;
+  system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+
+  $cmd = "mv $nrLiFile $liFile";
+  print "\tcmd=$cmd\n" if $dryRun || $debug;
+  system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+
 
   print "--- Producing tree\n";
   if ( $nProc > 1 )
