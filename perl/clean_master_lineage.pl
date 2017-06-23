@@ -309,19 +309,19 @@ foreach my $file ( @liFiles )
       my ($g, $suffix) = split "_", @f;
       if ( (defined $suffix && $ge eq $g) )
       {
-	print "\nWARNING: $sp not found in spParent tbl - using $g\n";
-	$spParent{$sp} = $g;
+        print "\nWARNING: $sp not found in spParent tbl - using $g\n";
+        $spParent{$sp} = $g;
       }
       elsif ( !defined $suffix )
       {
-	print "\nWARNING: $sp not found in spParent tbl - using $ge\n";
-	$spParent{$sp} = $ge;
+        print "\nWARNING: $sp not found in spParent tbl - using $ge\n";
+        $spParent{$sp} = $ge;
       }
       else
       {
        	warn "\nWARNING: $sp not found in spParent tbl";
-	print "Two possible candidates: \n$g\n$ge\n\n";
-	exit 1;
+        print "Two possible candidates: \n$g\n$ge\n\n";
+        exit 1;
       }
     }
   }
