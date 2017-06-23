@@ -218,7 +218,6 @@ if ( ! -d $grDir )
 ##                               MAIN
 ####################################################################
 
-
 my $section = qq~
 
   ##
@@ -231,32 +230,57 @@ print "$section";
 chdir $grDir;
 print "--- Changed dir to $grDir\n";
 
-my $lineageFile     = $grPrefix . ".lineage";
-# my $algnFile	    = $grPrefix . "_ginsi_algn.fa";
-# my $trimmedAlgnFile = $grPrefix . "_ginsi_algn.fa"; # "_algn_trimmed.fa";
-my $algnFile	    = $grPrefix . "_algn.fa";
-my $trimmedAlgnFile = $grPrefix . "_algn_trimmed.fa";
-my $outgroupFile    = $grPrefix . "_outgroup.seqIDs";
-my $treeFile	    = $grPrefix . ".tree";
-my $txFile          = $grPrefix . ".tx";
+my $tmpDir = "txClp_tempDir";
+my $cmd = "mkdir -p $tmpDir";
+print "\tcmd=$cmd\n" if $dryRun || $debug;
+system($cmd) == 0 or die "system($cmd) failed: $?" if !$dryRun;
 
-if ( ! -e $lineageFile )
+my $liFile     = $grPrefix . ".lineage";
+my $algnFile   = $grPrefix . "_algn.fa";
+my $trAlgnFile = $grPrefix . "_algn_trimmed.fa";
+my $ogFile     = $grPrefix . "_outgroup.seqIDs";
+my $treeFile   = $grPrefix . ".tree";
+my $txFile     = $grPrefix . ".tx";
+
+## Main output files for truncate_algn.pl
+# $grPrefix . "_spp.lineage";
+# $grPrefix . "_algn_trimmed_final.fa";
+
+## Cleanup
+if ( -e "$grPrefix" . "_algn.summary" )
 {
-  warn "\n\n\tERROR: $lineageFile does not exist";
+  $cmd = "mv $grPrefix" . "_trimmed* $tmpDir";
+  print "\tcmd=$cmd\n" if $dryRun || $debug;
+  system($cmd) == 0 or die "system($cmd) failed: $?" if !$dryRun;
+
+  $cmd = "mv $grPrefix" . "_unrooted.tree $tmpDir";
+  print "\tcmd=$cmd\n" if $dryRun || $debug;
+  system($cmd) == 0 or die "system($cmd) failed: $?" if !$dryRun;
+
+  $cmd = "mv $grPrefix" . "_algn.summary $tmpDir";
+  print "\tcmd=$cmd\n" if $dryRun || $debug;
+  system($cmd) == 0 or die "system($cmd) failed: $?" if !$dryRun;
+}
+
+my $grTmpPrefix = "$tmpDir/$grPrefix";
+
+if ( ! -e $liFile )
+{
+  warn "\n\n\tERROR: $liFile does not exist";
   print "\n\n";
   exit 1;
 }
 elsif ( ! -e $algnFile )
 {
-  warn "\n\n\tERROR: $algnFile or $trimmedAlgnFile does not exist, searching for trimmed alignment file...";
+  warn "\n\n\tERROR: $algnFile or $trAlgnFile does not exist, searching for trimmed alignment file...";
   print "\n\n";
   #exit 1;
 }
-elsif ( ! -e $trimmedAlgnFile )
+elsif ( ! -e $trAlgnFile )
 {
-  warn "WARNING: $trimmedAlgnFile does not exist. Creating a symbolic link to $algnFile.\n";
+  warn "WARNING: $trAlgnFile does not exist. Creating a symbolic link to $algnFile.\n";
   my $ap = abs_path( $algnFile );
-  my $cmd = "rm -f $trimmedAlgnFile; ln -s $ap $trimmedAlgnFile";
+  my $cmd = "rm -f $trAlgnFile; ln -s $ap $trAlgnFile";
   print "\tcmd=$cmd\n" if $dryRun || $debug;
   system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 }
@@ -266,16 +290,16 @@ elsif ( ! -e $treeFile )
   print "\n";
   exit 1;
 }
-elsif ( ! -e $outgroupFile )
+elsif ( ! -e $ogFile )
 {
-  warn "\n\n\tERROR: $outgroupFile does not exist";
+  warn "\n\n\tERROR: $ogFile does not exist";
   print "\n\n";
   exit 1;
 }
 
 if ( ! -e $txFile )
 {
-  my $cmd = "taxon_from_lineage.pl -l $lineageFile -t species -o $txFile";
+  my $cmd = "taxon_from_lineage.pl -l $liFile -t species -o $txFile";
   print "\tcmd=$cmd\n" if $dryRun || $debug;
   system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 }
@@ -289,15 +313,10 @@ if ($showCladeTrees)
   system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 }
 
-my $tmpDir = "tmpDir";
-my $cmd = "mkdir -p $tmpDir";
-print "\tcmd=$cmd\n" if $dryRun || $debug;
-system($cmd) == 0 or die "system($cmd) failed: $?" if !$dryRun;
-
 
 ## Gathering outgroup data
-print "--- Parsing $outgroupFile\n";
-my @ogSeqIDs = readArray($outgroupFile);
+print "--- Parsing $ogFile\n";
+my @ogSeqIDs = readArray($ogFile);
 my %ogInd = map{$_ =>1} @ogSeqIDs; # outgroup elements indicator table
 
 print "--- Testing if OG seq's form a monophylectic clade at the top or bottom of the input tree\n";
@@ -309,7 +328,7 @@ if ( test_OG($treeFile, \%ogInd) != 0 )
 } ;
 
 print "--- Extracting seq IDs from trimmed alignment fasta file\n";
-my @seqIDs = get_seqIDs_from_fa($trimmedAlgnFile);
+my @seqIDs = get_seqIDs_from_fa($trAlgnFile);
 
 if ( @seqIDs < $minSize )
 {
@@ -318,7 +337,7 @@ if ( @seqIDs < $minSize )
 }
 
 print "--- Parsing lineage table\n";
-my %lineageTbl = readLineageTbl($lineageFile);
+my %lineageTbl = readLineageTbl($liFile);
 
 print "--- Checking parent consistency of the lineage table\n";
 if ( check_parent_consistency(\%lineageTbl) )
@@ -329,7 +348,7 @@ if ( check_parent_consistency(\%lineageTbl) )
 }
 
 ## testing if lineage and fa files has the same seq IDs
-print "--- Checking if seqIDs of $trimmedAlgnFile and $lineageFile are the same\n";
+print "--- Checking if seqIDs of $trAlgnFile and $liFile are the same\n";
 my @lSeqIDs = keys %lineageTbl;
 
 if ( ! setequal(\@seqIDs, \@lSeqIDs) )
@@ -362,9 +381,9 @@ if ($debug)
   print   "\tNumber of outgroup seq's: " . @ogSeqIDs . "\n\n";
 }
 
-print "--- Testing if $treeFile is consistent with $trimmedAlgnFile\n";
+print "--- Testing if $treeFile is consistent with $trAlgnFile\n";
 ## extracting leaves' IDs
-my $treeLeavesFile = $grPrefix . "_tree.leaves";
+my $treeLeavesFile = $grTmpPrefix . "_tree.leaves";
 $cmd = "nw_labels -I $treeFile > $treeLeavesFile";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
@@ -378,7 +397,7 @@ if ( !setequal( \@treeLeaves, \@seqIDs ) )
 
   warn "\n\n\tERROR: seq IDs of $treeFile and $algnFile do not match";
   print "\tNumber of seq IDs of $treeFile: " . @treeLeaves . "\n";
-  print "\tNumber of seq IDs of $trimmedAlgnFile: " . @seqIDs . "\n";
+  print "\tNumber of seq IDs of $trAlgnFile: " . @seqIDs . "\n";
   print "\tNumber of common seq IDs elements: " . @commTL . "\n\n";
 
   exit 1;
@@ -389,7 +408,7 @@ if ($debug)
   my @commTL = comm(\@treeLeaves, \@seqIDs);
 
   print "\n\n\tNumber of seq IDs of $treeFile: " . @treeLeaves . "\n";
-  print     "\tNumber of seq IDs of $trimmedAlgnFile: " . @seqIDs . "\n";
+  print     "\tNumber of seq IDs of $trAlgnFile: " . @seqIDs . "\n";
   print     "\tNumber of common seq IDs elements: " . @commTL . "\n\n";
 }
 
@@ -513,7 +532,7 @@ for my $id ( keys %ogLineageTbl )
       print "$_\t" . $ogLineageTbl{$_} . "\n";
     }
     print "\n";
-    print "lineageFile: $lineageFile\n\n";
+    print "liFile: $liFile\n\n";
 
     exit 1;
   }
@@ -593,9 +612,9 @@ print "--- Generating species ann and query files for 1st vicut run.\n";
 # to identify sequences of the target group that cluster with outgroup
 # sequences. These sequences will be removed from the target db as errors.
 
-my $annFile    = "spp_ann.tx";
-my $queryFile  = "spp_query.seqIDs";
-my $vicutDir   = "spp_vicut_dir";
+my $annFile    = "$tmpDir/spp_ann.tx";
+my $queryFile  = "$tmpDir/spp_query.seqIDs";
+my $vicutDir   = "$tmpDir/spp_vicut_dir";
 my $nQuerySeqs = 0;
 my $nAnnSeqs   = 0;
 my %querySpp; # species => count of seq's of that species in the query file
@@ -635,7 +654,7 @@ close QOUT;
 # {
 #   print "--- Redoing alignment using ginsi\n";
 #   ## first remove gaps
-#   $cmd = "rmGaps -i $trimmedAlgnFile -o $faFile2";
+#   $cmd = "rmGaps -i $trAlgnFile -o $faFile2";
 #   print "\tcmd=$cmd\n" if $dryRun || $debug; # || $debug;
 #   system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 
@@ -650,7 +669,7 @@ close QOUT;
 # {
 #   print "--- Producing tree for the ginsi algn\n";
 #   my $ginsiTreeFile = $grPrefix . "_ginsi.tree";
-#   $cmd = "rm -f $ginsiTreeFile; FastTree -nt $trimmedAlgnFile > $ginsiTreeFile";
+#   $cmd = "rm -f $ginsiTreeFile; FastTree -nt $trAlgnFile > $ginsiTreeFile";
 #   print "\tcmd=$cmd\n" if $dryRun || $debug;
 #   system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;# && !$skipFastTree;
 
@@ -661,7 +680,7 @@ close QOUT;
 #   system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 # }
 
-# $trimmedAlgnFile = $ginsiAlgnFile;
+# $trAlgnFile = $ginsiAlgnFile;
 # $treeFile        = $rrPrunedGinsiTreeFile;
 
 if ( $debugSpp )
@@ -685,19 +704,19 @@ if ( $debugSpp )
     $txTbl{$id} = "OG";
   }
 
-  my $txTblFile = $grPrefix . "_before_1st_vicut.tx";
+  my $txTblFile = $grTmpPrefix . "_before_1st_vicut.tx";
   writeTbl(\%txTbl, $txTblFile);
 
-  my $condSppTree1File = $grPrefix . "_cond_spp_before_1st_vicut.tree";
+  my $condSppTree1File = $grTmpPrefix . "_cond_spp_before_1st_vicut.tree";
 
   #get_tree_spp_purity($treeFile, $txTblFile, $condSppTree1File);
   #build_cond_spp_tree($treeFile, $txTblFile, $condSppTree1File);
 
   print "\n\n\tBefore the 1st vicut condensed species tree written to $condSppTree1File\n\n";
 
-  if ( !$doNotPopPDFs && $OSNAME eq "darwin")
+  if ( $showAllTrees && $OSNAME eq "darwin")
   {
-    my $pdfFile = abs_path( $grPrefix . "_cond_spp_before_1st_vicut_tree.pdf" );
+    my $pdfFile = abs_path( $grTmpPrefix . "_cond_spp_before_1st_vicut_tree.pdf" );
     my $title = $grPrefix . " - cond_spp_before_1st_vicut";
     plot_tree_bw($condSppTree1File, $pdfFile, $title);
 
@@ -784,10 +803,10 @@ for my $sp (keys %spFreqTbl)
 }
 print "\n\n" if $debug;
 
-$vicutDir  = "spp_vicut_dir2";
+$vicutDir  = "$tmpDir/spp_vicut_dir2";
 
-my $queryFile2 = "spp_query2.seqIDs";
-my $annFile2   = "spp_ann2.tx";
+my $queryFile2 = "$tmpDir/spp_query2.seqIDs";
+my $annFile2   = "$tmpDir/spp_ann2.tx";
 my @query2;
 my @ann2;
 
@@ -837,18 +856,18 @@ if (@query2)
       $txTbl{$id} = "OG";
     }
 
-    my $txTblFile = $grPrefix . "_before_2nd_vicut.tx";
+    my $txTblFile = $grTmpPrefix . "_before_2nd_vicut.tx";
     writeTbl(\%txTbl, $txTblFile);
 
-    my $condSppTreeFile = $grPrefix . "_cond_spp_before_2nd_vicut.tree";
+    my $condSppTreeFile = $grTmpPrefix . "_cond_spp_before_2nd_vicut.tree";
 
     build_cond_spp_tree($treeFile, $txTblFile, $condSppTreeFile);
 
     print "\n\n\tBefore the 2nd vicut condensed species tree written to $condSppTreeFile\n\n";
 
-    if ( !$doNotPopPDFs && $OSNAME eq "darwin")
+    if ( $showAllTrees && $OSNAME eq "darwin")
     {
-      my $pdfFile = abs_path( $grPrefix . "_cond_spp_before_2nd_vicut_tree.pdf" );
+      my $pdfFile = abs_path( $grTmpPrefix . "_cond_spp_before_2nd_vicut_tree.pdf" );
       my $title = $grPrefix . " - cond_spp_before_2nd_vicut";
       plot_tree_bw($condSppTreeFile, $pdfFile, $title);
 
@@ -962,24 +981,24 @@ if ( @extraOG>0 )
   system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 
   # pruning alignment
-  print "--- Pruning extraOG seq's from $trimmedAlgnFile\n";
-  my $prunedAlgnFile = $grPrefix . "_algn_trimmed_pruned.fa";
-  $cmd = "select_seqs.pl $quietStr -e $extraOGfile -i $trimmedAlgnFile -o $prunedAlgnFile";
+  print "--- Pruning extraOG seq's from $trAlgnFile\n";
+  my $prunedAlgnFile = $grTmpPrefix . "_algn_trimmed_pruned.fa";
+  $cmd = "select_seqs.pl $quietStr -e $extraOGfile -i $trAlgnFile -o $prunedAlgnFile";
   print "\tcmd=$cmd\n" if $dryRun || $debug;
   system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 
-  $trimmedAlgnFile = $prunedAlgnFile;
+  $trAlgnFile = $prunedAlgnFile;
 
   # regenerating a phylo tree
   print "--- Pruning extraOG seq's from $treeFile\n";
-  my $prunedTreeFile = $grPrefix . "_pruned1.tree";
-  $cmd = "rm -f $prunedTreeFile; FastTree -nt $trimmedAlgnFile > $prunedTreeFile";
+  my $prunedTreeFile = $grTmpPrefix . "_pruned1.tree";
+  $cmd = "rm -f $prunedTreeFile; FastTree -nt $trAlgnFile > $prunedTreeFile";
   print "\tcmd=$cmd\n" if $dryRun || $debug;
   system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;# && !$skipFastTree;
 
   # rerooting it
   print "--- Rerooting the tree using outgroup sequences\n";
-  my $rrPrunedTreeFile = $grPrefix . "_pruned1_rr.tree";
+  my $rrPrunedTreeFile = $grTmpPrefix . "_pruned1_rr.tree";
   $cmd = "rm -f $rrPrunedTreeFile; nw_reroot $prunedTreeFile @ogSeqIDs | nw_order -  > $rrPrunedTreeFile";
   print "\tcmd=$cmd\n" if $dryRun || $debug;
   system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
@@ -990,10 +1009,10 @@ if ( @extraOG>0 )
   ## vicut clustering and so vicut has to be rerun now using the same type of
   ## query and annotation data as before.
 
-  $vicutDir  = "spp_vicut_dir2b";
+  $vicutDir  = "$tmpDir/spp_vicut_dir2b";
 
-  my $queryFile2b = "spp_query2b.seqIDs";
-  my $annFile2b   = "spp_ann2b.tx";
+  my $queryFile2b = "$tmpDir/spp_query2b.seqIDs";
+  my $annFile2b   = "$tmpDir/spp_ann2b.tx";
   my @query2b;
   my @ann2b;
 
@@ -1024,7 +1043,7 @@ if ( @extraOG>0 )
   close QOUT;
   close AOUT;
 
-  $vicutDir  = "spp_vicut_dir2b";
+  $vicutDir  = "$tmpDir/spp_vicut_dir2b";
 
   print "--- Running vicut on species data the 2b time\n";
   if (@query2b)
@@ -1089,7 +1108,7 @@ my %newTxNoTGTs = %newTx; ## readTbl($updatedTxFile);
 #$updatedTxFile = "$vicutDir/updated.tx";
 print "--- Removing OG seq's from $updatedTxFile\n";
 my $origNewTxFileNoTGTs = "$vicutDir/updated_orig2.tx";
-my $ogFile = "$vicutDir/outgroup.seqIDs";
+$ogFile = "$vicutDir/outgroup.seqIDs";
 writeArray(\@ogSeqIDs, $ogFile);
 
 $cmd = "mv $updatedTxFile $origNewTxFileNoTGTs";
@@ -1102,7 +1121,7 @@ system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 
 # pruning tree from OG seq's
 print "--- Pruning OG seq's from the tree\n";
-my $prunedTreeFile = $grPrefix . "_no_OG_seqs.tree";
+my $prunedTreeFile = $grTmpPrefix . "_no_OG_seqs.tree";
 $cmd = "rm -f $prunedTreeFile; nw_prune $treeFile @ogSeqIDs > $prunedTreeFile";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
@@ -1226,7 +1245,7 @@ if ( @spSingletonSeqs )
   # Pruning alignment
 
   # Making sure OG seq(s) are still in the alignment
-  my @algnSeqIDs = get_seqIDs_from_fa($trimmedAlgnFile);
+  my @algnSeqIDs = get_seqIDs_from_fa($trAlgnFile);
   my @c = comm( \@algnSeqIDs, \@ogSeqIDs );
   if ( @c==0 )
   {
@@ -1234,7 +1253,7 @@ if ( @spSingletonSeqs )
 
     print "\nogSeqIDs: @ogSeqIDs\n";
 
-    my $trAlgnSeqIDsFile = $grPrefix . "_trAlgn.seqIDs";
+    my $trAlgnSeqIDsFile = $grTmpPrefix . "_trAlgn.seqIDs";
     writeArray(\@algnSeqIDs, $trAlgnSeqIDsFile);
 
     print "Trimmed algn seq IDs: $trAlgnSeqIDsFile\n";
@@ -1248,30 +1267,30 @@ if ( @spSingletonSeqs )
   writeArray(\@spSingletonSeqs, $spSingletonsFile);
 
   print "--- Pruning _sp species with one sequence from the alignment\n";
-  my $prunedAlgnFile = $grPrefix . "_algn_trimmed_pruned2.fa";
-  $cmd = "select_seqs.pl $quietStr -e $spSingletonsFile -i $trimmedAlgnFile -o $prunedAlgnFile";
+  my $prunedAlgnFile = $grTmpPrefix . "_algn_trimmed_pruned2.fa";
+  $cmd = "select_seqs.pl $quietStr -e $spSingletonsFile -i $trAlgnFile -o $prunedAlgnFile";
   print "\tcmd=$cmd\n" if $dryRun || $debug;
   system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 
-  $trimmedAlgnFile = $prunedAlgnFile;
+  $trAlgnFile = $prunedAlgnFile;
 
   # Rebuilding tree
   print "--- Rebuilding phylo tree after removal of _sp Singleton species\n";
-  my $prunedTreeFile = $grPrefix . "_pruned2.tree";
-  $cmd = "rm -f $prunedTreeFile; FastTree -nt $trimmedAlgnFile > $prunedTreeFile";
+  my $prunedTreeFile = $grTmpPrefix . "_pruned2.tree";
+  $cmd = "rm -f $prunedTreeFile; FastTree -nt $trAlgnFile > $prunedTreeFile";
   print "\tcmd=$cmd\n" if $dryRun || $debug;
   system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;# && !$skipFastTree;
 
   ## Rerooting it
   print "--- Rerooting the tree after spp singletons removal\n";
-  my $rrPrunedTreeFile = $grPrefix . "_pruned2_rr.tree";
+  my $rrPrunedTreeFile = $grTmpPrefix . "_pruned2_rr.tree";
   $cmd = "rm -f $rrPrunedTreeFile; nw_reroot $prunedTreeFile @ogSeqIDs | nw_order -  > $rrPrunedTreeFile";
   print "\tcmd=$cmd\n" if $dryRun || $debug;
   system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 
   ## Removing OG seq's from the tree
   print "--- Pruning OG seq's from the tree after spp singletons removal\n";
-  $prunedTreeFile = $grPrefix . "_pruned2_rr_noOGs.tree";
+  $prunedTreeFile = $grTmpPrefix . "_pruned2_rr_noOGs.tree";
   $cmd = "rm -f $prunedTreeFile; nw_prune $rrPrunedTreeFile @ogSeqIDs > $prunedTreeFile";
   print "\tcmd=$cmd\n" if $dryRun || $debug;
   system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
@@ -1288,8 +1307,8 @@ if ( @spSingletonSeqs )
 ## but don't protect _sp species that are only ones of genus
 my @query3;
 my @ann3;
-my $queryFile3 = "spp_query3.seqIDs";
-my $annFile3   = "spp_ann3.tx";
+my $queryFile3 = "$tmpDir/spp_query3.seqIDs";
+my $annFile3   = "$tmpDir/spp_ann3.tx";
 open QOUT, ">$queryFile3" or die "Cannot open $queryFile3 for writing: $OS_ERROR";
 open AOUT, ">$annFile3"   or die "Cannot open $annFile3 for writing: $OS_ERROR";
 for my $id ( keys %newTx )
@@ -1346,18 +1365,18 @@ if ( $debugSpp )
   print "--- Generating condensed species tree before the 3rd run of vicut\n";
 
   my %txTbl = %newTx;
-  my $txTblFile = $grPrefix . "_before_3rd_vicut.tx";
+  my $txTblFile = $grTmpPrefix . "_before_3rd_vicut.tx";
   writeTbl(\%txTbl, $txTblFile);
 
-  my $condSppTreeFile = $grPrefix . "_cond_spp_before_3rd_vicut.tree";
+  my $condSppTreeFile = $grTmpPrefix . "_cond_spp_before_3rd_vicut.tree";
 
   build_cond_spp_tree($treeFile, $txTblFile, $condSppTreeFile);
 
   print "\n\n\tBefore the 3rd vicut condensed species tree written to $condSppTreeFile\n\n";
 
-  if ( !$doNotPopPDFs && $OSNAME eq "darwin")
+  if ( $showAllTrees && $OSNAME eq "darwin")
   {
-    my $pdfFile = abs_path( $grPrefix . "_cond_spp_before_3rd_vicut_tree.pdf" );
+    my $pdfFile = abs_path( $grTmpPrefix . "_cond_spp_before_3rd_vicut_tree.pdf" );
     my $title = $grPrefix . " - cond_spp_before_3rd_vicut";
     plot_tree_bw($condSppTreeFile, $pdfFile, $title);
 
@@ -1368,7 +1387,7 @@ if ( $debugSpp )
 
 }
 
-$vicutDir  = "spp_vicut_dir3";
+$vicutDir  = "$tmpDir/spp_vicut_dir3";
 
 #print "--- Running vicut on species data the 3rd time\n";
 if (@query3)
@@ -1446,32 +1465,32 @@ if (@lostLeaves>0)
 {
   print "\n\tSpecies cleanup eliminated " . @lostLeaves . " sequences\n\n" if $debug;
 
-  my $lostLeavesFile = $grPrefix . "_lost_leaves.txt";
+  my $lostLeavesFile = $grTmpPrefix . "_lost_leaves.txt";
   writeArray(\@lostLeaves, $lostLeavesFile);
 
   print "--- Pruning lost seqIDs from the current alignment\n";
-  my $prunedAlgnFile = $grPrefix . "_algn_trimmed_pruned3.fa";
-  $cmd = "select_seqs.pl $quietStr -e $lostLeavesFile -i $trimmedAlgnFile -o $prunedAlgnFile";
+  my $prunedAlgnFile = $grTmpPrefix . "_algn_trimmed_pruned3.fa";
+  $cmd = "select_seqs.pl $quietStr -e $lostLeavesFile -i $trAlgnFile -o $prunedAlgnFile";
   print "\tcmd=$cmd\n" if $dryRun || $debug;
   system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 
-  $trimmedAlgnFile = $prunedAlgnFile;
+  $trAlgnFile = $prunedAlgnFile;
 
   print "--- Rebuilding phylo tree (2)\n";
-  $prunedTreeFile = $grPrefix . "_pruned3.tree";
-  $cmd = "rm -f $prunedTreeFile; FastTree -nt $trimmedAlgnFile > $prunedTreeFile";
+  $prunedTreeFile = $grTmpPrefix . "_pruned3.tree";
+  $cmd = "rm -f $prunedTreeFile; FastTree -nt $trAlgnFile > $prunedTreeFile";
   print "\tcmd=$cmd\n" if $dryRun || $debug;
   system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;# && !$skipFastTree;
 
   print "--- Rerooting the tree\n";
-  my $rrPrunedTreeFile = $grPrefix . "_pruned3_rr.tree";
+  my $rrPrunedTreeFile = $grTmpPrefix . "_pruned3_rr.tree";
   $cmd = "rm -f $rrPrunedTreeFile; nw_reroot $prunedTreeFile @ogSeqIDs | nw_order -  > $rrPrunedTreeFile";
   print "\tcmd=$cmd\n" if $dryRun || $debug;
   system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 
   ## removing OG seq's from the tree
   print "--- Pruning OG seq's from the tree after spp singletons removal\n";
-  $prunedTreeFile = $grPrefix . "_pruned3_rr_noOGs.tree";
+  $prunedTreeFile = $grTmpPrefix . "_pruned3_rr_noOGs.tree";
   $cmd = "rm -f $prunedTreeFile; nw_prune $rrPrunedTreeFile @ogSeqIDs > $prunedTreeFile";
   print "\tcmd=$cmd\n" if $dryRun || $debug;
   system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
@@ -1510,7 +1529,7 @@ if (@lostLeaves>0)
   close QOUT;
   close AOUT;
 
-  $vicutDir  = "spp_vicut_dir4";
+  $vicutDir  = "$tmpDir/spp_vicut_dir4";
 
   print "--- Running vicut on species data the 4th time because of in consistency between tree & taxonomy.\n";
   if (@query4)
@@ -1621,7 +1640,7 @@ if ( $nSpecies == 1 )
 
   my $finalLineageFile = $grPrefix . "_final.lineage";
   open OUT1, ">$finalLineageFile" or die "Cannot open $finalLineageFile for writing: $OS_ERROR";
-  my $finalLineageFile2 = $grPrefix . "_final_no_tGTs.lineage";
+  my $finalLineageFile2 = $grTmpPrefix . "_final_no_tGTs.lineage";
   open OUT2, ">$finalLineageFile2" or die "Cannot open $finalLineageFile2 for writing: $OS_ERROR";
   for my $id (keys %newTx)
   {
@@ -1648,7 +1667,7 @@ if ( $nSpecies == 1 )
 ## each species) with vicut cluster number
 
 print "--- Generating a tree with species names at leaves\n";
-my $sppTreeFile = "$grPrefix" . "_preGenotyping_spp.tree";
+my $sppTreeFile = "$grTmpPrefix" . "_preGenotyping_spp.tree";
 $cmd = "rm -f $sppTreeFile; nw_rename $treeFile $updatedTxFile | nw_order -c n  - > $sppTreeFile";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
@@ -1656,12 +1675,12 @@ system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 if (0)
 {
   print "--- Generating tree with <species name>_<seqID> labels at leaves\n";
-  my $sppSeqIDsFile = "$grPrefix" . "_preGenotyping_spp.seqIDs";
+  my $sppSeqIDsFile = "$grTmpPrefix" . "_preGenotyping_spp.seqIDs";
   $cmd = "awk '{print \$1\"\\t\"\$2\"__\"\$1}' $updatedTxFile > $sppSeqIDsFile";
   print "\tcmd=$cmd\n" if $dryRun || $debug;
   system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 
-  my $sppSeqIdTreeFile = "$grPrefix" . "_preGenotyping_sppSeqIDs.tree";
+  my $sppSeqIdTreeFile = "$grTmpPrefix" . "_preGenotyping_sppSeqIDs.tree";
   $cmd = "rm -f $sppSeqIdTreeFile; nw_rename $treeFile $sppSeqIDsFile | nw_order -c n  -  > $sppSeqIdTreeFile";
   print "\tcmd=$cmd\n" if $dryRun || $debug;
   system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
@@ -1724,7 +1743,7 @@ for my $id (keys %newTx)
 # print "\n\n";
 
 print "--- Creating species_nSize_clID tree\n";
-my $spSizeCltrFile = "$grPrefix" . "_preGenotyping.spp_size_cltr";
+my $spSizeCltrFile = "$grTmpPrefix" . "_preGenotyping.spp_size_cltr";
 open OUT, ">$spSizeCltrFile" or die "Cannot open $spSizeCltrFile for writing: $OS_ERROR";
 for my $id (keys %idSppCltr)
 {
@@ -1733,21 +1752,21 @@ for my $id (keys %idSppCltr)
 close OUT;
 
 print "--- Generating a tree with species names sizes and cluster index at leaves\n";
-my $sppSizeCltrTreeFile = "$grPrefix" . "_preGenotyping_sppSizeCltr.tree";
+my $sppSizeCltrTreeFile = "$grTmpPrefix" . "_preGenotyping_sppSizeCltr.tree";
 $cmd = "rm -f $sppSizeCltrTreeFile; nw_rename $treeFile $spSizeCltrFile | nw_order -c n  - > $sppSizeCltrTreeFile";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 
-my $condSppSizeCltrTreeFile = "$grPrefix" . "_preGenotyping_sppSizeCltr_condensed.tree";
+my $condSppSizeCltrTreeFile = "$grTmpPrefix" . "_preGenotyping_sppSizeCltr_condensed.tree";
 $cmd = "rm -f $condSppSizeCltrTreeFile; nw_condense $sppSizeCltrTreeFile > $condSppSizeCltrTreeFile";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 
 if ( $showAllTrees && $OSNAME eq "darwin")
 {
-  my $pdfTreeFile = abs_path( "$grPrefix" . "_preGenotyping_sppSizeCltr_condensed_tree.pdf" );
+  my $pdfTreeFile = abs_path( "$grTmpPrefix" . "_preGenotyping_sppSizeCltr_condensed_tree.pdf" );
   my $condSppSizeCltrTreeFileAbsPath = abs_path( $condSppSizeCltrTreeFile );
-  # my $idSppCltrIdxFile = abs_path( "$grPrefix" . "_preGenotyping_sppSizeCltr.idx" );
+  # my $idSppCltrIdxFile = abs_path( "$grTmpPrefix" . "_preGenotyping_sppSizeCltr.idx" );
   # writeTbl(\%idSppCltrIdx, $idSppCltrIdxFile);
   plot_tree_bw($condSppSizeCltrTreeFileAbsPath, $pdfTreeFile);
 
@@ -1929,7 +1948,7 @@ map { $sppFreqFinal2{$_}++ } values %sppFreqFinal;
 
 ## comparison between old and new species assignments
 print "--- Comparing old and new species assignments\n";
-$cmd = "cmp_tx.pl $quietStr -i $txFile -j $updatedTxFile2 -o old_vs_new_spp_cmp";
+$cmd = "cmp_tx.pl $quietStr -i $txFile -j $updatedTxFile2 -o $tmpDir/old_vs_new_spp_cmp";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 
@@ -1939,25 +1958,25 @@ system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 ##
 
 print "--- Generating a tree with final species names at leaves\n";
-my $finalSppTreeFile = "$grPrefix" . "_final_spp.tree";
+my $finalSppTreeFile = "$grTmpPrefix" . "_final_spp.tree";
 $cmd = "rm -f $finalSppTreeFile; nw_rename $treeFile $updatedTxFile2 | nw_order -c n  - > $finalSppTreeFile";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 
 
 print "--- Generating tree with <final species name>_<seqID> labels at leaves\n";
-my $finalSppSeqIDsFile = "$grPrefix" . "_final_spp.seqIDs";
+my $finalSppSeqIDsFile = "$grTmpPrefix" . "_final_spp.seqIDs";
 $cmd = "awk '{print \$1\"\\t\"\$2\"__\"\$1}' $updatedTxFile2 > $finalSppSeqIDsFile";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 
-my $finalSppSeqIdTreeFile = "$grPrefix" . "_final_sppSeqIDs.tree";
+my $finalSppSeqIdTreeFile = "$grTmpPrefix" . "_final_sppSeqIDs.tree";
 $cmd = "rm -f $finalSppSeqIdTreeFile; nw_rename $treeFile $finalSppSeqIDsFile | nw_order -c n  -  > $finalSppSeqIdTreeFile";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 
 print "--- Generating a condensed tree with final species clades collapsed to a single node \n";
-my $finalCondSppTreeFile = abs_path( $grPrefix . "_final_spp_condensed.tree" );
+my $finalCondSppTreeFile = abs_path( $grTmpPrefix . "_final_spp_condensed.tree" );
 $cmd = "rm -f $finalCondSppTreeFile; nw_condense $finalSppTreeFile > $finalCondSppTreeFile";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
@@ -1968,19 +1987,19 @@ if ( $debugSpp )
 
   my %txTbl = %newTx;
 
-  my $txTblFile = $grPrefix . "_after_genotype_spp.tx";
+  my $txTblFile = $grTmpPrefix . "_after_genotype_spp.tx";
   writeTbl(\%txTbl, $txTblFile);
 
-  my $condSppTreeFile = $grPrefix . "_cond_spp_after_genotype_spp.tree";
+  my $condSppTreeFile = $grTmpPrefix . "_cond_spp_after_genotype_spp.tree";
 
   get_tree_spp_purity($treeFile, $txTblFile, $condSppTreeFile);
   #build_cond_spp_tree($treeFile, $txTblFile, $condSppTreeFile);
 
   print "\n\n\tAfter genotype_spp.pl condensed species tree written to $condSppTreeFile\n\n";
 
-  if ( !$doNotPopPDFs && $OSNAME eq "darwin")
+  if ( $showAllTrees && $OSNAME eq "darwin")
   {
-    my $pdfFile = abs_path( $grPrefix . "_cond_spp_after_genotype_spp.pdf" );
+    my $pdfFile = abs_path( $grTmpPrefix . "_cond_spp_after_genotype_spp.pdf" );
     my $title = $grPrefix . " - cond_spp_after_genotype_spp";
     plot_tree_bw($condSppTreeFile, $pdfFile, $title);
 
@@ -1996,7 +2015,7 @@ if ( $debugSpp )
 ## $finalCondSppTreeFile
 
 print "--- Extracting leaves from the final condense species tree\n";
-my $leavesFile = $grPrefix . "_final_spp_condensed_tree.leaves";
+my $leavesFile = $grTmpPrefix . "_final_spp_condensed_tree.leaves";
 $cmd = "rm -f $leavesFile; nw_labels -I $finalCondSppTreeFile > $leavesFile";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
@@ -2074,7 +2093,7 @@ if (@excessSpp)
 
 @spParentKeys = keys %spParent;
 
-my $spParentFile = $grPrefix . ".spParent";
+my $spParentFile = $grTmpPrefix . ".spParent";
 writeTbl(\%spParent, $spParentFile);
 
 if ( @spParentKeys != @uqTreeLeaves )
@@ -2100,7 +2119,7 @@ if ($debug)
   print "\n\n";
 }
 
-my $sppGenusFile = $grPrefix . "_spp.genusTx";
+my $sppGenusFile = $grTmpPrefix . "_spp.genusTx";
 $cmd = "cluster_taxons.pl $quietStr $igsStr $johannaStr $debugStr $showAllTreesStr -i $finalCondSppTreeFile -p 0.1 -f $spParentFile -t species -o $sppGenusFile";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
@@ -2439,7 +2458,7 @@ if ($debug)
 }
 
 print "--- Updating lineage table at the genus level\n";
-my $finalGenusTxFile = $grPrefix . "_final_genus.tx";
+my $finalGenusTxFile = $grTmpPrefix . "_final_genus.tx";
 open OUT, ">$finalGenusTxFile" or die "Cannot open $finalGenusTxFile for writing: $OS_ERROR";
 my $gCounter = 1;
 for my $id (keys %lineageTbl)
@@ -2485,7 +2504,7 @@ close OUT;
 print "--- Checking parent consistency of the lineage table\n";
 if ( check_parent_consistency(\%lineageTbl) )
 {
-  my $tmpLineageFile = $grPrefix . "_tmp.lineage";
+  my $tmpLineageFile = $grTmpPrefix . "_tmp.lineage";
   open OUT, ">$tmpLineageFile" or die "Cannot open $tmpLineageFile for writing: $OS_ERROR";
   for my $id (keys %lineageTbl)
   {
@@ -2516,20 +2535,20 @@ if ($debug)
 }
 
 print "--- Generating a tree with final genus names at leaves\n";
-my $finalGenusTreeFile = "$grPrefix" . "_final_genus.tree";
+my $finalGenusTreeFile = "$grTmpPrefix" . "_final_genus.tree";
 $cmd = "rm -f $finalGenusTreeFile; nw_rename $treeFile $finalGenusTxFile | nw_order -c n  - > $finalGenusTreeFile";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 
 print "--- Generating a condensed tree with final genera collapsed to a single node \n";
-my $finalCondGenusTreeFile = abs_path( "$grPrefix" . "_final_genus_condensed.tree" );
+my $finalCondGenusTreeFile = abs_path( "$grTmpPrefix" . "_final_genus_condensed.tree" );
 $cmd = "rm -f $finalCondGenusTreeFile; nw_condense $finalGenusTreeFile > $finalCondGenusTreeFile";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 
 if ( $showAllTrees &&  $OSNAME eq "darwin")
 {
-  my $pdfCondGenusTreeFile = abs_path( "$grPrefix" . "_final_genus_condensed_tree.pdf" );
+  my $pdfCondGenusTreeFile = abs_path( "$grTmpPrefix" . "_final_genus_condensed_tree.pdf" );
   plot_tree_bw($finalCondGenusTreeFile, $pdfCondGenusTreeFile);
 
   $cmd = "open $pdfCondGenusTreeFile";
@@ -2552,7 +2571,7 @@ if ($debug)
   print "\n\n";
 }
 
-my $genusIdxFile = abs_path( "$grPrefix" . "_genus.idx" );
+my $genusIdxFile = abs_path( "$grTmpPrefix" . "_genus.idx" );
 open OUT, ">$genusIdxFile" or die "Cannot open $genusIdxFile for writing: $OS_ERROR";
 for my $sp (keys %sppGenus)
 {
@@ -2560,9 +2579,9 @@ for my $sp (keys %sppGenus)
 }
 close OUT;
 
-my $pdfCsppWithGenusColorsTreeFile = abs_path( $grPrefix . "_final_spp_condensed_tree_with_genus_colors.pdf" );
+my $pdfCsppWithGenusColorsTreeFile = abs_path( $grTmpPrefix . "_final_spp_condensed_tree_with_genus_colors.pdf" );
 
-if ( !$doNotPopPDFs && $OSNAME eq "darwin")
+if ( $showAllTrees && $OSNAME eq "darwin")
 {
   my $title = $grPrefix . " - genera";
   plot_tree($finalCondSppTreeFile, $genusIdxFile, $pdfCsppWithGenusColorsTreeFile, $title);
@@ -2610,7 +2629,7 @@ for my $ge (@a)
     }
 
     # prune the final species condensed tree to contain the given genus only
-    my $prunedTreeFile = $grPrefix . "_pruned_$geStr.tree";
+    my $prunedTreeFile = $grTmpPrefix . "_pruned_$geStr.tree";
     my $finalCondSppTreeBasename = basename($finalCondSppTreeFile, @suffixes);
     print "--- Pruning $finalCondSppTreeBasename to the species of $ge\n";
     $cmd = "rm -f $prunedTreeFile; nw_clade $finalCondSppTreeFile @spp > $prunedTreeFile";
@@ -2618,7 +2637,7 @@ for my $ge (@a)
     system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 
     # testing if the resulting tree has the same number of leaves as @spp array
-    my $prunedTreeLeavesFile = $grPrefix . "_pruned_$geStr.leaves";
+    my $prunedTreeLeavesFile = $grTmpPrefix . "_pruned_$geStr.leaves";
     $cmd = "rm -f $prunedTreeLeavesFile; nw_labels -I $prunedTreeFile > $prunedTreeLeavesFile";
     print "\tcmd=$cmd\n" if $dryRun || $debug;
     system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
@@ -2647,7 +2666,7 @@ for my $ge (@a)
     # Assigning to each species its genus.
 
     print "\nCreating spParent2 table\n" if $debug;
-    $spParentFile = $grPrefix . "_$geStr.spParent";
+    $spParentFile = $grTmpPrefix . "_$geStr.spParent";
     my %spParent2;
     for my $sp (@spp)
     {
@@ -2669,7 +2688,7 @@ for my $ge (@a)
     print "Writing spParent2 to $spParentFile\n" if $debug;
     writeTbl(\%spParent2, $spParentFile);
 
-    $sppGenusFile = $grPrefix . "_$geStr" . "_spp.genusTx";
+    $sppGenusFile = $grTmpPrefix . "_$geStr" . "_spp.genusTx";
     $cmd = "cluster_taxons.pl $quietStr $igsStr $johannaStr $debugStr $showAllTreesStr -i $prunedTreeFile -p 0.1 -f $spParentFile -t species -o $sppGenusFile";
     print "\tcmd=$cmd\n" if $dryRun || $debug;
     system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
@@ -2831,7 +2850,7 @@ if ($detectedLargeGenus)
     print "\n\n"
   }
 
-  my $finalSubGenusTxFile = $grPrefix . "_final_sub_genus.tx";
+  my $finalSubGenusTxFile = $grTmpPrefix . "_final_sub_genus.tx";
   open OUT, ">$finalSubGenusTxFile" or die "Cannot open $finalSubGenusTxFile for writing: $OS_ERROR";
   for my $id (keys %lineageTbl)
   {
@@ -2844,20 +2863,20 @@ if ($detectedLargeGenus)
   close OUT;
 
   print "--- Generating a tree with final sub genus names at leaves\n";
-  my $finalSubGenusTreeFile = "$grPrefix" . "_final_sub_genus.tree";
+  my $finalSubGenusTreeFile = "$grTmpPrefix" . "_final_sub_genus.tree";
   $cmd = "rm -f $finalSubGenusTreeFile; nw_rename $treeFile $finalSubGenusTxFile | nw_order -c n  - > $finalSubGenusTreeFile";
   print "\tcmd=$cmd\n" if $dryRun || $debug;
   system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 
   print "--- Generating a condensed tree with final genera collapsed to a single node \n";
-  my $finalCondSubGenusTreeFile = abs_path( "$grPrefix" . "_final_sub_genus_condensed.tree" );
+  my $finalCondSubGenusTreeFile = abs_path( "$grTmpPrefix" . "_final_sub_genus_condensed.tree" );
   $cmd = "rm -f $finalCondSubGenusTreeFile; nw_condense $finalSubGenusTreeFile > $finalCondSubGenusTreeFile";
   print "\tcmd=$cmd\n" if $dryRun || $debug;
   system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 
   if ( $showAllTrees && $OSNAME eq "darwin")
   {
-    my $pdfCondSubGenusTreeFile = abs_path( "$grPrefix" . "_final_sub_genus_condensed_tree.pdf" );
+    my $pdfCondSubGenusTreeFile = abs_path( "$grTmpPrefix" . "_final_sub_genus_condensed_tree.pdf" );
     plot_tree_bw($finalCondSubGenusTreeFile, $pdfCondSubGenusTreeFile);
 
     $cmd = "open $pdfCondSubGenusTreeFile";
@@ -2881,7 +2900,7 @@ if ($detectedLargeGenus)
     print "\n\n";
   }
 
-  my $subgenusIdxFile = abs_path( "$grPrefix" . "_subgenus.idx" );
+  my $subgenusIdxFile = abs_path( "$grTmpPrefix" . "_subgenus.idx" );
   open OUT, ">$subgenusIdxFile" or die "Cannot open $subgenusIdxFile for writing: $OS_ERROR";
   for my $sp (keys %sppSubGenus)
   {
@@ -2889,10 +2908,10 @@ if ($detectedLargeGenus)
   }
   close OUT;
 
-  my $pdfCsppTreeFile = abs_path( $grPrefix . "_final_spp_condensed_tree_with_sub_genus_colors.pdf" );
+  my $pdfCsppTreeFile = abs_path( $grTmpPrefix . "_final_spp_condensed_tree_with_sub_genus_colors.pdf" );
 
 
-  if ( !$doNotPopPDFs && $OSNAME eq "darwin")
+  if ( $showAllTrees && $OSNAME eq "darwin")
   {
     my $title = $grPrefix . " - sub-genera";
     plot_tree($finalCondSppTreeFile, $subgenusIdxFile, $pdfCsppTreeFile, $title);
@@ -2918,7 +2937,7 @@ print "$section";
 
 print "--- Running cluster_taxons.pl on condensed genus tree\n";
 
-my $geParentFile = $grPrefix . ".geParent";
+my $geParentFile = $grTmpPrefix . ".geParent";
 writeTbl(\%geParent, $geParentFile);
 
 if ($debug)
@@ -2932,7 +2951,7 @@ my $finalCondGenusTreeBasename = basename($finalCondGenusTreeFile, @suffixes);
 print "--- Testing if $finalCondGenusTreeBasename has the same number of elements as geParent table\n";
 
 print "--- Parsing $finalCondGenusTreeBasename tree leaves\n";
-$treeLeavesFile = "$grPrefix" . "_final_genus_condensed_tree.leaves";
+$treeLeavesFile = "$grTmpPrefix" . "_final_genus_condensed_tree.leaves";
 $cmd = "rm -f $treeLeavesFile; nw_labels -I $finalCondGenusTreeFile > $treeLeavesFile";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
@@ -3012,7 +3031,7 @@ if ( $nGeParent != $nGeTreeLeaves )
 my %genusFamily;
 if ( $nGeParent > 1 )
 {
-  my $genusFamilyFile = $grPrefix . "_genus.familyTx";
+  my $genusFamilyFile = $grTmpPrefix . "_genus.familyTx";
   $cmd = "cluster_taxons.pl $quietStr $igsStr $johannaStr $debugStr $showAllTreesStr -i $finalCondGenusTreeFile -p 0.1 -f $geParentFile -t genus -o $genusFamilyFile";
   print "\tcmd=$cmd\n" if $dryRun || $debug;
   system($cmd) == 0 or die "\n\n\tsystem($cmd) failed with exit value: $?" if !$dryRun;
@@ -3266,7 +3285,7 @@ for my $fa (@newFamilies)
 }
 
 print "--- Updating lineage table at the family level\n";
-my $finalFamilyTxFile = $grPrefix . "_final_family.tx";
+my $finalFamilyTxFile = $grTmpPrefix . "_final_family.tx";
 open OUT, ">$finalFamilyTxFile" or die "Cannot open $finalFamilyTxFile for writing: $OS_ERROR";
 for my $id (keys %lineageTbl)
 {
@@ -3350,13 +3369,13 @@ if ($debug)
 if ( scalar(keys %faChildren) > 1 )
 {
   print "--- Generating a tree with final family names at leaves\n";
-  my $finalFamilyTreeFile = "$grPrefix" . "_final_family.tree";
+  my $finalFamilyTreeFile = "$grTmpPrefix" . "_final_family.tree";
   $cmd = "rm -f $finalFamilyTreeFile; nw_rename $treeFile $finalFamilyTxFile | nw_order -c n  - > $finalFamilyTreeFile";
   print "\tcmd=$cmd\n" if $dryRun || $debug;
   system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 
   print "--- Generating a condensed tree with final families collapsed to a single node \n";
-  my $finalCondFamilyTreeFile = abs_path( "$grPrefix" . "_final_family_condensed.tree" );
+  my $finalCondFamilyTreeFile = abs_path( "$grTmpPrefix" . "_final_family_condensed.tree" );
   $cmd = "rm -f $finalCondFamilyTreeFile; nw_condense $finalFamilyTreeFile > $finalCondFamilyTreeFile";
   print "\tcmd=$cmd\n" if $dryRun || $debug;
   system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
@@ -3364,7 +3383,7 @@ if ( scalar(keys %faChildren) > 1 )
 
   if ( $showAllTrees &&  $OSNAME eq "darwin")
   {
-    my $pdfCondFamilyTreeFile = abs_path( "$grPrefix" . "_final_family_condensed_tree.pdf" );
+    my $pdfCondFamilyTreeFile = abs_path( "$grTmpPrefix" . "_final_family_condensed_tree.pdf" );
     plot_tree_bw($finalCondFamilyTreeFile, $pdfCondFamilyTreeFile);
 
     $cmd = "open $pdfCondFamilyTreeFile";
@@ -3388,7 +3407,7 @@ if ( scalar(keys %faChildren) > 1 )
     print "\n\n";
   }
 
-  my $familyIdxFile = abs_path( "$grPrefix" . "_family.idx" );
+  my $familyIdxFile = abs_path( "$grTmpPrefix" . "_family.idx" );
   open OUT, ">$familyIdxFile" or die "Cannot open $familyIdxFile for writing: $OS_ERROR";
   for my $sp (keys %sppGenus)
   {
@@ -3397,9 +3416,9 @@ if ( scalar(keys %faChildren) > 1 )
   }
   close OUT;
 
-  if ( !$doNotPopPDFs && $OSNAME eq "darwin")
+  if ( $showAllTrees && $OSNAME eq "darwin")
   {
-    my $pdfFamilyColorsCsppTreeFile = abs_path( $grPrefix . "_final_species_condensed_tree_with_family_colors.pdf" );
+    my $pdfFamilyColorsCsppTreeFile = abs_path( $grTmpPrefix . "_final_species_condensed_tree_with_family_colors.pdf" );
     my $title = $grPrefix . " - families";
     plot_tree($finalCondSppTreeFile, $familyIdxFile, $pdfFamilyColorsCsppTreeFile, $title);
 
@@ -3419,14 +3438,14 @@ if ( scalar(keys %faChildren) > 1 )
 
   print "--- Running cluster_taxons.pl on condensed family tree\n";
 
-  my $faParentFile = $grPrefix . ".faParent";
+  my $faParentFile = $grTmpPrefix . ".faParent";
   writeTbl(\%faParent, $faParentFile);
 
   my $finalCondFamilyTreeBasename = basename($finalCondFamilyTreeFile, @suffixes);
   print "--- Testing if $finalCondFamilyTreeBasename have the same number of elements as faParent table\n";
 
   print "--- Parsing $finalCondFamilyTreeBasename tree leaves\n";
-  $treeLeavesFile = "$grPrefix" . "_final_family_condensed_tree.leaves";
+  $treeLeavesFile = "$grTmpPrefix" . "_final_family_condensed_tree.leaves";
   $cmd = "rm -f $treeLeavesFile; nw_labels -I $finalCondFamilyTreeFile > $treeLeavesFile";
   print "\tcmd=$cmd\n" if $dryRun || $debug;
   system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
@@ -3502,7 +3521,7 @@ if ( scalar(keys %faChildren) > 1 )
     }
   }
 
-  my $familyOrderFile = $grPrefix . "_family.orderTx";
+  my $familyOrderFile = $grTmpPrefix . "_family.orderTx";
   $cmd = "cluster_taxons.pl $quietStr $igsStr $johannaStr $debugStr $showAllTreesStr -i $finalCondFamilyTreeFile -p 0.1 -f $faParentFile -t family -o $familyOrderFile";
   print "\tcmd=$cmd\n" if $dryRun || $debug;
   system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
@@ -3680,7 +3699,7 @@ if ( scalar(keys %faChildren) > 1 )
   my @orders = values %familyOrder;
   @orders = unique(\@orders);
 
-  my $finalOrderTxFile = $grPrefix . "_final_order.tx";
+  my $finalOrderTxFile = $grTmpPrefix . "_final_order.tx";
   open OUT, ">$finalOrderTxFile" or die "Cannot open $finalOrderTxFile for writing: $OS_ERROR";
   for my $id (keys %lineageTbl)
   {
@@ -3752,20 +3771,20 @@ if ( scalar(keys %faChildren) > 1 )
   if ( (scalar(keys %orChildren) > 1) && (@orders < $nFamilies) )
   {
     print "--- Generating a tree with final order names at leaves\n";
-    my $finalOrderTreeFile = "$grPrefix" . "_final_order.tree";
+    my $finalOrderTreeFile = "$grTmpPrefix" . "_final_order.tree";
     $cmd = "rm -f $finalOrderTreeFile; nw_rename $treeFile $finalOrderTxFile | nw_order -c n  - > $finalOrderTreeFile";
     print "\tcmd=$cmd\n" if $dryRun || $debug;
     system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 
     print "--- Generating a condensed tree with final families collapsed to a single node \n";
-    my $finalCondOrderTreeFile = abs_path( "$grPrefix" . "_final_order_condensed.tree" );
+    my $finalCondOrderTreeFile = abs_path( "$grTmpPrefix" . "_final_order_condensed.tree" );
     $cmd = "rm -f $finalCondOrderTreeFile; nw_condense $finalOrderTreeFile > $finalCondOrderTreeFile";
     print "\tcmd=$cmd\n" if $dryRun || $debug;
     system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 
     if ( $showAllTrees &&  $OSNAME eq "darwin")
     {
-      my $pdfCondOrderTreeFile = abs_path( "$grPrefix" . "_final_order_condensed_tree.pdf" );
+      my $pdfCondOrderTreeFile = abs_path( "$grTmpPrefix" . "_final_order_condensed_tree.pdf" );
       plot_tree_bw($finalCondOrderTreeFile, $pdfCondOrderTreeFile);
 
       $cmd = "open $pdfCondOrderTreeFile";
@@ -3787,7 +3806,7 @@ if ( scalar(keys %faChildren) > 1 )
       print "\n\n";
     }
 
-    my $orderIdxFile = abs_path( "$grPrefix" . "_order.idx" );
+    my $orderIdxFile = abs_path( "$grTmpPrefix" . "_order.idx" );
     open OUT, ">$orderIdxFile" or die "Cannot open $orderIdxFile for writing: $OS_ERROR";
     for my $sp (keys %sppGenus)
     {
@@ -3796,9 +3815,9 @@ if ( scalar(keys %faChildren) > 1 )
     }
     close OUT;
 
-    if ( !$doNotPopPDFs && $OSNAME eq "darwin")
+    if ( $showAllTrees && $OSNAME eq "darwin")
     {
-      my $pdfOrderColorsCsppTreeFile = abs_path( $grPrefix . "_final_species_condensed_tree_with_order_colors.pdf" );
+      my $pdfOrderColorsCsppTreeFile = abs_path( $grTmpPrefix . "_final_species_condensed_tree_with_order_colors.pdf" );
       my $title = $grPrefix . " - orders";
       plot_tree($finalCondSppTreeFile, $orderIdxFile, $pdfOrderColorsCsppTreeFile, $title);
 
@@ -3818,14 +3837,14 @@ if ( scalar(keys %faChildren) > 1 )
 
     print "--- Running cluster_taxons.pl on condensed order tree\n";
 
-    my $orParentFile = $grPrefix . ".orParent";
+    my $orParentFile = $grTmpPrefix . ".orParent";
     writeTbl(\%orParent, $orParentFile);
 
     my $finalCondOrderTreeBasename = basename($finalCondOrderTreeFile, @suffixes);
     print "--- Testing if $finalCondOrderTreeBasename have the same number of elements as orParent table\n";
 
     print "--- Parsing $finalCondOrderTreeBasename tree leaves\n";
-    $treeLeavesFile = "$grPrefix" . "_final_order_condensed_tree.leaves";
+    $treeLeavesFile = "$grTmpPrefix" . "_final_order_condensed_tree.leaves";
     $cmd = "rm -f $treeLeavesFile; nw_labels -I $finalCondOrderTreeFile > $treeLeavesFile";
     print "\tcmd=$cmd\n" if $dryRun || $debug;
     system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
@@ -3901,7 +3920,7 @@ if ( scalar(keys %faChildren) > 1 )
       }
     }
 
-    my $orderClassFile = $grPrefix . "_order.classTx";
+    my $orderClassFile = $grTmpPrefix . "_order.classTx";
     $cmd = "cluster_taxons.pl $quietStr $igsStr $johannaStr $debugStr $showAllTreesStr -i $finalCondOrderTreeFile -p 0.1 -f $orParentFile -t order -o $orderClassFile";
     print "\tcmd=$cmd\n" if $dryRun || $debug;
     system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
@@ -4009,7 +4028,7 @@ if ( scalar(keys %faChildren) > 1 )
     my @classes = values %orderClass;
     @classes = unique(\@classes);
 
-    my $finalClassTxFile = $grPrefix . "_final_class.tx";
+    my $finalClassTxFile = $grTmpPrefix . "_final_class.tx";
     open OUT, ">$finalClassTxFile" or die "Cannot open $finalClassTxFile for writing: $OS_ERROR";
     for my $id (keys %lineageTbl)
     {
@@ -4075,20 +4094,20 @@ if ( scalar(keys %faChildren) > 1 )
     if ( scalar(keys %clChildren) > 1 )
     {
       print "--- Generating a tree with final class names at leaves\n";
-      my $finalClassTreeFile = "$grPrefix" . "_final_class.tree";
+      my $finalClassTreeFile = "$grTmpPrefix" . "_final_class.tree";
       $cmd = "rm -f $finalClassTreeFile; nw_rename $treeFile $finalClassTxFile | nw_order -c n  - > $finalClassTreeFile";
       print "\tcmd=$cmd\n" if $dryRun || $debug;
       system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 
       print "--- Generating a condensed tree with final families collapsed to a single node \n";
-      my $finalCondClassTreeFile = abs_path( "$grPrefix" . "_final_class_condensed.tree" );
+      my $finalCondClassTreeFile = abs_path( "$grTmpPrefix" . "_final_class_condensed.tree" );
       $cmd = "rm -f $finalCondClassTreeFile; nw_condense $finalClassTreeFile > $finalCondClassTreeFile";
       print "\tcmd=$cmd\n" if $dryRun || $debug;
       system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 
       if ( $showAllTrees &&  $OSNAME eq "darwin")
       {
-        my $pdfCondClassTreeFile = abs_path( "$grPrefix" . "_final_class_condensed_tree.pdf" );
+        my $pdfCondClassTreeFile = abs_path( "$grTmpPrefix" . "_final_class_condensed_tree.pdf" );
         plot_tree_bw($finalCondClassTreeFile, $pdfCondClassTreeFile);
 
         $cmd = "open $pdfCondClassTreeFile";
@@ -4110,7 +4129,7 @@ if ( scalar(keys %faChildren) > 1 )
         print "\n\n";
       }
 
-      my $classIdxFile = abs_path( "$grPrefix" . "_class.idx" );
+      my $classIdxFile = abs_path( "$grTmpPrefix" . "_class.idx" );
       open OUT, ">$classIdxFile" or die "Cannot open $classIdxFile for writing: $OS_ERROR";
       for my $sp (keys %sppGenus)
       {
@@ -4119,9 +4138,9 @@ if ( scalar(keys %faChildren) > 1 )
       }
       close OUT;
 
-      if ( !$doNotPopPDFs && $OSNAME eq "darwin")
+      if ( $showAllTrees && $OSNAME eq "darwin")
       {
-        my $pdfClassColorsCsppTreeFile = abs_path( $grPrefix . "_final_species_condensed_tree_with_class_colors.pdf" );
+        my $pdfClassColorsCsppTreeFile = abs_path( $grTmpPrefix . "_final_species_condensed_tree_with_class_colors.pdf" );
         my $title = $grPrefix . " - classes";
         plot_tree($finalCondSppTreeFile, $classIdxFile, $pdfClassColorsCsppTreeFile, $title);
 
@@ -4239,7 +4258,7 @@ for my $id (keys %newTx)
 }
 close OUT;
 
-my $finalLineageFile2 = $grPrefix . "_final_no_tGTs.lineage";
+my $finalLineageFile2 = $grTmpPrefix . "_final_no_tGTs.lineage";
 open OUT, ">$finalLineageFile2" or die "Cannot open $finalLineageFile2 for writing: $OS_ERROR";
 for my $id (keys %newTx)
 {
@@ -4294,7 +4313,7 @@ if ( !setequal( \@newTxKeys, \@treeLeaves ) )
 print "--- Testing consistency between the final trimmed alignment and the final version of the phylo tree\n";
 
 print "--- Extracting seq IDs from trimmed alignment fasta file\n";
-my @trAlgnSeqIDs = get_seqIDs_from_fa($trimmedAlgnFile);
+my @trAlgnSeqIDs = get_seqIDs_from_fa($trAlgnFile);
 
 my @trAlgnNoOG = diff(\@trAlgnSeqIDs, \@ogSeqIDs);
 
@@ -4302,7 +4321,7 @@ if ( !setequal( \@trAlgnNoOG, \@treeLeaves ) )
 {
   warn "\n\n\tERROR: Found inconsistency between the set of leaves of the current tree";
 
-  my $trAlgnNoOGfile = $grPrefix . "_trAlgnNoOG.seqIDs";
+  my $trAlgnNoOGfile = $grTmpPrefix . "_trAlgnNoOG.seqIDs";
   writeArray(\@trAlgnNoOG, $trAlgnNoOGfile);
 
   print "Trimmed algn with no OG seq's: $trAlgnNoOGfile\n";
@@ -4320,8 +4339,19 @@ system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 
 print "--- Creating a symbolic link to the final version of the trimmed alignment file\n";
 my $finalAlgnFile = $grPrefix . "_algn_trimmed_final.fa";
-$ap = abs_path( $trimmedAlgnFile );
+$ap = abs_path( $trAlgnFile );
 $cmd = "rm -f $finalAlgnFile; ln -s $ap $finalAlgnFile";
+print "\tcmd=$cmd\n" if $dryRun || $debug;
+system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
+
+print "--- Creating reference gap-free fasta file\n";
+my $tmpFile = $grTmpPrefix . "_tmp.fa";
+$cmd = "rmGaps $quietStr -i $trAlgnFile -o $tmpFile";
+print "\tcmd=$cmd\n" if $dryRun || $debug;
+system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
+
+my $faFile = $grPrefix . "_final.fa";
+$cmd = "select_seqs.pl $quietStr -s $finalTxFile -i $tmpFile -o $faFile";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 
@@ -4351,16 +4381,6 @@ if ($buildModelData)
   }
   close OUT;
 
-  print "--- Creating reference gap-free fasta file\n";
-  my $tmpFile = $grPrefix . "_tmp.fa";
-  $cmd = "rmGaps $quietStr -i $trimmedAlgnFile -o $tmpFile";
-  print "\tcmd=$cmd\n" if $dryRun || $debug;
-  system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
-
-  my $faFile = $grPrefix . "_final.fa";
-  $cmd = "select_seqs.pl $quietStr -s $finalTxFile -i $tmpFile -o $faFile";
-  print "\tcmd=$cmd\n" if $dryRun || $debug;
-  system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 
   # testing if faFile and finalTxFile have the same seq IDs
   my @faSeqIDs  = get_seqIDs_from_fa($faFile);
@@ -4492,7 +4512,7 @@ if ($buildModelData)
 ## ---------------------------------------
 
 ## log file of old and new taxonomic assignments for each sequence
-my $oldNewTxFile = "old_new.spp";
+my $oldNewTxFile = "$tmpDir/old_new.spp";
 open OUT, ">$oldNewTxFile" or die "Cannot open $oldNewTxFile for writing: $OS_ERROR";
 my %sppTr; ## species transition table
 for ( keys %spp )
@@ -5892,7 +5912,7 @@ sub test_OG
   my $ret = 0;
 
   print "\t--- Extracting leaves from $treeFile\n" if $debug_test_OG;
-  my $treeLeavesFile = "$grPrefix" . "_sppSeqIDs.leaves";
+  my $treeLeavesFile = "$grTmpPrefix" . "_sppSeqIDs.leaves";
   my $cmd = "rm -f $treeLeavesFile; nw_labels -I $treeFile > $treeLeavesFile";
   print "\tcmd=$cmd\n" if $dryRun || $debug_test_OG;
   system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
@@ -6052,13 +6072,13 @@ sub test_OG
     }
 
     print "\t--- Extracting the clade of OG sequences\n";
-    my $ogCladeTreeFile = "$grPrefix" . "_OG_clade.tree";
+    my $ogCladeTreeFile = "$grTmpPrefix" . "_OG_clade.tree";
     $cmd = "rm -f $ogCladeTreeFile; nw_clade $treeFile @og > $ogCladeTreeFile";
     print "\tcmd=$cmd\n" if $dryRun || $debug_test_OG;
     system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 
     #print "\t--- Extracting leaves of the OG clade\n";
-    my $ogCladeTreeLeavesFile = "$grPrefix" . "_OG_clade.leaves";
+    my $ogCladeTreeLeavesFile = "$grTmpPrefix" . "_OG_clade.leaves";
     $cmd = "rm -f $ogCladeTreeLeavesFile; nw_labels -I $ogCladeTreeFile > $ogCladeTreeLeavesFile";
     print "\tcmd=$cmd\n" if $dryRun || $debug_test_OG;
     system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
@@ -6084,13 +6104,13 @@ sub test_OG
   else
   {
     print "\t--- Extracting the clade of OG sequences\n" if $debug_test_OG;
-    my $ogCladeTreeFile = "$grPrefix" . "_OG_clade.tree";
+    my $ogCladeTreeFile = "$grTmpPrefix" . "_OG_clade.tree";
     $cmd = "rm -f $ogCladeTreeFile; nw_clade $treeFile @og > $ogCladeTreeFile";
     print "\tcmd=$cmd\n" if $dryRun || $debug_test_OG;
     system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 
     #print "\t--- Extracting leaves of the OG clade\n";
-    my $ogCladeTreeLeavesFile = "$grPrefix" . "_OG_clade.leaves";
+    my $ogCladeTreeLeavesFile = "$grTmpPrefix" . "_OG_clade.leaves";
     $cmd = "rm -f $ogCladeTreeLeavesFile; nw_labels -I $ogCladeTreeFile > $ogCladeTreeLeavesFile";
     print "\tcmd=$cmd\n" if $dryRun || $debug_test_OG;
     system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
@@ -6404,7 +6424,7 @@ sub check_parent_consistency
       print "\n\n";
 
       #print "Attempting to fix the problem. Going with more abundant lineage\n";
-      my $liFile = $grPrefix . "_tmp.lineage";
+      my $liFile = $grTmpPrefix . "_tmp.lineage";
       writeTbl( \%lineageTbl, $liFile );
       print "\tLineage file written to $grDir/$liFile\n\n";
     }
@@ -6486,7 +6506,7 @@ sub build_cond_spp_tree
   my @txs = keys %txTbl;
 
   ## extracting leave IDs
-  my $treeLeavesFile = $grPrefix . "_tmp_tree.leaves";
+  my $treeLeavesFile = $grTmpPrefix . "_tmp_tree.leaves";
   $cmd = "rm -f $treeLeavesFile; nw_labels -I $treeFile > $treeLeavesFile";
   print "\tcmd=$cmd\n" if $dryRun || $debug;
   system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
@@ -6500,7 +6520,7 @@ sub build_cond_spp_tree
     exit 1;
   }
 
-  my $sppTreeFile = "$grPrefix" . "_tmp_spp.tree";
+  my $sppTreeFile = "$grTmpPrefix" . "_tmp_spp.tree";
   $cmd = "rm -f $sppTreeFile; nw_rename $treeFile $txFile | nw_order -c n  - > $sppTreeFile";
   print "\tcmd=$cmd\n" if $dryRun || $debug;
   system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
@@ -6535,7 +6555,7 @@ sub get_tree_spp_purity
   my @txs = keys %txTbl;
 
   ## extracting leave IDs
-  my $treeLeavesFile = $grPrefix . "_tmp_tree.leaves";
+  my $treeLeavesFile = $grTmpPrefix . "_tmp_tree.leaves";
   $cmd = "rm -f $treeLeavesFile; nw_labels -I $treeFile > $treeLeavesFile";
   print "\tcmd=$cmd\n" if $dryRun || $debug;
   system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
@@ -6549,7 +6569,7 @@ sub get_tree_spp_purity
     exit 1;
   }
 
-  my $sppTreeFile = "$grPrefix" . "_tmp_spp.tree";
+  my $sppTreeFile = "$grTmpPrefix" . "_tmp_spp.tree";
   $cmd = "rm -f $sppTreeFile; nw_rename $treeFile $txFile | nw_order -c n  - > $sppTreeFile";
   print "\tcmd=$cmd\n" if $dryRun || $debug;
   system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
