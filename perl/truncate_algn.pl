@@ -118,13 +118,13 @@ elsif (!$minLen)
 }
 
 my $mothur   = "/Users/pgajer/bin/mothur";
-my $dB       = "/Users/pgajer/devel/MCextras/data/RDP/";
+my $dB       = "/Users/pgajer/projects/PECAN/data/phylo_groups/v0.2/";
 my $usearch6 = "/Users/pgajer/bin/usearch6.0.203_i86osx32";
 
 if ( defined $igs )
 {
   $mothur   = "/usr/local/packages/mothur-1.36.1/mothur";
-  $dB       = "/usr/local/projects/pgajer/devel/MCextras/data/RDP/";
+  $dB       = "/usr/local/projects/pgajer/projects/PECAN/data/phylo_groups/v0.2/";
   $usearch6 = "/local/projects/pgajer/bin/usearch6.0.203_i86linux32";
 }
 
