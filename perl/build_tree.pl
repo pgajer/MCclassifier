@@ -281,12 +281,6 @@ elsif ( ! -e $liFile )
   print "\n\n";
   exit 1;
 }
-elsif ( ! -e $treeFile )
-{
-  warn "\n\n\tERROR: $treeFile does not exist";
-  print "\n";
-  exit 1;
-}
 elsif ( ! -e $ogFile )
 {
   warn "\n\n\tERROR: $ogFile does not exist";

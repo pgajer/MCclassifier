@@ -117,9 +117,9 @@ if ( $verbose )
 ##                               MAIN
 ####################################################################
 
+print "--- Parsing lineage table\n";
 my $suffix;
-
-open OUT, ">$outFile" or die "Cannot open $outFile for writing: $OS_ERROR\n";
+my %liTbl;
 open IN, "$inFile" or die "Cannot open $inFile for reading: $OS_ERROR\n";
 for ( <IN> )
 {
@@ -166,16 +166,115 @@ for ( <IN> )
     ($ge, $suffix) = split "_", $sp;
   }
 
+  if ( $ge eq "Ruminococcus" )
+  {
+    $li = "Root;Bacteria;Firmicutes;Clostridia;Clostridiales;Ruminococcaceae";
+    @f = split ";", $li;
+    $fa = pop @f;
+  }
+
   if ( $ge eq $fa )
   {
     next;
   }
 
   $li = join ";", (@f, $fa, $ge, $sp);
-  print OUT "$id\t$li\n";
+  $liTbl{$id} = $li;
   #print "$id\t$li\n"; exit 1;
 }
 close IN;
-close OUT;
+
+print "--- Checking uniquness of parents\n";
+if ( each_tx_has_unique_parent(\%liTbl) )
+{
+  exit 1;
+}
+
+write_tbl( \%liTbl, $outFile );
+
+
+####################################################################
+##                               SUBS
+####################################################################
+
+## check if each node of the lineage structure has only one parent
+sub each_tx_has_unique_parent
+{
+  my $r = shift;
+  my %liTbl = %{$r};
+
+  my  %prt;
+  for my $id ( keys %liTbl )
+  {
+    my $lineage = $liTbl{$id};
+    my @f = split ";", $lineage;
+    my $sp = pop @f;
+    my $ge = pop @f;
+    my $fa = pop @f;
+    my $or = pop @f;
+    my $cl = pop @f;
+    my $ph = pop @f;
+
+    $ge = "g_$ge";
+    $fa = "f_$fa";
+    $or = "o_$or";
+    $cl = "c_$cl";
+    $ph = "p_$ph";
+
+    $prt{$sp}{$ge}++;
+    $prt{$ge}{$fa}++;
+    $prt{$fa}{$or}++;
+    $prt{$or}{$cl}++;
+    $prt{$cl}{$ph}++;
+  }
+
+  my $ret = 0;
+  for my $tx (keys %prt)
+  {
+    my $nPrts = keys %{$prt{$tx}};
+    if ( $nPrts > 1 )
+    {
+      $ret = 1;
+      warn "\n\n\tERROR: $tx has more than one parent";
+      print "\n\t$tx parents\n";
+      for ( keys %{$prt{$tx}} )
+      {
+        print "\t\t$_\t" . $prt{$tx}{$_} . "\n";
+      }
+      print "\n\n";
+
+      #print "Attempting to fix the problem. Going with more abundant lineage\n";
+      my $tmpLiFile = "tmp.lineage";
+      write_tbl( \%liTbl, $tmpLiFile );
+      print "\tLineage file written to $tmpLiFile\n\n";
+    }
+  }
+
+  return $ret;
+}
+
+# write hash table to a file
+sub write_tbl
+{
+  my ($rTbl, $outFile) = @_;
+
+  my %tbl = %{$rTbl};
+
+  open OUT, ">$outFile" or die "Cannot open $outFile for writing: $OS_ERROR";
+  map {print OUT $_ . "\t" . $tbl{$_} . "\n"} sort keys %tbl;
+  close OUT;
+}
+
+# write hash table to a file
+sub write_sorted_tbl
+{
+  my ($rTbl, $r, $outFile) = @_;
+
+  my %tbl = %{$rTbl};
+
+  open OUT, ">$outFile" or die "Cannot open $outFile for writing: $OS_ERROR";
+  map {print OUT $_ . "\t" . $tbl{$_} . "\n"} @{$r};
+  close OUT;
+}
 
 exit 0;
