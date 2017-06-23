@@ -173,6 +173,143 @@ for ( <IN> )
     $fa = pop @f;
   }
 
+  if ( $ge eq "Atopobacter" )
+  {
+    $li = "Root;Bacteria;Firmicutes;Bacilli;Lactobacillales;Carnobacteriaceae";
+    @f = split ";", $li;
+    $fa = pop @f;
+  }
+
+  if ( $ge eq "Nesiotobacter" || $ge eq "Labrenzia" )
+  {
+    $li = "Root;Bacteria;Proteobacteria;Alphaproteobacteria;Rhodobacterales;Rhodobacteraceae";
+    @f = split ";", $li;
+    $fa = pop @f;
+  }
+
+  if ( $ge eq "Cellvibrio" || $ge eq "Marinimicrobium"
+       || $ge eq "Teredinibacter" || $ge eq "Umboniibacter"
+       || $ge eq "Saccharophagus" )
+  {
+    $li = "Root;Bacteria;Proteobacteria;Gammaproteobacteria;Cellvibrionales;Cellvibrionaceae";
+    @f = split ";", $li;
+    $fa = pop @f;
+  }
+
+  if ( $ge eq "Flavonifractor" )
+  {
+    $li = "Root;Bacteria;Firmicutes;Clostridia;Clostridiales;Clostridiales.family";
+    @f = split ";", $li;
+    $fa = pop @f;
+  }
+
+  if ( $ge eq "Caldanaerobius" )
+  {
+    $li = "Root;Bacteria;Firmicutes;Clostridia;Thermoanaerobacterales;Thermoanaerobacteraceae";
+    @f = split ";", $li;
+    $fa = pop @f;
+  }
+
+  if ( $ge eq "Butyricicoccus" || $ge eq "Alkaliphilus" || $ge eq "Clostridiisalibacter" )
+  {
+    $li = "Root;Bacteria;Firmicutes;Clostridia;Clostridiales;Clostridiaceae";
+    @f = split ";", $li;
+    $fa = pop @f;
+  }
+
+  if ( $ge eq "Meganema" )
+  {
+    $li = "Root;Bacteria;Proteobacteria;Alphaproteobacteria;Rhizobiales;Methylobacteriaceae";
+    @f = split ";", $li;
+    $fa = pop @f;
+  }
+
+  if ( $ge eq "Kaistia" )
+  {
+    $li = "Root;Bacteria;Proteobacteria;Alphaproteobacteria;Rhizobiales;Rhizobiaceae";
+    @f = split ";", $li;
+    $fa = pop @f;
+  }
+
+  if ( $ge eq "Wohlfahrtiimonas" || $ge eq "Ignatzschineria" )
+  {
+    $li = "Root;Bacteria;Proteobacteria;Gammaproteobacteria;Xanthomonadales;Xanthomonadaceae";
+    @f = split ";", $li;
+    $fa = pop @f;
+  }
+
+  if ( $ge eq "Nitrosococcus" )
+  {
+    $li = "Root;Bacteria;Proteobacteria;Gammaproteobacteria;Chromatiales;Chromatiaceae";
+    @f = split ";", $li;
+    $fa = pop @f;
+  }
+
+  if ( $ge eq "Haliea" || $ge eq "Agarivorans" || $ge eq "Alishewanella" || $ge eq "Marinobacterium" )
+  {
+    $li = "Root;Bacteria;Proteobacteria;Gammaproteobacteria;Alteromonadales;Alteromonadaceae";
+    @f = split ";", $li;
+    $fa = pop @f;
+  }
+
+  if ( $ge eq "Maritalea" )
+  {
+    $li = "Root;Bacteria;Proteobacteria;Alphaproteobacteria;Rhizobiales;Hyphomicrobiaceae";
+    @f = split ";", $li;
+    $fa = pop @f;
+  }
+
+  if ( $ge eq "Methylocaldum" || $ge eq "Methylococcus" )
+  {
+    $li = "Root;Bacteria;Proteobacteria;Gammaproteobacteria;Methylococcales;Methylococcaceae";
+    @f = split ";", $li;
+    $fa = pop @f;
+  }
+
+  if ( $ge eq "Pleomorphomonas" )
+  {
+    $li = "Root;Bacteria;Proteobacteria;Alphaproteobacteria;Rhizobiales;Methylocystaceae";
+    @f = split ";", $li;
+    $fa = pop @f;
+  }
+
+
+  if ( $ge eq "Dethiobacter" )
+  {
+    $li = "Root;Bacteria;Firmicutes;Clostridia;Clostridiales;Syntrophomonadaceae";
+    @f = split ";", $li;
+    $fa = pop @f;
+  }
+
+
+  if ( $ge eq "Bavariicoccus" )
+  {
+    $li = "Root;Bacteria;Firmicutes;Bacilli;Lactobacillales;Enterococcaceae";
+    @f = split ";", $li;
+    $fa = pop @f;
+  }
+
+  if ( $ge eq "Thiobacillus" )
+  {
+    $li = "Root;Bacteria;Proteobacteria;Betaproteobacteria;Hydrogenophilales;Hydrogenophilaceae";
+    @f = split ";", $li;
+    $fa = pop @f;
+  }
+
+  if ( $ge eq "" )
+  {
+    $li = "";
+    @f = split ";", $li;
+    $fa = pop @f;
+  }
+
+  if ( $ge eq "" )
+  {
+    $li = "";
+    @f = split ";", $li;
+    $fa = pop @f;
+  }
+
   if ( $ge eq $fa )
   {
     next;
@@ -244,9 +381,9 @@ sub each_tx_has_unique_parent
       print "\n\n";
 
       #print "Attempting to fix the problem. Going with more abundant lineage\n";
-      my $tmpLiFile = "tmp.lineage";
-      write_tbl( \%liTbl, $tmpLiFile );
-      print "\tLineage file written to $tmpLiFile\n\n";
+      #my $tmpLiFile = "tmp.lineage";
+      #write_tbl( \%liTbl, $tmpLiFile );
+      #print "\tLineage file written to $tmpLiFile\n\n";
     }
   }
 
