@@ -53,6 +53,9 @@
 =item B<--show-clade-trees>
   Show clade trees.
 
+=item B<--min-size, -m>
+  Minimal number of elements in fasta/lineage files for this script to run.
+
 =item B<--verbose, -v>
   Prints content of some output files.
 
@@ -100,16 +103,18 @@ $OUTPUT_AUTOFLUSH = 1;
 ####################################################################
 
 my $maxStrLen     = 150;  # maximal number of characters in a taxon string; if
-			  # larger file names using the taxon name will use an
-			  # abbreviated version of the taxon name
+# larger file names using the taxon name will use an
+# abbreviated version of the taxon name
 my $taxonSizeThld = 20;
 my $offsetCoef    = 0.9;
 my $txSizeThld    = 10;
+my $minSize       = 10;
 
 GetOptions(
   "input-group|i=s" 	=> \my $grPrefix,
   "rm-OGs-from-tx|r"    => \my $rmOGfromTx,
   "skip-FastTree"       => \my $skipFastTree,
+  "skip-plot-trees"     => \my $skipPlotTrees,
   "use-long-spp-names"  => \my $useLongSppNames,
   "taxon-size-thld"     => \$taxonSizeThld,
   "show-all-trees"      => \my $showAllTrees,
@@ -120,7 +125,9 @@ GetOptions(
   "pp-embedding"        => \my $ppEmbedding,
   "offset-coef|c=f"     => \$offsetCoef,
   "tx-size-thld|t=i"    => \$txSizeThld,
+  "min-size|m=i"        => \$minSize,
   "igs"                 => \my $igs,
+  "quiet"               => \my $quiet,
   "johanna"             => \my $johanna,
   "verbose|v"           => \my $verbose,
   "debug"               => \my $debug,
@@ -180,8 +187,13 @@ if ($showAllTrees)
 
 my @suffixes;
 
+my $quietStr = "";
+if ( $quiet )
+{
+  $quietStr = "--quiet";
+}
+
 my $debugStr = "";
-my $quietStr = "--quiet";
 if ($debug)
 {
   $debugStr = "--debug";
@@ -195,7 +207,6 @@ if ($verbose)
 }
 
 my $grDir = $grPrefix . "_dir";
-
 if ( ! -d $grDir )
 {
   warn "\n\n\tERROR: $grDir does not exist";
@@ -210,19 +221,21 @@ if ( ! -d $grDir )
 
 my $section = qq~
 
-##
-## Species-level cleanup
-##
+  ##
+  ## Species-level cleanup
+  ##
 
-~;
+  ~;
 print "$section";
 
 chdir $grDir;
 print "--- Changed dir to $grDir\n";
 
 my $lineageFile     = $grPrefix . ".lineage";
-my $algnFile	    = $grPrefix . "_ginsi_algn.fa";
-my $trimmedAlgnFile = $grPrefix . "_ginsi_algn.fa"; # "_algn_trimmed.fa";
+# my $algnFile	    = $grPrefix . "_ginsi_algn.fa";
+# my $trimmedAlgnFile = $grPrefix . "_ginsi_algn.fa"; # "_algn_trimmed.fa";
+my $algnFile	    = $grPrefix . "_algn.fa";
+my $trimmedAlgnFile = $grPrefix . "_algn_trimmed.fa";
 my $outgroupFile    = $grPrefix . "_outgroup.seqIDs";
 my $treeFile	    = $grPrefix . ".tree";
 my $txFile          = $grPrefix . ".tx";
@@ -239,7 +252,6 @@ elsif ( ! -e $algnFile )
   print "\n\n";
   #exit 1;
 }
-
 elsif ( ! -e $trimmedAlgnFile )
 {
   warn "WARNING: $trimmedAlgnFile does not exist. Creating a symbolic link to $algnFile.\n";
@@ -261,15 +273,23 @@ elsif ( ! -e $outgroupFile )
   exit 1;
 }
 
+if ( ! -e $txFile )
+{
+  my $cmd = "taxon_from_lineage.pl -l $lineageFile -t species -o $txFile";
+  print "\tcmd=$cmd\n" if $dryRun || $debug;
+  system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
+}
+
+
 my $cladeTreesDir = "clade_trees_dir/";
 if ($showCladeTrees)
 {
-   my $cmd = "mkdir -p $cladeTreesDir";
-   print "\tcmd=$cmd\n" if $dryRun || $debug;
-   system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+  my $cmd = "mkdir -p $cladeTreesDir";
+  print "\tcmd=$cmd\n" if $dryRun || $debug;
+  system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 }
 
-my $tmpDir = $grDir . "/temp";
+my $tmpDir = "tmpDir";
 my $cmd = "mkdir -p $tmpDir";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed: $?" if !$dryRun;
@@ -290,6 +310,12 @@ if ( test_OG($treeFile, \%ogInd) != 0 )
 
 print "--- Extracting seq IDs from trimmed alignment fasta file\n";
 my @seqIDs = get_seqIDs_from_fa($trimmedAlgnFile);
+
+if ( @seqIDs < $minSize )
+{
+  print "\n\nWARNING: $grPrefix has less than $minSize elements; Exiting\n\n";
+  exit 0;
+}
 
 print "--- Parsing lineage table\n";
 my %lineageTbl = readLineageTbl($lineageFile);
@@ -601,42 +627,42 @@ for my $id ( keys %ogSpp )
 close ANNOUT;
 close QOUT;
 
-my $faFile2               = $grPrefix . "_from_algn_gapFree.fa";
-my $ginsiAlgnFile         = $grPrefix . "_ginsi_algn.fa";
-my $rrPrunedGinsiTreeFile = $grPrefix . "_ginsi_rr.tree";
+# my $faFile2               = $grPrefix . "_from_algn_gapFree.fa";
+# my $ginsiAlgnFile         = $grPrefix . "_ginsi_algn.fa";
+# my $rrPrunedGinsiTreeFile = $grPrefix . "_ginsi_rr.tree";
 
-if ( ! -e $ginsiAlgnFile )
-{
-  print "--- Redoing alignment using ginsi\n";
-  ## first remove gaps
-  $cmd = "rmGaps -i $trimmedAlgnFile -o $faFile2";
-  print "\tcmd=$cmd\n" if $dryRun || $debug; # || $debug;
-  system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+# if ( ! -e $ginsiAlgnFile )
+# {
+#   print "--- Redoing alignment using ginsi\n";
+#   ## first remove gaps
+#   $cmd = "rmGaps -i $trimmedAlgnFile -o $faFile2";
+#   print "\tcmd=$cmd\n" if $dryRun || $debug; # || $debug;
+#   system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 
-  $cmd = "rm -f $ginsiAlgnFile; ginsi --inputorder $faFile2 > $ginsiAlgnFile";
-  print "\tcmd=$cmd\n" if $dryRun || $debug;
-  system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
-}
+#   $cmd = "rm -f $ginsiAlgnFile; ginsi --inputorder $faFile2 > $ginsiAlgnFile";
+#   print "\tcmd=$cmd\n" if $dryRun || $debug;
+#   system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+# }
 
-$rrPrunedGinsiTreeFile = $treeFile;
+# $rrPrunedGinsiTreeFile = $treeFile;
 
-if ( ! -e $rrPrunedGinsiTreeFile )
-{
-  print "--- Producing tree for the ginsi algn\n";
-  my $ginsiTreeFile = $grPrefix . "_ginsi.tree";
-  $cmd = "rm -f $ginsiTreeFile; FastTree -nt $trimmedAlgnFile > $ginsiTreeFile";
-  print "\tcmd=$cmd\n" if $dryRun || $debug;
-  system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;# && !$skipFastTree;
+# if ( ! -e $rrPrunedGinsiTreeFile )
+# {
+#   print "--- Producing tree for the ginsi algn\n";
+#   my $ginsiTreeFile = $grPrefix . "_ginsi.tree";
+#   $cmd = "rm -f $ginsiTreeFile; FastTree -nt $trimmedAlgnFile > $ginsiTreeFile";
+#   print "\tcmd=$cmd\n" if $dryRun || $debug;
+#   system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;# && !$skipFastTree;
 
-  # rerooting it
-  print "--- Rerooting the ginsi tree\n";
-  $cmd = "rm -f $rrPrunedGinsiTreeFile; nw_reroot $ginsiTreeFile @ogSeqIDs | nw_order -  > $rrPrunedGinsiTreeFile";
-  print "\tcmd=$cmd\n" if $dryRun || $debug;
-  system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
-}
+#   # rerooting it
+#   print "--- Rerooting the ginsi tree\n";
+#   $cmd = "rm -f $rrPrunedGinsiTreeFile; nw_reroot $ginsiTreeFile @ogSeqIDs | nw_order -  > $rrPrunedGinsiTreeFile";
+#   print "\tcmd=$cmd\n" if $dryRun || $debug;
+#   system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+# }
 
-$trimmedAlgnFile = $ginsiAlgnFile;
-$treeFile        = $rrPrunedGinsiTreeFile;
+# $trimmedAlgnFile = $ginsiAlgnFile;
+# $treeFile        = $rrPrunedGinsiTreeFile;
 
 if ( $debugSpp )
 {
@@ -751,7 +777,7 @@ for my $sp (keys %spFreqTbl)
       my $clmax = shift @cls;
       for ( @{$cltrTbl{$clmax}} )
       {
-	$sspSeqID{$_} = 1;
+        $sspSeqID{$_} = 1;
       }
     } # end of if ( @cls > 1
   }
@@ -779,10 +805,10 @@ for my $id ( keys %newTx )
   {
     #if ( !exists $sspSeqID{$id} && !defined $suffix2 ) ## ??? I am not sure about the second condition ??? at this point we should not have _sp_index type specie names
     #{
-      push @query2, $id;
-      print QOUT "$id\n";
-      #print "Query2: $id\t$t" if $debug;
-    }
+    push @query2, $id;
+    print QOUT "$id\n";
+    #print "Query2: $id\t$t" if $debug;
+  }
   else
   {
     push @ann2, $id;
@@ -877,29 +903,29 @@ for my $id (keys %lineageTbl)
 
       if ( $g =~ /BVAB/ )
       {
-	$newSp =~ s/_sp$//;
+        $newSp =~ s/_sp$//;
       }
 
       if ( exists $geLineage{$g} )
       {
-	$lineageTbl{$id} = $geLineage{$g} . ";$newSp";
+        $lineageTbl{$id} = $geLineage{$g} . ";$newSp";
       }
       else
       {
-	if (exists $spParent{$newSp})
-	{
-	  $g = $spParent{$newSp};
-	  $lineageTbl{$id} = $geLineage{$g} . ";$newSp";
-	}
-	else
-	{
-	  warn "\n\n\tERROR: $g not found in spLineage";
-	  print "\tand spParent{$newSp} not found\n";
-	  print "\tnewSp: $newSp\n";
-	  print "\tlineageTbl{$id}: " . $lineageTbl{$id} . "\n";
-	  print "\n\n";
-	  exit 1;
-	}
+        if (exists $spParent{$newSp})
+        {
+          $g = $spParent{$newSp};
+          $lineageTbl{$id} = $geLineage{$g} . ";$newSp";
+        }
+        else
+        {
+          warn "\n\n\tERROR: $g not found in spLineage";
+          print "\tand spParent{$newSp} not found\n";
+          print "\tnewSp: $newSp\n";
+          print "\tlineageTbl{$id}: " . $lineageTbl{$id} . "\n";
+          print "\n\n";
+          exit 1;
+        }
       }
     }
   } # end of if ( exists $newTx{$id} )
@@ -985,10 +1011,10 @@ if ( @extraOG>0 )
     {
       #if ( !exists $sspSeqID{$id} && !defined $suffix2 ) ## ??? I am not sure about the second condition ??? at this point we should not have _sp_index type specie names
       #{
-	push @query2b, $id;
-	print QOUT "$id\n";
-	#print "Query2: $id\t$t" if $debug;
-      }
+      push @query2b, $id;
+      print QOUT "$id\n";
+      #print "Query2: $id\t$t" if $debug;
+    }
     else
     {
       push @ann2b, $id;
@@ -1168,7 +1194,7 @@ for my $sp (keys %spFreqTbl)
     {
       if ($clSize{$cl}==1) ## and if number of sequences in the cluster is = 1
       {
-	push @spSingletonSeqs, @{$clSeqs{$cl}}; ## push to spSingletonSeqs the sequence ID
+        push @spSingletonSeqs, @{$clSeqs{$cl}}; ## push to spSingletonSeqs the sequence ID
       }
     }
   }
@@ -1268,22 +1294,22 @@ open QOUT, ">$queryFile3" or die "Cannot open $queryFile3 for writing: $OS_ERROR
 open AOUT, ">$annFile3"   or die "Cannot open $annFile3 for writing: $OS_ERROR";
 for my $id ( keys %newTx )
 {
-my $t = $newTx{$id};
-my @f = split "_", $t;
-my $g = shift @f;
-my $suffix = shift @f;
-my $suffix2 = shift @f;
+  my $t = $newTx{$id};
+  my @f = split "_", $t;
+  my $g = shift @f;
+  my $suffix = shift @f;
+  my $suffix2 = shift @f;
 
-if ( defined $suffix && $suffix eq "sp" ) ## now allowing for _sp that are only species in genus to be replaced
-{
-  push @query3, $id;
-  print QOUT "$id\n";
-}
-else
-{
-  push @ann3, $id;
-  print AOUT "$id\t$t\n";
-}
+  if ( defined $suffix && $suffix eq "sp" ) ## now allowing for _sp that are only species in genus to be replaced
+  {
+    push @query3, $id;
+    print QOUT "$id\n";
+  }
+  else
+  {
+    push @ann3, $id;
+    print AOUT "$id\t$t\n";
+  }
 }
 close QOUT;
 close AOUT;
@@ -1301,44 +1327,44 @@ system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 my @a = (@query3, @ann3);
 if ( !setequal( \@a, \@treeLeaves ) )
 {
-warn "\n\n\tERROR: found inconsistency between the set of leaves of the current tree";
-print "see $treeLeavesFile\n";
-print "and the union of query and annotation IDs in\n";
-print "$queryFile3\n";
-print "and\n";
-print "$annFile3\n\n";
-exit 1;
+  warn "\n\n\tERROR: found inconsistency between the set of leaves of the current tree";
+  print "see $treeLeavesFile\n";
+  print "and the union of query and annotation IDs in\n";
+  print "$queryFile3\n";
+  print "and\n";
+  print "$annFile3\n\n";
+  exit 1;
 }
 
 if ( $debugSpp )
 {
-print "\n\n\tNumber of annotation seq's: " . @ann3. "\n";
-print     "\tNumber of query seq's:      " . @query3 . "\n";
-print     "\tSum:                        " . (@ann3 + @query3) . "\n";
-print     "\tNumber of leaves: " . @treeLeaves . "\n\n";
+  print "\n\n\tNumber of annotation seq's: " . @ann3. "\n";
+  print     "\tNumber of query seq's:      " . @query3 . "\n";
+  print     "\tSum:                        " . (@ann3 + @query3) . "\n";
+  print     "\tNumber of leaves: " . @treeLeaves . "\n\n";
 
-print "--- Generating condensed species tree before the 3rd run of vicut\n";
+  print "--- Generating condensed species tree before the 3rd run of vicut\n";
 
-my %txTbl = %newTx;
-my $txTblFile = $grPrefix . "_before_3rd_vicut.tx";
-writeTbl(\%txTbl, $txTblFile);
+  my %txTbl = %newTx;
+  my $txTblFile = $grPrefix . "_before_3rd_vicut.tx";
+  writeTbl(\%txTbl, $txTblFile);
 
-my $condSppTreeFile = $grPrefix . "_cond_spp_before_3rd_vicut.tree";
+  my $condSppTreeFile = $grPrefix . "_cond_spp_before_3rd_vicut.tree";
 
-build_cond_spp_tree($treeFile, $txTblFile, $condSppTreeFile);
+  build_cond_spp_tree($treeFile, $txTblFile, $condSppTreeFile);
 
-print "\n\n\tBefore the 3rd vicut condensed species tree written to $condSppTreeFile\n\n";
+  print "\n\n\tBefore the 3rd vicut condensed species tree written to $condSppTreeFile\n\n";
 
-if ( !$doNotPopPDFs && $OSNAME eq "darwin")
-{
-  my $pdfFile = abs_path( $grPrefix . "_cond_spp_before_3rd_vicut_tree.pdf" );
-  my $title = $grPrefix . " - cond_spp_before_3rd_vicut";
-  plot_tree_bw($condSppTreeFile, $pdfFile, $title);
+  if ( !$doNotPopPDFs && $OSNAME eq "darwin")
+  {
+    my $pdfFile = abs_path( $grPrefix . "_cond_spp_before_3rd_vicut_tree.pdf" );
+    my $title = $grPrefix . " - cond_spp_before_3rd_vicut";
+    plot_tree_bw($condSppTreeFile, $pdfFile, $title);
 
-  $cmd = "open $pdfFile";
-  print "\tcmd=$cmd\n" if $dryRun || $debug;
-  system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
-}
+    $cmd = "open $pdfFile";
+    print "\tcmd=$cmd\n" if $dryRun || $debug;
+    system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
+  }
 
 }
 
@@ -1347,13 +1373,13 @@ $vicutDir  = "spp_vicut_dir3";
 #print "--- Running vicut on species data the 3rd time\n";
 if (@query3)
 {
-print "--- Running vicut on species data the 3rd time because _sp species were still found.\n";
-$cmd = "vicut $quietStr -t $treeFile -a $annFile3 -q $queryFile3 -o $vicutDir";
+  print "--- Running vicut on species data the 3rd time because _sp species were still found.\n";
+  $cmd = "vicut $quietStr -t $treeFile -a $annFile3 -q $queryFile3 -o $vicutDir";
 }
 else
 {
-print "--- Running vicut on species data the 3rd time without query file (no more _sp species).\n";
-$cmd = "vicut $quietStr -t $treeFile -a $annFile3 -o $vicutDir";
+  print "--- Running vicut on species data the 3rd time without query file (no more _sp species).\n";
+  $cmd = "vicut $quietStr -t $treeFile -a $annFile3 -o $vicutDir";
 }
 print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
@@ -1369,38 +1395,38 @@ $updatedTxFile = "$vicutDir/updated.tx";
 print "--- Updating lineageTbl after 3rd run of vicut\n";
 for my $id (keys %lineageTbl)
 {
-if ( exists $newTx{$id} )
-{
-  my $lineage = $lineageTbl{$id};
-  my @f = split ";", $lineage;
-  my $sp = pop @f;
-  my $newSp = $newTx{$id};
-  if ($newSp ne $sp)
+  if ( exists $newTx{$id} )
   {
-	my ($g, $s) = split "_", $newSp;
-	if ( exists $geLineage{$g} )
-	{
- 	 $lineageTbl{$id} = $geLineage{$g} . ";$newSp";
-	}
-    else
-	{
-      if (exists $spParent{$newSp})
+    my $lineage = $lineageTbl{$id};
+    my @f = split ";", $lineage;
+    my $sp = pop @f;
+    my $newSp = $newTx{$id};
+    if ($newSp ne $sp)
+    {
+      my ($g, $s) = split "_", $newSp;
+      if ( exists $geLineage{$g} )
       {
-	  $g = $spParent{$newSp};
-	  $lineageTbl{$id} = $geLineage{$g} . ";$newSp";
+        $lineageTbl{$id} = $geLineage{$g} . ";$newSp";
       }
       else
-    {
-	  warn "\n\n\tERROR: $g not found in geLineage";
-	  print "\tand spParent{$newSp} not found\n";
-	  print "\tnewSp: $newSp\n";
-	  print "\tlineageTbl{$id}: " . $lineageTbl{$id} . "\n";
-	  print "\n\n";
-	  exit 1;
+      {
+        if (exists $spParent{$newSp})
+        {
+          $g = $spParent{$newSp};
+          $lineageTbl{$id} = $geLineage{$g} . ";$newSp";
+        }
+        else
+        {
+          warn "\n\n\tERROR: $g not found in geLineage";
+          print "\tand spParent{$newSp} not found\n";
+          print "\tnewSp: $newSp\n";
+          print "\tlineageTbl{$id}: " . $lineageTbl{$id} . "\n";
+          print "\n\n";
+          exit 1;
+        }
+      }
     }
-   }
-  }
-} # end of if ( exists $newTx{$id} )
+  } # end of if ( exists $newTx{$id} )
 }
 
 print "--- Testing again consistency between the phylo tree and sequences after taxonomy cleanup\n";
@@ -1517,28 +1543,28 @@ if (@lostLeaves>0)
       my $newSp = $newTx{$id};
       if ($newSp ne $sp)
       {
-	my ($g, $s) = split "_", $newSp;
-	if ( exists $geLineage{$g} )
-	{
-	  $lineageTbl{$id} = $geLineage{$g} . ";$newSp";
-	}
-	else
-	{
-	  if (exists $spParent{$newSp})
-	  {
-	    $g = $spParent{$newSp};
-	    $lineageTbl{$id} = $geLineage{$g} . ";$newSp";
-	  }
-	  else
-	  {
-	    warn "\n\n\tERROR: $g not found in geLineage";
-	    print "\tand spParent{$newSp} not found\n";
-	    print "\tnewSp: $newSp\n";
-	    print "\tlineageTbl{$id}: " . $lineageTbl{$id} . "\n";
-	    print "\n\n";
-	    exit 1;
-	  }
-	}
+        my ($g, $s) = split "_", $newSp;
+        if ( exists $geLineage{$g} )
+        {
+          $lineageTbl{$id} = $geLineage{$g} . ";$newSp";
+        }
+        else
+        {
+          if (exists $spParent{$newSp})
+          {
+            $g = $spParent{$newSp};
+            $lineageTbl{$id} = $geLineage{$g} . ";$newSp";
+          }
+          else
+          {
+            warn "\n\n\tERROR: $g not found in geLineage";
+            print "\tand spParent{$newSp} not found\n";
+            print "\tnewSp: $newSp\n";
+            print "\tlineageTbl{$id}: " . $lineageTbl{$id} . "\n";
+            print "\n\n";
+            exit 1;
+          }
+        }
       }
     } # end of if ( exists $newTx{$id} )
   }
@@ -1785,15 +1811,15 @@ for my $id (keys %lineageTbl)
     {
       if ( exists $geLineage{$g} )
       {
-	$lineageTbl{$id} = $geLineage{$g} . ";$newSp";
+        $lineageTbl{$id} = $geLineage{$g} . ";$newSp";
       }
       else
       {
-	warn "\n\n\tERROR: $g not found in geLineage";
-	print "\tnewSp: $newSp\n";
-	print "\tlineageTbl{$id}: " . $lineageTbl{$id} . "\n";
-	print "\n\n";
-	exit 1;
+        warn "\n\n\tERROR: $g not found in geLineage";
+        print "\tnewSp: $newSp\n";
+        print "\tlineageTbl{$id}: " . $lineageTbl{$id} . "\n";
+        print "\n\n";
+        exit 1;
       }
     }
   } # end of if ( exists $newTx{$id} )
@@ -2002,11 +2028,11 @@ if ( @finalCondSppTreeCountGr1Leaves )
 
 $section = qq~
 
-##
-## Genus-level cleanup
-##
+  ##
+  ## Genus-level cleanup
+  ##
 
-~;
+  ~;
 print "$section";
 
 
@@ -2092,11 +2118,11 @@ for my $ge (@newGenera)
 
   $section = qq~
 
-##
-## === updating geParent ===
-##
+    ##
+    ## === updating geParent ===
+    ##
 
-~;
+    ~;
   print "$section" if $debug;
 
   # debug
@@ -2140,9 +2166,9 @@ for my $ge (@newGenera)
   }
 
   my %locFas; # table to keep track of unique parents; if $ge has several
-	      # components, some of them will have the same parents and in the
-	      # name of $ge parent we don't want the same family repeated several
-	      # times.
+  # components, some of them will have the same parents and in the
+  # name of $ge parent we don't want the same family repeated several
+  # times.
   my $newFa;  # $ge parent's name
   my $g = shift @geComponents;
   if ( exists $geParent{$g} )
@@ -2182,11 +2208,11 @@ for my $ge (@newGenera)
 
   $section = qq~
 
-##
-## === updating faParent ===
-##
+    ##
+    ## === updating faParent ===
+    ##
 
-~;
+    ~;
   print "$section" if $debug;
 
   print "Processing $newFa\n" if $debug;
@@ -2252,11 +2278,11 @@ for my $ge (@newGenera)
 
   $section = qq~
 
-##
-## === updating orParent ===
-##
+    ##
+    ## === updating orParent ===
+    ##
 
-~;
+    ~;
   print "$section" if $debug;
 
   print "\nProcessing $newOr\n" if $debug;
@@ -2321,11 +2347,11 @@ for my $ge (@newGenera)
 
   $section = qq~
 
-##
-## === updating clParent ===
-##
+    ##
+    ## === updating clParent ===
+    ##
 
-~;
+    ~;
   print "$section" if $debug;
 
   print "\nProcessing $newCl\n" if $debug;
@@ -2536,11 +2562,11 @@ close OUT;
 
 my $pdfCsppWithGenusColorsTreeFile = abs_path( $grPrefix . "_final_spp_condensed_tree_with_genus_colors.pdf" );
 
-my $title = $grPrefix . " - genera";
-plot_tree($finalCondSppTreeFile, $genusIdxFile, $pdfCsppWithGenusColorsTreeFile, $title);
-
 if ( !$doNotPopPDFs && $OSNAME eq "darwin")
 {
+  my $title = $grPrefix . " - genera";
+  plot_tree($finalCondSppTreeFile, $genusIdxFile, $pdfCsppWithGenusColorsTreeFile, $title);
+
   $cmd = "open $pdfCsppWithGenusColorsTreeFile";
   print "\tcmd=$cmd\n" if $dryRun || $debug;
   system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
@@ -2629,14 +2655,14 @@ for my $ge (@a)
       my ($g, $s) = split "_", $sp;
       if ( defined $g )
       {
-	$spParent2{$sp} = $g;
-	#print "g: $g\n" if $debug;
+        $spParent2{$sp} = $g;
+        #print "g: $g\n" if $debug;
       }
       else
       {
-	warn "\n\n\tERROR: Genus undef for $sp";
-	print "\n\n";
-	exit 1;
+        warn "\n\n\tERROR: Genus undef for $sp";
+        print "\n\n";
+        exit 1;
       }
     }
 
@@ -2713,7 +2739,7 @@ for my $subge (keys %subGeName)
       print "Genera in which $subge is found:\n";
       for (keys %{$subGeName{$subge}})
       {
-	print "\t$_\n";
+        print "\t$_\n";
       }
       print "\n";
     }
@@ -2724,11 +2750,11 @@ for my $subge (keys %subGeName)
       my $newName;
       if ( $subge =~ /_\d+$/)
       {
-	$newName = $subge . "v$idx";
+        $newName = $subge . "v$idx";
       }
       else
       {
-	$newName = $subge . "_v$idx";
+        $newName = $subge . "_v$idx";
       }
 
       print "In $ge changed sub-genus name to $newName\n" if $debug;
@@ -2736,11 +2762,11 @@ for my $subge (keys %subGeName)
       my @spp = keys %{$geChildren{$ge}};
       for my $sp (@spp)
       {
-	if ( $sppSubGenus{$sp} eq $subge )
-	{
-	  $sppSubGenus{$sp} = $newName;
-	  $genusSubGenusTb2{$ge}{$newName}++;
-	}
+        if ( $sppSubGenus{$sp} eq $subge )
+        {
+          $sppSubGenus{$sp} = $newName;
+          $genusSubGenusTb2{$ge}{$newName}++;
+        }
       }
 
       $idx++;
@@ -2829,11 +2855,11 @@ if ($detectedLargeGenus)
   print "\tcmd=$cmd\n" if $dryRun || $debug;
   system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 
-  my $pdfCondSubGenusTreeFile = abs_path( "$grPrefix" . "_final_sub_genus_condensed_tree.pdf" );
-  plot_tree_bw($finalCondSubGenusTreeFile, $pdfCondSubGenusTreeFile);
-
   if ( $showAllTrees && $OSNAME eq "darwin")
   {
+    my $pdfCondSubGenusTreeFile = abs_path( "$grPrefix" . "_final_sub_genus_condensed_tree.pdf" );
+    plot_tree_bw($finalCondSubGenusTreeFile, $pdfCondSubGenusTreeFile);
+
     $cmd = "open $pdfCondSubGenusTreeFile";
     print "\tcmd=$cmd\n" if $dryRun || $debug;
     system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
@@ -2865,11 +2891,12 @@ if ($detectedLargeGenus)
 
   my $pdfCsppTreeFile = abs_path( $grPrefix . "_final_spp_condensed_tree_with_sub_genus_colors.pdf" );
 
-  $title = $grPrefix . " - sub-genera";
-  plot_tree($finalCondSppTreeFile, $subgenusIdxFile, $pdfCsppTreeFile, $title);
 
   if ( !$doNotPopPDFs && $OSNAME eq "darwin")
   {
+    my $title = $grPrefix . " - sub-genera";
+    plot_tree($finalCondSppTreeFile, $subgenusIdxFile, $pdfCsppTreeFile, $title);
+
     $cmd = "open $pdfCsppTreeFile";
     print "\tcmd=$cmd\n" if $dryRun || $debug;
     system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
@@ -2882,11 +2909,11 @@ else
 
 $section = qq~
 
-##
-## Family-level cleanup
-##
+  ##
+  ## Family-level cleanup
+  ##
 
-~;
+  ~;
 print "$section";
 
 print "--- Running cluster_taxons.pl on condensed genus tree\n";
@@ -3013,11 +3040,11 @@ for my $fa (@newFamilies)
 
   $section = qq~
 
-##
-## === updating faParent ===
-##
+    ##
+    ## === updating faParent ===
+    ##
 
-~;
+    ~;
   print "$section" if $debug;
 
   # debug
@@ -3102,11 +3129,11 @@ for my $fa (@newFamilies)
 
   $section = qq~
 
-##
-## === updating orParent ===
-##
+    ##
+    ## === updating orParent ===
+    ##
 
-~;
+    ~;
   print "$section" if $debug;
 
   print "\nProcessing $newOr\n" if $debug;
@@ -3170,11 +3197,11 @@ for my $fa (@newFamilies)
 
   $section = qq~
 
-##
-## === updating clParent ===
-##
+    ##
+    ## === updating clParent ===
+    ##
 
-~;
+    ~;
   print "$section" if $debug;
 
   print "\nProcessing $newCl\n" if $debug;
@@ -3334,11 +3361,12 @@ if ( scalar(keys %faChildren) > 1 )
   print "\tcmd=$cmd\n" if $dryRun || $debug;
   system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 
-  my $pdfCondFamilyTreeFile = abs_path( "$grPrefix" . "_final_family_condensed_tree.pdf" );
-  plot_tree_bw($finalCondFamilyTreeFile, $pdfCondFamilyTreeFile);
 
   if ( $showAllTrees &&  $OSNAME eq "darwin")
   {
+    my $pdfCondFamilyTreeFile = abs_path( "$grPrefix" . "_final_family_condensed_tree.pdf" );
+    plot_tree_bw($finalCondFamilyTreeFile, $pdfCondFamilyTreeFile);
+
     $cmd = "open $pdfCondFamilyTreeFile";
     print "\tcmd=$cmd\n" if $dryRun || $debug;
     system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
@@ -3372,7 +3400,7 @@ if ( scalar(keys %faChildren) > 1 )
   if ( !$doNotPopPDFs && $OSNAME eq "darwin")
   {
     my $pdfFamilyColorsCsppTreeFile = abs_path( $grPrefix . "_final_species_condensed_tree_with_family_colors.pdf" );
-    $title = $grPrefix . " - families";
+    my $title = $grPrefix . " - families";
     plot_tree($finalCondSppTreeFile, $familyIdxFile, $pdfFamilyColorsCsppTreeFile, $title);
 
     $cmd = "open $pdfFamilyColorsCsppTreeFile";
@@ -3382,11 +3410,11 @@ if ( scalar(keys %faChildren) > 1 )
 
   $section = qq~
 
-##
-## Order-level cleanup
-##
+    ##
+    ## Order-level cleanup
+    ##
 
-~;
+    ~;
   print "$section";
 
   print "--- Running cluster_taxons.pl on condensed family tree\n";
@@ -3406,7 +3434,7 @@ if ( scalar(keys %faChildren) > 1 )
   my @faTreeLeaves = readArray($treeLeavesFile);
   my @uqFaTreeLeaves = unique(\@faTreeLeaves);
   my $nFaTreeLeaves = @uqFaTreeLeaves;
-    print "\n\tNumber of elemets of the leaves of the family condensed tree: $nFaTreeLeaves\n" if $debug;
+  print "\n\tNumber of elemets of the leaves of the family condensed tree: $nFaTreeLeaves\n" if $debug;
 
   my $nFaParent = keys %faParent;
   print "\tNumber of elemets of the family parent table: $nFaParent\n\n" if $debug;
@@ -3422,18 +3450,18 @@ if ( scalar(keys %faChildren) > 1 )
     {
       if ( $nFaParent > $nFaTreeLeaves )
       {
-	my @d = diff(\@fas, \@uqFaTreeLeaves);
-	print "Here are faParent fanera not in the tree:\n";
-	printArray(\@d);
-	print "\n";
+        my @d = diff(\@fas, \@uqFaTreeLeaves);
+        print "Here are faParent fanera not in the tree:\n";
+        printArray(\@d);
+        print "\n";
       }
 
       if ( $nFaParent < $nFaTreeLeaves )
       {
-	my @d = diff(\@uqFaTreeLeaves, \@fas);
-	print "Here are leaves not present in faParent:\n";
-	printArray(\@d);
-	print "\n";
+        my @d = diff(\@uqFaTreeLeaves, \@fas);
+        print "Here are leaves not present in faParent:\n";
+        printArray(\@d);
+        print "\n";
       }
     }
 
@@ -3449,20 +3477,20 @@ if ( scalar(keys %faChildren) > 1 )
 
       if ($debug)
       {
-	print "\nfaParent:\n";
-	printFormatedTbl(\%faParent);
-	print "\n\n";
+        print "\nfaParent:\n";
+        printFormatedTbl(\%faParent);
+        print "\n\n";
 
-	$nFaParent = keys %faParent;
-	print "\n\tNow, the number of elemets of the family parent table: $nFaParent\n";
-	print "\ttNumber of elemets of the leaves of the family condensed tree: $nFaTreeLeaves\n\n";
+        $nFaParent = keys %faParent;
+        print "\n\tNow, the number of elemets of the family parent table: $nFaParent\n";
+        print "\ttNumber of elemets of the leaves of the family condensed tree: $nFaTreeLeaves\n\n";
       }
 
       if ($nFaParent != $nFaTreeLeaves )
       {
-	warn "\n\n\tERROR: Still the number of leaves of $finalCondFamilyTreeBasename, $nFaTreeLeaves\n is not equal to the number of families, $nFaParent, in the faParent table";
-	print "\n\n";
-	exit 1;
+        warn "\n\n\tERROR: Still the number of leaves of $finalCondFamilyTreeBasename, $nFaTreeLeaves\n is not equal to the number of families, $nFaParent, in the faParent table";
+        print "\n\n";
+        exit 1;
       }
     }
     else
@@ -3531,7 +3559,7 @@ if ( scalar(keys %faChildren) > 1 )
       # parents are also found in the corresponding parent tables
       if ( !exists $orParent{$origOr} )
       {
-	$orParent{$origOr} = $orParent{$or};
+        $orParent{$origOr} = $orParent{$or};
       }
       print "orParent{$origOr}: $orParent{$origOr}\n\n" if $debug;
       next;
@@ -3559,15 +3587,15 @@ if ( scalar(keys %faChildren) > 1 )
     {
       if ( exists $orParent{$o} && !exists $locCls{$orParent{$o}} )
       {
-	$newCl .= "_" . $orParent{$o};
-	$locCls{$orParent{$o}}++;
-	print "\t" . $orParent{$o} . "\n" if $debug;
+        $newCl .= "_" . $orParent{$o};
+        $locCls{$orParent{$o}}++;
+        print "\t" . $orParent{$o} . "\n" if $debug;
       }
       elsif ( !exists $orParent{$o} )
       {
-	warn "\n\n\tERROR: The element, $o, of $or not found in orParent";
-	print "\n\n";
-	exit 1;
+        warn "\n\n\tERROR: The element, $o, of $or not found in orParent";
+        print "\n\n";
+        exit 1;
       }
     }
 
@@ -3576,11 +3604,11 @@ if ( scalar(keys %faChildren) > 1 )
 
     $section = qq~
 
-##
-## === updating clParent ===
-##
+      ##
+      ## === updating clParent ===
+      ##
 
-~;
+      ~;
     print "$section" if $debug;
 
     print "\nProcessing $newCl\n" if $debug;
@@ -3628,15 +3656,15 @@ if ( scalar(keys %faChildren) > 1 )
     {
       if ( exists $clParent{$ph} && !exists $locPha{$clParent{$ph}} )
       {
-	$newPh .= "_" . $clParent{$ph};
-	$locPha{$clParent{$ph}}++;
-	print "\t" . $clParent{$ph} . "\n" if $debug;
+        $newPh .= "_" . $clParent{$ph};
+        $locPha{$clParent{$ph}}++;
+        print "\t" . $clParent{$ph} . "\n" if $debug;
       }
       elsif ( !exists $clParent{$ph} )
       {
-	warn "\n\n\tERROR: The element, $ph, of $newPh not found in clParent";
-	print "\n\n";
-	exit 1;
+        warn "\n\n\tERROR: The element, $ph, of $newPh not found in clParent";
+        print "\n\n";
+        exit 1;
       }
     }
 
@@ -3672,20 +3700,20 @@ if ( scalar(keys %faChildren) > 1 )
       # $lineageTbl{$id} needs updating only when $newOr ne $or
       if ( $newOr ne $or )
       {
-	my $cl = pop @f;
-	my $ph = pop @f;
+        my $cl = pop @f;
+        my $ph = pop @f;
 
-	my $newCl = $orParent{$newOr};
-	my $newPh = $clParent{$newCl};
+        my $newCl = $orParent{$newOr};
+        my $newPh = $clParent{$newCl};
 
-	my @t = ("Bacteria", $newPh, $newCl, $newOr, $fa, $ge, $sge, $sp);
-	my $l = join ";", @t;
+        my @t = ("Bacteria", $newPh, $newCl, $newOr, $fa, $ge, $sge, $sp);
+        my $l = join ";", @t;
 
-	# print "\n\nOrig lineageTbl{$id}: " . $lineageTbl{$id} . "\n";
-	# print "\n\nNew lineageTbl{$id}: $l\n";
-	# exit 1;
+        # print "\n\nOrig lineageTbl{$id}: " . $lineageTbl{$id} . "\n";
+        # print "\n\nNew lineageTbl{$id}: $l\n";
+        # exit 1;
 
-	$lineageTbl{$id} = $l;
+        $lineageTbl{$id} = $l;
       }
     }
     else
@@ -3771,7 +3799,7 @@ if ( scalar(keys %faChildren) > 1 )
     if ( !$doNotPopPDFs && $OSNAME eq "darwin")
     {
       my $pdfOrderColorsCsppTreeFile = abs_path( $grPrefix . "_final_species_condensed_tree_with_order_colors.pdf" );
-      $title = $grPrefix . " - orders";
+      my $title = $grPrefix . " - orders";
       plot_tree($finalCondSppTreeFile, $orderIdxFile, $pdfOrderColorsCsppTreeFile, $title);
 
       $cmd = "open $pdfOrderColorsCsppTreeFile";
@@ -3781,11 +3809,11 @@ if ( scalar(keys %faChildren) > 1 )
 
     $section = qq~
 
-##
-## Class-level cleanup
-##
+      ##
+      ## Class-level cleanup
+      ##
 
-~;
+      ~;
     print "$section";
 
     print "--- Running cluster_taxons.pl on condensed order tree\n";
@@ -3819,57 +3847,57 @@ if ( scalar(keys %faChildren) > 1 )
 
       if ($debug)
       {
-	if ( $nOrParent > $nOrTreeLeaves )
-	{
-	  my @d = diff(\@ors, \@uqOrTreeLeaves);
-	  print "Here are orParent orders not in the tree:\n";
-	  printArray(\@d);
-	  print "\n";
-	}
+        if ( $nOrParent > $nOrTreeLeaves )
+        {
+          my @d = diff(\@ors, \@uqOrTreeLeaves);
+          print "Here are orParent orders not in the tree:\n";
+          printArray(\@d);
+          print "\n";
+        }
 
-	if ( $nOrParent < $nOrTreeLeaves )
-	{
-	  my @d = diff(\@uqOrTreeLeaves, \@ors);
-	  print "Here are leaves not present in orParent:\n";
-	  printArray(\@d);
-	  print "\n";
-	}
+        if ( $nOrParent < $nOrTreeLeaves )
+        {
+          my @d = diff(\@uqOrTreeLeaves, \@ors);
+          print "Here are leaves not present in orParent:\n";
+          printArray(\@d);
+          print "\n";
+        }
       }
 
       my @c = comm(\@ors, \@uqOrTreeLeaves);
       if ( $nOrParent>@c && $nOrTreeLeaves==@c )
       {
-	print "orParent is a superset of uqOrTreeLeaves. Restricting orParent to uqOrTreeLeaves\n\n" if $debug;
-	my @d = diff(\@ors, \@uqOrTreeLeaves);
+        print "orParent is a superset of uqOrTreeLeaves. Restricting orParent to uqOrTreeLeaves\n\n" if $debug;
+        my @d = diff(\@ors, \@uqOrTreeLeaves);
 
-	delete @orParent{@d};
-	$nOrParent = keys %orParent;
-	writeTbl(\%orParent, $orParentFile);
+        delete @orParent{@d};
+        $nOrParent = keys %orParent;
+        writeTbl(\%orParent, $orParentFile);
 
-	if ($debug)
-	{
-	  print "\norParent:\n";
-	  printFormatedTbl(\%orParent);
-	  print "\n\n";
+        if ($debug)
+        {
+          print "\norParent:\n";
+          printFormatedTbl(\%orParent);
+          print "\n\n";
 
-	  $nOrParent = keys %orParent;
-	  print "\n\tNow, the number of elemets of the order parent table: $nOrParent\n";
-	  print "\ttNumber of elemets of the leaves of the order condensed tree: $nOrTreeLeaves\n\n";
-	}
+          $nOrParent = keys %orParent;
+          print "\n\tNow, the number of elemets of the order parent table: $nOrParent\n";
+          print "\ttNumber of elemets of the leaves of the order condensed tree: $nOrTreeLeaves\n\n";
+        }
 
-	if ($nOrParent != $nOrTreeLeaves )
-	{
-	  warn "\n\n\tERROR: Still the number of leaves of $finalCondOrderTreeBasename, $nOrTreeLeaves\n is not equal to the number of orders, $nOrParent, in the orParent table";
-	  print "\n\n";
-	  exit 1;
-	}
+        if ($nOrParent != $nOrTreeLeaves )
+        {
+          warn "\n\n\tERROR: Still the number of leaves of $finalCondOrderTreeBasename, $nOrTreeLeaves\n is not equal to the number of orders, $nOrParent, in the orParent table";
+          print "\n\n";
+          exit 1;
+        }
       }
       else
       {
-	warn "\n\n\tERROR: order condensed tree has $nOrTreeLeaves leaves and orParent has $nOrParent number of elements.";
-	print "\n\tThese two numbers should be the same.\n";
-	print "\tAn attempt to rectify the situation did not work out\n\n";
-	exit 1;
+        warn "\n\n\tERROR: order condensed tree has $nOrTreeLeaves leaves and orParent has $nOrParent number of elements.";
+        print "\n\tThese two numbers should be the same.\n";
+        print "\tAn attempt to rectify the situation did not work out\n\n";
+        exit 1;
       }
     }
 
@@ -3901,14 +3929,14 @@ if ( scalar(keys %faChildren) > 1 )
 
       if ( $cl =~ /_(\d+)$/)
       {
-	print "Detected numeric suffix $1 in $cl. Removing it for now\n" if $debug;
-	$cl =~ s/_\d+//;
+        print "Detected numeric suffix $1 in $cl. Removing it for now\n" if $debug;
+        $cl =~ s/_\d+//;
       }
 
       if ( $cl =~ /_etal/)
       {
-	print "Detected etal order: $cl. Removing etal suffix\n" if $debug;
-	$cl =~ s/_etal//;
+        print "Detected etal order: $cl. Removing etal suffix\n" if $debug;
+        $cl =~ s/_etal//;
       }
 
       my @clComponents = split "_", $cl;
@@ -3916,25 +3944,25 @@ if ( scalar(keys %faChildren) > 1 )
 
       if ( @clComponents == 1 && !exists $clParent{$cl} )
       {
-	warn "\n\n\tERROR: $cl not found in clParent";
-	print "\n\n";
+        warn "\n\n\tERROR: $cl not found in clParent";
+        print "\n\n";
 
-	print "clParent:\n";
-	printFormatedTbl(\%clParent);
-	print "\n\n";
+        print "clParent:\n";
+        printFormatedTbl(\%clParent);
+        print "\n\n";
 
-	exit 1;
+        exit 1;
       }
       elsif ( @clComponents == 1 && exists $clParent{$cl} )
       {
-	# we are assuming that since $cl was found in clParent higher taxon
-	# parents are also found in the corresponding parent tables
-	if ( !exists $clParent{$origCl} )
-	{
-	  $clParent{$origCl} = $clParent{$cl};
-	}
-	print "clParent{$origCl}: $clParent{$origCl}\n\n" if $debug;
-	next;
+        # we are assuming that since $cl was found in clParent higher taxon
+        # parents are also found in the corresponding parent tables
+        if ( !exists $clParent{$origCl} )
+        {
+          $clParent{$origCl} = $clParent{$cl};
+        }
+        print "clParent{$origCl}: $clParent{$origCl}\n\n" if $debug;
+        next;
       }
 
       my %locPha;
@@ -3942,32 +3970,32 @@ if ( scalar(keys %faChildren) > 1 )
       my $ph = shift @clComponents;
       if ( exists $clParent{$ph} )
       {
-	$newPh = $clParent{$ph};
-	$locPha{$newPh}++;
+        $newPh = $clParent{$ph};
+        $locPha{$newPh}++;
       }
       else
       {
-	warn "\n\n\tERROR: The first element, $ph, of $newPh not found in clParent";
-	print "\n\n";
-	exit 1;
+        warn "\n\n\tERROR: The first element, $ph, of $newPh not found in clParent";
+        print "\n\n";
+        exit 1;
       }
 
       print "Parents of the components of $newPh:\n\t$newPh\n" if $debug;
 
       for my $ph (@clComponents)
       {
-	if ( exists $clParent{$ph} && !exists $locPha{$clParent{$ph}} )
-	{
-	  $newPh .= "_" . $clParent{$ph};
-	  $locPha{$clParent{$ph}}++;
-	  print "\t" . $clParent{$ph} . "\n" if $debug;
-	}
-	elsif ( !exists $clParent{$ph} )
-	{
-	  warn "\n\n\tERROR: The element, $ph, of $newPh not found in clParent";
-	  print "\n\n";
-	  exit 1;
-	}
+        if ( exists $clParent{$ph} && !exists $locPha{$clParent{$ph}} )
+        {
+          $newPh .= "_" . $clParent{$ph};
+          $locPha{$clParent{$ph}}++;
+          print "\t" . $clParent{$ph} . "\n" if $debug;
+        }
+        elsif ( !exists $clParent{$ph} )
+        {
+          warn "\n\n\tERROR: The element, $ph, of $newPh not found in clParent";
+          print "\n\n";
+          exit 1;
+        }
       }
 
       $clParent{$origCl} = $newPh;
@@ -3995,26 +4023,26 @@ if ( scalar(keys %faChildren) > 1 )
 
       if ( exists $orderClass{$or} )
       {
-	my $cl = pop @f;
-	my $newCl = $orderClass{$or};
-	my $newPh = $clParent{$newCl};
+        my $cl = pop @f;
+        my $newCl = $orderClass{$or};
+        my $newPh = $clParent{$newCl};
 
-	print OUT "$id\t$newCl\n";
+        print OUT "$id\t$newCl\n";
 
-	# $lineageTbl{$id} needs updating only when $newCl ne $cl
-	if ( $newCl ne $cl )
-	{
-	  my $ph = pop @f;
-	  my @t = ("Bacteria", $newPh, $newCl, $or, $fa, $ge, $sge, $sp);
-	  my $l = join ";", @t;
-	  $lineageTbl{$id} = $l;
-	}
+        # $lineageTbl{$id} needs updating only when $newCl ne $cl
+        if ( $newCl ne $cl )
+        {
+          my $ph = pop @f;
+          my @t = ("Bacteria", $newPh, $newCl, $or, $fa, $ge, $sge, $sp);
+          my $l = join ";", @t;
+          $lineageTbl{$id} = $l;
+        }
       }
       else
       {
-	warn "\n\n\tERROR: $id with or: $or not detected in orderClass table";
-	print "\n\n";
-	exit 1;
+        warn "\n\n\tERROR: $id with or: $or not detected in orderClass table";
+        print "\n\n";
+        exit 1;
       }
     }
     close OUT;
@@ -4060,12 +4088,12 @@ if ( scalar(keys %faChildren) > 1 )
 
       if ( $showAllTrees &&  $OSNAME eq "darwin")
       {
-	my $pdfCondClassTreeFile = abs_path( "$grPrefix" . "_final_class_condensed_tree.pdf" );
-	plot_tree_bw($finalCondClassTreeFile, $pdfCondClassTreeFile);
+        my $pdfCondClassTreeFile = abs_path( "$grPrefix" . "_final_class_condensed_tree.pdf" );
+        plot_tree_bw($finalCondClassTreeFile, $pdfCondClassTreeFile);
 
-	$cmd = "open $pdfCondClassTreeFile";
-	print "\tcmd=$cmd\n" if $dryRun || $debug;
-	system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
+        $cmd = "open $pdfCondClassTreeFile";
+        print "\tcmd=$cmd\n" if $dryRun || $debug;
+        system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
       }
 
 
@@ -4077,29 +4105,29 @@ if ( scalar(keys %faChildren) > 1 )
 
       if ($debug)
       {
-	print "\n\nclassIdx:\n";
-	printFormatedTbl(\%classIdx);
-	print "\n\n";
+        print "\n\nclassIdx:\n";
+        printFormatedTbl(\%classIdx);
+        print "\n\n";
       }
 
       my $classIdxFile = abs_path( "$grPrefix" . "_class.idx" );
       open OUT, ">$classIdxFile" or die "Cannot open $classIdxFile for writing: $OS_ERROR";
       for my $sp (keys %sppGenus)
       {
-	my $ge = $sppGenus{$sp};
-	print OUT "$sp\t" . $classIdx{$orderClass{$familyOrder{$genusFamily{$ge}}}} . "\n";
+        my $ge = $sppGenus{$sp};
+        print OUT "$sp\t" . $classIdx{$orderClass{$familyOrder{$genusFamily{$ge}}}} . "\n";
       }
       close OUT;
 
       if ( !$doNotPopPDFs && $OSNAME eq "darwin")
       {
-	my $pdfClassColorsCsppTreeFile = abs_path( $grPrefix . "_final_species_condensed_tree_with_class_colors.pdf" );
-	$title = $grPrefix . " - classes";
-	plot_tree($finalCondSppTreeFile, $classIdxFile, $pdfClassColorsCsppTreeFile, $title);
+        my $pdfClassColorsCsppTreeFile = abs_path( $grPrefix . "_final_species_condensed_tree_with_class_colors.pdf" );
+        my $title = $grPrefix . " - classes";
+        plot_tree($finalCondSppTreeFile, $classIdxFile, $pdfClassColorsCsppTreeFile, $title);
 
-	$cmd = "open $pdfClassColorsCsppTreeFile";
-	print "\tcmd=$cmd\n" if $dryRun || $debug;
-	system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
+        $cmd = "open $pdfClassColorsCsppTreeFile";
+        print "\tcmd=$cmd\n" if $dryRun || $debug;
+        system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
       }
     }
   }
@@ -4307,11 +4335,11 @@ if ($buildModelData)
 
   $section = qq~
 
-##
-## Building MC models
-##
+    ##
+    ## Building MC models
+    ##
 
-~;
+    ~;
   print $section;
 
   print "--- Creating species lineage file\n";
@@ -4358,7 +4386,7 @@ if ($buildModelData)
       print "\nElements in new taxonomy that are not in new fasta:\n";
       for (@d)
       {
-	print "\t$_\t" . $newTx{$_} . "\n";
+        print "\t$_\t" . $newTx{$_} . "\n";
       }
       print "\n\n";
     }
@@ -4369,7 +4397,7 @@ if ($buildModelData)
       print "\nElements in new fasta that are not in the new taxonomy:\n";
       for (@d)
       {
-	print "\t$_\t" . $lineageTbl{$_} . "\n";
+        print "\t$_\t" . $lineageTbl{$_} . "\n";
       }
       print "\n\n";
     }
@@ -4669,64 +4697,64 @@ sub plot_color_tree
 
   my $Rscript = qq~
 
-source(\"$readNewickFile\")
-require(phytools)
-library(ade4)
+    source(\"$readNewickFile\")
+    require(phytools)
+    library(ade4)
 
-treeStr <- readChar(\"$treeFile\", file.info(\"$treeFile\")\$size)
-tr1 <- newick2phylog(treeStr)
+    treeStr <- readChar(\"$treeFile\", file.info(\"$treeFile\")\$size)
+    tr1 <- newick2phylog(treeStr)
 
-parent <- c()
-for ( node in names(tr1\$parts))
-{
-    chld <- tr1\$parts[[node]]
+    parent <- c()
+    for ( node in names(tr1\$parts))
+  {
+  chld <- tr1\$parts[[node]]
     for ( ch in chld )
-    {
-        parent[ch] <- node
-    }
-}
+  {
+  parent[ch] <- node
+  }
+  }
 
-tr <- read.newick(file=\"$treeFile\")
-tr <- collapse.singles(tr)
+  tr <- read.newick(file=\"$treeFile\")
+    tr <- collapse.singles(tr)
 
-pars <- parent[tr\$tip.label]
+    pars <- parent[tr\$tip.label]
 
-colIdx <- 1
-tip.colors <- c()
-tip.colors[1] <- colIdx
-for ( i in 2:length(pars) )
-{
-    if ( pars[i] != pars[i-1] )
-    {
-        colIdx <- colIdx + 1
-        if ( colIdx==9 )
-        {
-            colIdx <- 1
-        }
-    }
-    tip.colors[i] <- colIdx
+    colIdx <- 1
+    tip.colors <- c()
+    tip.colors[1] <- colIdx
+    for ( i in 2:length(pars) )
+  {
+  if ( pars[i] != pars[i-1] )
+  {
+  colIdx <- colIdx + 1
+    if ( colIdx==9 )
+  {
+  colIdx <- 1
+  }
+  }
+  tip.colors[i] <- colIdx
     if ( colIdx==7 )
-    {
-        tip.colors[i] <- "brown" # using brown instead of yellow
-    }
-}
+  {
+  tip.colors[i] <- "brown" # using brown instead of yellow
+  }
+  }
 
-(nLeaves <- length(tr\$tip.label))
+  (nLeaves <- length(tr\$tip.label))
 
-figH <- 8
-figW <- 6
-if ( nLeaves >= 50 )
-{
-    figH <- 6.0/50.0 * ( nLeaves - 50) + 10
+    figH <- 8
+    figW <- 6
+    if ( nLeaves >= 50 )
+  {
+  figH <- 6.0/50.0 * ( nLeaves - 50) + 10
     figW <- 6.0/50.0 * ( nLeaves - 50) + 6
-}
+  }
 
-pdf(\"$pdfFile\", width=figW, height=figH)
-op <- par(mar=c(0,0,1.5,0), mgp=c(2.85,0.6,0),tcl = -0.3)
-plot(tr, tip.color=tip.colors, type=\"phylogram\", no.margin=FALSE, show.node.label=$showBoostrapVals, cex=0.8, main=\"$title\")
-par(op)
-dev.off()
-~;
+  pdf(\"$pdfFile\", width=figW, height=figH)
+    op <- par(mar=c(0,0,1.5,0), mgp=c(2.85,0.6,0),tcl = -0.3)
+    plot(tr, tip.color=tip.colors, type=\"phylogram\", no.margin=FALSE, show.node.label=$showBoostrapVals, cex=0.8, main=\"$title\")
+    par(op)
+    dev.off()
+    ~;
 
   run_R_script( $Rscript );
 }
@@ -4744,56 +4772,56 @@ sub plot_tree
 
   my $Rscript = qq~
 
-clTbl <- read.table(\"$clFile\", header=F)
-str(clTbl)
+    clTbl <- read.table(\"$clFile\", header=F)
+    str(clTbl)
 
-cltr <- clTbl[,2]
-names(cltr) <- clTbl[,1]
+    cltr <- clTbl[,2]
+    names(cltr) <- clTbl[,1]
 
-source(\"$readNewickFile\")
-require(phytools)
+    source(\"$readNewickFile\")
+    require(phytools)
 
-tr1 <- read.newick(file=\"$treeFile\")
-tr1 <- collapse.singles(tr1)
+    tr1 <- read.newick(file=\"$treeFile\")
+    tr1 <- collapse.singles(tr1)
 
-tip.cltr <- cltr[tr1\$tip.label]
+    tip.cltr <- cltr[tr1\$tip.label]
 
-colIdx <- 1
-tip.colors <- c()
-tip.colors[1] <- colIdx
-for ( i in 2:length(tip.cltr) )
-{
-    if ( tip.cltr[i] != tip.cltr[i-1] )
-    {
-        colIdx <- colIdx + 1
-        if ( colIdx==9 )
-        {
-            colIdx <- 1
-        }
-    }
-    tip.colors[i] <- colIdx
+    colIdx <- 1
+    tip.colors <- c()
+    tip.colors[1] <- colIdx
+    for ( i in 2:length(tip.cltr) )
+  {
+  if ( tip.cltr[i] != tip.cltr[i-1] )
+  {
+  colIdx <- colIdx + 1
+    if ( colIdx==9 )
+  {
+  colIdx <- 1
+  }
+  }
+  tip.colors[i] <- colIdx
     if ( colIdx==7 )
-    {
-        tip.colors[i] <- "brown" # using brown instead of yellow
-    }
-}
+  {
+  tip.colors[i] <- "brown" # using brown instead of yellow
+  }
+  }
 
-(nLeaves <- length(tr1\$tip.label))
+  (nLeaves <- length(tr1\$tip.label))
 
-figH <- 8
-figW <- 6
-if ( nLeaves >= 50 )
-{
-    figH <- 6.0/50.0 * ( nLeaves - 50) + 10
+    figH <- 8
+    figW <- 6
+    if ( nLeaves >= 50 )
+  {
+  figH <- 6.0/50.0 * ( nLeaves - 50) + 10
     figW <- 6.0/50.0 * ( nLeaves - 50) + 6
-}
+  }
 
-pdf(\"$pdfFile\", width=figW, height=figH)
-op <- par(mar=c(0,0,1.5,0), mgp=c(2.85,0.6,0),tcl = -0.3)
-plot(tr1,type=\"phylogram\", no.margin=FALSE, show.node.label=$showBoostrapVals, cex=0.8, tip.color=tip.colors, main=\"$title\")
-par(op)
-dev.off()
-~;
+  pdf(\"$pdfFile\", width=figW, height=figH)
+    op <- par(mar=c(0,0,1.5,0), mgp=c(2.85,0.6,0),tcl = -0.3)
+    plot(tr1,type=\"phylogram\", no.margin=FALSE, show.node.label=$showBoostrapVals, cex=0.8, tip.color=tip.colors, main=\"$title\")
+    par(op)
+    dev.off()
+    ~;
 
   run_R_script( $Rscript );
 }
@@ -4813,28 +4841,28 @@ sub plot_tree_bw
 
   my $Rscript = qq~
 
-source(\"$readNewickFile\")
-require(phytools)
+    source(\"$readNewickFile\")
+    require(phytools)
 
-tr1 <- read.newick(file=\"$treeFile\")
-tr1 <- collapse.singles(tr1)
+    tr1 <- read.newick(file=\"$treeFile\")
+    tr1 <- collapse.singles(tr1)
 
-(nLeaves <- length(tr1\$tip.label))
+    (nLeaves <- length(tr1\$tip.label))
 
-figH <- 8
-figW <- 6
-if ( nLeaves >= 50 )
-{
-    figH <- 6.0/50.0 * ( nLeaves - 50) + 10
+    figH <- 8
+    figW <- 6
+    if ( nLeaves >= 50 )
+  {
+  figH <- 6.0/50.0 * ( nLeaves - 50) + 10
     figW <- 6.0/50.0 * ( nLeaves - 50) + 6
-}
+  }
 
-pdf(\"$pdfFile\", width=figW, height=figH)
-op <- par(mar=c(0,0,1.5,0), mgp=c(2.85,0.6,0),tcl = -0.3)
-plot(tr1,type=\"phylogram\", no.margin=FALSE, show.node.label=$showBoostrapVals, cex=0.8, main=\"$title\")
-par(op)
-dev.off()
-~;
+  pdf(\"$pdfFile\", width=figW, height=figH)
+    op <- par(mar=c(0,0,1.5,0), mgp=c(2.85,0.6,0),tcl = -0.3)
+    plot(tr1,type=\"phylogram\", no.margin=FALSE, show.node.label=$showBoostrapVals, cex=0.8, main=\"$title\")
+    par(op)
+    dev.off()
+    ~;
 
   run_R_script( $Rscript );
 }
@@ -4860,10 +4888,10 @@ sub run_R_script{
     {
       if ( $line =~ /Error/ )
       {
-	print "R script crashed at\n$line";
-	print "check $outFile for details\n";
-	$exitStatus = 0;
-	exit 1;
+        print "R script crashed at\n$line";
+        print "check $outFile for details\n";
+        $exitStatus = 0;
+        exit 1;
       }
     }
     close IN;
@@ -4892,14 +4920,14 @@ sub get_seqIDs_from_fa
       my $runTime = $endRun - $startRun;
       if ( $runTime > 60 )
       {
-	my $timeMin = int($runTime / 60);
-	my $timeSec = sprintf("%02d", $runTime % 60);
-	$timeStr = "$timeMin:$timeSec";
+        my $timeMin = int($runTime / 60);
+        my $timeSec = sprintf("%02d", $runTime % 60);
+        $timeStr = "$timeMin:$timeSec";
       }
       else
       {
-	my $runTime = sprintf("%02d", $runTime);
-	$timeStr = "0:$runTime";
+        my $runTime = sprintf("%02d", $runTime);
+        $timeStr = "0:$runTime";
       }
       print "\r$timeStr";
     }
@@ -4919,13 +4947,13 @@ sub get_seqIDs_from_fa
 ## lifted from
 ## http://www.perlmonks.org/?node_id=2145
 sub commify {
-   local $_  = shift;
-   s{(?<!\d|\.)(\d{4,})}
-    {my $n = $1;
-     $n=~s/(?<=.)(?=(?:.{3})+$)/,/g;
-     $n;
-    }eg;
-   return $_;
+  local $_  = shift;
+  s{(?<!\d|\.)(\d{4,})}
+  {my $n = $1;
+  $n=~s/(?<=.)(?=(?:.{3})+$)/,/g;
+  $n;
+  }eg;
+  return $_;
 }
 
 # get maxKeyLen and maxValLen
@@ -5034,25 +5062,25 @@ sub printLineageAfterSppToFile
       my $orKVL = getKeyValStrLengths(\%orTbl, \@ors);
       for my $or ( sort{scalar(@{$orTbl{$a}}) <=> scalar(@{$orTbl{$b}})} @ors)
       {
-	printF2(2, $or, scalar(@{$orTbl{$or}}), $orKVL, $SRYOUT);
-	my @fas = keys %{$children{$or}};
-	my $faKVL = getKeyValStrLengths(\%faTbl, \@fas);
-	for my $fa ( sort{scalar(@{$faTbl{$a}}) <=> scalar(@{$faTbl{$b}})} @fas)
-	{
-	  printF2(3, $fa, scalar(@{$faTbl{$fa}}), $faKVL, $SRYOUT);
-	  my @ges = keys %{$children{$fa}};
-	  my $geKVL = getKeyValStrLengths(\%geTbl, \@ges);
-	  for my $ge ( sort{scalar(@{$geTbl{$a}}) <=> scalar(@{$geTbl{$b}})} @ges)
-	  {
-	    printF2(4, $ge, scalar(@{$geTbl{$ge}}), $geKVL, $SRYOUT);
-	    my @sps = keys %{$newChildren{$ge}};
-	    my $spKVL = getKeyValStrLengths(\%newSpTbl, \@sps);
-	    for my $sp ( sort @sps)
-	    {
-	      printF2(5, $sp, $newChildren{$ge}{$sp}, $spKVL, $SRYOUT);
-	    }
-	  }
-	}
+        printF2(2, $or, scalar(@{$orTbl{$or}}), $orKVL, $SRYOUT);
+        my @fas = keys %{$children{$or}};
+        my $faKVL = getKeyValStrLengths(\%faTbl, \@fas);
+        for my $fa ( sort{scalar(@{$faTbl{$a}}) <=> scalar(@{$faTbl{$b}})} @fas)
+        {
+          printF2(3, $fa, scalar(@{$faTbl{$fa}}), $faKVL, $SRYOUT);
+          my @ges = keys %{$children{$fa}};
+          my $geKVL = getKeyValStrLengths(\%geTbl, \@ges);
+          for my $ge ( sort{scalar(@{$geTbl{$a}}) <=> scalar(@{$geTbl{$b}})} @ges)
+          {
+            printF2(4, $ge, scalar(@{$geTbl{$ge}}), $geKVL, $SRYOUT);
+            my @sps = keys %{$newChildren{$ge}};
+            my $spKVL = getKeyValStrLengths(\%newSpTbl, \@sps);
+            for my $sp ( sort @sps)
+            {
+              printF2(5, $sp, $newChildren{$ge}{$sp}, $spKVL, $SRYOUT);
+            }
+          }
+        }
       }
     }
   }
@@ -5087,31 +5115,31 @@ sub printLineageAfterSpp
       my $orKVL = getKeyValStrLengths(\%orTbl, \@ors);
       for my $or ( sort{scalar(@{$orTbl{$a}}) <=> scalar(@{$orTbl{$b}})} @ors)
       {
-	printF(2, $or, scalar(@{$orTbl{$or}}), $orKVL);
-	my @fas = keys %{$children{$or}};
-	my $faKVL = getKeyValStrLengths(\%faTbl, \@fas);
-	for my $fa ( sort{scalar(@{$faTbl{$a}}) <=> scalar(@{$faTbl{$b}})} @fas)
-	{
-	  printF(3, $fa, scalar(@{$faTbl{$fa}}), $faKVL);
-	  my @ges = keys %{$children{$fa}};
-	  my $geKVL = getKeyValStrLengths(\%geTbl, \@ges);
-	  for my $ge ( sort{scalar(@{$geTbl{$a}}) <=> scalar(@{$geTbl{$b}})} @ges)
-	  {
-	    printF(4, $ge, scalar(@{$geTbl{$ge}}), $geKVL);
-	    if (!exists $newChildren{$ge})
-	    {
-	      warn "\n\n\tERROR: newChildren{$ge} does not exist";
-	      print "\n\n";
-	      exit 1;
-	    }
-	    my @sps = keys %{$newChildren{$ge}};
-	    my $spKVL = getKeyValStrLengths(\%newSpTbl, \@sps);
-	    for my $sp ( sort @sps)
-	    {
-	      printF(5, $sp, $newChildren{$ge}{$sp}, $spKVL);
-	    }
-	  }
-	}
+        printF(2, $or, scalar(@{$orTbl{$or}}), $orKVL);
+        my @fas = keys %{$children{$or}};
+        my $faKVL = getKeyValStrLengths(\%faTbl, \@fas);
+        for my $fa ( sort{scalar(@{$faTbl{$a}}) <=> scalar(@{$faTbl{$b}})} @fas)
+        {
+          printF(3, $fa, scalar(@{$faTbl{$fa}}), $faKVL);
+          my @ges = keys %{$children{$fa}};
+          my $geKVL = getKeyValStrLengths(\%geTbl, \@ges);
+          for my $ge ( sort{scalar(@{$geTbl{$a}}) <=> scalar(@{$geTbl{$b}})} @ges)
+          {
+            printF(4, $ge, scalar(@{$geTbl{$ge}}), $geKVL);
+            if (!exists $newChildren{$ge})
+            {
+              warn "\n\n\tERROR: newChildren{$ge} does not exist";
+              print "\n\n";
+              exit 1;
+            }
+            my @sps = keys %{$newChildren{$ge}};
+            my $spKVL = getKeyValStrLengths(\%newSpTbl, \@sps);
+            for my $sp ( sort @sps)
+            {
+              printF(5, $sp, $newChildren{$ge}{$sp}, $spKVL);
+            }
+          }
+        }
       }
     }
   }
@@ -5134,25 +5162,25 @@ sub printLineage
       my $orKVL = getKeyValStrLengths(\%orTbl, \@ors);
       for my $or ( sort{scalar(@{$orTbl{$a}}) <=> scalar(@{$orTbl{$b}})} @ors)
       {
-	printF(2, $or, scalar(@{$orTbl{$or}}), $orKVL);
-	my @fas = keys %{$children{$or}};
-	my $faKVL = getKeyValStrLengths(\%faTbl, \@fas);
-	for my $fa ( sort{scalar(@{$faTbl{$a}}) <=> scalar(@{$faTbl{$b}})} @fas)
-	{
-	  printF(3, $fa, scalar(@{$faTbl{$fa}}), $faKVL);
-	  my @ges = keys %{$children{$fa}};
-	  my $geKVL = getKeyValStrLengths(\%geTbl, \@ges);
-	  for my $ge ( sort{scalar(@{$geTbl{$a}}) <=> scalar(@{$geTbl{$b}})} @ges)
-	  {
-	    printF(4, $ge, scalar(@{$geTbl{$ge}}), $geKVL);
-	    my @sps = keys %{$children{$ge}};
-	    my $spKVL = getKeyValStrLengths(\%spTbl, \@sps);
-	    for my $sp ( sort{scalar(@{$spTbl{$a}}) <=> scalar(@{$spTbl{$b}})} @sps)
-	    {
-	      printF(5, $sp, scalar(@{$spTbl{$sp}}), $spKVL);
-	    }
-	  }
-	}
+        printF(2, $or, scalar(@{$orTbl{$or}}), $orKVL);
+        my @fas = keys %{$children{$or}};
+        my $faKVL = getKeyValStrLengths(\%faTbl, \@fas);
+        for my $fa ( sort{scalar(@{$faTbl{$a}}) <=> scalar(@{$faTbl{$b}})} @fas)
+        {
+          printF(3, $fa, scalar(@{$faTbl{$fa}}), $faKVL);
+          my @ges = keys %{$children{$fa}};
+          my $geKVL = getKeyValStrLengths(\%geTbl, \@ges);
+          for my $ge ( sort{scalar(@{$geTbl{$a}}) <=> scalar(@{$geTbl{$b}})} @ges)
+          {
+            printF(4, $ge, scalar(@{$geTbl{$ge}}), $geKVL);
+            my @sps = keys %{$children{$ge}};
+            my $spKVL = getKeyValStrLengths(\%spTbl, \@sps);
+            for my $sp ( sort{scalar(@{$spTbl{$a}}) <=> scalar(@{$spTbl{$b}})} @sps)
+            {
+              printF(5, $sp, scalar(@{$spTbl{$sp}}), $spKVL);
+            }
+          }
+        }
       }
     }
   }
@@ -5180,25 +5208,25 @@ sub printLineageToFile
       my $orKVL = getKeyValStrLengths(\%orTbl, \@ors);
       for my $or ( sort{scalar(@{$orTbl{$a}}) <=> scalar(@{$orTbl{$b}})} @ors)
       {
-	printF2(2, $or, scalar(@{$orTbl{$or}}), $orKVL, $fh);
-	my @fas = keys %{$children{$or}};
-	my $faKVL = getKeyValStrLengths(\%faTbl, \@fas);
-	for my $fa ( sort{scalar(@{$faTbl{$a}}) <=> scalar(@{$faTbl{$b}})} @fas)
-	{
-	  printF2(3, $fa, scalar(@{$faTbl{$fa}}), $faKVL, $fh);
-	  my @ges = keys %{$children{$fa}};
-	  my $geKVL = getKeyValStrLengths(\%geTbl, \@ges);
-	  for my $ge ( sort{scalar(@{$geTbl{$a}}) <=> scalar(@{$geTbl{$b}})} @ges)
-	  {
-	    printF2(4, $ge, scalar(@{$geTbl{$ge}}), $geKVL, $fh);
-	    my @sps = keys %{$children{$ge}};
-	    my $spKVL = getKeyValStrLengths(\%spTbl, \@sps);
-	    for my $sp ( sort{scalar(@{$spTbl{$a}}) <=> scalar(@{$spTbl{$b}})} @sps)
-	    {
-	      printF2(5, $sp, scalar(@{$spTbl{$sp}}), $spKVL, $fh);
-	    }
-	  }
-	}
+        printF2(2, $or, scalar(@{$orTbl{$or}}), $orKVL, $fh);
+        my @fas = keys %{$children{$or}};
+        my $faKVL = getKeyValStrLengths(\%faTbl, \@fas);
+        for my $fa ( sort{scalar(@{$faTbl{$a}}) <=> scalar(@{$faTbl{$b}})} @fas)
+        {
+          printF2(3, $fa, scalar(@{$faTbl{$fa}}), $faKVL, $fh);
+          my @ges = keys %{$children{$fa}};
+          my $geKVL = getKeyValStrLengths(\%geTbl, \@ges);
+          for my $ge ( sort{scalar(@{$geTbl{$a}}) <=> scalar(@{$geTbl{$b}})} @ges)
+          {
+            printF2(4, $ge, scalar(@{$geTbl{$ge}}), $geKVL, $fh);
+            my @sps = keys %{$children{$ge}};
+            my $spKVL = getKeyValStrLengths(\%spTbl, \@sps);
+            for my $sp ( sort{scalar(@{$spTbl{$a}}) <=> scalar(@{$spTbl{$b}})} @sps)
+            {
+              printF2(5, $sp, scalar(@{$spTbl{$sp}}), $spKVL, $fh);
+            }
+          }
+        }
       }
     }
   }
@@ -5221,31 +5249,31 @@ sub printLineage2
       my $orKVL = getKeyValStrLengths(\%orTbl, \@ors);
       for my $or ( sort{scalar(@{$orTbl{$a}}) <=> scalar(@{$orTbl{$b}})} @ors)
       {
-	printF(2, $or, scalar(@{$orTbl{$or}}), $orKVL);
-	my @fas = keys %{$children{$or}};
-	my $faKVL = getKeyValStrLengths(\%faTbl, \@fas);
-	for my $fa ( sort{scalar(@{$faTbl{$a}}) <=> scalar(@{$faTbl{$b}})} @fas)
-	{
-	  printF(3, $fa, scalar(@{$faTbl{$fa}}), $faKVL);
-	  my @ges = keys %{$children{$fa}};
-	  my $geKVL = getKeyValStrLengths(\%geTbl, \@ges);
-	  for my $ge ( sort{scalar(@{$geTbl{$a}}) <=> scalar(@{$geTbl{$b}})} @ges)
-	  {
-	    printF(4, $ge, scalar(@{$geTbl{$ge}}), $geKVL);
-	    my @subGes = keys %{$children{$ge}};
-	    my $subgeKVL = getKeyValStrLengths(\%subGeTbl, \@subGes);
-	    for my $sge ( sort{scalar(@{$subGeTbl{$a}}) <=> scalar(@{$subGeTbl{$b}})} @subGes)
-	    {
-	      printF(5, $sge, scalar(@{$subGeTbl{$sge}}), $subgeKVL);
-	      my @sps = keys %{$children{$sge}};
-	      my $spKVL = getKeyValStrLengths(\%spTbl, \@sps);
-	      for my $sp ( sort{scalar(@{$spTbl{$a}}) <=> scalar(@{$spTbl{$b}})} @sps)
-	      {
-		printF(6, $sp, scalar(@{$spTbl{$sp}}), $spKVL);
-	      }
-	    }
-	  }
-	}
+        printF(2, $or, scalar(@{$orTbl{$or}}), $orKVL);
+        my @fas = keys %{$children{$or}};
+        my $faKVL = getKeyValStrLengths(\%faTbl, \@fas);
+        for my $fa ( sort{scalar(@{$faTbl{$a}}) <=> scalar(@{$faTbl{$b}})} @fas)
+        {
+          printF(3, $fa, scalar(@{$faTbl{$fa}}), $faKVL);
+          my @ges = keys %{$children{$fa}};
+          my $geKVL = getKeyValStrLengths(\%geTbl, \@ges);
+          for my $ge ( sort{scalar(@{$geTbl{$a}}) <=> scalar(@{$geTbl{$b}})} @ges)
+          {
+            printF(4, $ge, scalar(@{$geTbl{$ge}}), $geKVL);
+            my @subGes = keys %{$children{$ge}};
+            my $subgeKVL = getKeyValStrLengths(\%subGeTbl, \@subGes);
+            for my $sge ( sort{scalar(@{$subGeTbl{$a}}) <=> scalar(@{$subGeTbl{$b}})} @subGes)
+            {
+              printF(5, $sge, scalar(@{$subGeTbl{$sge}}), $subgeKVL);
+              my @sps = keys %{$children{$sge}};
+              my $spKVL = getKeyValStrLengths(\%spTbl, \@sps);
+              for my $sp ( sort{scalar(@{$spTbl{$a}}) <=> scalar(@{$spTbl{$b}})} @sps)
+              {
+                printF(6, $sp, scalar(@{$spTbl{$sp}}), $spKVL);
+              }
+            }
+          }
+        }
       }
     }
   }
@@ -5272,31 +5300,31 @@ sub printLineageToFile2
       my $orKVL = getKeyValStrLengths(\%orTbl, \@ors);
       for my $or ( sort{scalar(@{$orTbl{$a}}) <=> scalar(@{$orTbl{$b}})} @ors)
       {
-	printF2(2, $or, scalar(@{$orTbl{$or}}), $orKVL, $fh);
-	my @fas = keys %{$children{$or}};
-	my $faKVL = getKeyValStrLengths(\%faTbl, \@fas);
-	for my $fa ( sort{scalar(@{$faTbl{$a}}) <=> scalar(@{$faTbl{$b}})} @fas)
-	{
-	  printF2(3, $fa, scalar(@{$faTbl{$fa}}), $faKVL, $fh);
-	  my @ges = keys %{$children{$fa}};
-	  my $geKVL = getKeyValStrLengths(\%geTbl, \@ges);
-	  for my $ge ( sort{scalar(@{$geTbl{$a}}) <=> scalar(@{$geTbl{$b}})} @ges)
-	  {
-	    printF2(4, $ge, scalar(@{$geTbl{$ge}}), $geKVL, $fh);
-	    my @subGes = keys %{$children{$ge}};
-	    my $subgeKVL = getKeyValStrLengths(\%subGeTbl, \@subGes);
-	    for my $sge ( sort{scalar(@{$subGeTbl{$a}}) <=> scalar(@{$subGeTbl{$b}})} @subGes)
-	    {
-	      printF2(5, $sge, scalar(@{$subGeTbl{$sge}}), $subgeKVL, $fh);
-	      my @sps = keys %{$children{$sge}};
-	      my $spKVL = getKeyValStrLengths(\%spTbl, \@sps);
-	      for my $sp ( sort{scalar(@{$spTbl{$a}}) <=> scalar(@{$spTbl{$b}})} @sps)
-	      {
-		printF2(6, $sp, scalar(@{$spTbl{$sp}}), $spKVL, $fh);
-	      }
-	    }
-	  }
-	}
+        printF2(2, $or, scalar(@{$orTbl{$or}}), $orKVL, $fh);
+        my @fas = keys %{$children{$or}};
+        my $faKVL = getKeyValStrLengths(\%faTbl, \@fas);
+        for my $fa ( sort{scalar(@{$faTbl{$a}}) <=> scalar(@{$faTbl{$b}})} @fas)
+        {
+          printF2(3, $fa, scalar(@{$faTbl{$fa}}), $faKVL, $fh);
+          my @ges = keys %{$children{$fa}};
+          my $geKVL = getKeyValStrLengths(\%geTbl, \@ges);
+          for my $ge ( sort{scalar(@{$geTbl{$a}}) <=> scalar(@{$geTbl{$b}})} @ges)
+          {
+            printF2(4, $ge, scalar(@{$geTbl{$ge}}), $geKVL, $fh);
+            my @subGes = keys %{$children{$ge}};
+            my $subgeKVL = getKeyValStrLengths(\%subGeTbl, \@subGes);
+            for my $sge ( sort{scalar(@{$subGeTbl{$a}}) <=> scalar(@{$subGeTbl{$b}})} @subGes)
+            {
+              printF2(5, $sge, scalar(@{$subGeTbl{$sge}}), $subgeKVL, $fh);
+              my @sps = keys %{$children{$sge}};
+              my $spKVL = getKeyValStrLengths(\%spTbl, \@sps);
+              for my $sp ( sort{scalar(@{$spTbl{$a}}) <=> scalar(@{$spTbl{$b}})} @sps)
+              {
+                printF2(6, $sp, scalar(@{$spTbl{$sp}}), $spKVL, $fh);
+              }
+            }
+          }
+        }
       }
     }
   }
@@ -5599,7 +5627,7 @@ sub readTxTbl
 
       if ( $t !~ /OUTGROUP.*/ )
       {
-	$tbl{$id} = $t;
+        $tbl{$id} = $t;
       }
     }
   }
@@ -5612,7 +5640,7 @@ sub readTxTbl
 
       if ( ($id ne $outgroupSeqID) && ($t !~ /OUTGROUP.*/) )
       {
-	$tbl{$id} = $t;
+        $tbl{$id} = $t;
       }
     }
   }
@@ -5757,94 +5785,94 @@ sub generateREADMEfile
 
   my $text = qq~
 
-The algorithm of automatic curation of full length sequences has the following structure
+    The algorithm of automatic curation of full length sequences has the following structure
 
-A given taxonomic rank (say phylum or family) a set of sequences from this
-taxonomic rank members is chosed from RDP db, so that there are no more than 100
-sequences per species. Outgroup sequences are chosen from a sibling taxonomic
-rank.
+    A given taxonomic rank (say phylum or family) a set of sequences from this
+    taxonomic rank members is chosed from RDP db, so that there are no more than 100
+    sequences per species. Outgroup sequences are chosen from a sibling taxonomic
+    rank.
 
-I use SATe to generate a MSA of the input fasta file
+    I use SATe to generate a MSA of the input fasta file
 
-A QC step consists of the following components
+    A QC step consists of the following components
 
-  mothur > summary.seqs()
-  mothur > screen.seqs()
-  trim_align.pl
-  mothur > filter.seqs()
+    mothur > summary.seqs()
+    mothur > screen.seqs()
+    trim_align.pl
+    mothur > filter.seqs()
 
-  screen.seqs() removes sequences using 95 percentile criteria for the start and
-  the end of alignment postions and min length of the sequence. Sequences with
-  ambiguity codes are also filtered out.
+    screen.seqs() removes sequences using 95 percentile criteria for the start and
+    the end of alignment postions and min length of the sequence. Sequences with
+    ambiguity codes are also filtered out.
 
-The remaining steps of the algorithm are
+    The remaining steps of the algorithm are
 
-   * align outgroup sequence to the input Multiple Sequence Alignment
-   * add aligned outgroup to the alignment
-   * do the same for the input taxon file
-   * build tree; reroot
-   * generate annotation and query file; query file contains sequences with
-     <genus>_sp taxonomy; annotation file contains the remaining sequences.
-   * run vicut with the generated annotation and query files
-   * remove outliers and rename query taxonomy based on vicut results; outliers are singleton clusters.
-   * repeat the above two steps unit there are no outliers
+    * align outgroup sequence to the input Multiple Sequence Alignment
+    * add aligned outgroup to the alignment
+    * do the same for the input taxon file
+    * build tree; reroot
+                    * generate annotation and query file; query file contains sequences with
+                                                            <genus>_sp taxonomy; annotation file contains the remaining sequences.
+                                                                                   * run vicut with the generated annotation and query files
+                                                                                   * remove outliers and rename query taxonomy based on vicut results; outliers are singleton clusters.
+                                                                                                                                                         * repeat the above two steps unit there are no outliers
 
 
-The taxonomy_cleanup.log file contains the standard output of the taxonomic cleanup command.
+                                                                                                                                                         The taxonomy_cleanup.log file contains the standard output of the taxonomic cleanup command.
 
-At the end is a list of lost taxons and transformation table from old to new
-taxon assignment. NA means that sequences were removed in the QC step. For example
+                                                                                                                                                         At the end is a list of lost taxons and transformation table from old to new
+                                                                                                                                                         taxon assignment. NA means that sequences were removed in the QC step. For example
 
-Mycoplasma_felis:            NA(6)
-Mycoplasma_imitans:          Mycoplasma_gallisepticum(1)
+                                                                                                                                                       Mycoplasma_felis:            NA(6)
+                                                                                                                                                       Mycoplasma_imitans:          Mycoplasma_gallisepticum(1)
 
-The first line means that 6 sequences of Mycoplasma_felis were removed in the QC
-step. There was only one sequence of Mycoplasma_imitans and it was renamed to
-Mycoplasma_gallisepticum.
+                                                                                                                                                         The first line means that 6 sequences of Mycoplasma_felis were removed in the QC
+                                                                                                                                                         step. There was only one sequence of Mycoplasma_imitans and it was renamed to
+                                                                                                                                                         Mycoplasma_gallisepticum.
 
-Please check out *_aln.bad.summary file for taxonomy and alignment parameters of
-all sequences removed as a result of QC. The last column contains a reason for
-removal.
+                                                                                                                                                         Please check out *_aln.bad.summary file for taxonomy and alignment parameters of
+                                                                                                                                                         all sequences removed as a result of QC. The last column contains a reason for
+                                                                                                                                                         removal.
 
-trim_align.pl trims sequences using 95% criterion for the start and end positions.
+                                                                                                                                                         trim_align.pl trims sequences using 95% criterion for the start and end positions.
 
-filter.seqs() removes all-gap columns from the trimmed MSA.
+                                                                                                                                                         filter.seqs() removes all-gap columns from the trimmed MSA.
 
-*_nr_SATe_aln_good95_tf_wOG.fa file contains final MSA including the outgroup
- sequence after the QC step and removal of gap columns.
+                                                                                                                                                         *_nr_SATe_aln_good95_tf_wOG.fa file contains final MSA including the outgroup
+                                                                                                                                                         sequence after the QC step and removal of gap columns.
 
-* _nr_SATe_aln.fa contains the initial alignment
+                                                                                                                                                         * _nr_SATe_aln.fa contains the initial alignment
 
-Here is a set of phylogenetic trees that are generated by the pipeline
+                                                                                                                                                         Here is a set of phylogenetic trees that are generated by the pipeline
 
-*_nr_SATe_aln_good95_tf_wOG_rr_sppSeqIDs_before_tx_change.tree
-*_nr_SATe_aln_good95_tf_wOG_rr_spp_before_tx_change.tree
+                                                                                                                                                         *_nr_SATe_aln_good95_tf_wOG_rr_sppSeqIDs_before_tx_change.tree
+                                                                                                                                                         *_nr_SATe_aln_good95_tf_wOG_rr_spp_before_tx_change.tree
 
-The above two trees (generated using FastTree) are trees with taxonomy before
-taxonomy was changed using vicut.
+                                                                                                                                                         The above two trees (generated using FastTree) are trees with taxonomy before
+                                                                                                                                                         taxonomy was changed using vicut.
 
-_spp contains species lables at the leaf nodes
-_sppSeqIDs contains species_seqID lables at the leaf nodes
+                                                                                                                                                         _spp contains species lables at the leaf nodes
+                                                                                                                                                         _sppSeqIDs contains species_seqID lables at the leaf nodes
 
-The following trees are generated after the initial taxonomy change
+                                                                                                                                                         The following trees are generated after the initial taxonomy change
 
-*_nr_SATe_aln_good95_tf_wOG_rr_spp.tree
-*_nr_SATe_aln_good95_tf_wOG_rr_sppSeqIDs.tree
-*_nr_SATe_aln_good95_tf_wOG_rr_sppCltr.tree
-*_nr_SATe_aln_good95_tf_wOG_rr_sppCondensed.tree
+                                                                                                                                                         *_nr_SATe_aln_good95_tf_wOG_rr_spp.tree
+                                                                                                                                                         *_nr_SATe_aln_good95_tf_wOG_rr_sppSeqIDs.tree
+                                                                                                                                                         *_nr_SATe_aln_good95_tf_wOG_rr_sppCltr.tree
+                                                                                                                                                         *_nr_SATe_aln_good95_tf_wOG_rr_sppCondensed.tree
 
-_sppCltr contains <species name>_<vicut cluster ID> at the leaf nodes
-_sppCondensed is a condencsed _spp tree (clades collapsed to one leaf).
+                                                                                                                                                         _sppCltr contains <species name>_<vicut cluster ID> at the leaf nodes
+                                                                                                                                                         _sppCondensed is a condencsed _spp tree (clades collapsed to one leaf).
 
-If there are outliers in the tree, they will be removed in the second prunning
-step of the algorithm and the corresonding trees are labeled as
+                                                                                                                                                         If there are outliers in the tree, they will be removed in the second prunning
+                                                                                                                                                         step of the algorithm and the corresonding trees are labeled as
 
-*_nr_SATe_aln_good95_tf_wOG_rr_pruned1_spp.tree
-*_nr_SATe_aln_good95_tf_wOG_rr_pruned1_sppCltr.tree
-*_nr_SATe_aln_good95_tf_wOG_rr_pruned1_sppCondensed.tree
-*_nr_SATe_aln_good95_tf_wOG_rr_pruned1_sppSeqIDs.tree
+                                                                                                                                                         *_nr_SATe_aln_good95_tf_wOG_rr_pruned1_spp.tree
+                                                                                                                                                         *_nr_SATe_aln_good95_tf_wOG_rr_pruned1_sppCltr.tree
+                                                                                                                                                         *_nr_SATe_aln_good95_tf_wOG_rr_pruned1_sppCondensed.tree
+                                                                                                                                                         *_nr_SATe_aln_good95_tf_wOG_rr_pruned1_sppSeqIDs.tree
 
-~;
+                                                                                                                                                         ~;
 
   open OUT, ">$file" or die "Cannot open $file for writing: $OS_ERROR";
   print OUT "$text\n";
@@ -5896,20 +5924,20 @@ sub test_OG
       ##if ( !$foundEnd && $ogIdx[$i] != $start[$rIdx] )
       if ( $ogIdx[$i-1]+1 != $ogIdx[$i] )
       {
-	#$foundEnd = 1;
-	push @end, $ogIdx[$i-1];
-	push @start, $ogIdx[$i];
+        #$foundEnd = 1;
+        push @end, $ogIdx[$i-1];
+        push @start, $ogIdx[$i];
       }
       if ($i==$#ogIdx)
       {
-	push @end, $ogIdx[$i];
+        push @end, $ogIdx[$i];
       }
 
       if (0 && $debug_test_OG)
       {
-	print "\ni: $i\n";
-	printArray(\@start, "start");
-	printArray(\@end, "end");
+        print "\ni: $i\n";
+        printArray(\@start, "start");
+        printArray(\@end, "end");
       }
     }
   }
@@ -5971,30 +5999,30 @@ sub test_OG
       #if ($rangeSize[$i] == $rangeSize[$imax])
       if (1)
       {
-	my @pos = ($start[$i] .. $end[$i]);
-	my @og = @leaves[@pos];
+        my @pos = ($start[$i] .. $end[$i]);
+        my @og = @leaves[@pos];
 
-	#print "\t--- Extracting the clade of OG sequences\n";
-	my $ogCladeTreeFile = "$grPrefix" . "_clade.tree";
-	$cmd = "rm -f $ogCladeTreeFile; nw_clade $treeFile @og > $ogCladeTreeFile";
-	#print "\tcmd=$cmd\n" if $dryRun || $debug_test_OG;
-	system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
+        #print "\t--- Extracting the clade of OG sequences\n";
+        my $ogCladeTreeFile = "$grPrefix" . "_clade.tree";
+        $cmd = "rm -f $ogCladeTreeFile; nw_clade $treeFile @og > $ogCladeTreeFile";
+        #print "\tcmd=$cmd\n" if $dryRun || $debug_test_OG;
+        system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 
-	#print "\t--- Extracting leaves of the OG clade\n";
-	my $ogCladeTreeLeavesFile = "$grPrefix" . "_clade.leaves";
-	$cmd = "rm -f $ogCladeTreeLeavesFile; nw_labels -I $ogCladeTreeFile > $ogCladeTreeLeavesFile";
-	#print "\tcmd=$cmd\n" if $dryRun || $debug_test_OG;
-	system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
+        #print "\t--- Extracting leaves of the OG clade\n";
+        my $ogCladeTreeLeavesFile = "$grPrefix" . "_clade.leaves";
+        $cmd = "rm -f $ogCladeTreeLeavesFile; nw_labels -I $ogCladeTreeFile > $ogCladeTreeLeavesFile";
+        #print "\tcmd=$cmd\n" if $dryRun || $debug_test_OG;
+        system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 
-	#print "\t--- Reading the leaves\n" if $debug_test_OG;
-	my @ogCladeLeaves = readArray($ogCladeTreeLeavesFile);
+        #print "\t--- Reading the leaves\n" if $debug_test_OG;
+        my @ogCladeLeaves = readArray($ogCladeTreeLeavesFile);
 
-	print "i: $i\t$start[$i]\t$end[$i]\t$rangeSize[$i]\t" . @ogCladeLeaves . "\n";
-	if ( @ogCladeLeaves < $minCladeSize )
-	{
-	  $minCladeSize = @ogCladeLeaves;
-	  $minCladeSizeIdx = $i;
-	}
+        print "i: $i\t$start[$i]\t$end[$i]\t$rangeSize[$i]\t" . @ogCladeLeaves . "\n";
+        if ( @ogCladeLeaves < $minCladeSize )
+        {
+          $minCladeSize = @ogCladeLeaves;
+          $minCladeSizeIdx = $i;
+        }
       }
     }
 
@@ -6077,11 +6105,11 @@ sub test_OG
       my $maxCladeSize = 100;
       if ( @ogCladeLeaves < $maxCladeSize )
       {
-	printArrayByRow(\@ogCladeLeaves, "OG Clade Leaves");
+        printArrayByRow(\@ogCladeLeaves, "OG Clade Leaves");
       }
       else
       {
-	print "\n\tLeaves of the OG clade written to $ogCladeTreeLeavesFile\n"
+        print "\n\tLeaves of the OG clade written to $ogCladeTreeLeavesFile\n"
       }
 
       print "\n\tNumber of leaves of the OG clade: " . @ogCladeLeaves . "\n";
@@ -6133,63 +6161,63 @@ sub build_clError
 
   my $Rscript = qq~
 
-myHist <- function(x, main=\"\", br=100, ... )
-{
-    hist(x, br=br, col=2, las=1, main=main, ...)
-}
+    myHist <- function(x, main=\"\", br=100, ... )
+  {
+  hist(x, br=br, col=2, las=1, main=main, ...)
+  }
 
-## integrate d from x0 to x1
-myIntegral <- function(d, x0, x1){
-    dx <- d\$x[2]-d\$x[1]
+  ## integrate d from x0 to x1
+  myIntegral <- function(d, x0, x1){
+  dx <- d\$x[2]-d\$x[1]
     i0 <- which.min(abs(d\$x - x0))
     i1 <- which.min(abs(d\$x - x1))
     sum(d\$y[i0:i1]) * dx
-}
+  }
 
-file <- paste(\"$refSibDir\",\"/ref.postProbs\",sep=\"\")
-ref.nFields <- count.fields(file, sep = \"\\t\")
-ref.maxNumFields <- max(ref.nFields)
-ref.pp <- read.table(file, sep=\"\\t\", col.names = paste0("V",seq_len(ref.maxNumFields)), fill = TRUE, stringsAsFactors=FALSE, row.names=1, header=F)
-ref.nFields <- ref.nFields - 1
-names(ref.nFields) <- rownames(ref.pp)
+  file <- paste(\"$refSibDir\",\"/ref.postProbs\",sep=\"\")
+    ref.nFields <- count.fields(file, sep = \"\\t\")
+    ref.maxNumFields <- max(ref.nFields)
+    ref.pp <- read.table(file, sep=\"\\t\", col.names = paste0("V",seq_len(ref.maxNumFields)), fill = TRUE, stringsAsFactors=FALSE, row.names=1, header=F)
+    ref.nFields <- ref.nFields - 1
+    names(ref.nFields) <- rownames(ref.pp)
 
-file <- paste(\"$refSibDir\",\"/sib.postProbs\",sep=\"\")
-sib.nFields <- count.fields(file, sep = \"\\t\")
-sib.maxNumFields <- max(sib.nFields)
-sib.pp <- read.table(file, sep=\"\\t\", col.names = paste0("V",seq_len(sib.maxNumFields)), fill = TRUE, stringsAsFactors=FALSE, row.names=1, header=F)
-sib.nFields <- sib.nFields - 1
-names(sib.nFields) <- rownames(sib.pp)
+    file <- paste(\"$refSibDir\",\"/sib.postProbs\",sep=\"\")
+    sib.nFields <- count.fields(file, sep = \"\\t\")
+    sib.maxNumFields <- max(sib.nFields)
+    sib.pp <- read.table(file, sep=\"\\t\", col.names = paste0("V",seq_len(sib.maxNumFields)), fill = TRUE, stringsAsFactors=FALSE, row.names=1, header=F)
+    sib.nFields <- sib.nFields - 1
+    names(sib.nFields) <- rownames(sib.pp)
 
-files <- list.files(path=\"$errorDir\", pattern=\"*.txt\", full.names=TRUE)
-length(files)
+    files <- list.files(path=\"$errorDir\", pattern=\"*.txt\", full.names=TRUE)
+    length(files)
 
-files <- setdiff(files, c(\"spp_paths.txt\", \"modelIds.txt\"))
-length(files)
+    files <- setdiff(files, c(\"spp_paths.txt\", \"modelIds.txt\"))
+    length(files)
 
-(ii <- grep(\"error\", files))
-length(ii)
-if ( length(ii) )
+    (ii <- grep(\"error\", files))
+    length(ii)
+    if ( length(ii) )
     files <- files[-ii]
-length(files)
+    length(files)
 
-(i <- grep(\"ncProbThlds.txt\", files))
-length(i)
-if ( length(i) )
-files <- files[-i]
-length(files)
+    (i <- grep(\"ncProbThlds.txt\", files))
+    length(i)
+    if ( length(i) )
+    files <- files[-i]
+    length(files)
 
-thldTbl <- c()
-errTbl <- c()
-fpError <- c()
-fnError <- c()
+    thldTbl <- c()
+    errTbl <- c()
+    fpError <- c()
+    fnError <- c()
 
-outDir <- \"$mcDir\"
-(figFile <- paste(outDir,\"/error_thld_figs.pdf\",sep=\"\"))
-pdf(figFile, width=11, height=11)
-op <- par(mar=c(4,4,4.5,0.5), mgp=c(2.25,0.6,0),tcl = -0.3)
-for ( file in files )
-{
-    print(file)
+    outDir <- \"$mcDir\"
+    (figFile <- paste(outDir,\"/error_thld_figs.pdf\",sep=\"\"))
+    pdf(figFile, width=11, height=11)
+    op <- par(mar=c(4,4,4.5,0.5), mgp=c(2.25,0.6,0),tcl = -0.3)
+    for ( file in files )
+  {
+  print(file)
 
     ## now, reading log posterior probabilities files is more complicated as for
     ## higher taxons the number of these log posteriors is greater than 1000, but
@@ -6212,17 +6240,17 @@ for ( file in files )
     ii <- setdiff(seq(ids), i)
     x.sib <- c()
     for ( i in ii )
-    {
-        x.sib <- c(x.sib, as.numeric(as.matrix( tbl[i,1:nFields[i]] )))
-    }
+  {
+  x.sib <- c(x.sib, as.numeric(as.matrix( tbl[i,1:nFields[i]] )))
+  }
 
-    if ( length(x.ref)==0 ) {
-        stop(\"length(x.ref) is 0\")
-    } else if ( length(x.sib)==0 ) {
-        stop(\"length(x.sib) is 0\")
-    }
+  if ( length(x.ref)==0 ) {
+  stop(\"length(x.ref) is 0\")
+  } else if ( length(x.sib)==0 ) {
+  stop(\"length(x.sib) is 0\")
+  }
 
-    d.ref <- density(x.ref)
+  d.ref <- density(x.ref)
     d.sib <- density(x.sib)
 
     xmin.ref <- min(x.ref)
@@ -6247,18 +6275,18 @@ for ( file in files )
     # abline(v=x[which.max(y)], col='red')
 
     if ( ff(x[which.max(y)]) > ff(x[which.min(y)]) )
-    {
-        dx <- diff(d.sib\$x)[1]
-        idx <- d.sib\$x<0
-        F1.sib <- sum(d.sib\$y[idx])*dx - cumsum(d.sib\$y[idx])*dx
-        F1.sib.fun <- approxfun(d.sib\$x[idx], F1.sib, yleft=1, yright=0)
-        x <- seq(p0, 0, length=100)
-        tx <- cbind(x, F1.sib.fun(x))   # I don't think / F1.sib.fun(x[1])
-                                        # normalization is correct. I should be
-                                        # computing probabilities of hitting a
-                                        # given value or more
+  {
+  dx <- diff(d.sib\$x)[1]
+    idx <- d.sib\$x<0
+    F1.sib <- sum(d.sib\$y[idx])*dx - cumsum(d.sib\$y[idx])*dx
+    F1.sib.fun <- approxfun(d.sib\$x[idx], F1.sib, yleft=1, yright=0)
+    x <- seq(p0, 0, length=100)
+    tx <- cbind(x, F1.sib.fun(x))   # I don't think / F1.sib.fun(x[1])
+    # normalization is correct. I should be
+    # computing probabilities of hitting a
+    # given value or more
     } else {
-      tx <- cbind(p0, 0)
+  tx <- cbind(p0, 0)
     }
 
     if ( xmax.sib < xmin.ref )
