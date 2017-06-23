@@ -193,6 +193,14 @@ else
 ##                               MAIN
 ####################################################################
 
+my $ppDir = "phylo_part_dir";
+if ( ! -e $ppDir )
+{
+  my $cmd = "mkdir -p $ppDir";
+  print "\tcmd=$cmd\n" if $dryRun || $debug;
+  system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
+}
+
 print "--- Parsing lineage table\n";
 my %lineageTbl = read2colTbl($lineageFile);
 
@@ -217,8 +225,8 @@ for my $id ( keys %lineageTbl )
 }
 
 print "--- Running phylo partitioning on $treeFile at $percThld percentile thld\n";
-my $partFile     = $grPrefix . "_phyloPart_$percThld" . ".txt";
-my $phyloPartLog = $grPrefix . "_phyloPart.log";
+my $partFile     = "$ppDir/$grPrefix" . "_phyloPart_$percThld" . ".txt";
+1my $phyloPartLog = "$ppDir/$grPrefix" . "_phyloPart.log";
 my $cmd = "java -jar $phyloPart $treeFile $percThld -o$partFile > $phyloPartLog 2>&1";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
@@ -226,14 +234,14 @@ system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
 print "--- Parsing phylo partitioning data\n";
 my %part = read_part_tbl($partFile);
 
-my $partCltrFile = $grPrefix . "_phyloPart_$percThld" . ".cltr";
+my $partCltrFile = "$ppDir/$grPrefix" . "_phyloPart_$percThld" . ".cltr";
 print "--- Writing phylo partitioning to $partCltrFile\n";
 writeTbl(\%part, $partCltrFile);
 
 print "--- Generating annotation and query files\n";
-my $annFile    = $grPrefix . "_phyloPart_$taxon" . "_ann.tx";
-my $queryFile  = $grPrefix . "_phyloPart_$taxon" . "_query.seqIDs";
-my $vicutDir   = $grPrefix . "_phyloPart_$taxon" . "_vicut_dir";
+my $annFile    = "$ppDir/$grPrefix" . "_phyloPart_$taxon" . "_ann.tx";
+my $queryFile  = "$ppDir/$grPrefix" . "_phyloPart_$taxon" . "_query.seqIDs";
+my $vicutDir   = "$ppDir/$grPrefix" . "_phyloPart_$taxon" . "_vicut_dir";
 my $nQuerySeqs = 0;
 my $nAnnSeqs   = 0;
 my @queryTx;
@@ -259,7 +267,7 @@ close ANNOUT;
 close QOUT;
 
 print "--- Parsing tree leaves\n";
-my $treeLeavesFile = "$grPrefix" . "_tree.leaves";
+my $treeLeavesFile = ""$ppDir/$grPrefix"" . "_tree.leaves";
 $cmd = "rm -f $treeLeavesFile; nw_labels -I $treeFile > $treeLeavesFile";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
@@ -430,8 +438,8 @@ if ($taxon eq "spp")
   print "\n\n";
 
   print "--- Creating tree with taxon_cluster leaf names\n";
-  my $spClFile = $grPrefix . ".sppCl";
-  my $spClFile2 = abs_path( $grPrefix . ".sppCl2" );
+  my $spClFile = "$ppDir/$grPrefix" . ".sppCl";
+  my $spClFile2 = abs_path( "$ppDir/$grPrefix" . ".sppCl2" );
   open OUT, ">$spClFile" or die "Cannot open $spClFile for writing: $OS_ERROR\n";
   open OUT2, ">$spClFile2" or die "Cannot open $spClFile2 for writing: $OS_ERROR\n";
   for (keys %spSubGenusIdx)
@@ -446,7 +454,7 @@ if ($taxon eq "spp")
   # writeTbl(\%spSubGenusIdx, $spClFileAbsPath);
   # print "spSubGenusIdx written to $spClFileAbsPath\n" if $debug;
 
-  my $treeFile2 = $grPrefix . "_final_" . $taxon . "_condensed_cltrs.tree";
+  my $treeFile2 = "$ppDir/$grPrefix" . "_final_" . $taxon . "_condensed_cltrs.tree";
   $cmd = "nw_rename $treeFile $spClFile | nw_order -c n  - > $treeFile2";
   print "\tcmd=$cmd\n" if $dryRun || $debug;
   system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
@@ -486,7 +494,7 @@ if ($taxon eq "spp")
   print "\n\n\tNumber of leaves: $nLeaves\n" if $debug;
   print "\tFigure height: $figH\n\n" if $debug;
 
-  my $pdfTreeFile = abs_path( $grPrefix . "_final_" . $taxon . "_condensed_cltrs_tree.pdf" );
+  my $pdfTreeFile = abs_path( "$ppDir/$grPrefix" . "_final_" . $taxon . "_condensed_cltrs_tree.pdf" );
   my $treeFile2AbsPath = abs_path( $treeFile2 );
 
   plotTree($treeFile2AbsPath, $spClFile2, $pdfTreeFile);
@@ -590,8 +598,8 @@ else
   print "\n\n";
 
   print "--- Creating tree with taxon_cluster leaf names\n";
-  my $spClFile = $grPrefix . ".sppCl";
-  my $spClFile2 = abs_path( $grPrefix . ".sppCl2" );
+  my $spClFile = "$ppDir/$grPrefix" . ".sppCl";
+  my $spClFile2 = abs_path( "$ppDir/$grPrefix" . ".sppCl2" );
   open OUT, ">$spClFile" or die "Cannot open $spClFile for writing: $OS_ERROR\n";
   open OUT2, ">$spClFile2" or die "Cannot open $spClFile2 for writing: $OS_ERROR\n";
   for (keys %txSubParentIdx)
@@ -607,7 +615,7 @@ else
   # writeTbl(\%txSubParentIdx, $spClFileAbsPath);
   # print "\n\n--> txSubParentIdx written to $spClFileAbsPath\n" if $debug;
 
-  my $treeFile2 = $grPrefix . "_final_" . $taxon . "_condensed_cltrs.tree";
+  my $treeFile2 = "$ppDir/$grPrefix" . "_final_" . $taxon . "_condensed_cltrs.tree";
   $cmd = "nw_rename $treeFile $spClFile | nw_order -c n  - > $treeFile2";
   print "\tcmd=$cmd\n" if $dryRun || $debug;
   system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
@@ -651,7 +659,7 @@ else
   print "\n\n\tNumber of leaves: $nLeaves\n" if $debug;
   print "\tFigure height: $figH\n\n" if $debug;
 
-  my $pdfTreeFile = abs_path( $grPrefix . "_final_" . $taxon . "_condensed_cltrs_tree.pdf" );
+  my $pdfTreeFile = abs_path( "$ppDir/$grPrefix" . "_final_" . $taxon . "_condensed_cltrs_tree.pdf" );
   my $treeFile2AbsPath = abs_path( $treeFile2 );
 
   plotTree($treeFile2AbsPath, $spClFile2, $pdfTreeFile);
