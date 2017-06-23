@@ -6399,7 +6399,7 @@ sub check_parent_consistency
       print "\n\t$tx parents\n";
       for (keys %{$prt{$tx}})
       {
-	print "\t\t$_\n";
+        print "\t\t$_\n";
       }
       print "\n\n";
 
