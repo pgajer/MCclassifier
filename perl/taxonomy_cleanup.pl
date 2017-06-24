@@ -351,11 +351,11 @@ if ( check_parent_consistency(\%lineageTbl) )
 print "--- Checking if seqIDs of $trAlgnFile and $liFile are the same\n";
 my @lSeqIDs = keys %lineageTbl;
 
-if ( ! setequal(\@seqIDs, \@lSeqIDs) )
+if ( ! setequal(\@seqIDs, \@lSeqIDs, "quiet") )
 {
   warn "WARNING: seq IDs of trimmed alignment fasta file and lineage file do not match";
-  print "Number of elements in the trimmed alignment file: " . @seqIDs . "\n";
-  print "Number of elements in the lineage file: " . @lSeqIDs . "\n\n";
+  print "\nNumber of elements in the lineage file:           " . @lSeqIDs . "\n";
+  print "Number of elements in the trimmed alignment file: " . @seqIDs . "\n\n";
 }
 
 print "--- Testing if outgroup sequences are part of seqIDs\n";
@@ -6436,7 +6436,7 @@ sub check_parent_consistency
 ## are two arrays equal set-theoretically
 sub setequal
 {
-  my ($rA, $rB) = @_;
+  my ($rA, $rB, $quiet) = @_;
 
   my @a = @{$rA};
   my @b = @{$rB};
@@ -6444,55 +6444,56 @@ sub setequal
 
   my $ret = 1;
   my $maxPrintItems = 10;
+
   if (@c != @a || @c != @b)
   {
-    warn "\n\n\tERROR: Elements of the two arrays do not match";
-    print "\n\tNumber of elements in the first array: " . @a . "\n";
-    print "\tNumber of elements in the second array: " . @b . "\n";
-    print "\tNumber of common elements: " . @c . "\n";
-
-    if ( @a < $maxPrintItems && @b < $maxPrintItems )
-    {
-      print "\na: ";
-      map {print "$_ "} @a;
-      print "\n\n";
-
-      print "b: ";
-      map {print "$_ "} @b;
-      print "\n\n";
-    }
-
-    # writeArray(\@a, "a.txt");
-    # writeArray(\@b, "b.txt");
-    #print "\n\tNew taxon keys and fasta IDs written to a.txt and b.txt, respectively\n\n";
-
-    if (@a > @b)
-    {
-      my @d = diff(\@a, \@b);
-      print "\nFirst $maxPrintItems elements in a, but not b:\n";
-      my $i = 0;
-      for (@d)
-      {
-	print "\t$_\n";
-	last if $i > $maxPrintItems;
-      }
-      print "\n\n";
-    }
-
-    if (@b > @a)
-    {
-      my @d = diff(\@b, \@a);
-      print "\nFirst $maxPrintItems elements in b that are not in a:\n";
-      my $i = 0;
-      for (@d)
-      {
-	print "\t$_\n";
-	last if $i > $maxPrintItems;
-      }
-      print "\n\n";
-    }
-
     $ret = 0;
+
+    if ( !$quiet )
+    {
+      warn "\n\n\tERROR: Elements of the two arrays do not match";
+      print "\n\tNumber of elements in the first array: " . @a . "\n";
+      print "\tNumber of elements in the second array: " . @b . "\n";
+      print "\tNumber of common elements: " . @c . "\n";
+
+      if ( @a < $maxPrintItems && @b < $maxPrintItems )
+      {
+        print "\na: ";
+        map {print "$_ "} @a;
+        print "\n\n";
+
+        print "b: ";
+        map {print "$_ "} @b;
+        print "\n\n";
+      }
+
+
+      if (@a > @b)
+      {
+        my @d = diff(\@a, \@b);
+        print "\nFirst $maxPrintItems elements in a, but not b:\n";
+        my $i = 0;
+        for (@d)
+        {
+          print "\t$_\n";
+          last if $i > $maxPrintItems;
+        }
+        print "\n\n";
+      }
+
+      if (@b > @a)
+      {
+        my @d = diff(\@b, \@a);
+        print "\nFirst $maxPrintItems elements in b that are not in a:\n";
+        my $i = 0;
+        for (@d)
+        {
+          print "\t$_\n";
+          last if $i > $maxPrintItems;
+        }
+        print "\n\n";
+      }
+    }
   }
 
   return $ret;
