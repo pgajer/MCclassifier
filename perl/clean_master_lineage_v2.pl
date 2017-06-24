@@ -166,156 +166,376 @@ for ( <IN> )
     ($ge, $suffix) = split "_", $sp;
   }
 
-  if ( $ge eq "Ruminococcus" )
+  if ( $ge eq "Thiomonas" || $ge eq "Ideonella" || $ge eq "Paucibacter" || $ge eq "Methylibium"
+       || $ge eq "Mitsuaria" || $ge eq "Thiobacter" || $ge eq "Xylophilus" || $ge eq "Piscinibacter"
+       || $ge eq "Aquincola" || $ge eq "Sphaerotilus" || $ge eq "Inhella" || $ge eq "Leptothrix"
+       || $ge eq "Tepidimonas" || $ge eq "Rubrivivax" )
   {
-    $li = "Root;Bacteria;Firmicutes;Clostridia;Clostridiales;Ruminococcaceae";
+    $li = "Root;Bacteria;Proteobacteria;Betaproteobacteria;Burkholderiales;Burkholderiales.family";
     @f = split ";", $li;
     $fa = pop @f;
   }
-
-  if ( $ge eq "Atopobacter" )
-  {
-    $li = "Root;Bacteria;Firmicutes;Bacilli;Lactobacillales;Carnobacteriaceae";
-    @f = split ";", $li;
-    $fa = pop @f;
-  }
-
-  if ( $ge eq "Nesiotobacter" || $ge eq "Labrenzia" )
-  {
-    $li = "Root;Bacteria;Proteobacteria;Alphaproteobacteria;Rhodobacterales;Rhodobacteraceae";
-    @f = split ";", $li;
-    $fa = pop @f;
-  }
-
-  if ( $ge eq "Cellvibrio" || $ge eq "Marinimicrobium"
-       || $ge eq "Teredinibacter" || $ge eq "Umboniibacter"
-       || $ge eq "Saccharophagus" )
+  elsif ( $ge eq "Cellvibrio" || $ge eq "Marinimicrobium"
+          || $ge eq "Teredinibacter" || $ge eq "Umboniibacter"
+          || $ge eq "Saccharophagus" )
   {
     $li = "Root;Bacteria;Proteobacteria;Gammaproteobacteria;Cellvibrionales;Cellvibrionaceae";
     @f = split ";", $li;
     $fa = pop @f;
   }
-
-  if ( $ge eq "Flavonifractor" )
+  elsif ( $ge eq "Caldalkalibacillus" || $ge eq "Calditerricola" || $ge eq "Viridibacillus"
+          || $ge eq "Microaerobacter" || $ge eq "Lysinibacillus" )
   {
-    $li = "Root;Bacteria;Firmicutes;Clostridia;Clostridiales;Clostridiales.family";
+    $li = "Root;Bacteria;Firmicutes;Bacilli;Bacillales;Bacillaceae";
     @f = split ";", $li;
     $fa = pop @f;
   }
-
-  if ( $ge eq "Caldanaerobius" )
-  {
-    $li = "Root;Bacteria;Firmicutes;Clostridia;Thermoanaerobacterales;Thermoanaerobacteraceae";
-    @f = split ";", $li;
-    $fa = pop @f;
-  }
-
-  if ( $ge eq "Butyricicoccus" || $ge eq "Alkaliphilus" || $ge eq "Clostridiisalibacter" )
-  {
-    $li = "Root;Bacteria;Firmicutes;Clostridia;Clostridiales;Clostridiaceae";
-    @f = split ";", $li;
-    $fa = pop @f;
-  }
-
-  if ( $ge eq "Meganema" )
-  {
-    $li = "Root;Bacteria;Proteobacteria;Alphaproteobacteria;Rhizobiales;Methylobacteriaceae";
-    @f = split ";", $li;
-    $fa = pop @f;
-  }
-
-  if ( $ge eq "Kaistia" )
-  {
-    $li = "Root;Bacteria;Proteobacteria;Alphaproteobacteria;Rhizobiales;Rhizobiaceae";
-    @f = split ";", $li;
-    $fa = pop @f;
-  }
-
-  if ( $ge eq "Wohlfahrtiimonas" || $ge eq "Ignatzschineria" )
-  {
-    $li = "Root;Bacteria;Proteobacteria;Gammaproteobacteria;Xanthomonadales;Xanthomonadaceae";
-    @f = split ";", $li;
-    $fa = pop @f;
-  }
-
-  if ( $ge eq "Nitrosococcus" )
-  {
-    $li = "Root;Bacteria;Proteobacteria;Gammaproteobacteria;Chromatiales;Chromatiaceae";
-    @f = split ";", $li;
-    $fa = pop @f;
-  }
-
-  if ( $ge eq "Haliea" || $ge eq "Agarivorans" || $ge eq "Alishewanella" || $ge eq "Marinobacterium" )
+  elsif ( $ge eq "Haliea" || $ge eq "Agarivorans"
+          || $ge eq "Alishewanella" || $ge eq "Marinobacterium" )
   {
     $li = "Root;Bacteria;Proteobacteria;Gammaproteobacteria;Alteromonadales;Alteromonadaceae";
     @f = split ";", $li;
     $fa = pop @f;
   }
-
-  if ( $ge eq "Maritalea" )
+  elsif ( $ge eq "Butyricicoccus" || $ge eq "Alkaliphilus"
+          || $ge eq "Clostridiisalibacter" || $ge eq "Saccharofermentans" )
   {
-    $li = "Root;Bacteria;Proteobacteria;Alphaproteobacteria;Rhizobiales;Hyphomicrobiaceae";
+    $li = "Root;Bacteria;Firmicutes;Clostridia;Clostridiales;Clostridiaceae";
     @f = split ";", $li;
     $fa = pop @f;
   }
-
-  if ( $ge eq "Methylocaldum" || $ge eq "Methylococcus" )
+  elsif ( $ge eq "Alkaliflexus" || $ge eq "Anaerophaga" || $ge eq "Marinilabilia" )
+  {
+    $li = "Root;Bacteria;Bacteroidetes;Bacteroidia;Bacteroidales;Marinilabiliaceae";
+    @f = split ";", $li;
+    $fa = pop @f;
+  }
+  elsif ( $ge eq "Caldanaerobius" || $ge eq "Syntrophaceticus" )
+  {
+    $li = "Root;Bacteria;Firmicutes;Clostridia;Thermoanaerobacterales;Thermoanaerobacteraceae";
+    @f = split ";", $li;
+    $fa = pop @f;
+  }
+  elsif ( $ge eq "Ruminococcus" || $ge eq "Pseudoflavonifractor" )
+  {
+    $li = "Root;Bacteria;Firmicutes;Clostridia;Clostridiales;Ruminococcaceae";
+    @f = split ";", $li;
+    $fa = pop @f;
+  }
+  elsif ( $ge eq "Nesiotobacter" || $ge eq "Labrenzia" )
+  {
+    $li = "Root;Bacteria;Proteobacteria;Alphaproteobacteria;Rhodobacterales;Rhodobacteraceae";
+    @f = split ";", $li;
+    $fa = pop @f;
+  }
+  elsif ( $ge eq "Wohlfahrtiimonas" || $ge eq "Ignatzschineria" )
+  {
+    $li = "Root;Bacteria;Proteobacteria;Gammaproteobacteria;Xanthomonadales;Xanthomonadaceae";
+    @f = split ";", $li;
+    $fa = pop @f;
+  }
+  elsif ( $ge eq "Methylocaldum" || $ge eq "Methylococcus" )
   {
     $li = "Root;Bacteria;Proteobacteria;Gammaproteobacteria;Methylococcales;Methylococcaceae";
     @f = split ";", $li;
     $fa = pop @f;
   }
-
-  if ( $ge eq "Pleomorphomonas" )
+  elsif ( $ge eq "Methylocaldum" || $ge eq "Methylococcus" )
+  {
+    $li = "Root;Bacteria;Proteobacteria;Gammaproteobacteria;Methylococcales;Methylococcaceae";
+    @f = split ";", $li;
+    $fa = pop @f;
+  }
+  elsif ( $ge eq "Nevskia" || $ge eq "Hydrocarboniphaga" )
+  {
+    $li = "Root;Bacteria;Proteobacteria;Gammaproteobacteria;Nevskiales;Nevskiaceae";
+    @f = split ";", $li;
+    $fa = pop @f;
+  }
+  elsif ( $ge eq "Vasilyevaea" || $ge eq "Amorphus" )
+  {
+    $li = "Root;Bacteria;Proteobacteria;Alphaproteobacteria;Rhizobiales;Rhizobiales.family";
+    @f = split ";", $li;
+    $fa = pop @f;
+  }
+  elsif ( $ge eq "Salicola" || $ge eq "Spongiispira" )
+  {
+    $li = "Root;Bacteria;Proteobacteria;Gammaproteobacteria;Oceanospirillales;Oceanospirillales.family";
+    @f = split ";", $li;
+    $fa = pop @f;
+  }
+  elsif ( $ge eq "Atopobacter" )
+  {
+    $li = "Root;Bacteria;Firmicutes;Bacilli;Lactobacillales;Carnobacteriaceae";
+    @f = split ";", $li;
+    $fa = pop @f;
+  }
+  elsif ( $ge eq "Flavonifractor" )
+  {
+    $li = "Root;Bacteria;Firmicutes;Clostridia;Clostridiales;Clostridiales.family";
+    @f = split ";", $li;
+    $fa = pop @f;
+  }
+  elsif ( $ge eq "Meganema" )
+  {
+    $li = "Root;Bacteria;Proteobacteria;Alphaproteobacteria;Rhizobiales;Methylobacteriaceae";
+    @f = split ";", $li;
+    $fa = pop @f;
+  }
+  elsif ( $ge eq "Nitrosococcus" )
+  {
+    $li = "Root;Bacteria;Proteobacteria;Gammaproteobacteria;Chromatiales;Chromatiaceae";
+    @f = split ";", $li;
+    $fa = pop @f;
+  }
+  elsif ( $ge eq "Maritalea" )
+  {
+    $li = "Root;Bacteria;Proteobacteria;Alphaproteobacteria;Rhizobiales;Hyphomicrobiaceae";
+    @f = split ";", $li;
+    $fa = pop @f;
+  }
+  elsif ( $ge eq "Pleomorphomonas" )
   {
     $li = "Root;Bacteria;Proteobacteria;Alphaproteobacteria;Rhizobiales;Methylocystaceae";
     @f = split ";", $li;
     $fa = pop @f;
   }
-
-
-  if ( $ge eq "Dethiobacter" )
+  elsif ( $ge eq "Dethiobacter" )
   {
     $li = "Root;Bacteria;Firmicutes;Clostridia;Clostridiales;Syntrophomonadaceae";
     @f = split ";", $li;
     $fa = pop @f;
   }
-
-
-  if ( $ge eq "Bavariicoccus" )
+  elsif ( $ge eq "Bavariicoccus" )
   {
     $li = "Root;Bacteria;Firmicutes;Bacilli;Lactobacillales;Enterococcaceae";
     @f = split ";", $li;
     $fa = pop @f;
   }
-
-  if ( $ge eq "Thiobacillus" )
+  elsif ( $ge eq "Thiobacillus" )
   {
     $li = "Root;Bacteria;Proteobacteria;Betaproteobacteria;Hydrogenophilales;Hydrogenophilaceae";
     @f = split ";", $li;
     $fa = pop @f;
   }
-
-  if ( $ge eq "" )
+  elsif ( $ge eq "Aquabacterium" )
   {
-    $li = "";
+    $li = "Root;Bacteria;Proteobacteria;Betaproteobacteria;Burkholderiales;Comamonadaceae";
+    @f = split ";", $li;
+    $fa = pop @f;
+  }
+  elsif ( $ge eq "Thioalkalispira" )
+  {
+    $li = "Root;Bacteria;Proteobacteria;Gammaproteobacteria;Chromatiales;Thioalkalispiraceae";
+    @f = split ";", $li;
+    $fa = pop @f;
+  }
+  elsif ( $ge eq "Howardella" )
+  {
+    $li = "Root;Bacteria;Firmicutes;Clostridia;Clostridiales;Lachnospiraceae";
+    @f = split ";", $li;
+    $fa = pop @f;
+  }
+  elsif ( $ge eq "Akkermansia" )
+  {
+    $li = "Root;Bacteria;Verrucomicrobia;Verrucomicrobiae;Verrucomicrobiales;Akkermansiaceae";
+    @f = split ";", $li;
+    $fa = pop @f;
+  }
+  elsif ( $ge eq "Dasania" )
+  {
+    $li = "Root;Bacteria;Proteobacteria;Gammaproteobacteria;Cellvibrionales;Spongiibacteraceae";
+    @f = split ";", $li;
+    $fa = pop @f;
+  }
+  elsif ( $ge eq "Sharpea" )
+  {
+    $li = "Root;Bacteria;Firmicutes;Erysipelotrichia;Erysipelotrichales;Erysipelotrichaceae";
+    @f = split ";", $li;
+    $fa = pop @f;
+  }
+  elsif ( $ge eq "Caedibacter" )
+  {
+    $li = "Root;Bacteria;Proteobacteria;Gammaproteobacteria;Thiotrichales;Thiotrichales.family";
+    @f = split ";", $li;
+    $fa = pop @f;
+  }
+  elsif ( $ge eq "Oceanotoga" )
+  {
+    $li = "Root;Bacteria;Thermotogae;Thermotogae;Thermotogales;Thermotogaceae";
+    @f = split ";", $li;
+    $fa = pop @f;
+  }
+  elsif ( $ge eq "Rummeliibacillus" )
+  {
+    $li = "Root;Bacteria;Firmicutes;Bacilli;Bacillales;Planococcaceae";
+    @f = split ";", $li;
+    $fa = pop @f;
+  }
+  elsif ( $ge eq "Catellicoccus" )
+  {
+    $li = "Root;Bacteria;Firmicutes;Bacilli;Lactobacillales;Enterococcaceae";
+    @f = split ";", $li;
+    $fa = pop @f;
+  }
+  elsif ( $ge eq "Blautia" )
+  {
+    $li = "Root;Bacteria;Firmicutes;Clostridia;Clostridiales;Lachnospiraceae";
+    @f = split ";", $li;
+    $fa = pop @f;
+  }
+  elsif ( $ge eq "Steroidobacter" )
+  {
+    $li = "Root;Bacteria;Proteobacteria;Gammaproteobacteria;Xanthomonadales;Sinobacteraceae";
+    @f = split ";", $li;
+    $fa = pop @f;
+  }
+  elsif ( $ge eq "Caldithrix" )
+  {
+    $li = "Root;Bacteria;Deferribacteres;Deferribacteres;Deferribacterales;Deferribacterales.family";
+    @f = split ";", $li;
+    $fa = pop @f;
+  }
+  elsif ( $ge eq "Ferritrophicum" )
+  {
+    $li = "Root;Bacteria;Proteobacteria;Betaproteobacteria;Ferritrophicales;Ferritrophicaceae";
+    @f = split ";", $li;
+    $fa = pop @f;
+  }
+  elsif ( $ge eq "Rugamonas" )
+  {
+    $li = "Root;Bacteria;Proteobacteria;Betaproteobacteria;Burkholderiales;Oxalobacteraceae";
+    @f = split ";", $li;
+    $fa = pop @f;
+  }
+  elsif ( $ge eq "Roseiflexus" )
+  {
+    $li = "Root;Bacteria;Chloroflexi;Chloroflexia;Chloroflexales;Roseiflexaceae";
+    @f = split ";", $li;
+    $fa = pop @f;
+  }
+  elsif ( $ge eq "Proteocatella" )
+  {
+    $li = "Root;Bacteria;Firmicutes;Clostridia;Clostridiales;Peptostreptococcaceae";
+    @f = split ";", $li;
+    $fa = pop @f;
+  }
+  elsif ( $ge eq "Alkanibacter" )
+  {
+    $li = "Root;Bacteria;Proteobacteria;Gammaproteobacteria;Xanthomonadales;Sinobacteraceae";
+    @f = split ";", $li;
+    $fa = pop @f;
+  }
+  elsif ( $ge eq "Lutispora" )
+  {
+    $li = "Root;Bacteria;Firmicutes;Clostridia;Clostridiales;Clostridiaceae";
+    @f = split ";", $li;
+    $fa = pop @f;
+  }
+  elsif ( $ge eq "Sinosporangium" )
+  {
+    $li = "Root;Bacteria;Actinobacteria;Actinobacteria;Actinomycetales;Streptosporangineae";
+    @f = split ";", $li;
+    $fa = pop @f;
+  }
+  elsif ( $ge eq "Desulfurobacteriaceae" )
+  {
+    $li = "Root;Bacteria;Aquificae;Aquificae;Desulfurobacteriales";
+    @f = split ";", $li;
+    $fa = pop @f;
+  }
+  elsif ( $ge eq "Solibacillus" )
+  {
+    $li = "Root;Bacteria;Firmicutes;Bacilli;Bacillales;Planococcaceae";
+    @f = split ";", $li;
+    $fa = pop @f;
+  }
+  elsif ( $ge eq "Shinella" )
+  {
+    $li = "Root;Bacteria;Proteobacteria;Betaproteobacteria;Rhodocyclales;Rhodocyclaceae";
     @f = split ";", $li;
     $fa = pop @f;
   }
 
-  if ( $ge eq "" )
+  ## Family
+  if ( $fa eq "Gallionellaceae" )
   {
-    $li = "";
+    $li = "Root;Bacteria;Proteobacteria;Betaproteobacteria;Nitrosomonadales";
     @f = split ";", $li;
-    $fa = pop @f;
   }
-
-  if ( $ge eq $fa )
+  elsif ( $fa eq "Rhodothermaceae" )
   {
-    next;
+    $li = "Root;Bacteria;Bacteroidetes;Cytophagia;Cytophagales";
+    @f = split ";", $li;
+  }
+  elsif ( $fa eq "Nitrospinaceae" )
+  {
+    $li = "Root;Bacteria;Nitrospinae;Nitrospinia;Nitrospinales";
+    @f = split ";", $li;
+  }
+  elsif ( $fa eq "Cyclobacteriaceae" )
+  {
+    $li = "Root;Bacteria;Bacteroidetes;Cytophagia;Cytophagales";
+    @f = split ";", $li;
+  }
+  elsif ( $fa eq "Desulfurobacteriaceae" )
+  {
+    $li = "Root;Bacteria;Aquificae;Aquificae;Desulfurobacteriales";
+    @f = split ";", $li;
   }
 
-  $li = join ";", (@f, $fa, $ge, $sp);
+  my $or = pop @f;
+  my $cl = pop @f;
+  my $ph = pop @f;
+
+
+  ## Order
+  if ( $or eq "Planctomycetales" )
+  {
+    $li = "Root;Bacteria;Planctomycetes;Planctomycea";
+    @f = split ";", $li;
+    $cl = pop @f;
+    $ph = pop @f;
+  }
+  elsif ( $or eq "Thermoleophilales" )
+  {
+    $li = "Root;Bacteria;Actinobacteria;Thermoleophilia";
+    @f = split ";", $li;
+    $cl = pop @f;
+    $ph = pop @f;
+  }
+  elsif ( $or eq "Chlorobiales" )
+  {
+    $li = "Root;Bacteria;Chlorobi;Chlorobia";
+    @f = split ";", $li;
+    $cl = pop @f;
+    $ph = pop @f;
+  }
+  elsif ( $or eq "Chlamydiales" )
+  {
+    $li = "Root;Bacteria;Chlamydiae;Chlamydiia";
+    @f = split ";", $li;
+    $cl = pop @f;
+    $ph = pop @f;
+  }
+  elsif ( $or eq "Spirochaetales" )
+  {
+    $li = "Root;Bacteria;Spirochaetes;Spirochaetia";
+    @f = split ";", $li;
+    $cl = pop @f;
+    $ph = pop @f;
+  }
+
+  ## Class
+  if ( $cl eq "Ignavibacteria" )
+  {
+    $li = "Root;Bacteria;Chlorobi";
+    @f = split ";", $li;
+    $ph = pop @f;
+  }
+
+
+  $li = join ";", (@f, $ph, $cl, $or, $fa, $ge, $sp);
   $liTbl{$id} = $li;
   #print "$id\t$li\n"; exit 1;
 }
