@@ -481,11 +481,13 @@ if ( $nPhyloParts > 1 )
     printFormatedTbl(\%partFreq);
   }
 
-  print "After vicut phylo partition sizes\n" if !$quiet;
-  my %part2Freq; ## number of elements per phylo partition cluster
-  map { $part2Freq{$_}++ } values %part2;
-
-  printFormatedTbl(\%part2Freq) if !$quiet;
+  if ( !$quiet )
+  {
+    print "After vicut phylo partition sizes\n";
+    my %part2Freq; ## number of elements per phylo partition cluster
+    map { $part2Freq{$_}++ } values %part2;
+    printFormatedTbl(\%part2Freq) if !$quiet;
+  }
 
   my $nVicutCltrs = keys %part2Freq;
 
