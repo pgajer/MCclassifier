@@ -68,6 +68,7 @@ void printUsage( const char *s )
          << "\t-o,--out-dir <output dir>           - output directory will include minNodeCut.idx, minNodeCut.cltrs and minNodeCut.cltrs2 files\n"
          << "\t-x,--min-taxon <minT>               - min number of reference sequences of a given taxon in a given cluster for the taxon to be reported in minNodeCut_NAge<minT>.cltrsStats file; default value = 1\n"
          << "\t-c,--min-query <minQ>               - min number of query sequences in a cluaster for the cluster to be reported in minNodeCut_NAge<minQ>_TXge<minT>_taxons.txt file; default value = 1\n"
+         << "\t--quiet                             - suppress progress messages\n"
          << "\t-p,--print-min-node-cut-cltrs       - print min mode cut clusters\n\n"
 
          << "If run without -q option, the output directory contains files\n"
@@ -190,6 +191,7 @@ double vicut(vector<int> &nodeCut, map<int, NewickNode_t *> &idx2node, int *annI
 int main(int argc, char **argv)
 {
     bool verbose      = 0;
+    bool quiet        = 0;
     bool printMinNodeCutCltrs = 0;
     char *outDir      = 0;
     char *annFile     = 0;
@@ -211,11 +213,12 @@ int main(int argc, char **argv)
       {"min-query"        ,required_argument, 0, 'c'},
       {"min-taxon"        ,required_argument, 0, 'x'},
       {"print-min-node-cut-cltrs", no_argument, 0, 'p'},
+      {"quiet",            no_argument,       0, 'e'},
       {"help"             ,no_argument,       0, 'h'},
       {0, 0, 0, 0}
     };
 
-    while ((c = getopt_long(argc, argv,"a:c:q:o:t:x:u:vph",longOptions, NULL)) != -1)
+    while ((c = getopt_long(argc, argv,"a:c:q:o:t:x:u:vpqh",longOptions, NULL)) != -1)
       switch (c)
       {
         case 'a':
@@ -237,6 +240,10 @@ int main(int argc, char **argv)
             fprintf(stderr,"ERROR: The argument, %s, of the '-c' flag cannot be converted to integer.\n",optarg);
             exit( EXIT_FAILURE);
           }
+          break;
+
+        case 'e':
+          quiet = true;
           break;
 
         case 'x':
@@ -325,7 +332,8 @@ int main(int argc, char **argv)
     clock_t tic = clock();
 
     // reading tree using readTree() defined in Newick.c
-    fprintf(stderr, "-- Reading tree data from %s\n", treeFile);
+    if ( !quiet )
+      fprintf(stderr, "-- Reading tree data from %s\n", treeFile);
 
     NewickTree_t *nt = readNewickTree( treeFile );
     if ( !nt )
@@ -356,7 +364,8 @@ int main(int argc, char **argv)
       leafIdx[string(leafLabel[j])] = j;
 
     // parsing annotation data
-    fprintf(stderr, "-- Parsing annotation data from %s\n", annFile);
+    if ( !quiet )
+      fprintf(stderr, "-- Parsing annotation data from %s\n", annFile);
     map<string,int> annToIdx; // table of unique annotation strings and their indices
     int *annIdx = parseAnnotation(annFile, leafLabel, nLeaves, annToIdx, verbose);
 
@@ -369,7 +378,8 @@ int main(int argc, char **argv)
     // parsing query sequence IDs
     if ( queryFile )
     {
-      fprintf(stderr, "-- Parsing query sequence IDs from %s\n", queryFile);
+      if ( !quiet )
+        fprintf(stderr, "-- Parsing query sequence IDs from %s\n", queryFile);
       map<string, bool> queryIDs; // table of query sequence IDs; it assigns to each query ID 'true'. The purpose of the table is to quickly find out if a sequence is a query sequence.
       parseQueryIDs(queryFile, queryIDs);
 
@@ -426,7 +436,8 @@ int main(int argc, char **argv)
     }
 
     // vi-cut
-    fprintf(stderr, "-- Running vicut\n");
+    if ( !quiet )
+      fprintf(stderr, "-- Running vicut\n");
     vector<int> nodeCut;
     double viDist = vicut(nodeCut, idx2node, annIdx, nLeaves, annToIdx, leafIdx, verbose); // modeType mode
 
@@ -445,9 +456,9 @@ int main(int argc, char **argv)
       }
     }
 
+    if ( !quiet )
+      fprintf(stderr, "-- Writing output files\n");
 
-
-    fprintf(stderr, "-- Writing output files\n");
     char s[1024];
     sprintf(s,"mkdir -p %s",outDir);
     system(s);
@@ -604,7 +615,7 @@ int main(int argc, char **argv)
       // generate README file with short description of the output
       generateREADMEfile(outDir);
 
-      if ( queryFile )
+      if ( queryFile  && !quiet )
       {
         printf("\nNumber of vicut clusters with taxonomy modified      = %d\n"
                "Number of query IDs                                  = %d\n"
@@ -614,17 +625,20 @@ int main(int argc, char **argv)
       }
 
 
-      printf("\nNumber of clusters          = %d\n"
-             "Number of annotation labels = %d\n"
-             "--------------------------------------\n"
-             "Difference                  = %d\n\n"
-             "VI-distance                 = %.6g\n",
+      if ( !quiet )
+      {
+        printf("\nNumber of clusters          = %d\n"
+               "Number of annotation labels = %d\n"
+               "--------------------------------------\n"
+               "Difference                  = %d\n\n"
+               "VI-distance                 = %.6g\n",
              (int)nodeCut.size(),
              (int)annToIdx.size() - 2,  // subtracting "NA' and "Unclassified"
              (int)(nodeCut.size() - (annToIdx.size() - 2)),
              viDist);
 
-      printf("\nOutput written to\n%s\n",outDir);
+        printf("\nOutput written to\n%s\n",outDir);
+      }
 
       // fprintf(stderr,"annToIdx.size()=%d\n",(int)annToIdx.size());
       // map<string,int>::iterator itr2;
@@ -656,11 +670,13 @@ int main(int argc, char **argv)
     {
       int timeMin = (int)round(runTime / 60);
       int timeSec = (int)runTime % 60;
-      printf("Completed in %dmin %dsec\n",  timeMin, timeSec);
+      if ( !quiet )
+        printf("Completed in %dmin %dsec\n",  timeMin, timeSec);
     }
     else
     {
-      printf("Completed in %f seconds\n",  runTime);
+      if ( !quiet )
+        printf("Completed in %f seconds\n",  runTime);
     }
 
     return 0;
