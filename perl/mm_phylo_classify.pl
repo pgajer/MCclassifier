@@ -392,7 +392,8 @@ for my $vDir ( @vDirs )
                my $vicutDir  = "$vDir/$phGrDir/$spDir/$sp" . "_vicut_dir";
                if ( $vdir ne $vicutDir )
                {
-                  ($cov) = ( $vdir =~ /_nr_cov(\d+)_vicut_dir/ );
+                  $vdir =~ /_nr_cov(\d+)_vicut_dir/;
+                  $cov = $1;
                   $covSuffix = "_nr_cov$cov";
                   $vicutDir = $vdir;
                }
