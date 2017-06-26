@@ -1724,13 +1724,13 @@ sub run_vicut
     }
     close $fh;
 
-    my $cmd = "vicut $quietStr -t $treeFile -a $annFile -q $qFile -o $vicutDir";
+    my $cmd = "$vicut $quietStr -t $treeFile -a $annFile -q $qFile -o $vicutDir";
     print "\tcmd=$cmd\n" if $dryRun || $debug;
     system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
   }
   else
   {
-    my $cmd = "vicut $quietStr -t $treeFile -a $annFile -o $vicutDir";
+    my $cmd = "$vicut $quietStr -t $treeFile -a $annFile -o $vicutDir";
     print "\tcmd=$cmd\n" if $dryRun || $debug;
     system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
   }
