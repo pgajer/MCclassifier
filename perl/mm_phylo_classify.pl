@@ -383,7 +383,8 @@ for my $vDir ( @vDirs )
                print "\n\nFound the following files in $dir\n";
                print_array( \@files );
 
-               my $vdir = grep { /vicut_dir$/ } @files;
+               my @v = grep { /vicut_dir$/ } @files;
+               my $vdir = shift @v;
                print "vdir: $vdir\n";
                exit;
 
