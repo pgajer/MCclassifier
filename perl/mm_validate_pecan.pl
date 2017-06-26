@@ -181,7 +181,7 @@ if ( defined $igs )
   $mothur                = "/usr/local/projects/pgajer/bin/mothur";
   $usearch6              = "/local/projects/pgajer/bin/usearch6.0.203_i86linux32";
   $vicut                 = "/usr/local/projects/pgajer/bin/vicut";
-  $readNewickFile        = "/local/projects/pgajer/devel/MCclassifier/perl/read.newick.R";
+  $readNewickFile        = "/local/projects/pgajer/devel/MCclassifier/R/read.newick.R";
   $vsearchSORT           = "/usr/local/packages/vsearch/bin/vsearch";
   $vsearch               = "/usr/local/bin/vsearch";
   $quietStr              = "";
