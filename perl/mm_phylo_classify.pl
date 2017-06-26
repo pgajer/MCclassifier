@@ -158,9 +158,6 @@ if ($help)
   exit 1;
 }
 
-my $baseDir        = "/Users/pgajer/devel/MCextras/data/RDP/rdp_Bacteria_phylum_dir/";
-#my $mmDir          = "/Users/pgajer/projects/M_and_M/new_16S_classification_data/";
-my $mmDir          = "/Users/pgajer/projects/M_and_M/new_16S_classification_data/mm_may12_validate_pecan_dir";
 my $spToPhGrFile   = "/Users/pgajer/projects/M_and_M/MM_june25/mm_june25_V3V4_spp_2_phGr_tbl.txt";
 
 my $R              = "R";
@@ -211,7 +208,6 @@ my $timeMin = int($runTime / 60);
 my $timeSec = $runTime % 60;
 
 # Get the number of species found by the classifier in the M&M dataset
-#my $spToPhGrFile = "/Users/pgajer/projects/M_and_M/new_16S_classification_data/mmDir_May5/sp_to_phGr.txt";
 my $wcline = qx/ wc -l $spToPhGrFile /;
 $wcline =~ s/^\s+//;
 my ($nAllSpp, $str) = split /\s+/, $wcline;
@@ -299,7 +295,6 @@ my $nMultCltrTxs = 0; # number multiple-cluster taxons (species present in more
 		      # than one cluster containing also query sequences).
 my $showCtrs = 0;
 
-
 my $queryTxFile = $outDir . "/query.tx"; # a tab delimited file with 2 columns:
                                          # <seqID> <species> tab
 					 # of all query sequences
@@ -340,343 +335,346 @@ open NSPOUT, ">$newSpFile" or die "Cannot open $newSpFile for writing: $OS_ERROR
 my $spCounter = 1;
 for my $vDir ( @vDirs )
 {
-  #print "vDir: $vDir\n";
-  opendir VDIR, $vDir or die "Error in opening $vDir: $OS_ERROR";
-  while( defined (my $phGrDir = readdir(VDIR)))
-  {
-    next if $phGrDir =~ /^..?$/;     # skip . and ..
-    print "phGrDir: $phGrDir\n";
-    if ( $phGrDir =~ /^mm_/ && -d "$vDir/$phGrDir" )
-    {
-      opendir PGDIR, "$vDir/$phGrDir" or die "Error in opening $vDir/$phGrDir: $OS_ERROR";
-      while( defined (my $spDir = readdir(PGDIR)))
+   #print "vDir: $vDir\n";
+   opendir VDIR, $vDir or die "Error in opening $vDir: $OS_ERROR";
+   while( defined (my $phGrDir = readdir(VDIR)))
+   {
+      next if $phGrDir =~ /^..?$/;     # skip . and ..
+      print "phGrDir: $phGrDir\n";
+      if ( $phGrDir =~ /^mm_/ && -d "$vDir/$phGrDir" )
       {
-	next if $spDir =~ /^..?$/;     # skip . and ..
-	print "spDir: $spDir\n";
-	if ( $spDir =~ /_dir$/ && -d "$vDir/$phGrDir/$spDir" )
-	{
-	  #print "\nDiscovered $vDir/$phGrDir/$spDir\n";
-	  #print "\nDiscovered $spDir\n";
+         opendir PGDIR, "$vDir/$phGrDir" or die "Error in opening $vDir/$phGrDir: $OS_ERROR";
+         while( defined (my $spDir = readdir(PGDIR)))
+         {
+            next if $spDir =~ /^..?$/;     # skip . and ..
+            print "spDir: $spDir\n";
+            if ( $spDir =~ /_dir$/ && -d "$vDir/$phGrDir/$spDir" )
+            {
+               #print "\nDiscovered $vDir/$phGrDir/$spDir\n";
+               #print "\nDiscovered $spDir\n";
 
-	  if ( $quiet )
-	  {
-	    printf( "\r%d [%.1f%%]", $spCounter, 100 * $spCounter / $nAllSpp );
-	    $spCounter++;
-	  }
+               if ( $quiet )
+               {
+                  printf( "\r%d [%.1f%%]", $spCounter, 100 * $spCounter / $nAllSpp );
+                  $spCounter++;
+               }
 
-	  ## extracting species name
-	  my ( $sp ) = ( $spDir =~ /(\w+)_dir$/ );
-	  #print "sp: $sp\n";
+               ## extracting species name
+               my ( $sp ) = ( $spDir =~ /(\w+)_dir$/ );
+               #print "sp: $sp\n";
 
-	  if ( !$sp )
-	  {
-	    warn "\n\n\tERROR Undefined sp from $spDir";
-	    print "\n\n";
-	    exit;
-	  }
-	  my ( $phGr ) = ( $phGrDir =~ /mm_(\w+)_dir/ );
-	  #print "phGr: $phGr\n";
+               if ( !$sp )
+               {
+                  warn "\n\n\tERROR Undefined sp from $spDir";
+                  print "\n\n";
+                  exit;
+               }
+               my ( $phGr ) = ( $phGrDir =~ /mm_(\w+)_dir/ );
+               #print "phGr: $phGr\n";
 
-	  next if exists $processed{$sp};
+               next if exists $processed{$sp};
 
-	  print "\n-------------------------------------------------------------------------------------\n$sp  ($phGr)\n" if !$quiet;
+               print "\n-------------------------------------------------------------------------------------\n$sp  ($phGr)\n" if !$quiet;
 
-	  ## There are two vicut directory names possible here
-	  my $covSuffix = "_nr_cov80";
-	  my $vicutDir80  = "$vDir/$phGrDir/$spDir/$sp" . $covSuffix . "_vicut_dir";
-	  $covSuffix = "";
-	  my $vicutDir  = "$vDir/$phGrDir/$spDir/$sp" . "_vicut_dir";
+               ## There are two vicut directory names possible here
+               my $covSuffix = "_nr_cov80";
+               my $vicutDir80  = "$vDir/$phGrDir/$spDir/$sp" . $covSuffix . "_vicut_dir";
+               $covSuffix = "";
+               my $vicutDir  = "$vDir/$phGrDir/$spDir/$sp" . "_vicut_dir";
 
-	  # Testing which one is present
-	  if ( ! -e $vicutDir )
-	  {
-	    #print "Did not find $vicutDir\n";
-	    if ( -e $vicutDir80 )
-	    {
-	      #print "Found $vicutDir80\n";
-	      $covSuffix = "_nr_cov80";
-	      $vicutDir = $vicutDir80;
-	    }
-	    else
-	    {
-	      #print "WARNING: Did not find neither $covSuffix" . "_vicut_dir nor _vicut_dir for $sp\n" if !$quiet;
-	      $ipSpp{$sp} = $phGr;
-	      next;
-	    }
-	  }
+               # Testing which one is present
+               if ( ! -e $vicutDir )
+               {
+                  #print "Did not find $vicutDir\n";
+                  if ( -e $vicutDir80 )
+                  {
+                     #print "Found $vicutDir80\n";
+                     $covSuffix = "_nr_cov80";
+                     $vicutDir = $vicutDir80;
+                  }
+                  else
+                  {
+                     #print "WARNING: Did not find neither $covSuffix" . "_vicut_dir nor _vicut_dir for $sp\n" if !$quiet;
+                     warn "\n\n\tERROR: Did not find neither $covSuffix" . "_vicut_dir nor _vicut_dir for $sp";
+                     exit 1;
 
-	  my $vicutCltrsFile = $vicutDir . "/minNodeCut.cltrs";
-	  if ( ! -e $vicutCltrsFile )
-	  {
-	    #print "WARNING: Did not find $vicutCltrsFile\n" if !$quiet;
-	    $ipSpp{$sp} = $phGr;
-	    next;
-	  }
+                     $ipSpp{$sp} = $phGr;
+                     next;
+                  }
+               }
 
-	  my ($rvCltrTbl, $rvTxTbl, $rvExtTxTbl) = readCltrsTbl($vicutCltrsFile);
+               my $vicutCltrsFile = $vicutDir . "/minNodeCut.cltrs";
+               if ( ! -e $vicutCltrsFile )
+               {
+                  #print "WARNING: Did not find $vicutCltrsFile\n" if !$quiet;
+                  $ipSpp{$sp} = $phGr;
+                  next;
+               }
 
-	  my %vCltrTbl   = %{$rvCltrTbl};  # seqID => vicut cluster ID
-	  my %vTxTbl     = %{$rvTxTbl};    # seqID => taxonomy (NA for query seq's)
-	  my %vExtTxTbl  = %{$rvExtTxTbl}; # seqID => taxonomy of seqID if seqID is a phGr ref seq and c<vicut cluster ID of seqID> if seqID is a query seq
+               my ($rvCltrTbl, $rvTxTbl, $rvExtTxTbl) = readCltrsTbl($vicutCltrsFile);
 
-	  ## Extended taxonomy table should be alread present
-	  my $vExtTxTblFile = "$vDir/$phGrDir/$spDir/$sp" . $covSuffix . "_ext.tx";
-	  if ( ! -e $vExtTxTblFile )
-	  {
-	    #print "WARNING: Did not find $vExtTxTblFile\n" if !$quiet;
-	    $ipSpp{$sp} = $phGr;
-	    next;
-	  }
+               my %vCltrTbl   = %{$rvCltrTbl};  # seqID => vicut cluster ID
+               my %vTxTbl     = %{$rvTxTbl};    # seqID => taxonomy (NA for query seq's)
+               my %vExtTxTbl  = %{$rvExtTxTbl}; # seqID => taxonomy of seqID if seqID is a phGr ref seq and c<vicut cluster ID of seqID> if seqID is a query seq
 
-	  ## vicut-cltr/tx frequency table
-	  my %vCltrvTxFreq; # $vCltrvTxFreq{cltr}{tx} = # of seq IDs of taxon tx in the cluster cltr
-	  my %txCltrFreq;   # $txCltrFreq{tx}{cltr} = # of seq IDs of taxon tx in the cluster cltr
-	  my %vCltrvTxIds;  # $vCltrvTxIds{cltr}{tx} = ref to seqID of the cluster's, cltr, taxon, tx.
-	  my %vCltrIds;     # cl => seq IDs within the given cluster
+               ## Extended taxonomy table should be alread present
+               my $vExtTxTblFile = "$vDir/$phGrDir/$spDir/$sp" . $covSuffix . "_ext.tx";
+               if ( ! -e $vExtTxTblFile )
+               {
+                  #print "WARNING: Did not find $vExtTxTblFile\n" if !$quiet;
+                  $ipSpp{$sp} = $phGr;
+                  next;
+               }
 
-	  for my $id ( keys %vCltrTbl )
-	  {
-	    $vCltrvTxFreq{$vCltrTbl{$id}}{$vTxTbl{$id}}++;
-	    $txCltrFreq{ $vTxTbl{$id} }{ $vCltrTbl{$id} }++;
-	    push @{$vCltrvTxIds{$vCltrTbl{$id}}{$vTxTbl{$id}}}, $id;
-	    push @{$vCltrIds{$vCltrTbl{$id}}}, $id;
-	  }
+               ## vicut-cltr/tx frequency table
+               my %vCltrvTxFreq; # $vCltrvTxFreq{cltr}{tx} = # of seq IDs of taxon tx in the cluster cltr
+               my %txCltrFreq;   # $txCltrFreq{tx}{cltr} = # of seq IDs of taxon tx in the cluster cltr
+               my %vCltrvTxIds;  # $vCltrvTxIds{cltr}{tx} = ref to seqID of the cluster's, cltr, taxon, tx.
+               my %vCltrIds;     # cl => seq IDs within the given cluster
 
-	  ## Extracting seqIDs of non-redundant query sequences
-	  my $nrSeqIDsFile = "$vDir/$phGrDir/$spDir/$sp" . "_nr.seqIDs";
-	  my @nrAllSeqIDs = read_NR_array( $nrSeqIDsFile );
+               for my $id ( keys %vCltrTbl )
+               {
+                  $vCltrvTxFreq{$vCltrTbl{$id}}{$vTxTbl{$id}}++;
+                  $txCltrFreq{ $vTxTbl{$id} }{ $vCltrTbl{$id} }++;
+                  push @{$vCltrvTxIds{$vCltrTbl{$id}}{$vTxTbl{$id}}}, $id;
+                  push @{$vCltrIds{$vCltrTbl{$id}}}, $id;
+               }
 
-	  my @nrSeqIDs;
-	  if ( $covSuffix ne "" )
-	  {
-	    $nrSeqIDsFile = "$vDir/$phGrDir/$spDir/$sp" . $covSuffix . ".seqIDs";
-	    @nrSeqIDs = read_array( $nrSeqIDsFile );
-	  }
-	  else
-	  {
-	    @nrSeqIDs = @nrAllSeqIDs;
-	  }
+               ## Extracting seqIDs of non-redundant query sequences
+               my $nrSeqIDsFile = "$vDir/$phGrDir/$spDir/$sp" . "_nr.seqIDs";
+               my @nrAllSeqIDs = read_NR_array( $nrSeqIDsFile );
 
-	  ## Identifing clusters that contain query sequences
-	  my @querySeqCltrs;
-	  for ( @nrSeqIDs )
-	  {
-	    if ( exists $vCltrTbl{$_} )
-	    {
-	      push @querySeqCltrs, $vCltrTbl{$_};
-	    }
-	    else
-	    {
-	      warn "\n\n\tERROR: $_ undefined in vCltrTbl: $vicutCltrsFile";
-	      print "\n\n";
-	      #exit;
-	    }
-	  }
-	  my @queryCltrs = unique(\@querySeqCltrs);
+               my @nrSeqIDs;
+               if ( $covSuffix ne "" )
+               {
+                  $nrSeqIDsFile = "$vDir/$phGrDir/$spDir/$sp" . $covSuffix . ".seqIDs";
+                  @nrSeqIDs = read_array( $nrSeqIDsFile );
+               }
+               else
+               {
+                  @nrSeqIDs = @nrAllSeqIDs;
+               }
 
-	  print "\nqueryCltrs: @queryCltrs\n" if !$quiet;
+               ## Identifing clusters that contain query sequences
+               my @querySeqCltrs;
+               for ( @nrSeqIDs )
+               {
+                  if ( exists $vCltrTbl{$_} )
+                  {
+                     push @querySeqCltrs, $vCltrTbl{$_};
+                  }
+                  else
+                  {
+                     warn "\n\n\tERROR: $_ undefined in vCltrTbl: $vicutCltrsFile";
+                     print "\n\n";
+                     #exit;
+                  }
+               }
+               my @queryCltrs = unique(\@querySeqCltrs);
 
-	  ## size of each cluster
-	  my %vicutCltrSize;
-	  for my $cl ( @queryCltrs )
-	  {
-	    if (exists $vCltrvTxFreq{$cl})
-	    {
-	      my @txs = keys %{$vCltrvTxFreq{$cl}};
-	      my $size = 0;
-	      for my $tx (@txs)
-	      {
-		$size += $vCltrvTxFreq{$cl}{$tx};
-	      }
-	      $vicutCltrSize{$cl} = $size;
-	    }
-	    else
-	    {
-	      warn "\n\nERROR $cl not found in vCltrvTxFreq";
-	      print "\n\n";
-	      exit;
-	    }
-	  }
+               print "\nqueryCltrs: @queryCltrs\n" if !$quiet;
 
-	  my $spClstr2File = "$vDir/$phGrDir/$spDir/$sp" . "_nr.clstr2";
-	  #print "--- Parsing clstr2 file\n";
-	  my %cTbl = parseClstr2($spClstr2File);
+               ## size of each cluster
+               my %vicutCltrSize;
+               for my $cl ( @queryCltrs )
+               {
+                  if (exists $vCltrvTxFreq{$cl})
+                  {
+                     my @txs = keys %{$vCltrvTxFreq{$cl}};
+                     my $size = 0;
+                     for my $tx (@txs)
+                     {
+                        $size += $vCltrvTxFreq{$cl}{$tx};
+                     }
+                     $vicutCltrSize{$cl} = $size;
+                  }
+                  else
+                  {
+                     warn "\n\nERROR $cl not found in vCltrvTxFreq";
+                     print "\n\n";
+                     exit;
+                  }
+               }
 
-	  ##
-	  ## The classification section
-	  ##
-	  my @na = ("NA");
-	  my $winnerTx; # taxonomy of the cluster with the largest number of
-			# query sequences. Used to propagate the taxonomy of the
-			# non-redundant seq's covering 80% of all seq's to the
-	                # remaining 20%.
-	  my $maxNumQuerySeqs = 0;
-	  for my $cl ( @queryCltrs )
-	  {
-	    my %txFreq = %{$vCltrvTxFreq{$cl}};
-	    my @txs    = keys %txFreq;
-	    my $nTxs   = @txs;
+               my $spClstr2File = "$vDir/$phGrDir/$spDir/$sp" . "_nr.clstr2";
+               #print "--- Parsing clstr2 file\n";
+               my %cTbl = parseClstr2($spClstr2File);
 
-	    my @nrQueryIDs = @{ $vCltrvTxIds{$cl}{"NA"} };
-	    my $newTx;
+               ##
+               ## The classification section
+               ##
+               my @na = ("NA");
+               my $winnerTx; # taxonomy of the cluster with the largest number of
+               # query sequences. Used to propagate the taxonomy of the
+               # non-redundant seq's covering 80% of all seq's to the
+               # remaining 20%.
+               my $maxNumQuerySeqs = 0;
+               for my $cl ( @queryCltrs )
+               {
+                  my %txFreq = %{$vCltrvTxFreq{$cl}};
+                  my @txs    = keys %txFreq;
+                  my $nTxs   = @txs;
 
-	    if ( $nTxs == 1 ) # only NAs
-	    {
-	      my $tx = shift @txs;
-	      if ( $tx ne "NA" )
-	      {
-		warn "\n\n\tERROR: single taxon cluster (selected from clusters that contain NA) and the 'taxon' is not NA";
-		print "\n\n";
-		exit 1;
-	      }
+                  my @nrQueryIDs = @{ $vCltrvTxIds{$cl}{"NA"} };
+                  my $newTx;
 
-	      if ( @nrQueryIDs > $minNRQseqs )
-	      {
-		my ($genus, $s) = split "_", $sp;
-		$spIdx{$genus}++;
-		$newTx = $genus . "_sp_" . $spIdx{$genus};
-		print NSPOUT "Cluster $cl of $sp renamed to $newTx\n";
-	      }
-	      else
-	      {
-		for my $refID ( @nrQueryIDs )
-		{
-		  my @qIDs = @{ $cTbl{$refID} };
-		  push @droppedQuerySeqs, @qIDs;
-		}
-		next;
-	      }
-	    }
-	    elsif ( $nTxs == 2 ) # NAs and a named species
-	    {
-	      my @nonNAtx = diff( \@txs, \@na );
-	      $newTx = shift @nonNAtx;
-	    }
-	    else
-	    {
-	      # NAs with more than one species
-	      @txs = diff( \@txs, \@na );
+                  if ( $nTxs == 1 ) # only NAs
+                  {
+                     my $tx = shift @txs;
+                     if ( $tx ne "NA" )
+                     {
+                        warn "\n\n\tERROR: single taxon cluster (selected from clusters that contain NA) and the 'taxon' is not NA";
+                        print "\n\n";
+                        exit 1;
+                     }
 
-	      # sorting txs w/r to their number in the cluster
-	      @txs = sort { $txFreq{$b} <=> $txFreq{$a} } @txs;
-	      $newTx = shift @txs;
+                     if ( @nrQueryIDs > $minNRQseqs )
+                     {
+                        my ($genus, $s) = split "_", $sp;
+                        $spIdx{$genus}++;
+                        $newTx = $genus . "_sp_" . $spIdx{$genus};
+                        print NSPOUT "Cluster $cl of $sp renamed to $newTx\n";
+                     }
+                     else
+                     {
+                        for my $refID ( @nrQueryIDs )
+                        {
+                           my @qIDs = @{ $cTbl{$refID} };
+                           push @droppedQuerySeqs, @qIDs;
+                        }
+                        next;
+                     }
+                  }
+                  elsif ( $nTxs == 2 ) # NAs and a named species
+                  {
+                     my @nonNAtx = diff( \@txs, \@na );
+                     $newTx = shift @nonNAtx;
+                  }
+                  else
+                  {
+                     # NAs with more than one species
+                     @txs = diff( \@txs, \@na );
 
-	      ## here <= 10 taxons/species should be renamed to $newTx <= ToDO !!!!!!!
-	      for my $tx ( @txs )
-	      {
-		if ( $tx ne "NA" && $txFreq{$tx} <= $minSpSize )
-		{
-		  print ROUT "$tx\t$newTx\t$phGr\n";
-		}
-	      }
-	    }
+                     # sorting txs w/r to their number in the cluster
+                     @txs = sort { $txFreq{$b} <=> $txFreq{$a} } @txs;
+                     $newTx = shift @txs;
 
-	    for my $refID ( @nrQueryIDs )
-	    {
-	      print TOUT "$refID\t$newTx\t$phGr\t" . @{ $cTbl{$refID} } . "\n";
-	      my @qIDs = @{ $cTbl{$refID} };
-	      for ( @qIDs )
-	      {
-		print QOUT "$_\t$newTx\n";
-	      }
-	    }
+                     ## here <= 10 taxons/species should be renamed to $newTx <= ToDO !!!!!!!
+                     for my $tx ( @txs )
+                     {
+                        if ( $tx ne "NA" && $txFreq{$tx} <= $minSpSize )
+                        {
+                           print ROUT "$tx\t$newTx\t$phGr\n";
+                        }
+                     }
+                  }
 
-	    if ( @nrQueryIDs > $maxNumQuerySeqs )
-	    {
-	      $maxNumQuerySeqs = @nrQueryIDs;
-	      $winnerTx = $newTx;
-	    }
+                  for my $refID ( @nrQueryIDs )
+                  {
+                     print TOUT "$refID\t$newTx\t$phGr\t" . @{ $cTbl{$refID} } . "\n";
+                     my @qIDs = @{ $cTbl{$refID} };
+                     for ( @qIDs )
+                     {
+                        print QOUT "$_\t$newTx\n";
+                     }
+                  }
 
-	  } # end of for my $cl ( @queryCltrs )
+                  if ( @nrQueryIDs > $maxNumQuerySeqs )
+                  {
+                     $maxNumQuerySeqs = @nrQueryIDs;
+                     $winnerTx = $newTx;
+                  }
 
-	  ## Propagating the winner taxonomy to the remaining 20% of sequences if
-	  ## we are in the case of 80% coverage situation.
-	  if ( $covSuffix ne "")
-	  {
-	    my @tailIDs = diff( \@nrAllSeqIDs, \@nrSeqIDs );
+               } # end of for my $cl ( @queryCltrs )
 
-	    for my $refID ( @tailIDs )
-	    {
-	      if ( !exists $cTbl{$refID} )
-	      {
-		warn "\n\n\tERROR: $refID does not exist in cTbl";
-		#print_array( );
-		exit;
-	      }
-	      my @qIDs = @{ $cTbl{$refID} };
-	      for ( @qIDs )
-	      {
-		print QOUT "$_\t$winnerTx\n";
-	      }
-	    }
-	  }
+               ## Propagating the winner taxonomy to the remaining 20% of sequences if
+               ## we are in the case of 80% coverage situation.
+               if ( $covSuffix ne "")
+               {
+                  my @tailIDs = diff( \@nrAllSeqIDs, \@nrSeqIDs );
 
-	  ## Checking out for species present in more than one cluster
-	  if ( $reportSppInMultCltrs )
-	  {
-	    my @txs = keys %txCltrFreq;
-	    @txs = diff( \@txs, \@na );
-	    for my $tx ( @txs )
-	    {
-	      my %cltrMult = %{ $txCltrFreq{$tx} }; # cl => # of seq's of tx in cluster cl
-	      my @txCltrs  = keys %cltrMult;
-	      my @c = comm( \@txCltrs, \@queryCltrs );
-	      if ( @c > 1 )
-	      {
-		my $nBigCounts = 0;
-		for my $cl ( @c )
-		{
-		  $nBigCounts++ if $cltrMult{$cl} >= $spMultThld;
-		}
-		if ( $nBigCounts > 1 )
-		{
-		  print "\n-------------------------------------------------------------------------------------\n";
-		  print "$sp  ($phGr)\n";
-		  print "$tx found in more than one cluster with query sequences (with >= $spMultThld seq's there)\n";
-		  $nMultCltrTxs++;
-		  $showCtrs = 1;
-		}
-	      }
-	    }
-	  }
+                  for my $refID ( @tailIDs )
+                  {
+                     if ( !exists $cTbl{$refID} )
+                     {
+                        warn "\n\n\tERROR: $refID does not exist in cTbl";
+                        #print_array( );
+                        exit;
+                     }
+                     my @qIDs = @{ $cTbl{$refID} };
+                     for ( @qIDs )
+                     {
+                        print QOUT "$_\t$winnerTx\n";
+                     }
+                  }
+               }
 
-	  my @querySortedCltrs = sort { $vicutCltrSize{$b} <=> $vicutCltrSize{$a} } @queryCltrs;
-	  for my $cl (@querySortedCltrs)
-	  {
-	    print "\nCluster $cl (" . $vicutCltrSize{$cl} . ")\n" if !$quiet || $showCtrs;
+               ## Checking out for species present in more than one cluster
+               if ( $reportSppInMultCltrs )
+               {
+                  my @txs = keys %txCltrFreq;
+                  @txs = diff( \@txs, \@na );
+                  for my $tx ( @txs )
+                  {
+                     my %cltrMult = %{ $txCltrFreq{$tx} }; # cl => # of seq's of tx in cluster cl
+                     my @txCltrs  = keys %cltrMult;
+                     my @c = comm( \@txCltrs, \@queryCltrs );
+                     if ( @c > 1 )
+                     {
+                        my $nBigCounts = 0;
+                        for my $cl ( @c )
+                        {
+                           $nBigCounts++ if $cltrMult{$cl} >= $spMultThld;
+                        }
+                        if ( $nBigCounts > 1 )
+                        {
+                           print "\n-------------------------------------------------------------------------------------\n";
+                           print "$sp  ($phGr)\n";
+                           print "$tx found in more than one cluster with query sequences (with >= $spMultThld seq's there)\n";
+                           $nMultCltrTxs++;
+                           $showCtrs = 1;
+                        }
+                     }
+                  }
+               }
 
-	    ## Generating a list of species present in $cl sorted by size and with NA
-	    ## at the end (igoring the size of NA when sorting
-	    my @clTxs = keys %{$vCltrvTxFreq{$cl}};
-	    @clTxs = sort { $vCltrvTxFreq{$cl}{$b} <=> $vCltrvTxFreq{$cl}{$a} } @clTxs;
-	    ## putting NA at the end
-	    @clTxs = diff(\@clTxs, \@na);
-	    push @clTxs, "NA";
-	    my %clTxsize;
-	    for my $tx ( @clTxs )
-	    {
-	      $clTxsize{$tx} = $vCltrvTxFreq{$cl}{$tx};
-	      #print "\t$tx\t" . $vCltrvTxFreq{$cl}{$tx} . "\n";
-	    }
-	    #print "\n";
+               my @querySortedCltrs = sort { $vicutCltrSize{$b} <=> $vicutCltrSize{$a} } @queryCltrs;
+               for my $cl (@querySortedCltrs)
+               {
+                  print "\nCluster $cl (" . $vicutCltrSize{$cl} . ")\n" if !$quiet || $showCtrs;
 
-	    printFormatedTbl(\%clTxsize, \@clTxs) if !$quiet || $showCtrs;
-	  }
-	  print "\n" if !$quiet || $showCtrs;
-	  $showCtrs = 0;
+                  ## Generating a list of species present in $cl sorted by size and with NA
+                  ## at the end (igoring the size of NA when sorting
+                  my @clTxs = keys %{$vCltrvTxFreq{$cl}};
+                  @clTxs = sort { $vCltrvTxFreq{$cl}{$b} <=> $vCltrvTxFreq{$cl}{$a} } @clTxs;
+                  ## putting NA at the end
+                  @clTxs = diff(\@clTxs, \@na);
+                  push @clTxs, "NA";
+                  my %clTxsize;
+                  for my $tx ( @clTxs )
+                  {
+                     $clTxsize{$tx} = $vCltrvTxFreq{$cl}{$tx};
+                     #print "\t$tx\t" . $vCltrvTxFreq{$cl}{$tx} . "\n";
+                  }
+                  #print "\n";
 
-	  if ( exists $ipSpp{$sp} )
-	  {
-	    delete $ipSpp{$sp};
-	  }
+                  printFormatedTbl(\%clTxsize, \@clTxs) if !$quiet || $showCtrs;
+               }
+               print "\n" if !$quiet || $showCtrs;
+               $showCtrs = 0;
 
-	  $processed{$sp} = 1;
-	}
+               if ( exists $ipSpp{$sp} )
+               {
+                  delete $ipSpp{$sp};
+               }
+
+               $processed{$sp} = 1;
+            }
+         }
+         closedir PGDIR;
       }
-      closedir PGDIR;
-    }
-  }
-  closedir VDIR;
+   }
+   closedir VDIR;
 }
 
 close QOUT;
