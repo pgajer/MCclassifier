@@ -276,11 +276,6 @@ if ( $debug )
     print "\n";
 }
 
-
-
-#                    "Proteobacteria_dir/Proteobacteria_group_9_V3V4_dir/Proteobacteria_group_9_V3V4_algn_trimmed_final.fa");
-# "Proteobacteria_dir/Proteobacteria_group_9_V3V4_dir/Proteobacteria_group_9_V3V4_final.tx");
-
 ##
 ## main loop
 ##
@@ -323,7 +318,17 @@ for my $phGr ( keys %phGrSppTbl )
     my $phGrTxFile = $phGrBaseDir . "/$phGr" . "_dir/$phGr" . "_final.tx";
     ## print "\nphGr: $phGr; phGrTxFile: $phGrTxFile\n";
 
-    #my %phGrTxTbl = read_tbl($phGrTxFile);
+    if ( ! -e $phGrTxFile )
+    {
+      my $orig = $phGrTxFile;
+      $phGrTxFile = $phGrBaseDir . "/$phGr" . "_dir/$phGr" . ".tx";
+      if ( ! -e $phGrTxFile )
+      {
+        warn "\n\n\tERROR: Neither $orig nor $phGrTxFile files exist";
+        print "\n\n";
+        exit 1;
+      }
+    }
 
     ## file with the given phylo-group's outgroup seq's
     my $phGrOGseqIDsFile = $phGrFaFile;
