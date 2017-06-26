@@ -304,10 +304,10 @@ for my $phGr ( keys %phGrSppTbl )
     ## Identifying algn file of the given phylo-group
     my $phGrAlgnFile = $phGrBaseDir . "/$phGr" . "_dir/$phGr" . "_algn_trimmed_final.fa";
 
-    # if ( -l $phGrAlgnFile )
-    # {
-    #   $phGrAlgnFile = readlink( $phGrAlgnFile );
-    # }
+    if ( -l $phGrAlgnFile )
+    {
+      $phGrAlgnFile = readlink( $phGrAlgnFile );
+    }
 
     print "phGrAlgnFile: $phGrAlgnFile\n" if $debug;
     ## Final alignment has OG seq's !!!!
