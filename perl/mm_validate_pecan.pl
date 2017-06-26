@@ -162,7 +162,6 @@ my $igsStr = "";
 if ( defined $igs )
 {
   $phGrBaseDir           = "/home/pgajer/projects/PECAN/data/phylo_groups/v0.3/cx_hb_rdp_FL_5500_phGr_dir";
-  $baseDir               = "/usr/local/projects/pgajer/devel/MCextras/data/RDP/V3V4/";
   $mmDir                 = "/local/scratch/MM_june25/";
   $mmSppDir              = "/local/scratch/MM_june25/mm_spp_dir";
 
