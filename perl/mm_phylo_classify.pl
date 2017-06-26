@@ -385,20 +385,6 @@ for my $vDir ( @vDirs )
 
                my @v = grep { /vicut_dir$/ } @files;
                my $vicutDir = "$vDir/$phGrDir/$spDir/" . shift @v;
-               #my $vcdir = shift @v;
-               #print "vcdir: $vcdir\n";
-
-               # my $cov = 0;
-               # my $covSuffix = "";
-               # my $vicutDir  = "$vDir/$phGrDir/$spDir/$sp" . "_vicut_dir";
-               # if ( $vcdir ne $vicutDir )
-               # {
-               #    $vcdir =~ /_nr_cov(\d+)_vicut_dir/;
-               #    $cov = $1;
-               #    $covSuffix = "_nr_cov$cov";
-               #    $vicutDir = $vcdir;
-               # }
-               # print "cov: $cov\n";
 
                exit if $spCounter == 10;
 
@@ -442,7 +428,7 @@ for my $vDir ( @vDirs )
                }
                else
                {
-                  $vExtTxTblFile = shift @e;
+                  $vExtTxTblFile = "$vDir/$phGrDir/$spDir/" . shift @e;
                }
 
                ## vicut-cltr/tx frequency table
@@ -461,14 +447,14 @@ for my $vDir ( @vDirs )
 
                ## Extracting seqIDs of non-redundant query sequences
                my @s = grep { /_nr\.seqIDs$/ } @files;
-               my $nrSeqIDsFile = shift @s; # = "$vDir/$phGrDir/$spDir/$sp" . "_nr.seqIDs";
+               my $nrSeqIDsFile = "$vDir/$phGrDir/$spDir/" . shift @s; # = "$vDir/$phGrDir/$spDir/$sp" . "_nr.seqIDs";
                my @nrAllSeqIDs = read_NR_array( $nrSeqIDsFile );
 
                my @nrSeqIDs;
                @s = grep { /_nr_cov\d+\.seqIDs$/ } @files;
                if ( @s )
                {
-                  $nrSeqIDsFile = shift @s; #"$vDir/$phGrDir/$spDir/$sp" . $covSuffix . ".seqIDs";
+                  $nrSeqIDsFile = "$vDir/$phGrDir/$spDir/" . shift @s; #"$vDir/$phGrDir/$spDir/$sp" . $covSuffix . ".seqIDs";
                   @nrSeqIDs = read_array( $nrSeqIDsFile );
                }
                else
