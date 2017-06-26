@@ -151,7 +151,7 @@ my $R                     = "R";
 my $fix_fasta_headers     = "fix_fasta_headers.pl";
 my $mothur                = "/Users/pgajer/bin/mothur";
 my $usearch6              = "/Users/pgajer/bin/usearch6.0.203_i86osx32";
-my $vicut                 = "/Users/pgajer/devel/vicut/bin/vicut";
+my $vicut                 = "vicut";
 my $readNewickFile        = "/Users/pgajer/organizer/programming/R/libs/read.newick.R";
 
 my $quietStr              = "--quiet";
@@ -320,7 +320,7 @@ for my $phGr ( keys %phGrSppTbl )
     }
 
     ## Identifying tx finale file of the given phylo-group
-    my $phGrTxFile = $phGrBaseDir . "/$phGr" . "_dir/$phGr" . "_final.fa";
+    my $phGrTxFile = $phGrBaseDir . "/$phGr" . "_dir/$phGr" . "_final.tx";
     ## print "\nphGr: $phGr; phGrTxFile: $phGrTxFile\n";
 
     #my %phGrTxTbl = read_tbl($phGrTxFile);
@@ -688,12 +688,15 @@ for my $phGr ( keys %phGrSppTbl )
                 print "\n\n";
                 print "Number of query seq's:        $nQseqs\n";
                 print "Number of annotation seq's:   $nAnnSeqs\n";
-                print "Number of leaves in the tree: ". @leaves . "\n\n";
+                print "Number of leaves in the tree: ". @leaves . "\n";
+                print "annFile: $annFile\n\n";
             }
 
-            $cmd = "$vicut $quietStr -t $bigTreeFile -a $annFile -q $queryFile -o $vicutDir";
-            print "\tcmd=$cmd\n" if $dryRun || $debug;
-            system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
+            my @query = run_vicut( $bigTreeFile, $annFile, $vicutDir );
+
+            # $cmd = "$vicut $quietStr -t $bigTreeFile -a $annFile -q $queryFile -o $vicutDir";
+            # print "\tcmd=$cmd\n" if $dryRun || $debug;
+            # system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
         }
 
         ##
@@ -1701,6 +1704,38 @@ sub get_leaves
     my @a = read_array($leavesFile);
 
     return @a;
+}
+
+sub run_vicut
+{
+  my ($treeFile, $annFile, $vicutDir) = @_;
+
+  my %annTbl = read_tbl( $annFile );
+  my @ann = keys %annTbl;
+  my @leaves = get_leaves( $treeFile );
+
+  my @query = diff( \@leaves, \@ann );
+  if ( @query )
+  {
+    my ($fh, $qFile) = tempfile("query.XXXX", SUFFIX => 'txt', OPEN => 1, DIR => $tmpDir);
+    for ( @query )
+    {
+      print $fh "$_\n";
+    }
+    close $fh;
+
+    my $cmd = "vicut $quietStr -t $treeFile -a $annFile -q $qFile -o $vicutDir";
+    print "\tcmd=$cmd\n" if $dryRun || $debug;
+    system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+  }
+  else
+  {
+    my $cmd = "vicut $quietStr -t $treeFile -a $annFile -o $vicutDir";
+    print "\tcmd=$cmd\n" if $dryRun || $debug;
+    system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+  }
+
+  return @query;
 }
 
 exit 0;
