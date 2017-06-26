@@ -94,6 +94,10 @@
 
 =head1 EXAMPLE
 
+  in /local/scratch/MM_june25
+
+  mm_phylo_classify.pl -d mm_pecan_cl_validation_dir -o mm_phylo_clfy_dir
+
   in ~/projects/M_and_M/new_16S_classification
 
   mm_phylo_classify.pl --debug -d mm_may12_validate_pecan_dir2 -o mm_may12_phylo_clfy_dir2
@@ -304,7 +308,7 @@ my $queryTxFile = $outDir . "/query.tx"; # a tab delimited file with 2 columns:
 					 # with no named species and not being
 					 # abundant enough.
 
-# my $trainTxFile = $outDir . "/train.tx"; # columns: seqID, species, phyloGroup, multiplicity
+my $trainTxFile = $outDir . "/train.tx"; # columns: seqID, species, phyloGroup, multiplicity
 #                                          # multiplicity = size of the 100%
 #                                          # identity cluster for query seq's, -1
 #                                          # for ref seq's.  ref and query
