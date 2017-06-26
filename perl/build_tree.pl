@@ -544,15 +544,25 @@ sub create_mothur_script
     return $inFile;
 }
 
-# common part of two arrays
-sub comm{
+# extract unique elements from an array
+sub unique{
 
+  my $a = shift;
+  my %saw;
+  my @out = grep(!$saw{$_}++, @{$a});
+
+  return @out;
+}
+
+# common part of two arrays
+sub comm
+{
   my ($a1, $a2) = @_;
 
   my @c; # common array
   my %count;
 
-  foreach my $e (@{$a1}, @{$a2}){ $count{$e}++ }
+  foreach my $e ( unique($a1), unique($a2) ){ $count{$e}++ }
 
   foreach my $e (keys %count)
   {
