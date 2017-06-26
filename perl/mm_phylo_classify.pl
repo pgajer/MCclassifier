@@ -384,7 +384,7 @@ for my $vDir ( @vDirs )
                print_array( \@files );
 
                my @v = grep { /vicut_dir$/ } @files;
-               my $vicutDir = shift @v;
+               my $vicutDir = "$vDir/$phGrDir/$spDir/" . shift @v;
                #my $vcdir = shift @v;
                #print "vcdir: $vcdir\n";
 
