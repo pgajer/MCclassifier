@@ -372,7 +372,7 @@ for my $vDir ( @vDirs )
                my ( $phGr ) = ( $phGrDir =~ /mm_(\w+)_dir/ );
                #print "phGr: $phGr\n";
 
-               next if exists $processed{$sp};
+               #next if exists $processed{$sp};
 
                print "\n-------------------------------------------------------------------------------------\n$sp  ($phGr)\n" if !$quiet;
 
