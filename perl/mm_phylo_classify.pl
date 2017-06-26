@@ -610,7 +610,7 @@ for my $vDir ( @vDirs )
 
                ## Propagating the winner taxonomy to the remaining 20% of sequences if
                ## we are in the case of 80% coverage situation.
-               if ( $covSuffix ne "")
+               if ( @s )
                {
                   my @tailIDs = diff( \@nrAllSeqIDs, \@nrSeqIDs );
 
