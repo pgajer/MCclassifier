@@ -372,7 +372,7 @@ for my $vDir ( @vDirs )
                my ( $phGr ) = ( $phGrDir =~ /mm_(\w+)_dir/ );
                #print "phGr: $phGr\n";
 
-               #next if exists $processed{$sp};
+               next if exists $processed{$sp};
 
                print "\n-------------------------------------------------------------------------------------\n$sp  ($phGr)\n" if !$quiet;
 
@@ -384,9 +384,15 @@ for my $vDir ( @vDirs )
                #print_array( \@files );
 
                my @v = grep { /vicut_dir$/ } @files;
+               if ( @v == 0 )
+               {
+                  $ipSpp{$sp} = $phGr;
+                  next;
+               }
+
                my $vicutDir = "$vDir/$phGrDir/$spDir/" . shift @v;
 
-               exit if $spCounter == 10;
+               ##exit if $spCounter == 10;
 
                # Testing which one is present
                if ( ! -e $vicutDir )
