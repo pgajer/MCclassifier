@@ -353,9 +353,9 @@ my @lSeqIDs = keys %lineageTbl;
 
 if ( ! setequal(\@seqIDs, \@lSeqIDs, "quiet") )
 {
-  warn "WARNING: seq IDs of trimmed alignment fasta file and lineage file do not match";
-  print "\nNumber of elements in the lineage file:           " . @lSeqIDs . "\n";
-  print "Number of elements in the trimmed alignment file: " . @seqIDs . "\n\n";
+  warn "\n\tWARNING: seq IDs of trimmed alignment fasta file and lineage file do not match";
+  print "\tNumber of elements in the lineage file:           " . @lSeqIDs . "\n";
+  print "\tNumber of elements in the trimmed alignment file: " . @seqIDs . "\n\n";
 }
 
 print "--- Testing if outgroup sequences are part of seqIDs\n";
@@ -447,6 +447,7 @@ my %geParent;
 my %faParent;
 my %orParent;
 my %clParent;
+my %phParent;
 
 for my $id ( keys %lineageTbl )
 {
@@ -458,12 +459,14 @@ for my $id ( keys %lineageTbl )
   my $or = pop @f;
   my $cl = pop @f;
   my $ph = pop @f;
+  my $dom = pop @f;
 
   $spParent{$sp} = $ge;
   $geParent{$ge} = $fa;
   $faParent{$fa} = $or;
   $orParent{$or} = $cl;
   $clParent{$cl} = $ph;
+  $phParent{$ph} = $dom;
 
   $spLineage{$sp} = $lineage;
 
@@ -479,6 +482,7 @@ for my $id ( keys %lineageTbl )
   $or = "o_$or";
   $cl = "c_$cl";
   $ph = "p_$ph";
+  $dom = "d_$dom";
 
   $spp{$id} = $sp;
   $gen{$id} = $ge;
@@ -491,9 +495,9 @@ for my $id ( keys %lineageTbl )
   $parent{$fa} = $or;
   $parent{$or} = $cl;
   $parent{$cl} = $ph;
-  $parent{$ph} = "d_Bacteria";
+  $parent{$ph} = $dom;
 
-  $children{"d_Bacteria"}{$ph}++;
+  $children{$dom}{$ph}++;
   $children{$ph}{$cl}++;
   $children{$cl}{$or}++;
   $children{$or}{$fa}++;
@@ -837,8 +841,69 @@ for my $id ( keys %newTx )
 close QOUT;
 close ANNOUT;
 
-## If _sp species are present, run vicut again.
-if (@query2)
+if ( @ann2 == 0 )
+{
+  print "\n\tWARNING: All species are _sp after first run of vicut - exiting\n";
+
+  my @ids = keys %newTx;
+  my $id = $ids[0];
+  my $newSp = $newTx{$id};
+  my $newSpNoExt = $newSp;
+  $newSpNoExt =~ s/_\d+$//;
+
+  my $lineage = $lineageTbl{$id};
+  my @f = split ";", $lineage;
+  my $sp = pop @f;
+  my $ge = pop @f;
+  my @t1 = (@f, $ge, $newSpNoExt);
+  my @t2 = (@f, $ge, $ge, $newSp); # making genus also a sub-genus for the sake of consistency with other phyla
+  my $lineageNoExt = join ';', @t1;
+  my $lineageExt = join ';', @t2;
+
+  my $finalLineageFile = $grPrefix . "_final.lineage";
+  open OUT1, ">$finalLineageFile" or die "Cannot open $finalLineageFile for writing: $OS_ERROR";
+  for my $id (keys %newTx)
+  {
+    my $lineage = $lineageTbl{$id};
+    print OUT1 "$id\t$lineageExt\n";
+  }
+  for my $id ( keys %ogLineageTbl )
+  {
+    my $lineage = $ogLineageTbl{$id};
+    print OUT1 "$id\t$lineage\n";
+  }
+  close OUT1;
+
+  my $spLiFile = $grPrefix . "_spp.lineage";
+  $finalLineageFile = abs_path( $finalLineageFile );
+  $cmd = "ln -s $finalLineageFile $spLiFile";
+  print "\tcmd=$cmd\n" if $dryRun || $debug;
+  #system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
+
+
+  my $faFile = $grPrefix . ".fa";
+  if ( -e $faFile )
+  {
+    $faFile = abs_path( $faFile );
+    my $ffaFile = $grPrefix . "_final.fa";
+    $cmd = "ln -s $faFile $ffaFile";
+    print "\tcmd=$cmd\n" if $dryRun || $debug;
+    system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
+  }
+
+  $trAlgnFile = abs_path( $trAlgnFile );
+  my $ftrAlgnFile = $grPrefix . "_algn_trimmed_final.fa";
+  $cmd = "ln -s $trAlgnFile $ftrAlgnFile";
+  print "\tcmd=$cmd\n" if $dryRun || $debug;
+  system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
+
+  print "\n\tCreated links to the original lineage and alignment files\n\n";
+
+  exit 0;
+}
+
+## If _sp species are present (and not all species are _sp), then run vicut again.
+if ( @ann2 && @query2 )
 {
   if ( $debugSpp )
   {
@@ -915,14 +980,18 @@ for my $id (keys %lineageTbl)
     my $lineage = $lineageTbl{$id}; ### not sure what this is doing. Just a check it seems
     my @f = split ";", $lineage;
     my $sp = pop @f;
+    my $ge = pop @f;
 
     if ( $newSp ne $sp )
     {
       my ($g, $s) = split "_", $newSp;
-
-      if ( $g =~ /BVAB/ )
+      # if ( $g =~ /BVAB/ )
+      # {
+      #   $newSp =~ s/_sp$//;
+      # }
+      if ( !$s )
       {
-        $newSp =~ s/_sp$//;
+        $g = $ge;
       }
 
       if ( exists $geLineage{$g} )
@@ -1069,6 +1138,7 @@ if ( @extraOG>0 )
 else
 {
   print "--- No extra OG seq's to be removed (length of extraOG = ".scalar @extraOG. "), SKIPPED VICUT_2b\n";
+  $vicutDir  = "$tmpDir/spp_vicut_dir";
 }
 
 my $sppLineageFile = $grPrefix . "_spp.lineage";
@@ -1390,7 +1460,7 @@ if ( $debugSpp )
 $vicutDir  = "$tmpDir/spp_vicut_dir3";
 
 #print "--- Running vicut on species data the 3rd time\n";
-if (@query3)
+if ( @ann3 && @query3 )
 {
   print "--- Running vicut on species data the 3rd time because _sp species were still found.\n";
   $cmd = "vicut $quietStr -t $treeFile -a $annFile3 -q $queryFile3 -o $vicutDir";
@@ -1419,10 +1489,16 @@ for my $id (keys %lineageTbl)
     my $lineage = $lineageTbl{$id};
     my @f = split ";", $lineage;
     my $sp = pop @f;
+    my $ge = pop @f;
     my $newSp = $newTx{$id};
     if ($newSp ne $sp)
     {
       my ($g, $s) = split "_", $newSp;
+      if ( !$s ) # taking care of BVAB1/2/3 cases
+      {
+        $g = $ge;
+      }
+
       if ( exists $geLineage{$g} )
       {
         $lineageTbl{$id} = $geLineage{$g} . ";$newSp";
@@ -1559,10 +1635,16 @@ if (@lostLeaves>0)
       my $lineage = $lineageTbl{$id};
       my @f = split ";", $lineage;
       my $sp = pop @f;
+      my $ge = pop @f;
       my $newSp = $newTx{$id};
       if ($newSp ne $sp)
       {
         my ($g, $s) = split "_", $newSp;
+        if ( !$s ) # taking care of BVAB1/2/3 cases
+        {
+          $g = $ge;
+        }
+
         if ( exists $geLineage{$g} )
         {
           $lineageTbl{$id} = $geLineage{$g} . ";$newSp";
@@ -1640,25 +1722,44 @@ if ( $nSpecies == 1 )
 
   my $finalLineageFile = $grPrefix . "_final.lineage";
   open OUT1, ">$finalLineageFile" or die "Cannot open $finalLineageFile for writing: $OS_ERROR";
-  my $finalLineageFile2 = $grTmpPrefix . "_final_no_tGTs.lineage";
-  open OUT2, ">$finalLineageFile2" or die "Cannot open $finalLineageFile2 for writing: $OS_ERROR";
   for my $id (keys %newTx)
   {
     my $lineage = $lineageTbl{$id};
     print OUT1 "$id\t$lineageExt\n";
-    print OUT2 "$id\t$lineageNoExt\n";
   }
   for my $id ( keys %ogLineageTbl )
   {
     my $lineage = $ogLineageTbl{$id};
-    print OUT2 "$id\t$lineage\n";
+    print OUT1 "$id\t$lineage\n";
   }
-  close OUT2;
   close OUT1;
 
-  print "\n\tUpdated lineage tables written to:\n\t\t$finalLineageFile\n\t\t$finalLineageFile2\n\n";
+  my $spLiFile = $grPrefix . "_spp.lineage";
+  $finalLineageFile = abs_path( $finalLineageFile );
+  $cmd = "ln -s $finalLineageFile $spLiFile";
+  print "\tcmd=$cmd\n" if $dryRun || $debug;
+  #system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 
-  exit 1;
+
+  my $faFile = $grPrefix . ".fa";
+  if ( -e $faFile )
+  {
+    $faFile = abs_path( $faFile );
+    my $ffaFile = $grPrefix . "_final.fa";
+    $cmd = "ln -s $faFile $ffaFile";
+    print "\tcmd=$cmd\n" if $dryRun || $debug;
+    system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
+  }
+
+  $trAlgnFile = abs_path( $trAlgnFile );
+  my $ftrAlgnFile = $grPrefix . "_algn_trimmed_final.fa";
+  $cmd = "ln -s $trAlgnFile $ftrAlgnFile";
+  print "\tcmd=$cmd\n" if $dryRun || $debug;
+  system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
+
+  print "\n\tCreated links to the original lineage and alignment files\n\n";
+
+  exit 0;
 }
 
 
@@ -2138,7 +2239,7 @@ for my $ge (@newGenera)
   $section = qq~
 
     ##
-    ## === updating geParent ===
+    ## === Updating geParent ===
     ##
 
     ~;
@@ -2228,7 +2329,7 @@ for my $ge (@newGenera)
   $section = qq~
 
     ##
-    ## === updating faParent ===
+    ## === Updating faParent ===
     ##
 
     ~;
@@ -2476,17 +2577,37 @@ for my $id (keys %lineageTbl)
     # $lineageTbl{$id} needs updating only when $newGe ne $ge
     if ( $newGe ne $ge )
     {
-      my $fa = pop @f;
-      my $or = pop @f;
-      my $cl = pop @f;
-      my $ph = pop @f;
+      # my $fa = pop @f;
+      # my $or = pop @f;
+      # my $cl = pop @f;
+      # my $ph = pop @f;
+      # my $dom = pop @f;
 
       my $newFa = $geParent{$newGe};
       my $newOr = $faParent{$newFa};
       my $newCl = $orParent{$newOr};
       my $newPh = $clParent{$newCl};
-
-      my @t = ("Bacteria", $newPh, $newCl, $newOr, $newFa, $newGe, $sp);
+      my $newDo = $phParent{$newPh};
+      if ( !$newDo )
+      {
+        my @p = split "_", $newPh;
+        my $ph = shift @p;
+        if ( exists $phParent{$ph} )
+        {
+          $newDo = $phParent{$ph};
+        }
+        else
+        {
+          my $or = pop @f;
+          my $cl = pop @f;
+          my $ph = pop @f;
+          my $do = pop @f;
+          $newDo = $do;
+        }
+        #print "\nli: $lineage\n";
+        #print "newDo: $newDo\n";
+      }
+      my @t = ($newDo, $newPh, $newCl, $newOr, $newFa, $newGe, $sp);
       my $l = join ";", @t;
 
       $lineageTbl{$id} = $l;
@@ -3304,15 +3425,32 @@ for my $id (keys %lineageTbl)
     # $lineageTbl{$id} needs updating only when $newFa ne $fa
     if ( $newFa ne $fa )
     {
-      my $or = pop @f;
-      my $cl = pop @f;
-      my $ph = pop @f;
-
       my $newOr = $faParent{$newFa};
       my $newCl = $orParent{$newOr};
       my $newPh = $clParent{$newCl};
+      my $newDo = $phParent{$newPh};
 
-      my @t = ("Bacteria", $newPh, $newCl, $newOr, $newFa, $ge, $sge, $sp);
+      if ( !$newDo )
+      {
+        my @p = split "_", $newPh;
+        my $ph = shift @p;
+        if ( exists $phParent{$ph} )
+        {
+          $newDo = $phParent{$ph};
+        }
+        else
+        {
+          my $or = pop @f;
+          my $cl = pop @f;
+          my $ph = pop @f;
+          my $do = pop @f;
+          $newDo = $do;
+        }
+        #print "\nli: $lineage\n";
+        #print "newDo: $newDo\n";
+      }
+
+      my @t = ($newDo, $newPh, $newCl, $newOr, $newFa, $ge, $sge, $sp);
       my $l = join ";", @t;
 
       # if ($debug)
@@ -4620,7 +4758,11 @@ print $SRYOUT    "\tNumber of species (with OG seq's) AFTER taxonomic cleanup an
 print $SRYOUT "\tNumber of _sp species BEFORE taxonomic cleanup: $nSpSpp\n";
 print $SRYOUT "\tNumber of _sp species AFTER taxonomic cleanup: $nSpSppFinal\n\n";
 
-print $SRYOUT  "\tNumber of singletons species BEFORE taxonomic cleanup: $sppFreq2{1}\n";
+if ( exists $sppFreq2{1} )
+{
+  print $SRYOUT  "\tNumber of singletons species BEFORE taxonomic cleanup: $sppFreq2{1}\n";
+}
+
 if (exists $sppFreqFinal2{1})
 {
   print $SRYOUT  "\tNumber of singletons species AFTER taxonomic cleanup: $sppFreqFinal2{1}\n\n";
