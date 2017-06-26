@@ -481,11 +481,12 @@ if ( $nPhyloParts > 1 )
     printFormatedTbl(\%partFreq);
   }
 
+  my %part2Freq; ## number of elements per phylo partition cluster
+  map { $part2Freq{$_}++ } values %part2;
+
   if ( !$quiet )
   {
     print "After vicut phylo partition sizes\n";
-    my %part2Freq; ## number of elements per phylo partition cluster
-    map { $part2Freq{$_}++ } values %part2;
     printFormatedTbl(\%part2Freq) if !$quiet;
   }
 
@@ -503,12 +504,12 @@ if ( $nPhyloParts > 1 )
     {
       if ($part{$id} != 0)
       {
-	$part2{$id} = $part{$id};
+        $part2{$id} = $part{$id};
       }
       else
       {
-	$part2{$id} = $part{$id} . "_$clCounter";
-	$clCounter++;
+        $part2{$id} = $part{$id} . "_$clCounter";
+        $clCounter++;
       }
       my $cl = $part2{$id};
       push @{$cltr{$cl}}, $id;
@@ -520,11 +521,11 @@ if ( $nPhyloParts > 1 )
       my @q = sort { @{$cltr{$b}} <=> @{$cltr{$a}} } keys %cltr;
       for my $cl (@q)
       {
-	print "Cluster $cl:\n";
-	for (@{$cltr{$cl}})
-	{
-	  print "\t$_\n";
-	}
+        print "Cluster $cl:\n";
+        for (@{$cltr{$cl}})
+        {
+          print "\t$_\n";
+        }
       }
       print "\n\n";
     }
@@ -537,11 +538,11 @@ if ( $nPhyloParts > 1 )
       my @q = sort { @{$cltr{$b}} <=> @{$cltr{$a}} } keys %cltr;
       for my $cl (@q)
       {
-	print "Cluster $cl:\n";
-	for (@{$cltr{$cl}})
-	{
-	  print "\t$_\n";
-	}
+        print "Cluster $cl:\n";
+        for (@{$cltr{$cl}})
+        {
+          print "\t$_\n";
+        }
       }
       print "\n\n";
     }
@@ -575,7 +576,7 @@ if ( $nPhyloParts > 1 )
       my ($g, $s) = split "_", $tx;
       if ( defined $s && $s ne "sp" )
       {
-	$isProper{$tx} = 1;
+        $isProper{$tx} = 1;
       }
     }
 
@@ -584,33 +585,33 @@ if ( $nPhyloParts > 1 )
     {
       for my $tx (@{$cltr{$cl}})
       {
-	if ( exists $isProper{$tx} )
-	{
-	  my $p = $parent{$tx};
-	  print "$tx  =>  $p\n" if $debug;
-	  $p =~ s/_\d+//;
-	  print "new p: $p\n" if $debug;
-	  my @f = split "_", $p;
-	  for (@f)
-	  {
-	    $locPars{$_}++;
-	  }
-	}
+        if ( exists $isProper{$tx} )
+        {
+          my $p = $parent{$tx};
+          print "$tx  =>  $p\n" if $debug;
+          $p =~ s/_\d+//;
+          print "new p: $p\n" if $debug;
+          my @f = split "_", $p;
+          for (@f)
+          {
+            $locPars{$_}++;
+          }
+        }
       }
     }
     else
     {
       for my $tx (@{$cltr{$cl}})
       {
-	my $p = $parent{$tx};
-	print "$tx  =>  $p\n" if $debug;
-	$p =~ s/_\d+//;
-	print "new p: $p\n" if $debug;
-	my @f = split "_", $p;
-	for (@f)
-	{
-	  $locPars{$_}++;
-	}
+        my $p = $parent{$tx};
+        print "$tx  =>  $p\n" if $debug;
+        $p =~ s/_\d+//;
+        print "new p: $p\n" if $debug;
+        my @f = split "_", $p;
+        for (@f)
+        {
+          $locPars{$_}++;
+        }
       }
     }
 
@@ -652,7 +653,7 @@ if ( $nPhyloParts > 1 )
       print "\n$cl: $clNameTbl{$cl}\n";
       for my $tx (@{$cltr{$cl}})
       {
-	print "\t$tx\n";
+        print "\t$tx\n";
       }
     }
     print "\n";
@@ -714,7 +715,7 @@ if ( $nPhyloParts > 1 )
       print "Cluster $cl => $clIdx{$cl} (" . @{$cltr2{$cl}} . "):\n";
       for (@{$cltr2{$cl}})
       {
-	print "\t$_\n";
+        print "\t$_\n";
       }
     }
     print "\n\n";
@@ -749,8 +750,8 @@ if ( $nPhyloParts > 1 )
   ## from http://stackoverflow.com/questions/18532026/how-to-append-system-date-to-a-filename-in-perl
   my @now = localtime();
   my $timeStamp = sprintf("%04d-%02d-%02d_%02d_%02d_%02d",
-			  $now[5]+1900, $now[4]+1, $now[3],
-			  $now[2],      $now[1],   $now[0]);
+                          $now[5]+1900, $now[4]+1, $now[3],
+                          $now[2],      $now[1],   $now[0]);
 
   my $pdfTreeFile = abs_path( "$ppDir/phyloPart_$taxon" . "_cltrs_condensed_tree_$timeStamp.pdf" );
   my $treeFile2AbsPath = abs_path( $treeFile2 );
