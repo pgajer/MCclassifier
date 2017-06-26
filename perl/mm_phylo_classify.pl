@@ -161,7 +161,7 @@ if ($help)
 my $baseDir        = "/Users/pgajer/devel/MCextras/data/RDP/rdp_Bacteria_phylum_dir/";
 #my $mmDir          = "/Users/pgajer/projects/M_and_M/new_16S_classification_data/";
 my $mmDir          = "/Users/pgajer/projects/M_and_M/new_16S_classification_data/mm_may12_validate_pecan_dir";
-my $spToPhGrFile   = "/Users/pgajer/projects/M_and_M/new_16S_classification_data/MM_may12_spp_phGr_tbl.txt";
+my $spToPhGrFile   = "/Users/pgajer/projects/M_and_M/MM_june25/mm_june25_V3V4_spp_2_phGr_tbl.txt";
 
 my $R              = "R";
 my $mothur         = "/Users/pgajer/bin/mothur";
@@ -174,7 +174,7 @@ if ( defined $igs )
   $mothur          = "/usr/local/packages/mothur-1.36.1/mothur";
   $usearch6        = "/local/projects/pgajer/bin/usearch6.0.203_i86linux32";
   $readNewickFile  = "/local/projects/pgajer/devel/MCclassifier/perl/read.newick.R";
-  $spToPhGrFile    = "/local/scratch/MM/MM_may12_spp_phGr_tbl.txt";
+  $spToPhGrFile    = "/local/scratch/MM_june25/mm_june25_V3V4_spp_2_phGr_tbl.txt";
 }
 
 if ( !$outDir )
