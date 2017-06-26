@@ -386,33 +386,29 @@ for my $vDir ( @vDirs )
                my @v = grep { /vicut_dir$/ } @files;
                my $vdir = shift @v;
                print "vdir: $vdir\n";
-               exit;
 
-               ## There are two vicut directory names possible here
-               my $covSuffix = "_nr_cov80";
-               my $vicutDir80  = "$vDir/$phGrDir/$spDir/$sp" . $covSuffix . "_vicut_dir";
-               $covSuffix = "";
+               my $cov = 0;
+               my $covSuffix = "";
                my $vicutDir  = "$vDir/$phGrDir/$spDir/$sp" . "_vicut_dir";
+               if ( $vdir ne $vicutDir )
+               {
+                  ($cov) = ( $vdir =~ /_nr_cov(\d+)_vicut_dir/ );
+                  $covSuffix = "_nr_cov$cov";
+                  $vicutDir = $vdir;
+               }
+               print "cov: $cov\n";
+
+               exit if $spCounter == 10;
 
                # Testing which one is present
                if ( ! -e $vicutDir )
                {
-                  #print "Did not find $vicutDir\n";
-                  if ( -e $vicutDir80 )
-                  {
-                     #print "Found $vicutDir80\n";
-                     $covSuffix = "_nr_cov80";
-                     $vicutDir = $vicutDir80;
-                  }
-                  else
-                  {
-                     #print "WARNING: Did not find neither $covSuffix" . "_vicut_dir nor _vicut_dir for $sp\n" if !$quiet;
-                     warn "\n\n\tERROR: Did not find neither $covSuffix" . "_vicut_dir nor _vicut_dir for $sp";
-                     exit 1;
+                  #print "WARNING: Did not find neither $covSuffix" . "_vicut_dir nor _vicut_dir for $sp\n" if !$quiet;
+                  warn "\n\n\tERROR: Did not find neither $covSuffix" . "_vicut_dir nor _vicut_dir for $sp";
+                  exit 1;
 
-                     $ipSpp{$sp} = $phGr;
-                     next;
-                  }
+                  # $ipSpp{$sp} = $phGr;
+                  # next;
                }
 
                my $vicutCltrsFile = $vicutDir . "/minNodeCut.cltrs";
