@@ -384,27 +384,27 @@ for my $vDir ( @vDirs )
                print_array( \@files );
 
                my @v = grep { /vicut_dir$/ } @files;
-               my $vcdir = shift @v;
+               my $vicutDir = shift @v;
+               #my $vcdir = shift @v;
                print "vcdir: $vcdir\n";
 
-               my $cov = 0;
-               my $covSuffix = "";
-               my $vicutDir  = "$vDir/$phGrDir/$spDir/$sp" . "_vicut_dir";
-               if ( $vcdir ne $vicutDir )
-               {
-                  $vcdir =~ /_nr_cov(\d+)_vicut_dir/;
-                  $cov = $1;
-                  $covSuffix = "_nr_cov$cov";
-                  $vicutDir = $vcdir;
-               }
-               print "cov: $cov\n";
+               # my $cov = 0;
+               # my $covSuffix = "";
+               # my $vicutDir  = "$vDir/$phGrDir/$spDir/$sp" . "_vicut_dir";
+               # if ( $vcdir ne $vicutDir )
+               # {
+               #    $vcdir =~ /_nr_cov(\d+)_vicut_dir/;
+               #    $cov = $1;
+               #    $covSuffix = "_nr_cov$cov";
+               #    $vicutDir = $vcdir;
+               # }
+               # print "cov: $cov\n";
 
                exit if $spCounter == 10;
 
                # Testing which one is present
                if ( ! -e $vicutDir )
                {
-                  #print "WARNING: Did not find neither $covSuffix" . "_vicut_dir nor _vicut_dir for $sp\n" if !$quiet;
                   warn "\n\n\tERROR: Did not find neither $covSuffix" . "_vicut_dir nor _vicut_dir for $sp";
                   exit 1;
 
@@ -415,9 +415,11 @@ for my $vDir ( @vDirs )
                my $vicutCltrsFile = $vicutDir . "/minNodeCut.cltrs";
                if ( ! -e $vicutCltrsFile )
                {
-                  #print "WARNING: Did not find $vicutCltrsFile\n" if !$quiet;
-                  $ipSpp{$sp} = $phGr;
-                  next;
+                  warn "\n\n\tERROR: Did not find $vicutCltrsFile";
+                  print "\n\n";
+                  exit;
+                  #$ipSpp{$sp} = $phGr;
+                  #next;
                }
 
                my ($rvCltrTbl, $rvTxTbl, $rvExtTxTbl) = readCltrsTbl($vicutCltrsFile);
@@ -427,12 +429,20 @@ for my $vDir ( @vDirs )
                my %vExtTxTbl  = %{$rvExtTxTbl}; # seqID => taxonomy of seqID if seqID is a phGr ref seq and c<vicut cluster ID of seqID> if seqID is a query seq
 
                ## Extended taxonomy table should be alread present
-               my $vExtTxTblFile = "$vDir/$phGrDir/$spDir/$sp" . $covSuffix . "_ext.tx";
-               if ( ! -e $vExtTxTblFile )
+               my @e = grep { /ext\.tx$/ } @files;
+               my $vExtTxTblFile; # = "$vDir/$phGrDir/$spDir/$sp" . $covSuffix . "_ext.tx";
+               #if ( ! -e $vExtTxTblFile )
+               if ( @e == 0 )
                {
-                  #print "WARNING: Did not find $vExtTxTblFile\n" if !$quiet;
+                  print "\n\nWARNING: Did not find vExtTxTblFile\n\n";
+                  exit ;
+
                   $ipSpp{$sp} = $phGr;
                   next;
+               }
+               else
+               {
+                  $vExtTxTblFile = shift @e;
                }
 
                ## vicut-cltr/tx frequency table
@@ -450,13 +460,15 @@ for my $vDir ( @vDirs )
                }
 
                ## Extracting seqIDs of non-redundant query sequences
-               my $nrSeqIDsFile = "$vDir/$phGrDir/$spDir/$sp" . "_nr.seqIDs";
+               my @s = grep { /_nr\.seqIDs$/ } @files;
+               my $nrSeqIDsFile = shift @s; # = "$vDir/$phGrDir/$spDir/$sp" . "_nr.seqIDs";
                my @nrAllSeqIDs = read_NR_array( $nrSeqIDsFile );
 
                my @nrSeqIDs;
-               if ( $covSuffix ne "" )
+               @s = grep { /_nr_cov(\d+)\.seqIDs$/ } @files;
+               if ( $@s )
                {
-                  $nrSeqIDsFile = "$vDir/$phGrDir/$spDir/$sp" . $covSuffix . ".seqIDs";
+                  $nrSeqIDsFile = shift @s; #"$vDir/$phGrDir/$spDir/$sp" . $covSuffix . ".seqIDs";
                   @nrSeqIDs = read_array( $nrSeqIDsFile );
                }
                else
