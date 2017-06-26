@@ -386,7 +386,7 @@ for my $vDir ( @vDirs )
                my @v = grep { /vicut_dir$/ } @files;
                my $vicutDir = shift @v;
                #my $vcdir = shift @v;
-               print "vcdir: $vcdir\n";
+               #print "vcdir: $vcdir\n";
 
                # my $cov = 0;
                # my $covSuffix = "";
@@ -405,7 +405,7 @@ for my $vDir ( @vDirs )
                # Testing which one is present
                if ( ! -e $vicutDir )
                {
-                  warn "\n\n\tERROR: Did not find neither $covSuffix" . "_vicut_dir nor _vicut_dir for $sp";
+                  warn "\n\n\tERROR: Did not find neither covSuffix_vicut_dir nor _vicut_dir for $sp";
                   exit 1;
 
                   # $ipSpp{$sp} = $phGr;
@@ -465,8 +465,8 @@ for my $vDir ( @vDirs )
                my @nrAllSeqIDs = read_NR_array( $nrSeqIDsFile );
 
                my @nrSeqIDs;
-               @s = grep { /_nr_cov(\d+)\.seqIDs$/ } @files;
-               if ( $@s )
+               @s = grep { /_nr_cov\d+\.seqIDs$/ } @files;
+               if ( @s )
                {
                   $nrSeqIDsFile = shift @s; #"$vDir/$phGrDir/$spDir/$sp" . $covSuffix . ".seqIDs";
                   @nrSeqIDs = read_array( $nrSeqIDsFile );
