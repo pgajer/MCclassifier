@@ -261,6 +261,10 @@ my @seqIDs = get_seqIDs_from_fa( $algnFile );
 
 if ( @seqIDs < $minSize )
 {
+  my $cmd = "rm -rf $trDir";
+  print "\tcmd=$cmd\n" if $dryRun || $debug;
+  system($cmd) == 0 or die "system($cmd) failed:$?" if !$dryRun;
+
   print "\n\nWARNING: $grPrefix has less than $minSize elements; Exiting\n\n";
   exit 0;
 }
@@ -607,6 +611,9 @@ if ( -e $errorFile )
 $cmd =  "rm -f $trDir/$candBasename" . ".*";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
+
+
+print "Successfully completed processing $grPrefix\n\n";
 
 ####################################################################
 ##                               SUBS
