@@ -376,6 +376,17 @@ for my $vDir ( @vDirs )
 
                print "\n-------------------------------------------------------------------------------------\n$sp  ($phGr)\n" if !$quiet;
 
+               # Getting coverage
+               my $dir = "$vDir/$phGrDir/$spDir";
+               my @files = files_in_dir( $dir );
+
+               print "\n\nFound the following files in $dir\n";
+               print_array( \@files );
+
+               my $vdir = grep { $_ =~ /vicut_dir$/ } @files;
+               print "vdir: $vdir\n";
+               exit;
+
                ## There are two vicut directory names possible here
                my $covSuffix = "_nr_cov80";
                my $vicutDir80  = "$vDir/$phGrDir/$spDir/$sp" . $covSuffix . "_vicut_dir";
@@ -1498,6 +1509,18 @@ sub print_array
   print "\n$header\n" if $header;
   map {print "$_\n"} @{$a};
 }
+
+sub files_in_dir
+{
+   my $dir = shift;
+
+   opendir DIR, "$dir" or die "Cannot open $dir: $!";
+   my @files = readdir DIR;
+   closedir DIR;
+
+   return @files;
+}
+
 
 # parse sp_to_phGr.txt whose format is
 #
