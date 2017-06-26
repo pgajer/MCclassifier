@@ -380,8 +380,8 @@ for my $vDir ( @vDirs )
                my $dir = "$vDir/$phGrDir/$spDir";
                my @files = files_in_dir( $dir );
 
-               print "\n\nFound the following files in $dir\n";
-               print_array( \@files );
+               #print "\n\nFound the following files in $dir\n";
+               #print_array( \@files );
 
                my @v = grep { /vicut_dir$/ } @files;
                my $vicutDir = "$vDir/$phGrDir/$spDir/" . shift @v;
