@@ -644,6 +644,37 @@ sub setequal
   return $ret;
 }
 
+
+# difference of two arrays
+sub diff{
+
+  my ($a1, $a2) = @_;
+
+  my (%aa1, %aa2);
+
+  foreach my $e (@{$a1}){ $aa1{$e} = 1; }
+  foreach my $e (@{$a2}){ $aa2{$e} = 1; }
+
+  my @d; # dfference array
+
+  foreach my $e (keys %aa1, keys %aa2)
+  {
+    push @d, $e if exists $aa1{$e} && !exists $aa2{$e};
+  }
+
+  return @d;
+}
+
+# extract unique elements from an array
+sub unique{
+
+  my $a = shift;
+  my %saw;
+  my @out = grep(!$saw{$_}++, @{$a});
+
+  return @out;
+}
+
 # common part of two arrays
 sub comm
 {
@@ -652,7 +683,7 @@ sub comm
   my @c; # common array
   my %count;
 
-  foreach my $e (@{$a1}, @{$a2}){ $count{$e}++ }
+  foreach my $e ( unique($a1), unique($a2) ){ $count{$e}++ }
 
   foreach my $e (keys %count)
   {
