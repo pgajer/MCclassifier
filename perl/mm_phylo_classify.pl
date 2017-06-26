@@ -405,7 +405,7 @@ for my $vDir ( @vDirs )
                # Testing which one is present
                if ( ! -e $vicutDir )
                {
-                  warn "\n\n\tERROR: Did not find neither covSuffix_vicut_dir nor _vicut_dir for $sp";
+                  warn "\n\n\tERROR: Did not find $vicutDir for $sp";
                   exit 1;
 
                   # $ipSpp{$sp} = $phGr;
