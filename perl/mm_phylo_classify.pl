@@ -380,6 +380,7 @@ for my $vDir ( @vDirs )
                         print QOUT "$_\t$newTx\n";
                      }
                   }
+                  next;
                }
                elsif ( $sp eq "Lactobacillus_sp_11" )
                {
@@ -393,6 +394,7 @@ for my $vDir ( @vDirs )
                         print QOUT "$_\t$newTx\n";
                      }
                   }
+                  next;
                }
 
 
