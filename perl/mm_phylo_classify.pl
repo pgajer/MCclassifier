@@ -742,10 +742,11 @@ if ( @droppedQuerySeqs )
    #writeArray( \@droppedQuerySeqs, $droppedSeqs );
    print "Number of sequences dropped from the taxonomy assignment: " . commify( scalar(@droppedQuerySeqs) ) . "\n\n";
    my @dSpp = sort { $droppedSpp{$b} <=> $droppedSpp{$a} } keys %droppedSpp;
-   print_tbl( \%droppedSpp, \@dSpp );
+   printFormatedTbl( \%droppedSpp, \@dSpp );
+   my $droppedSppFile= $outDir . "/dropped_spp.txt"; # seqIDs of query sequences
+   writeTbl( \%droppedSpp, $droppedSppFile );
+   print "\nDropped species frequency table written to $droppedSppFile\n\n";
 }
-
-
 
 print "Output written to $outDir\n\n";
 
