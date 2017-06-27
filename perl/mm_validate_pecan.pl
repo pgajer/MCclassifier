@@ -36,9 +36,6 @@
   Percentage coverage: the percentage, say 80%, of the total number of non-redundant sequences
   Used to reduce the number of non-redundant seq's
 
-=item B<--phylo-part-perc-thld, -t>
-  Percentile threshold for phylo-partitioning specified as a decimal between 0 and 1. Default: 0.1
-
 =item B<--use-vsearch>
   Use vsearch instead of usearch. When activated plot_tree() is disabled
 
