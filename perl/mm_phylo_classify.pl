@@ -302,7 +302,8 @@ open NSPOUT, ">$newSpFile" or die "Cannot open $newSpFile for writing: $OS_ERROR
 open SOUT, ">$summaryTblFile" or die "Cannot open $summaryTblFile for writing: $OS_ERROR\n";
 
 my @droppedQuerySeqs;
-my %droppedSpp;       # sp => number of seq's of that species that were dropped
+my %droppedSppTbl;    # sp => ref to array of seq's of that species that are in small NA clusters => assigning them to taxonomy of the max size cluster
+my %droppedSpp;       # sp => number of seq's of that species that are in small NA clusters
 
 my $spCounter = 1;
 my $nQseqsWithTx = 0; # number of query sequences to which specie taxonmy is assigned
@@ -519,18 +520,11 @@ for my $vDir ( @vDirs )
                      else
                      {
                         $droppedSpp{$sp} += @ids;
+                        push @{$droppedSppTbl{$sp}}, @ids;
                         push @droppedQuerySeqs, @ids;
-                        print "Dropped " . commify( $droppedSpp{$sp} ) . " seq's\n";
+                        #print "Dropped " . @ids . " seq's\n";
                         next;
                      }
-                     # if ( @nrQueryIDs > $minNRQseqs )
-                     # {
-                     #    my ($genus, $s) = split "_", $sp;
-                     #    $spIdx{$genus}++;
-                     #    $newTx = $genus . "_sp_" . $spIdx{$genus};
-                     #    print NSPOUT "Cluster $cl of $sp renamed to $newTx\n";
-                     # }
-
                   }
                   elsif ( $nTxs == 2 ) # NAs and a named species
                   {
@@ -577,6 +571,15 @@ for my $vDir ( @vDirs )
                   }
 
                } # end of for my $cl ( @queryCltrs )
+
+               if ( $winnerTx && exists $droppedSppTbl{$sp} )
+               {
+                  delete $droppedSppTbl{$sp};
+                  for ( @{$droppedSppTbl{$sp}} )
+                  {
+                     print QOUT "$_\t$winnerTx\n";
+                  }
+               }
 
                ## Propagating the winner taxonomy to the remaining 20% of sequences if
                ## we are in the case of 80% coverage situation.
