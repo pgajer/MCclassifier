@@ -132,6 +132,7 @@ my $minSpSize  = 10; # species in a cluster with multiple species that have
 		     # $minSpSize or less seq's are renamed to the taxonomy of
 		     # the most abundant species
 my $minNRQseqs = 50;
+my $minClQseqs = 100; # if this many redundant seq's of $sp are in an NA cluster, assign all of those sequences to $sp
 my $maxNRQseqs = 500;
 
 GetOptions(
@@ -368,6 +369,15 @@ for my $vDir ( @vDirs )
                my $spClstr2File = "$spDir/$sp" . "_nr.clstr2";
                my %cTbl = parseClstr2( $spClstr2File );
 
+               my $nSeqs = 0;
+               for ( keys %cTbl )
+               {
+                  $nSeqs += @{$cTbl{$_}};
+               }
+
+               ##
+               ## Manual handling of selected species
+               ##
                if ( $sp eq "Lactobacillus_sp_9" )
                {
                   my $newTx = "Lactobacillus_crispatus";
@@ -396,7 +406,6 @@ for my $vDir ( @vDirs )
                   }
                   next;
                }
-
 
                ##
                ## Extract vicut tables
@@ -497,24 +506,31 @@ for my $vDir ( @vDirs )
                         exit 1;
                      }
 
-                     if ( @nrQueryIDs > $minNRQseqs )
+                     my @ids;
+                     for my $refID ( @nrQueryIDs )
                      {
-                        my ($genus, $s) = split "_", $sp;
-                        $spIdx{$genus}++;
-                        $newTx = $genus . "_sp_" . $spIdx{$genus};
-                        print NSPOUT "Cluster $cl of $sp renamed to $newTx\n";
+                        push @ids, @{ $cTbl{$refID} };
+                     }
+
+                     if ( @ids > $minClQseqs  )
+                     {
+                        $newTx = $sp;
                      }
                      else
                      {
-                        for my $refID ( @nrQueryIDs )
-                        {
-                           my @qIDs = @{ $cTbl{$refID} };
-                           $droppedSpp{$sp} += @qIDs;
-                           push @droppedQuerySeqs, @qIDs;
-                        }
-                        print "Dropped " . commify( $droppedSpp{$sp} ) . " seq's\n\n";
+                        $droppedSpp{$sp} += @ids;
+                        push @droppedQuerySeqs, @ids;
+                        print "Dropped " . commify( $droppedSpp{$sp} ) . " seq's\n";
                         next;
                      }
+                     # if ( @nrQueryIDs > $minNRQseqs )
+                     # {
+                     #    my ($genus, $s) = split "_", $sp;
+                     #    $spIdx{$genus}++;
+                     #    $newTx = $genus . "_sp_" . $spIdx{$genus};
+                     #    print NSPOUT "Cluster $cl of $sp renamed to $newTx\n";
+                     # }
+
                   }
                   elsif ( $nTxs == 2 ) # NAs and a named species
                   {
