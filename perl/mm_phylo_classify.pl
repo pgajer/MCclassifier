@@ -382,7 +382,7 @@ for my $vDir ( @vDirs )
                if ( $sp eq "Lactobacillus_sp_9" )
                {
                   my $newTx = "Lactobacillus_crispatus";
-                  for my $refID ( keys %cTbl )
+                  for my $refID ( @nrAllSeqIDs )
                   {
                      my @qIDs = @{ $cTbl{$refID} };
                      $nQseqsWithTx += @qIDs;
@@ -396,7 +396,7 @@ for my $vDir ( @vDirs )
                elsif ( $sp eq "Lactobacillus_sp_11" )
                {
                   my $newTx = "Lactobacillus_jensenii";
-                  for my $refID ( keys %cTbl )
+                  for my $refID ( @nrAllSeqIDs )
                   {
                      my @qIDs = @{ $cTbl{$refID} };
                      $nQseqsWithTx += @qIDs;
