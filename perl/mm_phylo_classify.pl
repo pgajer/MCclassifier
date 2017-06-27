@@ -301,6 +301,7 @@ open NSPOUT, ">$newSpFile" or die "Cannot open $newSpFile for writing: $OS_ERROR
 open SOUT, ">$summaryTblFile" or die "Cannot open $summaryTblFile for writing: $OS_ERROR\n";
 
 my @droppedQuerySeqs;
+my %droppedSpp;       # sp => number of seq's of that species that were dropped
 
 my $spCounter = 1;
 my $nQseqsWithTx = 0; # number of query sequences to which specie taxonmy is assigned
@@ -324,7 +325,7 @@ for my $vDir ( @vDirs )
                #print "\nDiscovered $vDir/$phGrDir/$spDir\n";
                #print "\nDiscovered $spDir\n";
 
-               if ( $quiet )
+               if ( !$quiet )
                {
                   printf( "\n%d [%.1f%%]", $spCounter, 100 * $spCounter / $nAllSpp );
                   $spCounter++;
@@ -479,6 +480,7 @@ for my $vDir ( @vDirs )
                         for my $refID ( @nrQueryIDs )
                         {
                            my @qIDs = @{ $cTbl{$refID} };
+                           $droppedSpp{$sp} += @qIDs;
                            push @droppedQuerySeqs, @qIDs;
                         }
                         next;
@@ -669,28 +671,31 @@ if ( $nAllSpp > $nProcessedSpp )
       exit;
     }
     print OUT "$_\t-1\t" . $spPhGrTbl{$_} . "\n";
-    print "$_\t-1\t" . $spPhGrTbl{$_} . "\n";
+    #print "$_\t-1\t" . $spPhGrTbl{$_} . "\n";
   }
   close OUT;
   print "\nTable of missing species written to $outFile\n";
 }
 
-if ( @droppedQuerySeqs )
-{
-  writeArray( \@droppedQuerySeqs, $droppedSeqs );
-  print "\n\nNumber of sequences dropped from the taxonomy assignment: " . @droppedQuerySeqs . "\n\n";
-}
-
 if ( $reportSppInMultCltrs )
 {
-  print     "\n\nNumber of species found in more than one cluster with query sequences  (with >= $spMultThld seq's there): $nMultCltrTxs\n";
+  print     "Number of species found in more than one cluster with query sequences  (with >= $spMultThld seq's there): " . commify( $nMultCltrTxs ) . "\n\n";
 }
 
 
 print "\nNumber of species found by the classifier in the M&M dataset: $nAllSpp\n";
 print     "Number processed species:                                     $nProcessedSpp\n";
 print     "Number of species for which no vicut data was found:          $nIPrSpp\n";
-print     "Number of query sequences to which taxonomy was assigned:     $nQseqsWithTx\n\n";
+print     "Number of query sequences to which taxonomy was assigned:     " . commify( $nQseqsWithTx ) . "\n";
+
+if ( @droppedQuerySeqs )
+{
+   #writeArray( \@droppedQuerySeqs, $droppedSeqs );
+   print "Number of sequences dropped from the taxonomy assignment: " . commify( scalar(@droppedQuerySeqs) ) . "\n\n";
+   my @dSpp = sort { $droppedSpp{$b} <=> $droppedSpp{$a} } keys %droppedSpp;
+   print_tbl( \%droppedSpp, \@dSpp );
+}
+
 
 
 print "Output written to $outDir\n\n";
@@ -1164,7 +1169,8 @@ sub writeArray
 ## put commas in numbers for better readability
 ## lifted from
 ## http://www.perlmonks.org/?node_id=2145
-sub commify {
+sub commify
+{
    local $_  = shift;
    s{(?<!\d|\.)(\d{4,})}
     {my $n = $1;
@@ -1174,144 +1180,6 @@ sub commify {
    return $_;
 }
 
-
-## plot tree with clade colors
-sub plot_tree
-{
-  my ($treeFile, $pdfFile, $title) = @_;
-
-  my $showBoostrapVals = "T";
-
-  if (!defined $title)
-  {
-    $title = "";
-  }
-
-  my $Rscript = qq~
-
-source(\"$readNewickFile\")
-require(phytools)
-library(ade4)
-
-tr <- read.newick(file=\"$treeFile\")
-tr <- collapse.singles(tr)
-
-(nLeaves <- length(tr\$tip.label))
-
-figH <- 8
-figW <- 6
-if ( nLeaves >= 50 )
-{
-    figH <- 6.0/50.0 * ( nLeaves - 50) + 10
-    figW <- 6.0/50.0 * ( nLeaves - 50) + 6
-}
-
-pdf(\"$pdfFile\", width=figW, height=figH)
-op <- par(mar=c(0,0,1.5,0), mgp=c(2.85,0.6,0),tcl = -0.3)
-plot(tr, type=\"phylogram\", no.margin=FALSE, show.node.label=F, cex=0.8, main=\"$title\")
-par(op)
-dev.off()
-~;
-
-  run_R_script( $Rscript );
-}
-
-sub plot_tree2
-{
-  my ($treeFile, $clFile, $pdfFile, $title) = @_;
-
-  my $showBoostrapVals = "F";
-
-  if (!defined $title)
-  {
-    $title = "";
-  }
-
-  my $Rscript = qq~
-
-clTbl <- read.table(\"$clFile\", header=F)
-str(clTbl)
-
-cltr <- clTbl[,2]
-names(cltr) <- clTbl[,1]
-
-source(\"$readNewickFile\")
-require(phytools)
-
-tr1 <- read.newick(file=\"$treeFile\")
-tr1 <- collapse.singles(tr1)
-
-tip.cltr <- cltr[tr1\$tip.label]
-
-colIdx <- 1
-tip.colors <- c()
-tip.colors[1] <- colIdx
-for ( i in 2:length(tip.cltr) )
-{
-    if ( tip.cltr[i] != tip.cltr[i-1] )
-    {
-        colIdx <- colIdx + 1
-        if ( colIdx==9 )
-        {
-            colIdx <- 1
-        }
-    }
-    tip.colors[i] <- colIdx
-    if ( colIdx==7 )
-    {
-        tip.colors[i] <- "brown"
-    }
-}
-
-(nLeaves <- length(tr1\$tip.label))
-
-figH <- 8
-figW <- 6
-if ( nLeaves >= 50 )
-{
-    figH <- 6.0/50.0 * ( nLeaves - 50) + 10
-    figW <- 6.0/50.0 * ( nLeaves - 50) + 6
-}
-
-pdf(\"$pdfFile\", width=figW, height=figH)
-op <- par(mar=c(0,0,1.5,0), mgp=c(2.85,0.6,0),tcl = -0.3)
-plot(tr1,type=\"phylogram\", no.margin=FALSE, show.node.label=$showBoostrapVals, cex=0.8, tip.color=tip.colors, main=\"$title\")
-par(op)
-dev.off()
-~;
-
-  run_R_script( $Rscript );
-}
-
-
-# execute an R-script
-sub run_R_script
-{
-  my $Rscript = shift;
-
-  my ($fh, $inFile) = tempfile("rTmpXXXX", SUFFIX => '.R', OPEN => 1, DIR => $tmpDir);
-  print $fh "$Rscript";
-  close $fh;
-
-  my $outFile = $inFile . "out";
-  my $cmd = "$R CMD BATCH --no-save --no-restore-data $inFile $outFile";
-  system($cmd) == 0 or die "system($cmd) failed:$?\n";
-
-  open IN, "$outFile" or die "Cannot open $outFile for reading: $OS_ERROR";
-  my $exitStatus = 1;
-
-  foreach my $line (<IN>)
-  {
-    if ( $line =~ /Error/ )
-    {
-      print "R script crashed at\n$line";
-      print "check $outFile for details\n";
-      $exitStatus = 0;
-      exit 1;
-    }
-  }
-  close IN;
-}
 
 # parse a CSV partition table
 sub read_part_tbl
@@ -1560,6 +1428,14 @@ sub get_nr_seqs
    }
 
    return ( \@nrAllSeqIDs, \@nrSeqIDs );
+}
+
+# print elements of a hash table
+sub print_tbl
+{
+  my ($rTbl, $r) = @_;
+
+  map {print "$_\t" . $rTbl->{$_} . "\n"} @{$r};
 }
 
 exit 0;
