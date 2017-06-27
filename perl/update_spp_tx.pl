@@ -221,16 +221,31 @@ for my $sp ( keys %spFreqTbl )
     @f = split "_", $sp;
     $g = shift @f;
     #print "\nGenus: $g\n" if $debug;
-    my $cmax = shift @cls;
+
     my $spSp = $g . "_sp";
+
+    if ( $g eq $sp )
+    {
+      if ( $sp eq "BVAB2" || $sp eq "BVAB3" )
+      {
+        $spSp = "Saccharofermentans_sp";
+      }
+      elsif ( $sp eq "BVAB1" )
+      {
+        $spSp = "Shuttleworthia_sp";
+      }
+    }
+
     #print "sp species: $spSp\n" if $debug;
+
+    my $cmax = shift @cls;
     for my $cl (@cls)
     {
       my @spSeqIDs = comm($clTbl{$cl}, $spIDs{$sp});
       print "Changing tx of seq's of cluster $cl of size " . @spSeqIDs . " to $spSp\n" if $debug;
       for my $id ( @spSeqIDs )
       {
-	$txTbl{$id} = $spSp;
+        $txTbl{$id} = $spSp;
       }
     }
   } # end of if ( @cls > 1
