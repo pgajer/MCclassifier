@@ -582,7 +582,7 @@ for my $vDir ( @vDirs )
                my @querySortedCltrs = sort { $vicutCltrSize{$b} <=> $vicutCltrSize{$a} } @queryCltrs;
                for my $cl (@querySortedCltrs)
                {
-                  print "\nCluster $cl (" . $vicutCltrSize{$cl} . ")\n" if !$quiet || $showCtrs;
+                  #print "\nCluster $cl (" . $vicutCltrSize{$cl} . ")\n" if !$quiet || $showCtrs;
 
                   ## Generating a list of species present in $cl sorted by size and with NA
                   ## at the end (igoring the size of NA when sorting
@@ -599,9 +599,9 @@ for my $vDir ( @vDirs )
                   }
                   #print "\n";
 
-                  printFormatedTbl(\%clTxsize, \@clTxs) if !$quiet || $showCtrs;
+                  #printFormatedTbl(\%clTxsize, \@clTxs) if !$quiet || $showCtrs;
                }
-               print "\n" if !$quiet || $showCtrs;
+               #print "\n" if !$quiet || $showCtrs;
                $showCtrs = 0;
 
                if ( exists $ipSpp{$sp} )
