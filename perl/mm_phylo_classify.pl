@@ -404,7 +404,7 @@ for my $vDir ( @vDirs )
                   }
                   else
                   {
-                     warn "\n\n\tERROR: $_ undefined in vCltrTbl: $vicutCltrsFile";
+                     warn "\n\n\tERROR: $_ undefined in vCltrTbl";
                      print "\n\n";
                      #exit;
                   }
@@ -1498,7 +1498,7 @@ sub get_vicut_dir
 {
    my $spDir = shift;
 
-   my @files = files_in_dir( $dir );
+   my @files = files_in_dir( $spDir );
 
    #print "\n\nFound the following files in $dir\n";
    #print_array( \@files );
@@ -1541,7 +1541,7 @@ sub get_nr_seqs
 {
    my ( $spDir ) = shift;
 
-   my @files = files_in_dir( $dir );
+   my @files = files_in_dir( $spDir );
 
    my @s = grep { /_nr\.seqIDs$/ } @files;
    my $nrSeqIDsFile = $spDir . shift @s; # = "$vDir/$phGrDir/$spDir/$sp" . "_nr.seqIDs";
