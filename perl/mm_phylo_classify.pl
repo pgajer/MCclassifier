@@ -526,9 +526,6 @@ for my $vDir ( @vDirs )
                      @txs = sort { $txFreq{$b} <=> $txFreq{$a} } @txs;
                      $newTx = shift @txs;
 
-                     $newTx =~ s/gasseri_johnsonii/gasseri/;
-                     $newTx =~ s/crispatus_ultunensis/crispatus/;
-
                      ## here <= 10 taxons/species should be renamed to $newTx <= ToDO !!!!!!!
                      for my $tx ( @txs )
                      {
@@ -538,6 +535,9 @@ for my $vDir ( @vDirs )
                         }
                      }
                   }
+
+                  $newTx =~ s/gasseri_johnsonii/gasseri/;
+                  $newTx =~ s/crispatus_ultunensis/crispatus/;
 
                   for my $refID ( @nrQueryIDs )
                   {
@@ -564,8 +564,9 @@ for my $vDir ( @vDirs )
                   {
                      print QOUT "$_\t$winnerTx\n";
                   }
-                  delete $droppedSppTbl{$sp};
                   @droppedQuerySeqs = diff( \@droppedQuerySeqs, $droppedSppTbl{$sp} );
+                  delete $droppedSppTbl{$sp};
+                  delete $droppedSpp{$sp};
                }
 
                ## Propagating the winner taxonomy to the remaining 20% of sequences if
