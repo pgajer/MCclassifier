@@ -89,11 +89,11 @@ $OUTPUT_AUTOFLUSH = 1;
 ####################################################################
 
 my $percCoverage      = 80;
-my $maxNumNRseqs      = 100;  # when the number of non-redundant seq's is more
-			      # than maxNumNRseqs selecte x number of largest
-			      # cluster non-redundant seq's such that the sum of
-			      # their cluster sizes covers percCoverage% of all
-			      # seq's classified to the given species
+my $maxNumNRseqs      = 500;  # when the number of non-redundant seq's is more
+			                  # than maxNumNRseqs, selecte x number of largest
+			                  # cluster non-redundant seq's such that the sum of their
+			                  # cluster sizes covers percCoverage% of all seq's classified
+			                  # to the given species
 my $maxNumCovSeqs     = 2000; # x (as def above) cannot be greater than maxNumCovSeqs
 
 GetOptions(
@@ -228,26 +228,20 @@ if ( !defined $outDir )
 
 if ( ! -e $outDir )
 {
-    my $cmd = "mkdir -p $outDir";
-    print "\tcmd=$cmd\n" if $dryRun || $debug;
-    system($cmd) == 0 or die "system($cmd) failed with exit code: $?";# if !$dryRun;
+   make_dir( $outDir);
 }
 
 my $treesDir = $outDir . "/trees_dir";
 
 if ( ! -e $treesDir )
 {
-    my $cmd = "mkdir -p $treesDir";
-    print "\tcmd=$cmd\n" if $dryRun || $debug;
-    system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
+   make_dir( $treesDir );
 }
 
 my $tmpDir = $outDir . "/temp_dir";
 if ( ! -e $tmpDir )
 {
-    my $cmd = "mkdir -p $tmpDir";
-    print "\tcmd=$cmd\n" if $dryRun || $debug;
-    system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
+   make_dir( $tmpDir );
 }
 
 
@@ -257,6 +251,12 @@ if ( ! -e $tmpDir )
 
 print "--- Parsing table of species to be processed\n";
 my %phGrSppTbl = parse_spp_tbl( $sppFile ); # phGr => ref to array of species from that phylo-group
+
+# Note that $sppFile is a 2 col table
+#
+# <sp> => <corresonding phGr of that species>
+#
+# Thus, phGrSppTbl groups all species of the same phylo-group together.
 
 if ( $debug )
 {
@@ -283,17 +283,12 @@ for my $phGr ( keys %phGrSppTbl )
     ## create mm phylo-group dir
     my $phGrDir = $outDir . "/mm_" . $phGr . "_dir/";
     ## print "\n\nphGrDir: $phGrDir\n"; exit;
+    make_dir( $phGrDir );
 
-    ##my $cmd = "rm -rf $phGrDir; mkdir $phGrDir";
-    my $cmd = "mkdir -p $phGrDir";
-    print "\tcmd=$cmd\n" if $dryRun || $debug;
-    system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 
-    ## Identifying fa finale file of the given phylo-group
-    my $phGrFaFile = $phGrBaseDir . "/$phGr" . "_dir/$phGr" . "_final.fa";
-    print "\nphGr: $phGr; phGrFaFile: $phGrFaFile\n" if $debug;
-
+    ##
     ## Identifying algn file of the given phylo-group
+    ##
     my $phGrAlgnFile = $phGrBaseDir . "/$phGr" . "_dir/$phGr" . "_algn_trimmed_final.fa";
 
     if ( -l $phGrAlgnFile )
@@ -311,7 +306,28 @@ for my $phGr ( keys %phGrSppTbl )
         exit 1;
     }
 
+    ##
+    ## Identifying fa finale file of the given phylo-group
+    ##
+    my $phGrFaFile = $phGrBaseDir . "/$phGr" . "_dir/$phGr" . "_final.fa";
+    print "\nphGr: $phGr; phGrFaFile: $phGrFaFile\n" if $debug;
+
+    ## File with the given phylo-group's fa file of all seq's before curation including outgroup seq's
+    my $phGrBigFaFile = $phGrFaFile;
+    $phGrBigFaFile =~ s/_final//;
+    ## print "phGrBigFaFile: $phGrBigFaFile\n";
+
+    if ( ! -e $phGrBigFaFile || ! -s $phGrBigFaFile )
+    {
+       print "--- $phGrBigFaFile was not found - creating it from the algn file\n";
+       $cmd = "$rmGaps -i $phGrAlgnFile -o $phGrBigFaFile";
+       print "\tcmd=$cmd\n" if $dryRun || $debug;
+       system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
+    }
+
+    ##
     ## Identifying tx finale file of the given phylo-group
+    ##
     my $phGrTxFile = $phGrBaseDir . "/$phGr" . "_dir/$phGr" . "_final.tx";
     ## print "\nphGr: $phGr; phGrTxFile: $phGrTxFile\n";
 
@@ -327,39 +343,30 @@ for my $phGr ( keys %phGrSppTbl )
       }
     }
 
-    ## file with the given phylo-group's outgroup seq's
+    ##
+    ## Creating a file with the given phylo-group's outgroup seq's
+    ##
     my $phGrOGseqIDsFile = $phGrFaFile;
     $phGrOGseqIDsFile =~ s/_final\.fa/_outgroup\.seqIDs/;
 
     print "--- Reading $phGrOGseqIDsFile\n" if $debug;
 
-    my @ogSeqIDs = read_array($phGrOGseqIDsFile);
+    my @ogSeqIDs = read_array( $phGrOGseqIDsFile );
     print "\nNo. OG seq's: " . scalar(@ogSeqIDs) . "\n";
 
-    ## file with the given phylo-group's fa file of all seq's before curation including outgroup seq's
-    my $phGrBigFaFile = $phGrFaFile;
-    $phGrBigFaFile =~ s/_final//;
-    ## print "phGrBigFaFile: $phGrBigFaFile\n";
 
     my $phGrOGfaFile = $phGrDir . "og.fa";
     if ( ! -e $phGrOGfaFile || ! -s $phGrOGfaFile || $runAll ) # checking not only if the file exists, but also if it has non-empty size (-s)
     {
-        if ( ! -e $phGrBigFaFile || ! -s $phGrBigFaFile )
-        {
-            print "--- $phGrBigFaFile was not found - creating it from the ginsi_algn file\n";
-            my $ginsiFile = $phGrFaFile;
-            $ginsiFile =~ s/_final/_ginsi_algn/;
-            $cmd = "$rmGaps -i $ginsiFile -o $phGrBigFaFile";
-            print "\tcmd=$cmd\n" if $dryRun || $debug;
-            system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
-        }
-
-        print "--- Generating fa file of outgroup seq's of $phGr       ";
+       print "--- Generating fa file of outgroup seq's of $phGr       ";
         $cmd = "$select_seqs $quietStr -s $phGrOGseqIDsFile -i $phGrBigFaFile -o $phGrOGfaFile";
         print "\tcmd=$cmd\n" if $dryRun || $debug;
         system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
     }
 
+    ##
+    ## Sanity checks
+    ##
     if ( ! exists $phGrSppTbl{$phGr} )
     {
         warn "\n\n\tERROR: $phGr is not a key of phGrSppTbl";
@@ -374,11 +381,13 @@ for my $phGr ( keys %phGrSppTbl )
         exit;
     }
 
-    my @spp = @{ $phGrSppTbl{$phGr} };
 
     ##
-    ## species loop
+    ## Species loop
     ##
+
+    my @spp = @{ $phGrSppTbl{$phGr} };
+
     for my $spIdx ( 0..$#spp )
     {
         $startRun = time();
@@ -410,9 +419,7 @@ for my $phGr ( keys %phGrSppTbl )
         # 6. Generate a pdf image of the tree
 
         my $spDir = $phGrDir . $sp . "_dir";
-        my $cmd = "mkdir -p $spDir";
-        print "\tcmd=$cmd\n" if $dryRun || $debug;
-        system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
+        make_dir( $spDir );
 
         my $spReport = $spDir . "/report.txt";
         open my $ROUT, ">$spReport" or die "Cannot open $spReport for writing: $OS_ERROR";
@@ -1738,6 +1745,15 @@ sub run_vicut
   }
 
   return @query;
+}
+
+sub make_dir
+{
+   my $dir = shift;
+
+   my $cmd = "mkdir -p $dir";
+   print "\tcmd=$cmd\n" if $dryRun || $debug;
+   system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 }
 
 exit 0;
