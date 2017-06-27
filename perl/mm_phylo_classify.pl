@@ -565,7 +565,7 @@ for my $vDir ( @vDirs )
                      print QOUT "$_\t$winnerTx\n";
                   }
                   delete $droppedSppTbl{$sp};
-                  @droppedQuerySeqs = diff( \@droppedQuerySeqs, \@ids );
+                  @droppedQuerySeqs = diff( \@droppedQuerySeqs, $droppedSppTbl{$sp} );
                }
 
                ## Propagating the winner taxonomy to the remaining 20% of sequences if
