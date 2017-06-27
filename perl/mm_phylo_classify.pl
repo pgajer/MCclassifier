@@ -98,6 +98,8 @@
 
   mm_phylo_classify.pl -d mm_pecan_cl_validation_dir -o mm_phylo_clfy_dir
 
+
+
   in ~/projects/M_and_M/new_16S_classification
 
   mm_phylo_classify.pl --debug -d mm_may12_validate_pecan_dir2 -o mm_may12_phylo_clfy_dir2
@@ -181,8 +183,14 @@ if ( !$outDir )
   exit 1;
 }
 
+my $quietStr = "";
+if ( $quiet )
+{
+   $quietStr = "--quiet";
+}
+
 my $debugStr = "";
-my $quietStr = "--quiet";
+
 if ($debug)
 {
   $debugStr = "--debug";
@@ -219,62 +227,17 @@ my %spIdx = getSpIdx( $spToPhGrFile ); # genus => number of _sp species within t
 # exit;
 
 my @vDirs;
-if ( $vDirsFile )
-{
-  @vDirs = read_array( $vDirsFile );
-}
-elsif ( $valDir )
-{
-  push @vDirs, $valDir;
-  # opendir VDIR, $valDir or die "Error in opening $valDir: $OS_ERROR";
-  # while( defined (my $dir = readdir(VDIR)))
-  # {
-  #   next if $dir =~ /^..?$/; # skip . and ..
-  #   next if $dir !~ /^mm_*_dir$/;
-  #   push @vDirs, $dir;
-  # }
-}
-else
-{
-  ##
-  ## cd /Users/pgajer/projects/M_and_M/new_16S_classification_data
-  ## find . -name "mm_validate_reports_dir_*" -type d -maxdepth 1 -mindepth 1
-  ##
-  @vDirs = ("mm_validate_reports_dir_20170505_160208",
-	    "mm_validate_reports_dir_20170505_163202",
-	    "mm_validate_reports_dir_20170505_193808",
-	    "mm_validate_reports_dir_20170507_032747",
-	    "mm_validate_reports_dir_20170507_074358",
-	    "mm_validate_reports_dir_20170507_105808",
-	    "mm_validate_reports_dir_20170507_180210",
-	    "mm_validate_reports_dir_20170507_181736",
-	    "mm_validate_reports_dir_20170507_205318");
-
-  my $dir = "/Users/pgajer/projects/M_and_M/new_16S_classification_data/";
-  @vDirs = map { $dir . $_ } @vDirs;
-}
-
-if ( $debug )
-{
-  print_array( \@vDirs, "vDirs" );
-  print "\n";
-  #exit;
-}
-
+push @vDirs, $valDir;
 
 if ( ! -e $outDir )
 {
-  my $cmd = "mkdir -p $outDir";
-  print "\tcmd=$cmd\n" if $dryRun || $debug;
-  system($cmd) == 0 or die "system($cmd) failed with exit code: $?";# if !$dryRun;
+   make_dir( $outDir );
 }
 
 my $tmpDir = $outDir . "/temp_dir";
 if ( ! -e $tmpDir )
 {
-  my $cmd = "mkdir -p $tmpDir";
-  print "\tcmd=$cmd\n" if $dryRun || $debug;
-  system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
+   make_dir( $tmpDir );
 }
 
 my %phyloTx;          # phylogeny based taxonomy; seqID => taxonomic assignment to seqID
@@ -292,26 +255,26 @@ my %gr1sppCltrs;      # sp => phylo-group of sp, for species with cluster(s)
 my %processed;        # sp => 1 upon complection of processing the given species
 
 my $nMultCltrTxs = 0; # number multiple-cluster taxons (species present in more
-		      # than one cluster containing also query sequences).
+		              # than one cluster containing also query sequences).
 my $showCtrs = 0;
 
 my $queryTxFile = $outDir . "/query.tx"; # a tab delimited file with 2 columns:
                                          # <seqID> <species> tab
-					 # of all query sequences
-					 # (redundant) except those that were
-					 # dropped due to presence in a cluster
-					 # with no named species and not being
-					 # abundant enough.
+                                         # of all query sequences
+					                     # (redundant) except those that were
+					                     # dropped due to presence in a cluster
+					                     # with no named species and not being
+					                     # abundant enough.
 
 my $trainTxFile = $outDir . "/train.tx"; # columns: seqID, species, phyloGroup, multiplicity
-#                                          # multiplicity = size of the 100%
-#                                          # identity cluster for query seq's, -1
-#                                          # for ref seq's.  ref and query
-#                                          # (non-redundant sequences only) are
-#                                          # listed here. If more than 500 query
-#                                          # sequences are present in a given
-#                                          # cluster classified to a species, only
-#                                          # the first 500 most abundant are used.
+                                          # multiplicity = size of the 100%
+                                          # identity cluster for query seq's, -1
+                                          # for ref seq's.  ref and query
+                                          # (non-redundant sequences only) are
+                                          # listed here. If more than 500 query
+                                          # sequences are present in a given
+                                          # cluster classified to a species, only
+                                          # the first 500 most abundant are used.
 
 my $chgdRefTxFile = $outDir . "/changed.tx"; # if there are <= 10 seq's of a
 					     # species in a cluster with multiple
@@ -320,19 +283,27 @@ my $chgdRefTxFile = $outDir . "/changed.tx"; # if there are <= 10 seq's of a
 					     # species.
 
 my $droppedSeqs = $outDir . "/dropped.seqIDs"; # seqIDs of query sequences
-					       # dropped from the classification
-					       # according to the above rules
+                                               # dropped from the classification
+                                               # according to the above rules
+
 my $newSpFile = $outDir . "/new_spp.txt"; #
-
-my @droppedQuerySeqs;
-
+my $summaryTblFile = $outDir . "/summary_tbl.txt"; # table with three columns:
+                                                   # species name, number of
+                                                   # seq's classified to the
+                                                   # given species, number of
+                                                   # sequences that had taxonomy
+                                                   # assigned in this script
 
 open QOUT, ">$queryTxFile" or die "Cannot open $queryTxFile for writing: $OS_ERROR";
 open TOUT, ">$trainTxFile" or die "Cannot open $trainTxFile for writing: $OS_ERROR";
 open ROUT, ">$chgdRefTxFile" or die "Cannot open $chgdRefTxFile for writing: $OS_ERROR";
 open NSPOUT, ">$newSpFile" or die "Cannot open $newSpFile for writing: $OS_ERROR";
+open SOUT, ">$summaryTblFile" or die "Cannot open $summaryTblFile for writing: $OS_ERROR\n";
+
+my @droppedQuerySeqs;
 
 my $spCounter = 1;
+my $nQseqsWithTx = 0; # number of query sequences to which specie taxonmy is assigned
 for my $vDir ( @vDirs )
 {
    #print "vDir: $vDir\n";
@@ -340,14 +311,14 @@ for my $vDir ( @vDirs )
    while( defined (my $phGrDir = readdir(VDIR)))
    {
       next if $phGrDir =~ /^..?$/;     # skip . and ..
-      print "phGrDir: $phGrDir\n";
+      #print "phGrDir: $phGrDir\n";
       if ( $phGrDir =~ /^mm_/ && -d "$vDir/$phGrDir" )
       {
          opendir PGDIR, "$vDir/$phGrDir" or die "Error in opening $vDir/$phGrDir: $OS_ERROR";
          while( defined (my $spDir = readdir(PGDIR)))
          {
             next if $spDir =~ /^..?$/;     # skip . and ..
-            print "spDir: $spDir\n";
+            #print "spDir: $spDir\n";
             if ( $spDir =~ /_dir$/ && -d "$vDir/$phGrDir/$spDir" )
             {
                #print "\nDiscovered $vDir/$phGrDir/$spDir\n";
@@ -355,7 +326,7 @@ for my $vDir ( @vDirs )
 
                if ( $quiet )
                {
-                  printf( "\r%d [%.1f%%]", $spCounter, 100 * $spCounter / $nAllSpp );
+                  printf( "\n%d [%.1f%%]", $spCounter, 100 * $spCounter / $nAllSpp );
                   $spCounter++;
                }
 
@@ -372,75 +343,46 @@ for my $vDir ( @vDirs )
                my ( $phGr ) = ( $phGrDir =~ /mm_(\w+)_dir/ );
                #print "phGr: $phGr\n";
 
-               next if exists $processed{$sp};
-
-               print "\n-------------------------------------------------------------------------------------\n$sp  ($phGr)\n" if !$quiet;
-
-               # Getting coverage
-               my $dir = "$vDir/$phGrDir/$spDir";
-               my @files = files_in_dir( $dir );
-
-               #print "\n\nFound the following files in $dir\n";
-               #print_array( \@files );
-
-               my @v = grep { /vicut_dir$/ } @files;
-               if ( @v == 0 )
+               if ( exists $processed{$sp} )
                {
-                  $ipSpp{$sp} = $phGr;
-                  next;
-               }
-
-               my $vicutDir = "$vDir/$phGrDir/$spDir/" . shift @v;
-
-               ##exit if $spCounter == 10;
-
-               # Testing which one is present
-               if ( ! -e $vicutDir )
-               {
-                  warn "\n\n\tERROR: Did not find $vicutDir for $sp";
-                  exit 1;
-
-                  # $ipSpp{$sp} = $phGr;
-                  # next;
-               }
-
-               my $vicutCltrsFile = $vicutDir . "/minNodeCut.cltrs";
-               if ( ! -e $vicutCltrsFile )
-               {
-                  warn "\n\n\tERROR: Did not find $vicutCltrsFile";
+                  warn "\n\n\tERROR: $sp was already processed";
                   print "\n\n";
                   exit;
-                  #$ipSpp{$sp} = $phGr;
                   #next;
                }
 
-               my ($rvCltrTbl, $rvTxTbl, $rvExtTxTbl) = readCltrsTbl($vicutCltrsFile);
+               print "  Processing $sp  ($phGr)\n" if !$quiet;
 
-               my %vCltrTbl   = %{$rvCltrTbl};  # seqID => vicut cluster ID
-               my %vTxTbl     = %{$rvTxTbl};    # seqID => taxonomy (NA for query seq's)
-               my %vExtTxTbl  = %{$rvExtTxTbl}; # seqID => taxonomy of seqID if seqID is a phGr ref seq and c<vicut cluster ID of seqID> if seqID is a query seq
+               $spDir = "$vDir/$phGrDir/$spDir/";
 
-               ## Extended taxonomy table should be alread present
-               my @e = grep { /ext\.tx$/ } @files;
-               my $vExtTxTblFile; # = "$vDir/$phGrDir/$spDir/$sp" . $covSuffix . "_ext.tx";
-               #if ( ! -e $vExtTxTblFile )
-               if ( @e == 0 )
+               ##
+               ## Extracting seqIDs of non-redundant query sequences
+               ##
+               my ( $rnrAllSeqIDs, $rnrSeqIDs ) = get_nr_seqs( $spDir );
+
+               my @nrAllSeqIDs = @{$rnrAllSeqIDs};  # all non-redundant seq's
+               my @nrSeqIDs    = @{$rnrSeqIDs};     # non-redundant seq's covering X percentage of all seq's; if number of nr seq's is less than 500 these are all nr seq's
+
+
+               ##
+               ## Extract vicut tables
+               ##
+               my $vicutDir = get_vicut_dir( $spDir );
+
+               if ( !$vicutDir )
                {
-                  print "\n\nWARNING: Did not find vExtTxTblFile\n\n";
-                  exit ;
-
                   $ipSpp{$sp} = $phGr;
                   next;
                }
-               else
-               {
-                  $vExtTxTblFile = "$vDir/$phGrDir/$spDir/" . shift @e;
-               }
 
-               ## vicut-cltr/tx frequency table
+               my ($rvCltrTbl, $rvTxTbl) = get_vicut_tbls( $vicutDir );
+
+               my %vCltrTbl   = %{$rvCltrTbl};  # seqID => vicut cluster ID
+               my %vTxTbl     = %{$rvTxTbl};    # seqID => taxonomy (NA for query seq's)
+
+               my %vCltrvTxIds;  # $vCltrvTxIds{cltr}{tx}  = ref to seqID of the cluster's, cltr, taxon, tx.
                my %vCltrvTxFreq; # $vCltrvTxFreq{cltr}{tx} = # of seq IDs of taxon tx in the cluster cltr
-               my %txCltrFreq;   # $txCltrFreq{tx}{cltr} = # of seq IDs of taxon tx in the cluster cltr
-               my %vCltrvTxIds;  # $vCltrvTxIds{cltr}{tx} = ref to seqID of the cluster's, cltr, taxon, tx.
+               my %txCltrFreq;   # $txCltrFreq{tx}{cltr}   = # of seq IDs of taxon tx in the cluster cltr
                my %vCltrIds;     # cl => seq IDs within the given cluster
 
                for my $id ( keys %vCltrTbl )
@@ -451,22 +393,6 @@ for my $vDir ( @vDirs )
                   push @{$vCltrIds{$vCltrTbl{$id}}}, $id;
                }
 
-               ## Extracting seqIDs of non-redundant query sequences
-               my @s = grep { /_nr\.seqIDs$/ } @files;
-               my $nrSeqIDsFile = "$vDir/$phGrDir/$spDir/" . shift @s; # = "$vDir/$phGrDir/$spDir/$sp" . "_nr.seqIDs";
-               my @nrAllSeqIDs = read_NR_array( $nrSeqIDsFile );
-
-               my @nrSeqIDs;
-               @s = grep { /_nr_cov\d+\.seqIDs$/ } @files;
-               if ( @s )
-               {
-                  $nrSeqIDsFile = "$vDir/$phGrDir/$spDir/" . shift @s; #"$vDir/$phGrDir/$spDir/$sp" . $covSuffix . ".seqIDs";
-                  @nrSeqIDs = read_array( $nrSeqIDsFile );
-               }
-               else
-               {
-                  @nrSeqIDs = @nrAllSeqIDs;
-               }
 
                ## Identifing clusters that contain query sequences
                my @querySeqCltrs;
@@ -485,7 +411,7 @@ for my $vDir ( @vDirs )
                }
                my @queryCltrs = unique(\@querySeqCltrs);
 
-               print "\nqueryCltrs: @queryCltrs\n" if !$quiet;
+               # print "\nqueryCltrs: @queryCltrs\n" if !$quiet;
 
                ## size of each cluster
                my %vicutCltrSize;
@@ -509,9 +435,9 @@ for my $vDir ( @vDirs )
                   }
                }
 
-               my $spClstr2File = "$vDir/$phGrDir/$spDir/$sp" . "_nr.clstr2";
+               my $spClstr2File = "$spDir/$sp" . "_nr.clstr2";
                #print "--- Parsing clstr2 file\n";
-               my %cTbl = parseClstr2($spClstr2File);
+               my %cTbl = parseClstr2( $spClstr2File );
 
                ##
                ## The classification section
@@ -586,6 +512,7 @@ for my $vDir ( @vDirs )
                   {
                      print TOUT "$refID\t$newTx\t$phGr\t" . @{ $cTbl{$refID} } . "\n";
                      my @qIDs = @{ $cTbl{$refID} };
+                     $nQseqsWithTx += @qIDs;
                      for ( @qIDs )
                      {
                         print QOUT "$_\t$newTx\n";
@@ -602,7 +529,7 @@ for my $vDir ( @vDirs )
 
                ## Propagating the winner taxonomy to the remaining 20% of sequences if
                ## we are in the case of 80% coverage situation.
-               if ( @s )
+               if ( $#nrAllSeqIDs != $#nrSeqIDs )
                {
                   my @tailIDs = diff( \@nrAllSeqIDs, \@nrSeqIDs );
 
@@ -615,6 +542,7 @@ for my $vDir ( @vDirs )
                         exit;
                      }
                      my @qIDs = @{ $cTbl{$refID} };
+                     $nQseqsWithTx += @qIDs;
                      for ( @qIDs )
                      {
                         print QOUT "$_\t$winnerTx\n";
@@ -694,6 +622,7 @@ close QOUT;
 close TOUT;
 close ROUT;
 close NSPOUT;
+close SOUT;
 
 ##
 ## Summary stats
@@ -703,16 +632,6 @@ my $nProcessedSpp = keys %processed;
 
 my @ipSpp = sort { $ipSpp{$a} cmp $ipSpp{$b} } keys %ipSpp;;
 my $nIPrSpp = @ipSpp;
-
-print "\n\nNumber of species found by the classifier in the M&M dataset: $nAllSpp\n";
-print     "Number processed species:                                     $nProcessedSpp\n";
-print     "Number of species for which no vicut data was found:          $nIPrSpp\n";
-
-if ( $reportSppInMultCltrs )
-{
-  print     "\nNumber of species found in more than one cluster with query sequences  (with >= $spMultThld seq's there): $nMultCltrTxs\n";
-}
-
 
 if ( $nIPrSpp )
 {
@@ -761,6 +680,18 @@ if ( @droppedQuerySeqs )
   writeArray( \@droppedQuerySeqs, $droppedSeqs );
   print "\n\nNumber of sequences dropped from the taxonomy assignment: " . @droppedQuerySeqs . "\n\n";
 }
+
+if ( $reportSppInMultCltrs )
+{
+  print     "\n\nNumber of species found in more than one cluster with query sequences  (with >= $spMultThld seq's there): $nMultCltrTxs\n";
+}
+
+
+print "\nNumber of species found by the classifier in the M&M dataset: $nAllSpp\n";
+print     "Number processed species:                                     $nProcessedSpp\n";
+print     "Number of species for which no vicut data was found:          $nIPrSpp\n";
+print     "Number of query sequences to which taxonomy was assigned:     $nQseqsWithTx\n\n";
+
 
 print "Output written to $outDir\n\n";
 
@@ -915,29 +846,20 @@ sub readCltrsTbl{
 
   my %vCltrTbl;
   my %txTbl;
-  my %txTbl2;
   open IN, "$file" or die "Cannot open $file for reading: $OS_ERROR";
   foreach (<IN>)
   {
-    chomp;
-    my ($id, $cl, $tx) = split /\s+/,$_;
-    if (defined $id)
-    {
-      $vCltrTbl{$id} = "c" . $cl;
-      $txTbl{$id} = $tx;
-      if ($tx ne "NA")
-      {
-	$txTbl2{$id} = $tx;
-      }
-      else
-      {
-	$txTbl2{$id} = "c" . $cl;
-      }
-    }
+     chomp;
+     my ($id, $cl, $tx) = split /\s+/,$_;
+     if (defined $id)
+     {
+        $vCltrTbl{$id} = "c" . $cl;
+        $txTbl{$id} = $tx;
+     }
   }
   close IN;
 
-  return (\%vCltrTbl, \%txTbl, \%txTbl2);
+  return (\%vCltrTbl, \%txTbl);
 }
 
 # read 2 or 3 column table; create a table that assigns
@@ -1569,6 +1491,75 @@ sub getSpIdx
   close IN;
 
   return %tbl;
+}
+
+
+sub get_vicut_dir
+{
+   my $spDir = shift;
+
+   my @files = files_in_dir( $dir );
+
+   #print "\n\nFound the following files in $dir\n";
+   #print_array( \@files );
+
+   my $vicutDir;
+   my @v = grep { /vicut_dir$/ } @files;
+   if ( @v > 0 )
+   {
+      $vicutDir = $spDir . shift @v;
+   }
+
+   return $vicutDir;
+}
+
+sub get_vicut_tbls
+{
+   my $vicutDir = shift;
+
+   my $vicutCltrsFile = $vicutDir . "/minNodeCut.cltrs";
+   if ( ! -e $vicutCltrsFile )
+   {
+      warn "\n\n\tERROR: Did not find $vicutCltrsFile";
+      print "\n\n";
+      exit;
+   }
+
+   return readCltrsTbl( $vicutCltrsFile );
+}
+
+sub make_dir
+{
+   my $dir = shift;
+
+   my $cmd = "mkdir -p $dir";
+   print "\tcmd=$cmd\n" if $dryRun || $debug;
+   system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
+}
+
+sub get_nr_seqs
+{
+   my ( $spDir ) = shift;
+
+   my @files = files_in_dir( $dir );
+
+   my @s = grep { /_nr\.seqIDs$/ } @files;
+   my $nrSeqIDsFile = $spDir . shift @s; # = "$vDir/$phGrDir/$spDir/$sp" . "_nr.seqIDs";
+   my @nrAllSeqIDs = read_NR_array( $nrSeqIDsFile );
+
+   my @nrSeqIDs;
+   @s = grep { /_nr_cov\d+\.seqIDs$/ } @files;
+   if ( @s )
+   {
+      $nrSeqIDsFile = $spDir . shift @s;
+      @nrSeqIDs = read_array( $nrSeqIDsFile );
+   }
+   else
+   {
+      @nrSeqIDs = @nrAllSeqIDs;
+   }
+
+   return ( \@nrAllSeqIDs, \@nrSeqIDs );
 }
 
 exit 0;
