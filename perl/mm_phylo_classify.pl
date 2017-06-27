@@ -500,12 +500,6 @@ for my $vDir ( @vDirs )
                   if ( $nTxs == 1 ) # only NAs
                   {
                      my $tx = shift @txs;
-                     if ( $tx ne "NA" )
-                     {
-                        warn "\n\n\tERROR: single taxon cluster (selected from clusters that contain NA) and the 'taxon' is not NA";
-                        print "\n\n";
-                        exit 1;
-                     }
 
                      my @ids;
                      for my $refID ( @nrQueryIDs )
@@ -513,18 +507,10 @@ for my $vDir ( @vDirs )
                         push @ids, @{ $cTbl{$refID} };
                      }
 
-                     if ( @ids > $minClQseqs  )
-                     {
-                        $newTx = $sp;
-                     }
-                     else
-                     {
-                        $droppedSpp{$sp} += @ids;
-                        push @{$droppedSppTbl{$sp}}, @ids;
-                        push @droppedQuerySeqs, @ids;
-                        #print "Dropped " . @ids . " seq's\n";
-                        next;
-                     }
+                     $droppedSpp{$sp} += @ids;
+                     push @{$droppedSppTbl{$sp}}, @ids;
+                     push @droppedQuerySeqs, @ids;
+                     next;
                   }
                   elsif ( $nTxs == 2 ) # NAs and a named species
                   {
@@ -574,11 +560,12 @@ for my $vDir ( @vDirs )
 
                if ( $winnerTx && exists $droppedSppTbl{$sp} )
                {
-                  delete $droppedSppTbl{$sp};
                   for ( @{$droppedSppTbl{$sp}} )
                   {
                      print QOUT "$_\t$winnerTx\n";
                   }
+                  delete $droppedSppTbl{$sp};
+                  @droppedQuerySeqs = diff( \@droppedQuerySeqs, \@ids );
                }
 
                ## Propagating the winner taxonomy to the remaining 20% of sequences if
