@@ -37,7 +37,16 @@
   Used to reduce the number of non-redundant seq's
 
 =item B<--use-vsearch>
-  Use vsearch instead of usearch. When activated plot_tree() is disabled
+
+  Use vsearch instead of usearch.
+
+
+  NOTE: Only non-redundant fasta file is produced becased in RH7 we cannot
+  create a pdf of a tree. Therefore,
+
+  when using this option re-run the script again with-out this option to
+  complete processing of the given set of species.
+
 
 =item B<--build-tree>
   Forces build of a tree, even if one already has been build.
@@ -88,13 +97,13 @@ $OUTPUT_AUTOFLUSH = 1;
 ##                             OPTIONS
 ####################################################################
 
-my $percCoverage      = 80;
-my $maxNumNRseqs      = 500;  # when the number of non-redundant seq's is more
-			                  # than maxNumNRseqs, selecte x number of largest
-			                  # cluster non-redundant seq's such that the sum of their
-			                  # cluster sizes covers percCoverage% of all seq's classified
-			                  # to the given species
-my $maxNumCovSeqs     = 2000; # x (as def above) cannot be greater than maxNumCovSeqs
+my $percCoverage  = 80;
+my $maxNumNRseqs  = 500;  # when the number of non-redundant seq's is more
+			              # than maxNumNRseqs, selecte x number of largest
+			              # cluster non-redundant seq's such that the sum of their
+			              # cluster sizes covers percCoverage% of all seq's classified
+			              # to the given species
+my $maxNumCovSeqs = 2000; # x (as def above) cannot be greater than maxNumCovSeqs
 
 GetOptions(
   "spp-file|i=s"             => \my $sppFile,
@@ -404,6 +413,8 @@ for my $phGr ( keys %phGrSppTbl )
 
         print "\n--- Processing $sp  ($phGr)\n";
 
+        # Outline of species processing
+
         # 1. Select representatives of 100% seq identity clusters (called also nr clusters)
 
         # 2. If the number of nr-cluters (or nr-seq's ) is greater than $maxNumNRseqs
@@ -412,18 +423,27 @@ for my $phGr ( keys %phGrSppTbl )
 
         # 3. The number of slected nr-seq's cannot be more than $maxNumCovSeqs
 
-        # 4. Align these seq's to the phylo-group's ginsi alignment
+        # 4. If $percCoverage% is achieved with fewer than $maxNumCovSeqs, use
+        #    $maxNumCovSeqs non-redundant seq's to increase the coverage.
 
-        # 5. Generate tree
+        # 5. Align these seq's to the phylo-group's ginsi alignment
 
-        # 6. Generate a pdf image of the tree
+        # 6. Generate tree
 
+        # 7. Generate a pdf image of the tree
+
+
+        # Creating species dir
         my $spDir = $phGrDir . $sp . "_dir";
         make_dir( $spDir );
 
+        # Creating a report file
         my $spReport = $spDir . "/report.txt";
         open my $ROUT, ">$spReport" or die "Cannot open $spReport for writing: $OS_ERROR";
 
+        #
+        # Dereplicating species fa file
+        #
         my $spSORTfaFile= "$spDir/$sp" . "_sort.fa";
         my $spNRfaFile  = "$spDir/$sp" . "_nr.fa";
         my $spUCfile    = "$spDir/$sp" . ".uc";
@@ -460,10 +480,8 @@ for my $phGr ( keys %phGrSppTbl )
         # NOTE that the _nr.fa file will have seq headers of the form >seqID;size=\d+;
         # tenatively fixing size str here
         #
-        my $spNRfaFileTmp  = "$spDir/$sp" . "_nrTmp.fa";
-        $cmd = "$fix_fasta_headers -i $spNRfaFile -o $spNRfaFileTmp; mv $spNRfaFileTmp $spNRfaFile";
-        print "\tcmd=$cmd\n" if $dryRun || $debug;
-        system($cmd) == 0 or die "system($cmd) failed:$?" if !$dryRun;
+        fix_fasta_headers( $spNRfaFile );
+
 
         my $nrSeqIDsFile = "$spDir/$sp" . "_nr.seqIDs";
         if ( ! -e $nrSeqIDsFile || ! -s $nrSeqIDsFile || $runAll )
@@ -475,7 +493,7 @@ for my $phGr ( keys %phGrSppTbl )
             system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun;
         }
 
-        my @nrSeqIDs = read_NR_array( $nrSeqIDsFile );
+        my @nrSeqIDs = read_NR_array( $nrSeqIDsFile ); # s/;size=\d+;// substitution is performed here
         my $nnrSp = @nrSeqIDs;
 
         print "\nNo. nr seq IDs: " . commify($nnrSp) . "\n";
@@ -490,7 +508,7 @@ for my $phGr ( keys %phGrSppTbl )
         }
 
         print "\r\t\tParsing clstr2 file                   ";
-        my %cTbl = parseClstr2($spClstr2File);
+        my %cTbl = parseClstr2( $spClstr2File );
 
         # sort cluster reference sequence IDs w/r cluster size
         @nrSeqIDs = sort { $cTbl{$b} <=> $cTbl{$a} } keys %cTbl;
@@ -540,6 +558,9 @@ for my $phGr ( keys %phGrSppTbl )
             $percCovIdx = 0 if $percCovIdx < 0;
 
             print "\npercCovIdx: $percCovIdx\ncumPerc: $cumPerc\n" if $debug;
+
+            # We are happy with taking $maxNumNRseqs (500 default) seq's if it
+            # covers more than $percCoverage
 
             if ( $percCovIdx < ($maxNumNRseqs-1) && ($maxNumNRseqs-1) <= $#clPercs )
             {
@@ -702,17 +723,13 @@ for my $phGr ( keys %phGrSppTbl )
             }
 
             my @query = run_vicut( $bigTreeFile, $annFile, $vicutDir );
-
-            # $cmd = "$vicut $quietStr -t $bigTreeFile -a $annFile -q $queryFile -o $vicutDir";
-            # print "\tcmd=$cmd\n" if $dryRun || $debug;
-            # system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
         }
 
         ##
         ## 5. Reporting results of vicut
         ##
 
-        my ($rvCltrTbl, $rvTxTbl, $rvExtTxTbl) = read_cltrs_tbl($vicutCltrsFile);
+        my ($rvCltrTbl, $rvTxTbl, $rvExtTxTbl) = read_cltrs_tbl( $vicutCltrsFile );
 
         my %vCltrTbl   = %{$rvCltrTbl};  # seqID => vicut cluster ID
         my %vTxTbl     = %{$rvTxTbl};    # seqID => taxonomy (NA for query seq's)
@@ -1754,6 +1771,61 @@ sub make_dir
    my $cmd = "mkdir -p $dir";
    print "\tcmd=$cmd\n" if $dryRun || $debug;
    system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
+}
+
+sub fix_fasta_headers
+{
+   my $spNRfaFile = shift;
+
+   my $spNRfaFileTmp  = "$spDir/$sp" . "_nrTmp.fa";
+   $cmd = "$fix_fasta_headers -i $spNRfaFile -o $spNRfaFileTmp; mv $spNRfaFileTmp $spNRfaFile";
+   print "\tcmd=$cmd\n" if $dryRun || $debug;
+   system($cmd) == 0 or die "system($cmd) failed:$?" if !$dryRun;
+}
+
+sub get_seqIDs_from_fa
+{
+  my $file = shift;
+
+  my $quiet = 1;
+  my $startRun = time();
+  my $endRun = time();
+
+  open (IN, "<$file") or die "Cannot open $file for reading: $OS_ERROR";
+  $/ = ">";
+  my $junkFirstOne = <IN>;
+  my $count = 1;
+  my $timeStr = "";
+  my @seqIDs;
+  while (<IN>)
+  {
+    if ( !$quiet && ($count % 500 == 0) )
+    {
+      $endRun = time();
+      my $runTime = $endRun - $startRun;
+      if ( $runTime > 60 )
+      {
+        my $timeMin = int($runTime / 60);
+        my $timeSec = sprintf("%02d", $runTime % 60);
+        $timeStr = "$timeMin:$timeSec";
+      }
+      else
+      {
+        my $runTime = sprintf("%02d", $runTime);
+        $timeStr = "0:$runTime";
+      }
+      print "\r$timeStr";
+    }
+
+    chomp;
+    my ($id,@seqlines) = split /\n/, $_;
+    push @seqIDs, $id;
+    $count++;
+  }
+  close IN;
+  $/ = "\n";
+
+  return @seqIDs;
 }
 
 exit 0;
