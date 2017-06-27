@@ -327,7 +327,7 @@ for my $vDir ( @vDirs )
 
                if ( !$quiet )
                {
-                  printf( "\n%d [%.1f%%]", $spCounter, 100 * $spCounter / $nAllSpp );
+                  printf( "%d [%.1f%%]", $spCounter, 100 * $spCounter / $nAllSpp );
                   $spCounter++;
                }
 
@@ -363,6 +363,37 @@ for my $vDir ( @vDirs )
 
                my @nrAllSeqIDs = @{$rnrAllSeqIDs};  # all non-redundant seq's
                my @nrSeqIDs    = @{$rnrSeqIDs};     # non-redundant seq's covering X percentage of all seq's; if number of nr seq's is less than 500 these are all nr seq's
+
+
+               my $spClstr2File = "$spDir/$sp" . "_nr.clstr2";
+               my %cTbl = parseClstr2( $spClstr2File );
+
+               if ( $sp eq "Lactobacillus_sp_9" )
+               {
+                  my $newTx = "Lactobacillus_crispatus";
+                  for my $refID ( keys %cTbl )
+                  {
+                     my @qIDs = @{ $cTbl{$refID} };
+                     $nQseqsWithTx += @qIDs;
+                     for ( @qIDs )
+                     {
+                        print QOUT "$_\t$newTx\n";
+                     }
+                  }
+               }
+               elsif ( $sp eq "Lactobacillus_sp_11" )
+               {
+                  my $newTx = "Lactobacillus_jensenii";
+                  for my $refID ( keys %cTbl )
+                  {
+                     my @qIDs = @{ $cTbl{$refID} };
+                     $nQseqsWithTx += @qIDs;
+                     for ( @qIDs )
+                     {
+                        print QOUT "$_\t$newTx\n";
+                     }
+                  }
+               }
 
 
                ##
@@ -436,10 +467,6 @@ for my $vDir ( @vDirs )
                   }
                }
 
-               my $spClstr2File = "$spDir/$sp" . "_nr.clstr2";
-               #print "--- Parsing clstr2 file\n";
-               my %cTbl = parseClstr2( $spClstr2File );
-
                ##
                ## The classification section
                ##
@@ -483,6 +510,7 @@ for my $vDir ( @vDirs )
                            $droppedSpp{$sp} += @qIDs;
                            push @droppedQuerySeqs, @qIDs;
                         }
+                        print "Dropped " . commify( $droppedSpp{$sp} ) . " seq's\n\n";
                         next;
                      }
                   }
@@ -499,6 +527,9 @@ for my $vDir ( @vDirs )
                      # sorting txs w/r to their number in the cluster
                      @txs = sort { $txFreq{$b} <=> $txFreq{$a} } @txs;
                      $newTx = shift @txs;
+
+                     $newTx =~ s/gasseri_johnsonii/gasseri/;
+                     $newTx =~ s/crispatus_ultunensis/crispatus/;
 
                      ## here <= 10 taxons/species should be renamed to $newTx <= ToDO !!!!!!!
                      for my $tx ( @txs )
