@@ -756,6 +756,7 @@ if ( $nPhyloParts > 1 )
   my $pdfTreeFile = abs_path( "$ppDir/phyloPart_$taxon" . "_cltrs_condensed_tree_$timeStamp.pdf" );
   my $treeFile2AbsPath = abs_path( $treeFile2 );
 
+if (!$igs) {
   plot_tree($treeFile2AbsPath, $spClFile2, $pdfTreeFile);
 
   if ( $showTree && $OSNAME eq "darwin")
@@ -772,6 +773,7 @@ else
     print "--- Phylo partition generated only one cluster\n";
     print "    Putting all taxons in one cluster\n";
   }
+}
 
   my @par = sort { $parentFreq{$b} <=> $parentFreq{$a} } keys %parentFreq;
 
