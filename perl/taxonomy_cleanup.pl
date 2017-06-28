@@ -159,7 +159,7 @@ my $igsStr = "";
 if ( defined $igs )
 {
   $igsStr = "--igs";
-  $readNewickFile = "??";
+  $readNewickFile = "/local/projects/pgajer/devel/MCclassifier/R/read.newick.R";
 }
 
 my $johannaStr = "";
