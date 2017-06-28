@@ -154,8 +154,8 @@ my $R              = "R";
 
 if ($igs)
 {
-  $phyloPart = "???";
-  $readNewickFile = "???";
+  $phyloPart = "/home/jholm/bin/PhyloPart_v2.1/PhyloPart_v2.1.jar";
+  $readNewickFile = "/local/projects/pgajer/devel/MCclassifier/R/read.newick.R";
 }
 
 if ($johanna)
