@@ -333,8 +333,8 @@ my $partCltrFile = "$ppDir/phyloPart_$taxon" . "_$percThld" . ".cltr";
 print "--- Writing phylo partitioning to $partCltrFile\n" if !$quiet;
 writeTbl(\%part, $partCltrFile);
 
-if ( $nPhyloParts > 1 )
-{
+#if ( $nPhyloParts > 1 )
+#{
   print "--- Generating annotation and query files\n" if !$quiet;
   my $annFile    = "$ppDir/phyloPart_$taxon" . "_ann.tx";
   my $queryFile  = "$ppDir/phyloPart_$taxon" . "_query.seqIDs";
@@ -794,8 +794,7 @@ else
     print OUT "$_\t$parStr\n";
   }
   close OUT;
-}
-
+#
 
 ####################################################################
 ##                               SUBS
