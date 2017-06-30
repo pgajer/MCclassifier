@@ -463,7 +463,7 @@ writeTbl(\%part, $partCltrFile);
   {
     warn "\n\n\tERROR: annotation sequences missing";
     print "\n\n";
-    exit 1;
+    #exit 1;
     # # putting each leaf to its own cluster
     # my $count = 1;
     # %part2 = map { $_ => $count++ } keys %part;
@@ -794,7 +794,8 @@ else
     print OUT "$_\t$parStr\n";
   }
   close OUT;
-#
+#}
+
 
 ####################################################################
 ##                               SUBS
