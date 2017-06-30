@@ -167,6 +167,9 @@ if ( defined $johanna )
 {
   $johannaStr = "--johanna";
   $readNewickFile = "/Users/jholm/MCclassifier/perl/read.newick.R";
+  my $cmd = "alias FastTree=/local/projects/pgajer/bin/FastTree";
+  print "\tcmd=$cmd\n" if $dryRun || $debug;
+  system($cmd) == 0 or die "system($cmd) failed:$?\n" if !$dryRun; 
 }
 
 ## Export LD_LIBRARY_PATH=/usr/local/packages/readline/lib:/usr/local/packages/gcc-5.3.0/lib64
