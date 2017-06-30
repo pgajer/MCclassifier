@@ -280,7 +280,7 @@ elsif ( ! -e $trAlgnFile )
 {
   warn "WARNING: $trAlgnFile does not exist. Creating a symbolic link to $algnFile.\n";
   my $ap = abs_path( $algnFile );
-  my $cmd = "rm -f $trAlgnFile; ln -s $ap $trAlgnFile";
+  my $cmd = "rm -f $trAlgnFile; ln -s -f $ap $trAlgnFile";
   print "\tcmd=$cmd\n" if $dryRun || $debug;
   system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 }
@@ -876,7 +876,7 @@ if ( @ann2 == 0 )
 
   my $spLiFile = $grPrefix . "_spp.lineage";
   $finalLineageFile = abs_path( $finalLineageFile );
-  $cmd = "ln -s $finalLineageFile $spLiFile";
+  $cmd = "ln -s -f $finalLineageFile $spLiFile";
   print "\tcmd=$cmd\n" if $dryRun || $debug;
   #system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 
@@ -886,14 +886,14 @@ if ( @ann2 == 0 )
   {
     $faFile = abs_path( $faFile );
     my $ffaFile = $grPrefix . "_final.fa";
-    $cmd = "ln -s $faFile $ffaFile";
+    $cmd = "ln -s -f $faFile $ffaFile";
     print "\tcmd=$cmd\n" if $dryRun || $debug;
     system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
   }
 
   $trAlgnFile = abs_path( $trAlgnFile );
   my $ftrAlgnFile = $grPrefix . "_algn_trimmed_final.fa";
-  $cmd = "ln -s $trAlgnFile $ftrAlgnFile";
+  $cmd = "ln -s -f $trAlgnFile $ftrAlgnFile";
   print "\tcmd=$cmd\n" if $dryRun || $debug;
   system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 
@@ -1736,7 +1736,7 @@ if ( $nSpecies == 1 )
 
   my $spLiFile = $grPrefix . "_spp.lineage";
   $finalLineageFile = abs_path( $finalLineageFile );
-  $cmd = "ln -s $finalLineageFile $spLiFile";
+  $cmd = "ln -s -f $finalLineageFile $spLiFile";
   print "\tcmd=$cmd\n" if $dryRun || $debug;
   #system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 
@@ -1746,14 +1746,14 @@ if ( $nSpecies == 1 )
   {
     $faFile = abs_path( $faFile );
     my $ffaFile = $grPrefix . "_final.fa";
-    $cmd = "ln -s $faFile $ffaFile";
+    $cmd = "ln -s -f -f $faFile $ffaFile";
     print "\tcmd=$cmd\n" if $dryRun || $debug;
     system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
   }
 
   $trAlgnFile = abs_path( $trAlgnFile );
   my $ftrAlgnFile = $grPrefix . "_algn_trimmed_final.fa";
-  $cmd = "ln -s $trAlgnFile $ftrAlgnFile";
+  $cmd = "ln -s -f $trAlgnFile $ftrAlgnFile";
   print "\tcmd=$cmd\n" if $dryRun || $debug;
   system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 
@@ -4471,14 +4471,14 @@ if ( !setequal( \@trAlgnNoOG, \@treeLeaves ) )
 print "--- Creating a symbolic link to the final version of the phylogenetic tree\n";
 my $finalTreeFile = $grPrefix . "_final.tree";
 my $ap = abs_path( $treeFile );
-$cmd = "rm -f $finalTreeFile; ln -s $ap $finalTreeFile";
+$cmd = "rm -f $finalTreeFile; ln -s -f $ap $finalTreeFile";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 
 print "--- Creating a symbolic link to the final version of the trimmed alignment file\n";
 my $finalAlgnFile = $grPrefix . "_algn_trimmed_final.fa";
 $ap = abs_path( $trAlgnFile );
-$cmd = "rm -f $finalAlgnFile; ln -s $ap $finalAlgnFile";
+$cmd = "rm -f $finalAlgnFile; ln -s -f $ap $finalAlgnFile";
 print "\tcmd=$cmd\n" if $dryRun || $debug;
 system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 
