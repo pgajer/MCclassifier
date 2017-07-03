@@ -257,9 +257,12 @@ sub build_fa_file
   my @dirs = read_array( $phGrFile );
   for my $dir ( @dirs )
   {
-    my $file = $dir;
-    $file =~ s/_dir//;
-    $file = $dir . "/$file" . "_final.fa";
+    my $phGr = $dir;
+    $phGr =~ s/_dir//;
+    my @p = split "_", $phGr;
+    my $idx = shift @p;
+    $idx =~ s/phGr//;
+    my $file = $dir . "/$phGr" .  "_final.fa";
     my $cmd = "cat $file >> $faFile";
     print "\tcmd=$cmd\n" if $dryRun || $debug;
     system($cmd) == 0 or die "system($cmd) failed: $?" if !$dryRun;
@@ -276,9 +279,12 @@ sub build_tx_file
   my @dirs = read_array( $phGrFile );
   for my $dir ( @dirs )
   {
-    my $file = $dir;
-    $file =~ s/_dir//;
-    $file = $dir . "/$file" . "_final.lineage";
+    my $phGr = $dir;
+    $phGr =~ s/_dir//;
+    my @p = split "_", $phGr;
+    my $idx = shift @p;
+    $idx =~ s/phGr//;
+    my $file = $dir . "/$phGr" . "_final.lineage";
     open OUT, ">>$txFile" or die "Cannot open $txFile for writing: $OS_ERROR\n";
     open IN, "$file" or die "Cannot open $file for reading: $OS_ERROR\n";
     foreach ( <IN> )
