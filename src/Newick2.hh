@@ -98,6 +98,9 @@ public:
   int getDepth();
   int getNleaves() { return nLeaves_m; }
   int getMinIdx() { return minIdx_m; }
+  int leafCount() { return nLeaves_m; }
+  void decrementMinIdx() { minIdx_m--; }
+  void incrementLeafCount() { nLeaves_m++; }
 
   void saveCltrMemb( const char *outFile,
 		     vector<int> &nodeCut,
@@ -163,6 +166,7 @@ public:
                 vector<sppProf_t*> &ancRootProfs);
 
   NewickNode_t * root() { return root_m; }
+  void setRoot( NewickNode_t *node ) { root_m = node; }
 
   void txSet2txTree( strSet_t &tx2seqIDs );
 
@@ -197,5 +201,6 @@ private:
   map<int, NewickNode_t*> idx2node_m;
 };
 
+NewickTree_t *readNewickTree( const char *filename );
 
 #endif
