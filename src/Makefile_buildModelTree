@@ -32,7 +32,7 @@ BUILDDIR= .build
 create-build-dir := $(shell $(CHK_DIR_EXISTS) $(BUILDDIR) || $(MKDIR) $(BUILDDIR))
 
 OBJECTS = $(BUILDDIR)/buildModelTree.o \
-          $(BUILDDIR)/Newick.o \
+          $(BUILDDIR)/Newick2.o \
           $(BUILDDIR)/IOCUtilities.o \
           $(BUILDDIR)/IOCppUtilities.o \
           $(BUILDDIR)/CppUtilities.o \
@@ -43,22 +43,22 @@ buildModelTree: $(OBJECTS)
 	$(CXX) $(FLAGS) $(INCPATH) $(OBJECTS) -o $(BINDIR)/buildModelTree
 
 $(BUILDDIR)/buildModelTree.o: buildModelTree.cc
-	$(CXX) -c $(FLAGS) $(INCPATH) -I$(SRCDIR) -o $(BUILDDIR)/buildModelTree.o buildModelTree.cc
+	$(CXX) -c $(CXXFLAGS) $(INCPATH) -I$(SRCDIR) -o $(BUILDDIR)/buildModelTree.o buildModelTree.cc
 
-$(BUILDDIR)/Newick.o: Newick.hh Newick.cc
-	$(CXX) -c $(FLAGS) $(INCPATH) -o $(BUILDDIR)/Newick.o Newick.cc
+$(BUILDDIR)/Newick2.o: Newick2.hh Newick2.cc
+	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o $(BUILDDIR)/Newick2.o Newick2.cc
 
 $(BUILDDIR)/IOCUtilities.o: IOCUtilities.h IOCUtilities.c
-	$(CC) -c $(FLAGS) $(INCPATH) -o $(BUILDDIR)/IOCUtilities.o IOCUtilities.c
+	$(CC) -c $(CFLAGS) $(INCPATH) -o $(BUILDDIR)/IOCUtilities.o IOCUtilities.c
 
 $(BUILDDIR)/IOCppUtilities.o: IOCppUtilities.cc IOCppUtilities.hh
-	$(CXX) -c $(FLAGS) $(INCPATH) -o $(BUILDDIR)/IOCppUtilities.o IOCppUtilities.cc
+	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o $(BUILDDIR)/IOCppUtilities.o IOCppUtilities.cc
 
 $(BUILDDIR)/CppUtilities.o: CppUtilities.cc CppUtilities.hh
-	$(CXX) -c $(FLAGS) $(INCPATH) -o $(BUILDDIR)/CppUtilities.o CppUtilities.cc
+	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o $(BUILDDIR)/CppUtilities.o CppUtilities.cc
 
 $(BUILDDIR)/CUtilities.o: CUtilities.c CUtilities.h
-	$(CC) -c $(FLAGS) $(INCPATH) -o $(BUILDDIR)/CUtilities.o CUtilities.c
+	$(CC) -c $(CFLAGS) $(INCPATH) -o $(BUILDDIR)/CUtilities.o CUtilities.c
 
 $(BUILDDIR)/strings.o: strings.cc
 	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o $(BUILDDIR)/strings.o strings.cc
