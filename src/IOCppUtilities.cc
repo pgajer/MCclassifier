@@ -164,7 +164,7 @@ int numRecordsInFasta( const char *file )
   strcat(tFile, file);
   strcat(tFile, ".size");
 
-  sprintf(cmd,"grep '>' %s | wc -l > %s",file,tFile);
+  sprintf(cmd,"rm -f %s; grep '>' %s | wc -l > %s", tFile, file, tFile);
   system(cmd);
 
   FILE *in = fOpen(tFile, "r");
