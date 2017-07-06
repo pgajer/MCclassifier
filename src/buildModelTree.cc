@@ -50,7 +50,7 @@
 //    buildModelTree -l Firmicutes_group_6_V3V4_final.spLineage -i Firmicutes_group_6_V3V4_final.fa -t Firmicutes_group_6_V3V4_final.tx -o Firmicutes_group_6_V3V4_MC_models_dir
 
 
-#define PATH_MAX 1000
+#define PATH_MAX 1024
 
 #include <getopt.h>
 #include <stdio.h>
@@ -64,7 +64,7 @@
 #include <algorithm>
 #include <iterator>
 
-#include "Newick.hh"
+#include "Newick2.hh"
 #include "IOCUtilities.h"
 #include "IOCppUtilities.hh"
 
@@ -373,7 +373,7 @@ int main(int argc, char **argv)
   {
     string outFile = string(outDir) + string("/") + it3->first + string(".fa");
     char fullpath[PATH_MAX];
-    char *ptr = realpath(outFile.c_str(), fullpath);
+    realpath(outFile.c_str(), fullpath);
     fprintf(out, "%s\n", fullpath);
   }
   fclose(out);

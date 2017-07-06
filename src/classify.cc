@@ -343,27 +343,27 @@ int main(int argc, char **argv)
 
       if ( !inPar->skipErrThld )
       {
-	// reading ncProbThlds.txt file
-	string file = string(inPar->mcDir) + string("/error_thlds.txt");
-	double **thlds;
-	int nrow, ncol;
-	char **rowNames;
-	char **colNames;
-	readTable( file.c_str(), &thlds, &nrow, &ncol, &rowNames, &colNames );
-	for ( int i = 0; i < nrow; i++ )
-	  thldTbl[string(rowNames[i])] = thlds[i][0];
+        // reading ncProbThlds.txt file
+        string file = string(inPar->mcDir) + string("/error_thlds.txt");
+        double **thlds;
+        int nrow, ncol;
+        char **rowNames;
+        char **colNames;
+        readTable( file.c_str(), &thlds, &nrow, &ncol, &rowNames, &colNames );
+        for ( int i = 0; i < nrow; i++ )
+          thldTbl[string(rowNames[i])] = thlds[i][0];
 #if 0
-	map<string, double>::iterator it;
-	cerr << "thldTbl" << endl;
-	for ( it = thldTbl.begin(); it != thldTbl.end(); it++ )
-	  cerr << it->first << "\t" << it->second << endl;
-	cerr << endl;
-	exit(1);
+        map<string, double>::iterator it;
+        cerr << "thldTbl" << endl;
+        for ( it = thldTbl.begin(); it != thldTbl.end(); it++ )
+          cerr << it->first << "\t" << it->second << endl;
+        cerr << endl;
+        exit(1);
 #endif
       }
 
       for ( int i = 0; i < nModels; ++i )
-	free(modelIds[i]);
+        free(modelIds[i]);
 
       int k = 0;
       char countStr[5];
@@ -372,19 +372,19 @@ int main(int argc, char **argv)
 
       while ( exists( file.c_str() ) )
       {
-	k++;
-	sprintf(countStr,"%d",k);
-	file = string(inPar->mcDir) + string("/MC") + string(countStr) + string(".log10cProb");
+        k++;
+        sprintf(countStr,"%d",k);
+        file = string(inPar->mcDir) + string("/MC") + string(countStr) + string(".log10cProb");
       }
 
       if ( (inPar->kMerLens.size() && inPar->kMerLens[0] > k) )
       {
-	inPar->kMerLens[0] = k;
+        inPar->kMerLens[0] = k;
       }
       else if ( !inPar->kMerLens.size() )
       {
-	//inPar->kMerLens.clear();
-	inPar->kMerLens.push_back(k);
+        //inPar->kMerLens.clear();
+        inPar->kMerLens.push_back(k);
       }
     } // end of if ( in )
     fclose(in);
@@ -396,12 +396,13 @@ int main(int argc, char **argv)
     exit(1);
   }
 
-  NewickTree_t nt;
+  NewickTree_t *nt;
   if ( inPar->treeFile ) // load ref tree
   {
-    if ( !nt.loadTree(inPar->treeFile) )
+    nt = readNewickTree( inPar->treeFile );
+    if ( !nt )
     {
-      fprintf(stderr,"Could not load Newick tree from %s\n", inPar->treeFile);
+      fprintf(stderr,"ERROR in %s at line %d: Could not load Newick tree from %s\n", __FILE__, __LINE__, inPar->treeFile);
       exit(EXIT_FAILURE);
     }
   }
@@ -411,15 +412,26 @@ int main(int argc, char **argv)
     string trFile = string(inPar->mcDir) + "/model.tree";
     STRDUP(inPar->treeFile, trFile.c_str());
 
-    if ( !nt.loadTree(inPar->treeFile) )
+    nt = readNewickTree( inPar->treeFile );
+    if ( !nt )
     {
-      cout << endl << "ERROR in "<< __FILE__ << " at line " << __LINE__ << ": reference tree Newick format file is missing. Please specify it with the -r flag." << endl;
-      printHelp(argv[0]);
-      exit(1);
+      fprintf(stderr,"ERROR in %s at line %d: Could not load Newick tree from %s\n", __FILE__, __LINE__, inPar->treeFile);
+      exit(EXIT_FAILURE);
     }
   }
 
-  int depth = nt.getDepth();
+  if ( 0 && inPar->verbose )
+  {
+    // fprintf(stderr,"leafLables\n");
+    // for ( int i = 0; i < nLeaves; i++ )
+    //   fprintf(stderr, "i: %d, %s\n",i, leafLabel[i]);
+    // fprintf(stderr,"\n\n");
+
+    nt->printTree(1);
+  }
+
+
+  int depth = nt->getDepth();
   if ( inPar->verbose )
     cerr << "--- Depth of the model tree: " << depth << endl;
 
@@ -460,7 +472,7 @@ int main(int argc, char **argv)
   vector<string> modelStrIds;
   probModel->modelIds( modelStrIds );
 
-  nt.modelIdx( modelStrIds );
+  nt->modelIdx( modelStrIds );
 
   char str[10];
   sprintf(str,"%d",(wordLen-1));
@@ -500,7 +512,7 @@ int main(int argc, char **argv)
 
     // initializing seen to false for all nodes
     queue<NewickNode_t *> bfs;
-    bfs.push(nt.root());
+    bfs.push(nt->root());
     NewickNode_t *node;
 
     while ( !bfs.empty() )
@@ -526,6 +538,8 @@ int main(int argc, char **argv)
   int perc;
   int nDecissions = 0; // for each sequence count the number of decisions the
 		       // classifier has to make to get to this tree.
+
+  //cerr << "-> Just before the main loop\ninPar->revComp: " << inPar->revComp << endl;
 
   while ( getNextFastaRecord( in, id, data, alloc, seq, seqLen) )
   {
@@ -556,12 +570,15 @@ int main(int argc, char **argv)
       rcseq[seqLen] = '\0';
     }
 
+    //fprintf(stderr,"\ncount: %d  seqID: %s\n", count, id);
+    //fprintf(stderr,"seq: %s\n", seq);
+
     //
     // Traverse the model tree and at each node select a model with the highest
     // posterior probability of the sequence coming from the model, given the
     // posterior probability is above the error threshold of the model.
     //
-    NewickNode_t *node = nt.root();
+    NewickNode_t *node = nt->root();
     int nChildren = node->children_m.size();
     int breakLoop = 0;
     double finalPP = 0.0; // posterior probability of the sequence w/r to the winner model
@@ -569,6 +586,8 @@ int main(int argc, char **argv)
 
     if ( inPar->ppEmbedding ) // start of decition path of the given sequence
       fprintf(dOut,"%s", id);
+
+    //fprintf(stderr,"Before entering model tree\nNumber of root's children: %d\n", nChildren);
 
     //int depthCount = 1;
     while ( nChildren && !breakLoop )
@@ -579,6 +598,9 @@ int main(int argc, char **argv)
       // NOTE: after a few iterations only seq or rcseq should be processed !!!
       for ( int i = 0; i < nChildren; i++ )
       {
+
+        //fprintf(stderr, "Processing child %d\t%s\t", i, (node->children_m[i])->label.c_str());
+
         if ( inPar->revComp )
         {
           x[i] = probModel->normLog10prob(rcseq, seqLen, (node->children_m[i])->model_idx );
@@ -587,6 +609,8 @@ int main(int argc, char **argv)
         {
           x[i] = probModel->normLog10prob(seq, seqLen, (node->children_m[i])->model_idx );
         }
+
+        //fprintf(stderr, "x[%d]: %.6f\n", i, x[i] );
       }
 
       if ( 0 && inPar->ppEmbedding )
@@ -618,7 +642,7 @@ int main(int argc, char **argv)
       finalPP = pow(10, x[imax]);
       node = node->children_m[imax];
 
-      if ( inPar->ppEmbedding ) // decition path
+      if ( inPar->ppEmbedding ) // decision path
         fprintf(dOut,",%s  %.3f %.3f", node->label.c_str(), pow(10, x[imax]), pow(10, thldTbl[ node->label ]));
 
       if ( !inPar->skipErrThld && node->children_m.size()==0 )
@@ -629,7 +653,7 @@ int main(int argc, char **argv)
           fprintf(stderr,"\n---- Processing %s\n",id) ;
           fprintf(stderr,"maxModel: %s\tlpp: %.4f\tthld: %.4f\t",
                   node->label.c_str(), x[imax], thldTbl[ node->label ]);
-          
+
           map<string, string>::iterator itr;
           map<string, string> seqRecs; // fasta file sequence records
 

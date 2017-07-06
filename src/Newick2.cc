@@ -32,7 +32,7 @@ OR PERFORMANCE OF THIS SOFTWARE.
 
 #include "IOCUtilities.h"
 #include "IOCppUtilities.hh"
-#include "Newick.hh"
+#include "Newick2.hh"
 
 using namespace std;
 
@@ -128,7 +128,7 @@ NewickTree_t::~NewickTree_t()
 // pn    n    ch       pn   n
 void NewickTree_t::loadFullTxTree2(const char *file)
 {
-  #define DEBUG_LFTT2 0
+  #define DEBUG_LFTT2 1
 
   #if DEBUG_LFTT2
   fprintf(stderr, "in NewickTree_t::loadFullTxTree()\n");
@@ -375,220 +375,220 @@ void NewickTree_t::loadFullTxTree2(const char *file)
 // pn    n    ch       pn   ch
 void NewickTree_t::loadFullTxTree(const char *file)
 {
-  #define DEBUG_LFTT 0
-
-  #if DEBUG_LFTT
-  fprintf(stderr, "in NewickTree_t::loadFullTxTree()\n");
-  #endif
-
-  // parse fullTxFile that has the following structure
-
-  // BVAB1	g_Shuttleworthia	f_Lachnospiraceae	o_Clostridiales	c_Clostridia	p_Firmicutes	d_Bacteria
-  // BVAB2	g_Acetivibrio	f_Ruminococcaceae	o_Clostridiales	c_Clostridia	p_Firmicutes	d_Bacteria
-  // BVAB3	g_Acetivibrio	f_Ruminococcaceae	o_Clostridiales	c_Clostridia	p_Firmicutes	d_Bacteria
-  // Dialister_sp._type_1	g_Dialister	f_Veillonellaceae	o_Clostridiales	c_Clostridia	p_Firmicutes	d_Bacteria
-
-  //const int NUM_TX = 6;
-  char ***txTbl;
-  int nRows, nCols;
-  readCharTbl( file, &txTbl, &nRows, &nCols );
-
-  #if DEBUG_LFTT
-  fprintf(stderr,"fullTxFile txTbl:\n");
-  printCharTbl(txTbl, 10, nCols); // test
-  #endif
-
-  // creating children mapping
-  // children[ d_Bacteria ] = set( all phyla in fullTx table that are children of d_Bacteria )
-  map<string, set<string> > children;
-  childrenMap( txTbl, nRows, nCols, children );
-
-  #if DEBUG_LFTT
-  fprintf(stderr,"\nchildren tbl:\n");
-  map<string, set<string> >::iterator it1;
-  for ( it1 = children.begin(); it1 != children.end(); it1++ )
-  {
-    fprintf(stderr,">%s :", (it1->first).c_str());
-    printStringSet(it1->second);
-  }
-  fprintf(stderr,"\n");
-  #endif
-
-  // creating taxonomic rank index (species = 0, genus = 1, etc ) => set of
-  // corresponding taxonomic ranks in fullTx
-  vector< set<string> > txRank;
-  txRankTbl( txTbl, nRows, nCols, txRank );
-
-  #if DEBUG_LFTT
-  fprintf(stderr,"\ntxRankTbl:\n");
-  int n1 = txRank.size();
-  for ( int i = 0; i < n1; i++ )
-  {
-    fprintf(stderr,">%d :", i);
-    printStringSet( txRank[i] );
-  }
-  fprintf(stderr,"\n");
-  #endif
-
-  #if DEBUG_LFTT
-  fprintf(stderr,"Creating NewickNode_t pointers for all elements of txRank\n");
-  fprintf(stderr,"and storing it in tx2node map\n");
-  #endif
-  map< string, NewickNode_t* > tx2node; // this will leak memory as map<> is not going to free NewickNode_t objects members
-  root_m = new NewickNode_t();
-  root_m->label = string("d_Bacteria");
-  root_m->branch_length = 0.0;
-  tx2node["d_Bacteria"] = root_m;
-
-  int n = txRank.size();
-  for ( int i = 0; i < n; i++ )
-  {
-    set<string> taxa = txRank[i];
-    set<string>::iterator it;
-    for ( it = taxa.begin(); it != taxa.end(); it++ )
-    {
-      tx2node[ *it ] = new NewickNode_t();
-      tx2node[ *it ]->label = *it;
-      tx2node[ *it ]->branch_length = 0.0;
-    }
-  }
-
-  #if DEBUG_LFTT
-  fprintf(stderr,"Breath first search of the fullTx tree structure using children mapping\n");
-  #endif
-  queue<string> bfs;
-  bfs.push("d_Bacteria");
-  string tx;
-  NewickNode_t *node = NULL;
-
-  while ( !bfs.empty() )
-      {
-    tx = bfs.front();
-    bfs.pop();
-    node = tx2node[tx];
-
-    set<string> chln = children[tx];
-    set<string>::iterator it;
-    for ( it = chln.begin(); it != chln.end(); it++ )
-    {
-      bfs.push( *it );
-      node->children_m.push_back( tx2node[*it] );
-      tx2node[*it]->depth_m = node->depth_m + 1;
-      tx2node[*it]->parent_m = node;
-      tx2node[*it]->branch_length = 0.0;
-      node->branch_length = 0.0;
-    }
-  } // end of while ( !bfs.empty() )
-
-
-  // traverse the tree and remove nodes with only one child
+#define DEBUG_LFTT 0
 
 #if DEBUG_LFTT
-  fprintf(stderr, "\n\n\tTraversing the tree and removing nodes with only one child\n");
+    fprintf(stderr, "in NewickTree_t::loadFullTxTree()\n");
 #endif
 
-  queue<NewickNode_t *> bfs2;
-  bfs2.push(root_m);
-  int numChildren;
-  NewickNode_t *pnode;
+    // parse fullTxFile that has the following structure
 
-  while ( !bfs2.empty() )
-  {
-    node = bfs2.front();
-    bfs2.pop();
+    // BVAB1	g_Shuttleworthia	f_Lachnospiraceae	o_Clostridiales	c_Clostridia	p_Firmicutes	d_Bacteria
+    // BVAB2	g_Acetivibrio	f_Ruminococcaceae	o_Clostridiales	c_Clostridia	p_Firmicutes	d_Bacteria
+    // BVAB3	g_Acetivibrio	f_Ruminococcaceae	o_Clostridiales	c_Clostridia	p_Firmicutes	d_Bacteria
+    // Dialister_sp._type_1	g_Dialister	f_Veillonellaceae	o_Clostridiales	c_Clostridia	p_Firmicutes	d_Bacteria
+
+    //const int NUM_TX = 6;
+    char ***txTbl;
+    int nRows, nCols;
+    readCharTbl( file, &txTbl, &nRows, &nCols );
 
 #if DEBUG_LFTT
-    fprintf(stderr, "\n\tProcessing %s\n", node->label.c_str());
+    fprintf(stderr,"fullTxFile txTbl:\n");
+    printCharTbl(txTbl, 10, nCols); // test
 #endif
-    while ( node->children_m.size() == 1 )
+
+    // creating children mapping
+    // children[ d_Bacteria ] = set( all phyla in fullTx table that are children of d_Bacteria )
+    map<string, set<string> > children;
+    childrenMap( txTbl, nRows, nCols, children );
+
+#if DEBUG_LFTT
+    fprintf(stderr,"\nchildren tbl:\n");
+    map<string, set<string> >::iterator it1;
+    for ( it1 = children.begin(); it1 != children.end(); it1++ )
     {
-      // finding node in a children array of the parent node
-      pnode = node->parent_m;
+      fprintf(stderr,">%s :", (it1->first).c_str());
+      printStringSet(it1->second);
+    }
+    fprintf(stderr,"\n");
+#endif
 
-      if ( pnode != NULL ) // node is not a root
+    // creating taxonomic rank index (species = 0, genus = 1, etc ) => set of
+    // corresponding taxonomic ranks in fullTx
+    vector< set<string> > txRank;
+    txRankTbl( txTbl, nRows, nCols, txRank );
+
+#if DEBUG_LFTT
+    fprintf(stderr,"\ntxRankTbl:\n");
+    int n1 = txRank.size();
+    for ( int i = 0; i < n1; i++ )
+    {
+      fprintf(stderr,">%d :", i);
+      printStringSet( txRank[i] );
+    }
+    fprintf(stderr,"\n");
+#endif
+
+#if DEBUG_LFTT
+    fprintf(stderr,"Creating NewickNode_t pointers for all elements of txRank\n");
+    fprintf(stderr,"and storing it in tx2node map\n");
+#endif
+    map< string, NewickNode_t* > tx2node; // this will leak memory as map<> is not going to free NewickNode_t objects members
+    root_m = new NewickNode_t();
+    root_m->label = string("d_Bacteria");
+    root_m->branch_length = 0.0;
+    tx2node["d_Bacteria"] = root_m;
+
+    int n = txRank.size();
+    for ( int i = 0; i < n; i++ )
+    {
+      set<string> taxa = txRank[i];
+      set<string>::iterator it;
+      for ( it = taxa.begin(); it != taxa.end(); it++ )
       {
-	// identifying index of pnode->children_m vector corresponding to 'node'
-
-	numChildren = pnode->children_m.size();
-
-        #if DEBUG_LFTT
-	fprintf(stderr, "\n\n\t\t%s is not a root and has only one child %s\n\t\t%s's parent is %s with %d children\n",
-	      node->label.c_str(), node->children_m[0]->label.c_str(), node->label.c_str(),
-	      pnode->label.c_str(), numChildren);
-        #endif
-	int i; // index of pnode->children_m corresponding to 'node'
-	for ( i = 0; i < numChildren; i++)
-	{
-	  if ( pnode->children_m[i] == node )
-	    break;
-	}
-
-	if ( i == numChildren )
-	{
-	  fprintf(stderr, "\n\n\tERROR in %s at line %d: node %s cannot be found in %s\n\n",
-		  __FILE__, __LINE__,(node->label).c_str(), (pnode->label).c_str());
-	  exit(1);
-	}
-
-        #if DEBUG_LFTT
-	fprintf(stderr, "\t\t%s is the %d-th child of %s\n",
-		node->label.c_str(), i, pnode->label.c_str());
-
-	fprintf(stderr, "\n\t\t%s children BEFORE change:\n", pnode->label.c_str());
-	for ( int j = 0; j < numChildren; j++)
-	  fprintf(stderr, "\t\t\t%s\n", pnode->children_m[j]->label.c_str());
-
-	fprintf(stderr, "\n\t\tNode's name BEFORE regex statement: %s\n", node->label.c_str());
-        #endif
-
-	// node->children_m[0] is the only child of node
-	// check if its name starts with sg_
-	// if it does, copy the name of node to node->children_m[0]
-	// and proceed as before
-
-	regex rgx("\\bsg_"); // find string that starts with sg_
-	smatch match;
-	if ( regex_search (node->children_m[0]->label, match, rgx) )
-	{
-	  node->children_m[0]->label = node->label;
-	}
-
-	node = node->children_m[0];
-	pnode->children_m[i] = node;
-	node->parent_m = pnode;
-
-        #if DEBUG_LFTT
-	fprintf(stderr, "\t\tAFTER removing 'node' the new node's name: %s\n", node->label.c_str());
-	fprintf(stderr, "\n\t\t%s children AFTER  change:\n", pnode->label.c_str());
-	for ( int j = 0; j < numChildren; j++)
-	  fprintf(stderr, "\t\t\t%s\n", pnode->children_m[j]->label.c_str());
-        #endif
-      }
-      else if ( node == root_m )
-      {
-        #if DEBUG_LFTT
-	fprintf(stderr, "\t%s is the root and has only one child %s\n",
-		node->label.c_str(), node->children_m[0]->label.c_str());
-        #endif
-	root_m = node->children_m[0];
-	node = node->children_m[0];
-	node->parent_m = NULL;
-        #if DEBUG_LFTT
-	fprintf(stderr, "\tSetting %s to be the new root\n", node->label.c_str());
-        #endif
+        tx2node[ *it ] = new NewickNode_t();
+        tx2node[ *it ]->label = *it;
+        tx2node[ *it ]->branch_length = 0.0;
       }
     }
 
-    numChildren = node->children_m.size();
-    if ( numChildren )
-    {
-      for (int i = 0; i < numChildren; i++)
-      {
-	bfs2.push(node->children_m[i]);
-      }
-    }
+#if DEBUG_LFTT
+    fprintf(stderr,"Breath first search of the fullTx tree structure using children mapping\n");
+#endif
+    queue<string> bfs;
+    bfs.push("d_Bacteria");
+    string tx;
+    NewickNode_t *node = NULL;
 
-  } // end of while ( !bfs2.empty() )
+    while ( !bfs.empty() )
+    {
+      tx = bfs.front();
+      bfs.pop();
+      node = tx2node[tx];
+
+      set<string> chln = children[tx];
+      set<string>::iterator it;
+      for ( it = chln.begin(); it != chln.end(); it++ )
+      {
+        bfs.push( *it );
+        node->children_m.push_back( tx2node[*it] );
+        tx2node[*it]->depth_m = node->depth_m + 1;
+        tx2node[*it]->parent_m = node;
+        tx2node[*it]->branch_length = 0.0;
+        node->branch_length = 0.0;
+      }
+    } // end of while ( !bfs.empty() )
+
+
+    // traverse the tree and remove nodes with only one child
+
+#if DEBUG_LFTT
+    fprintf(stderr, "\n\n\tTraversing the tree and removing nodes with only one child\n");
+#endif
+
+    queue<NewickNode_t *> bfs2;
+    bfs2.push(root_m);
+    int numChildren;
+    NewickNode_t *pnode;
+
+    while ( !bfs2.empty() )
+    {
+      node = bfs2.front();
+      bfs2.pop();
+
+#if DEBUG_LFTT
+      fprintf(stderr, "\n\tProcessing %s\n", node->label.c_str());
+#endif
+      while ( node->children_m.size() == 1 )
+      {
+        // finding node in a children array of the parent node
+        pnode = node->parent_m;
+
+        if ( pnode != NULL ) // node is not a root
+        {
+          // identifying index of pnode->children_m vector corresponding to 'node'
+
+          numChildren = pnode->children_m.size();
+
+#if DEBUG_LFTT
+          fprintf(stderr, "\n\n\t\t%s is not a root and has only one child %s\n\t\t%s's parent is %s with %d children\n",
+                  node->label.c_str(), node->children_m[0]->label.c_str(), node->label.c_str(),
+                  pnode->label.c_str(), numChildren);
+#endif
+          int i; // index of pnode->children_m corresponding to 'node'
+          for ( i = 0; i < numChildren; i++)
+          {
+            if ( pnode->children_m[i] == node )
+              break;
+          }
+
+          if ( i == numChildren )
+          {
+            fprintf(stderr, "\n\n\tERROR in %s at line %d: node %s cannot be found in %s\n\n",
+                    __FILE__, __LINE__,(node->label).c_str(), (pnode->label).c_str());
+            exit(1);
+          }
+
+#if DEBUG_LFTT
+          fprintf(stderr, "\t\t%s is the %d-th child of %s\n",
+                  node->label.c_str(), i, pnode->label.c_str());
+
+          fprintf(stderr, "\n\t\t%s children BEFORE change:\n", pnode->label.c_str());
+          for ( int j = 0; j < numChildren; j++)
+            fprintf(stderr, "\t\t\t%s\n", pnode->children_m[j]->label.c_str());
+
+          fprintf(stderr, "\n\t\tNode's name BEFORE regex statement: %s\n", node->label.c_str());
+#endif
+
+          // node->children_m[0] is the only child of node
+          // check if its name starts with sg_
+          // if it does, copy the name of node to node->children_m[0]
+          // and proceed as before
+
+          regex rgx("\\bsg_"); // find string that starts with sg_
+          smatch match;
+          if ( regex_search (node->children_m[0]->label, match, rgx) )
+          {
+            node->children_m[0]->label = node->label;
+          }
+
+          node = node->children_m[0];
+          pnode->children_m[i] = node;
+          node->parent_m = pnode;
+
+#if DEBUG_LFTT
+          fprintf(stderr, "\t\tAFTER removing 'node' the new node's name: %s\n", node->label.c_str());
+          fprintf(stderr, "\n\t\t%s children AFTER  change:\n", pnode->label.c_str());
+          for ( int j = 0; j < numChildren; j++)
+            fprintf(stderr, "\t\t\t%s\n", pnode->children_m[j]->label.c_str());
+#endif
+        }
+        else if ( node == root_m )
+        {
+#if DEBUG_LFTT
+          fprintf(stderr, "\t%s is the root and has only one child %s\n",
+                  node->label.c_str(), node->children_m[0]->label.c_str());
+#endif
+          root_m = node->children_m[0];
+          node = node->children_m[0];
+          node->parent_m = NULL;
+#if DEBUG_LFTT
+          fprintf(stderr, "\tSetting %s to be the new root\n", node->label.c_str());
+#endif
+        }
+      }
+
+      numChildren = node->children_m.size();
+      if ( numChildren )
+      {
+        for (int i = 0; i < numChildren; i++)
+        {
+          bfs2.push(node->children_m[i]);
+        }
+      }
+
+    } // end of while ( !bfs2.empty() )
 }
 
 //--------------------------------------------- rmLeaf -----
@@ -3025,4 +3025,233 @@ void NewickTree_t::modelIdx( vector<string> &modelIds )
 	bfs.push(node->children_m[i]);
     }
   }
+}
+
+// ----------------------------------------- readNewickNode() ---------------------------------
+//
+// This code was lifted/adopted from the spimap-1.1 package
+// ~/devel/MCclassifier/packages/spimap-1.1/src
+// http://compbio.mit.edu/spimap/
+// https://academic.oup.com/mbe/article-lookup/doi/10.1093/molbev/msq189
+//
+
+float readDist( FILE *infile )
+{
+    float dist = 0;
+    fscanf(infile, "%f", &dist);
+    return dist;
+}
+
+
+char readChar(FILE *stream, int &depth)
+{
+    char chr;
+    do {
+        if (fread(&chr, sizeof(char), 1, stream) != 1) {
+            // indicate EOF
+            return '\0';
+        }
+    } while (chr == ' ' || chr == '\n');
+
+    // keep track of paren depth
+    if (chr == '(') depth++;
+    if (chr == ')') depth--;
+
+    return chr;
+}
+
+
+char readUntil(FILE *stream, string &token, const char *stops, int &depth)
+{
+    char chr;
+    token = "";
+    while (true) {
+        chr = readChar(stream, depth);
+        if (!chr)
+            return chr;
+
+        // compare char to stop characters
+        for (const char *i=stops; *i; i++) {
+            if (chr == *i)
+                return chr;
+        }
+        token += chr;
+    }
+}
+
+string getIdent( int depth )
+{
+   string identStr = "";
+   for ( int i = 0; i < depth; i++ )
+   {
+	  identStr += string("  ");
+   }
+
+   return identStr;
+}
+
+NewickNode_t *readNewickNode(FILE *infile, NewickTree_t *tree, NewickNode_t *parent, int &depth)
+{
+  #define DEBUG_RNN 0
+  #if DEBUG_RNN
+   string ident = getIdent( depth );
+   fprintf(stderr, "%sIn readNewickNode() depth: %d\n", ident.c_str(), depth);
+  #endif
+
+   char chr, char1;
+   NewickNode_t *node;
+   string token;
+
+   // read first character
+   if ( !(char1  = readChar(infile, depth)) )
+   {
+	  fprintf(stderr, "\n\n\tERROR: Unexpected end of file\n\n");
+	  exit(1);
+   }
+
+   if ( char1 == '(' ) // read internal node
+   {
+	  int depth2 = depth;
+	  if ( parent )
+	  {
+		 node = parent->addChild();
+		 #if DEBUG_RNN
+		 if ( depth )
+		 {
+			string ident = getIdent( depth );
+			fprintf( stderr, "%sCurrently at depth: %d - Adding a child to a parent\n", ident.c_str(), depth );
+		 }
+		 else
+		 {
+			fprintf( stderr, "Currently at depth: %d - Adding a child to a parent\n", depth );
+		 }
+		 #endif
+	  }
+	  else
+	  {
+		 node = new NewickNode_t();
+		 tree->setRoot( node );
+		 #if DEBUG_RNN
+		 fprintf( stderr, "Currently at depth: %d - Creating a root\n", depth );
+         #endif
+	  }
+
+
+	  // updating node's depth
+	  node->depth_m = depth - 1;
+
+	  // read all child nodes at this depth
+	  while ( depth == depth2 )
+	  {
+		 NewickNode_t *child = readNewickNode(infile, tree, node, depth);
+		 if (!child)
+		   return NULL;
+	  }
+
+	  // Assigning a numeric index to the node
+	  node->idx = tree->getMinIdx();
+	  tree->decrementMinIdx();
+
+	  // read branch_length for this node
+	  // this fragment assumes that the internal nodes do not have labels
+	  char chr = readUntil(infile, token, "):,;", depth);
+
+	  if ( !token.empty() ) // Reading node's label
+	  {
+		 node->label = trim(token.c_str());
+
+         #if DEBUG_RNN
+		 string ident = getIdent( depth );
+		 fprintf( stderr, "%sNode name: %s\n", ident.c_str(), token.c_str() );
+         #endif
+	  }
+
+	  if (chr == ':')
+	  {
+		 node->branch_length = readDist( infile );
+
+		 #if DEBUG_RNN
+		 string ident = getIdent( depth );
+		 fprintf( stderr, "%snode->branch_length: %f\n", ident.c_str(), node->branch_length );
+		 #endif
+
+		 if ( !(chr = readUntil(infile, token, "):,;", depth)) )
+		   return NULL;
+	  }
+	  //if (chr == ';' && depth == 0)
+	  //    return node;
+
+	  #if DEBUG_RNN
+	  string ident = getIdent( node->depth_m );
+	  fprintf( stderr, "%sNode's depth: %d\n", ident.c_str(), node->depth_m );
+	  #endif
+
+	  return node;
+   }
+   else
+   {
+	  // Parsing leaf
+
+	  if (parent)
+	  {
+		node = parent->addChild();
+		#if DEBUG_RNN
+		string ident = getIdent(depth);
+		fprintf( stderr, "%sCurrently at depth: %d - Found leaf: adding it as a child to a parent\n", ident.c_str(), depth );
+		#endif
+	  }
+	  else
+	  {
+		 fprintf( stderr, "\n\n\tERROR: Found leaf without a parent\n\n" );
+		 exit(1);
+	  }
+
+	  // Assigning to the leaf a numeric index
+	  node->idx = tree->leafCount();
+	  tree->incrementLeafCount();
+
+	  // updating leaf's depth
+	  node->depth_m = depth;
+
+	  // Reading leaf label
+	  if ( !(chr = readUntil(infile, token, ":),", depth)) )
+		return NULL;
+	  token = char1 + trim(token.c_str());
+	  node->label = token;
+
+	  #if DEBUG_RNN
+	  string ident = getIdent( depth );
+	  fprintf( stderr, "%sLeaf name: %s\tdepth: %d\tidx: %d\n", ident.c_str(), token.c_str(), node->depth_m, node->idx );
+      #endif
+
+	  // read distance for this node
+	  if (chr == ':')
+	  {
+		 node->branch_length = readDist( infile );
+
+		 #if DEBUG_RNN
+		 fprintf( stderr, "%sLeaf's branch length: %f\n", ident.c_str(), node->branch_length );
+         #endif
+
+		 if ( !(chr = readUntil( infile, token, ":),", depth )) )
+		   return NULL;
+	  }
+
+	  return node;
+   }
+}
+
+
+NewickTree_t *readNewickTree( const char *filename )
+{
+   FILE *infile = fOpen(filename, "r");
+
+   int depth = 0;
+   NewickTree_t *tree = new NewickTree_t();
+   NewickNode_t * node = readNewickNode(infile, tree, NULL, depth);
+   tree->setRoot( node );
+
+   fclose(infile);
+
+   return tree;
 }
