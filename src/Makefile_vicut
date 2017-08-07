@@ -30,7 +30,7 @@ CXX           = g++
 FLAGS         = -g # -fopenmp # -O2 # -g -O2
 CFLAGS        = $(FLAGS) -Wall -D__SIM_SSE3 -msse3 -D_GNU_SOURCE -dynamic -O2 -fomit-frame-pointer -funroll-loops -D__AVX # -D_USE_PTHREADS
 CXXFLAGS      = $(FLAGS) -std=gnu++11 -Wall -D__SIM_SSE3 -O2 -D_GNU_SOURCE -dynamic -msse3 -fomit-frame-pointer -funroll-loops -D__AVX # -D_USE_PTHREADS
-INCPATH       = -Isrc
+INCPATH       = -Isrc -I/usr/local/Cellar/boost/1.64.0_1/include
 LINK          = g++
 LIBS          = -lm # -pthread -L../../lib -lkmerstats
 AR            = ar cq
@@ -74,7 +74,7 @@ vicut: $(OBJECTS)
 	$(CXX) $(FLAGS) $(OBJECTS) -o $(BINDIR)/vicut
 
 $(BUILDDIR)/vicut.o: vicut.cc $(SRCDIR)/IOUtilities.c $(SRCDIR)/IOCppUtilities.cc
-	$(CXX) -c $(FLAGS) -I$(SRCDIR) -o $(BUILDDIR)/vicut.o vicut.cc
+	$(CXX) -c $(FLAGS) -I$(SRCDIR) $(INCPATH) -o $(BUILDDIR)/vicut.o vicut.cc
 
 $(BUILDDIR)/IOUtilities.o: $(SRCDIR)/IOUtilities.c
 	$(CC) -c $(FLAGS) -o $(BUILDDIR)/IOUtilities.o $(SRCDIR)/IOUtilities.c

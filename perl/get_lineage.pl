@@ -12,7 +12,7 @@
   
 =head1 SYNOPSIS
 
-  get_lineage.pl -a <taxonomic annotation file> -s <source lineage file> -t <original taxonomy file> [Options]
+  get_lineage.pl -a <taxonomic annotation file> -s <source lineage file>
 
 =head1 OPTIONS
 
@@ -21,8 +21,11 @@
 =item B<--taxonomic-annotation file, -a>
   List of selected outgroup sequence IDs. 
 
-=item B<--source-lineage-file, -s>
+=item B<--source-lineage-file, -l>
   The starting, source file containing lineage information for all sequences.
+ 
+=item B<--output file, -o>
+ Out file name.
 
 =item B<--verbatim, -v>
   Prints content of some output files.
@@ -56,15 +59,15 @@ $OUTPUT_AUTOFLUSH = 1;
 ####################################################################
 
 GetOptions(
-  "annotation-file|a=s"   => \my $tx,
-  "source-lineage|s=s"    => \my $sourceLineage,
-  "orig-tx|t=s"        => \my $origTx,
-  "igs"                => \my $igs,
-  "verbose|v"           => \my $verbose,
-  "debug"              => \my $debug,
-  "debug2"             => \my $debug2,## file name debug
-  "dry-run"            => \my $dryRun,
-  "help|h!"            => \my $help,
+  "taxonomy-file|a=s"   => \my $txFile,
+  "source-lineage|l=s"    => \my $sourceLineage,
+  "out-file|o=s"          => \my $outFile,
+  "igs"                   => \my $igs,
+  "verbose|v"             => \my $verbose,
+  "debug"                 => \my $debug,
+  "debug2"                => \my $debug2,## file name debug
+  "dry-run"               => \my $dryRun,
+  "help|h!"               => \my $help,
   )
   or pod2usage(verbose => 0,exitstatus => 1);
 
@@ -74,7 +77,7 @@ if ($help)
   exit;
 }
 
-if ( !$tx )
+if ( !$txFile )
 {
   print "\n\nERROR: Missing taxonomic annotation file.\n\n\n";
   pod2usage(verbose => 2,exitstatus => 0);
@@ -86,11 +89,11 @@ elsif (!$sourceLineage)
   pod2usage(verbose => 2,exitstatus => 0);
   exit;
 }
-elsif (!$origTx)
+if (!$outFile)
 {
-    print "\n\nERROR: Missing original taxonomy file.\n\n\n";
-    pod2usage(verbose => 2,exitstatus => 0);
-    exit;
+    print "\n\nOutput file name not provided";
+    print "\n Writing to new.lineage";
+    $outFile = "new.lineage";
 }
 
 
@@ -105,47 +108,38 @@ my $timeStr;
 my $timeMin = int($runTime / 60);
 my $timeSec = $runTime % 60;
 
-#my @suffixes = (".seqID",".txt");
-#my $Seq = basename($SeqID, ".seqID");
-
 ## From a list of sequences get the full taxonomic lineage from the source file.
-my @source;
-my @lineage;
-my @tx;
-my @level;
-my $match;
+my $taxa;
+my $lineage;
 
-open (SOURCE, "<$sourceLineage") or die "Cannot open $sourceLineage for reading: $OS_ERROR\n";
-while (<SOURCE>)
-{
-    @lineage = split /[\t]/, $_;
-    push @source, $lineage[1];
-}
-close SOURCE;
-print "Here's the first line of the source lineage: ". $source[1] . "\n\n";
+my %source = read2colTbl_and_add_column($sourceLineage);
+my %tx = readTbl($txFile);
+my %done;
 
-my %ot = readTbl($origTx);
-#print Dumper \%ot;
+my $newLineage = $outFile;
 
-my @outLineage;
-open (IN, "<$tx") or die "Cannot open $tx for reading: $OS_ERROR\n";
-while (<IN>) ##while reading through the classified taxonomy
-{
-    my @t = split /[\t]/, $_; ## split the line by tab
-    my ($match) = grep /$t[1]/, @source;
-    @level = split /;/, $match;
-    push @outLineage, $t[0]."\t".$level[1].";".$level[2].";".$level[3].";".$level[4].";".$level[5].";".$level[6].";".$level[7].";".$ot{$t[0]}."\n";
-    
-}
-close IN;
-
-
-my $newLineage = "new.lineage";
 open (OUT, ">$newLineage") or die "Cannot open $newLineage for reading: $OS_ERROR\n";
-print OUT @outLineage;
-close OUT;
-#print "\nOutgroup lineages written to $seqLineage.\n";
+for my $seqID (keys %tx) 
+{
+  $taxa = $tx{$seqID};
+  $lineage = $source{$taxa};
 
+  if (!$lineage)
+  {
+    print "WARNING: $taxa does not exist in $sourceLineage.\n"
+  }
+  elsif (!$taxa)
+  {
+    print "WARNING: $seqID does not exist in $txFile.\n"
+  }
+  else 
+  {
+    print OUT "$seqID\t$lineage\n";
+  }
+
+
+}
+close OUT;
 
 ## report timing
 $endRun = time();
@@ -161,7 +155,7 @@ else
   print "\rCompleted in $runTime seconds\n"
 }
 
-print "Lineages for sequences in $tx written to $newLineage.\n\n";
+print "\nLineages for ". scalar(keys %tx) . " sequences from $txFile written to $newLineage.\n\n";
 
 
 
@@ -187,6 +181,30 @@ sub readTbl{
     chomp;
     my ($id, $t) = split /\s+/,$_;
     $tbl{$id} = $t;
+  }
+  close IN;
+
+  return %tbl;
+}
+
+# read two column table
+sub read2colTbl_and_add_column{
+
+  my $file = shift;
+
+  my %tbl;
+  open IN, "$file" or die "Cannot open $file for reading: $OS_ERROR\n";
+  foreach (<IN>)
+  {
+    chomp;
+    next if $_ eq "";
+    my ($id, $t) = split (/\s+/,$_, 2);
+    $tbl{$id} = $t;
+    $tbl{$id} = $tbl{$id} . "\t" . $id;
+    if ($debug)
+    {
+    print "\nMaking a hash table with $id connected to $tbl{$id}\n"
+    }
   }
   close IN;
 

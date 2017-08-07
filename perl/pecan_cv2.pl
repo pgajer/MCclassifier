@@ -6,9 +6,7 @@
 
 =head1 DESCRIPTION
 
-  Perform cross-validation on all bacteria models in
-
-  ~/devel/MCextras/data/RDP/rdp_Bacteria_phylum_dir/all_bacteria_V3V4_MC_models_dir
+  Perform cross-validation on all bacteria models in given directory
 
 =head1 SYNOPSIS
 
@@ -17,6 +15,9 @@
 =head1 OPTIONS
 
 =over
+
+=item B<--input-dir, -i>
+  Input directory containing all.fa, spp.tx, and spp.lineage files. 
 
 =item B<--output-dir, -o>
   Output directory.
@@ -86,6 +87,7 @@ my $txSizeThld   = 10;
 my $cvSpSizeThld = 50;
 
 GetOptions(
+  "input-dir|i=s"       => \my $mcDir,
   "output-dir|o=s"      => \my $outDir,
   "num-folds|n=i"       => \$nFolds,
   "offset-coef|c=f"     => \$offsetCoef,
@@ -156,18 +158,18 @@ if ($ppEmbedding)
   $ppEmbeddingStr = "--pp-embedding"
 }
 
-my $mcDir = "/Users/pgajer/devel/MCextras/data/RDP/rdp_Bacteria_phylum_dir/all_bacteria_V3V4_MC_models_dir";
+
 
 if ( ! -d $mcDir )
 {
   warn "\n\n\tERROR: $mcDir does not exist";
   print "\n\n";
-  exit 1;
+  my $mcDir = "/Users/pgajer/devel/MCextras/data/RDP/rdp_Bacteria_phylum_dir/all_bacteria_V3V4_MC_models_dir";
 }
 
-my $faFile    = "/Users/pgajer/devel/MCextras/data/RDP/rdp_Bacteria_phylum_dir/all_bacteria_V3V4.fa";
-my $txFile    = "/Users/pgajer/devel/MCextras/data/RDP/rdp_Bacteria_phylum_dir/all_bacteria_V3V4.tx";
-my $spLgFile  = "/Users/pgajer/devel/MCextras/data/RDP/rdp_Bacteria_phylum_dir/all_bacteria_V3V4.spLineage";
+my $faFile    = $mcDir . "/all.fa";
+my $txFile    = $mcDir . "/spp.tx";
+my $spLgFile  = $mcDir . "/spp.Lineage";
 
 if ( ! -e $spLgFile )
 {
@@ -373,10 +375,25 @@ foreach my $i (0..($nFolds-1))
   print "\tcmd=$cmd\n" if $dryRun || $debug;
   system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 
+  ## The training lineage file has to be made otherwise empty .fa files are made
+  ## which will cause est_err_thld to fail
+  print "\r[$i] Creating training set lineage file                                  ";
+  my $trSpLineageFile = "$cvDir/train.lineage";
+  $cmd = "select_fullTx.pl -t $trTxFile -f $spLgFile -o $trSpLineageFile";
+  print "\tcmd=$cmd\n" if $dryRun || $debug;
+  system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
+
+  print "\r[$i] Creating seqID to lineage file                                  ";
+  my $testSeqIDLineageFile = "$cvDir/testSeqID.lineage";
+  $cmd = "get_lineage.pl -a $testTxFile -l $spLgFile -o $testSeqIDLineageFile";
+  print "\tcmd=$cmd\n" if $dryRun || $debug;
+  system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
   ## train spLineage will be the same as for the full dataset
   ## the only difference is that models will be using fewer sequences for modeling big species
 
-  my $trSpLineageFile = $spLgFile;
+  #my $trSpLineageFile = $spLgFile; 
+
+
 
   print "\r[$i] Building model tree and creating taxon's reference fasta files      ";
   my $mcDir = "$cvDir/mcDir";
@@ -398,7 +415,7 @@ foreach my $i (0..($nFolds-1))
   }
 
   print "\r[$i] Estimating error thresholds                                      ";
-  $cmd = "est_error_thlds --offset-coef $offsetCoef --tx-size-thld $txSizeThld -d $mcDir";
+  $cmd = "est_error_thlds -d $mcDir -v";
   print "\tcmd=$cmd\n" if $dryRun || $debug;
   system($cmd) == 0 or die "system($cmd) failed with exit code: $?" if !$dryRun;
 
@@ -413,7 +430,7 @@ foreach my $i (0..($nFolds-1))
 
   print "\r[$i] Creating a table of true and classifier's taxonomy                 ";
   my %trainTx = readTbl($trTxFile);
-  my %testTx = readTbl($testTxFile);
+  my %testTx = readTbl($testSeqIDLineageFile);
   my $clTxFile = "$cvDir/MC_order7_results.txt";
   my %clTx = readTbl($clTxFile);
 
